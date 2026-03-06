@@ -2,7 +2,7 @@
 # copybook-rs Roadmap
 
 **Status:** ⚠️ Engineering Preview (v0.4.3)
-**Last Updated**: 2026-07-23
+**Last Updated**: 2026-03-05
 **Production Readiness**: 35% (see [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md))
 **Target Release**: v1.0.0 (Q2-Q3 2026)
 
@@ -30,7 +30,7 @@ Criteria → Risks/Mitigations.
 | PR #162, #163 | **RENAMES R2/R3** | Group resolver + alias API |
 | PR #158, #160 | **Determinism Phases 1-2** | Codec harness + CLI validation |
 
-**Test Status**: 2,800+ passing (cargo test --workspace)
+**Test Status**: 10,250+ passing (15 ignored)
 **CI Mode**: Full CI pipeline active (CI Quick PR gate + CI Full matrix)
 
 ---
@@ -80,7 +80,7 @@ bash scripts/ci/governance-bdd-smoke.sh
 - CLI integration: `--list-features`, `--enable-features`, `--disable-features`
 
 **Categories**:
-- Experimental (4 flags): SignSeparate, RenamesR4R6, Comp1, Comp2
+- Experimental (4 flags): SignSeparate, RenamesR4R6, Comp1, Comp2 (SignSeparate, Comp1, Comp2 promoted to stable/default-enabled in v0.4.3)
 - Enterprise (6 flags): AuditSystem, SoxCompliance, HipaaCompliance, GdprCompliance, PciDssCompliance, SecurityMonitoring
 - Performance (4 flags): AdvancedOptimization, LruCache, ParallelDecode, ZeroCopy
 - Debug (4 flags): VerboseLogging, DiagnosticOutput, Profiling, MemoryTracking
@@ -205,7 +205,7 @@ See [`docs/TESTING_COMMANDS.md`](docs/TESTING_COMMANDS.md) for:
 | **Determinism CI** (#112 Phase 3) | ✅ Complete | - | None (smoke test active in CI) |
 | **Quality gates** (#97-100) | ✅ Complete | - | None (issues closed 2026-03-05) |
 | **Benchmark container** (#113) | ✅ Complete | - | None |
-| **Production Automation** | 🟡 Medium | 4-6 weeks | PR comments (#195) |
+| **Production Automation** | 🟢 Low | 2-4 weeks | Perf regression gates |
 | **Enterprise Features** | 🔴 High | 8-12 weeks | Incomplete |
 | **Feature Gaps** | 🟡 Medium | 4-6 weeks | Partial |
 | **Quality Assurance** | 🟢 Low | 1-2 weeks | Variance tracking |
@@ -257,8 +257,7 @@ semantics with fixtures.
    * ✅ `bench-report` CLI tool with baseline management (validate, promote,
      compare, summary)
    * ✅ criterion JSON parsing with real throughput calculation
-   * ❌ PR comment automation: SLO deltas and pass/fail against budgets
-     (±5% warn, >10% fail)
+   * ✅ PR comment automation: pr-bench-comment.yml (Issue #195, commit 761f16c)
    * ✅ Upload receipts to GitHub Actions artifacts (`perf-json`,
      90-day retention)
    * ✅ DISPLAY/COMP-3 metric extraction from benchmark results
@@ -286,7 +285,7 @@ semantics with fixtures.
 * ✅ Golden fixtures all pass; structural constraints properly validated
 * ✅ Benchmark tooling implemented (`bench-report` CLI with baseline
   management)
-* ❌ CI integration: PR comments and artifact uploads not yet automated
+* ✅ CI integration: PR bench comments automated (Issue #195); artifact uploads active
 * ✅ Documentation audit complete: no duplicate perf numbers, working
   navigation
 
@@ -415,7 +414,7 @@ refresh, bench-report CLI
 
 ### 1. Production Automation (MEDIUM PRIORITY) — Est. 4-6 weeks
 
-- **PR comment automation** (#195) — Performance results not posted automatically
+- ~~**PR comment automation** (#195)~~ — ✅ Complete (pr-bench-comment.yml, commit 761f16c)
 - **Performance regression gates** — SLO gates are neutral/advisory only
 - **Artifact upload paths** — Need validation for release workflows
 
@@ -457,7 +456,7 @@ refresh, bench-report CLI
 3. ~~Determinism Phase 3~~ ✅ Smoke test active in CI
 4. ✅ Safety lints: `deny(clippy::unwrap_used, clippy::expect_used)` enforced across all 36 publishable crates
 5. ✅ CI Quick: workflow_dispatch trigger added for manual re-runs
-6. Implement PR comments and artifact uploads (#195)
+6. ~~Implement PR comments and artifact uploads (#195)~~ ✅ Complete
 7. Make performance regression gates blocking (after baseline stabilization)
 
 ### Phase 2: Complete Enterprise Features (8-12 weeks) — Feb 2026 to ~May 2026

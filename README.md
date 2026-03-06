@@ -35,8 +35,9 @@ See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
 | [CLI Reference](docs/CLI_REFERENCE.md) | Command-line interface documentation |
 | [Library API](docs/reference/LIBRARY_API.md) | Rust library API reference |
 | [BDD Testing](docs/BDD_TESTING.md) | Behavior Driven Development tests and documentation |
-| [Error Codes](docs/reference/ERROR_CODES.md) | CBKP/CBKS/CBKD/CBKE/CBKR taxonomy |
+| [Error Codes](docs/reference/ERROR_CODES.md) | CBKP/CBKS/CBKD/CBKE/CBKR/CBKC/CBKF/CBKI/CBKA/CBKW taxonomy |
 | [COBOL Support](docs/reference/COBOL_SUPPORT_MATRIX.md) | Feature coverage matrix |
+| [Start Here](docs/START_HERE.md) | Stable documentation entry point and navigation |
 | [Roadmap](docs/ROADMAP.md) | Project status and adoption guidance |
 
 ## Quick Start
@@ -128,7 +129,7 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 
 - **COBOL schema parsing**: Lexer, parser, and AST with layout resolution for REDEFINES, ODO, and SYNCHRONIZED
 - **Encoding/decoding**: Deterministic conversion between COBOL records and JSONL/structured data
-- **Enterprise error handling**: Stable error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*, CBKR*) with contextual metadata - see [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete reference
+- **Enterprise error handling**: Stable error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*, CBKR*, CBKC*, CBKF*, CBKI*, CBKA*, CBKW*) with contextual metadata - see [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete reference
 - **Field projection (`--select`)**: Selective field encoding/decoding with ODO auto-dependency and RENAMES alias resolution (R1-R3)
 - **Edited PIC support (E1/E2/E3)**: Parse, decode, and encode edited numeric PICTURE clauses (ZZZ9, $ZZ,ZZZ.99, sign editing, CR/DB, currency, asterisk fill)
 - **Memory-aware streaming**: Streaming I/O architecture with bounded memory; real-world telemetry stays below 256 MiB during decode/encode runs
@@ -169,7 +170,7 @@ The project is organized as a Cargo workspace with 36 crates under `crates/`, 3 
 - **copybook-codec**: Encoding/decoding codecs for COBOL data types and character conversion
 - **copybook-cli**: Command-line interface with subcommands (parse, inspect, decode, encode, verify, determinism)
 - **copybook-arrow**: Conversion from COBOL layouts/records to Apache Arrow and Parquet (experimental)
-- **copybook-error**: Structured error types with stable taxonomy (CBKP/CBKS/CBKD/CBKE/CBKR)
+- **copybook-error**: Structured error types with stable taxonomy (CBKP/CBKS/CBKD/CBKE/CBKR/CBKC/CBKF/CBKI/CBKA/CBKW)
 - **copybook-codec-memory**: Shared scratch/streaming/worker-pool memory primitives for codec hot paths
 - **copybook-fixed**: Fixed-length (LRECL) record framing reader/writer primitives
 - **copybook-rdw**: RDW (record descriptor word) framing primitives
@@ -283,7 +284,7 @@ See [SECURITY.md](SECURITY.md) for security scanning infrastructure and vulnerab
 
 **Canonical Status**: See [ROADMAP.md](docs/ROADMAP.md) for official project status and adoption guidance.
 
-**CI Mode**: Currently operating in CI-off mode with local gates and small PRs. See [`docs/internal/state-and-path.md`](docs/internal/state-and-path.md) for current state and implementation path.
+**CI Mode**: Full CI pipeline active (CI Quick PR gate + CI Full matrix). See [`docs/internal/state-and-path.md`](docs/internal/state-and-path.md) for current state.
 
 copybook-rs is suitable for teams that validate their copybooks against the supported feature set, but known limitations mean cautious adoption is recommended:
 
@@ -297,12 +298,12 @@ copybook-rs is suitable for teams that validate their copybooks against the supp
 1. Validate representative copybooks against supported features before deployment
 2. Run pilot workloads to verify throughput meets requirements
 3. Review [REPORT.md](docs/REPORT.md) for detailed readiness assessment
-4. Consult [ROADMAP.md](docs/ROADMAP.md) for v0.5.0 dialect features and v1.0.0 stability timeline
+4. Consult [ROADMAP.md](docs/ROADMAP.md) for v1.0.0 stability timeline and development phases
 
 See `scripts/bench/perf.json` for current performance receipts.
 
 ### **Development Roadmap**
-See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. Current focus: v0.5.0 dialect features and benchmark automation (Issue #52).
+See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. Current focus: enterprise features and path to v1.0.0 stability.
 
 ## Stability Guarantees
 
@@ -313,7 +314,7 @@ This section defines what users can expect to remain stable across releases, pro
 **Public APIs (v1.0+)**
 - Library APIs in [`crates/copybook-codec/src/lib_api.rs`](crates/copybook-codec/src/lib_api.rs): `parse_copybook`, `decode_record`, `encode_record`, `decode_file_to_jsonl`, `encode_jsonl_to_file`, `RecordIterator`
 - CLI command interfaces: `parse`, `inspect`, `decode`, `encode`, `verify`, `support`
-- Error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*, CBKR* codes) - stable across minor versions
+- Error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*, CBKR*, CBKC*, CBKF*, CBKI*, CBKA*, CBKW* codes) - stable across minor versions
 - Exit codes: 0 (success), 1 (unhandled), 2-5 (structured error codes)
 
 **Output Formats**

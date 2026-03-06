@@ -113,6 +113,20 @@ pub struct EncodeOptions {
 }
 
 /// Record format specification
+///
+/// Controls whether records have a fixed byte length (LRECL) or use
+/// variable-length RDW (Record Descriptor Word) framing.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_options::RecordFormat;
+///
+/// let fmt = RecordFormat::Fixed;
+/// assert!(fmt.is_fixed());
+/// assert!(!fmt.is_variable());
+/// assert_eq!(fmt.description(), "Fixed-length records");
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
 pub enum RecordFormat {
     /// Fixed-length records
@@ -145,6 +159,20 @@ impl RecordFormat {
 }
 
 /// JSON number representation mode
+///
+/// Controls how COBOL numeric fields are represented in JSON output.
+/// `Lossless` preserves exact decimal precision as strings; `Native` uses
+/// JSON number types where the value fits without precision loss.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_options::JsonNumberMode;
+///
+/// let mode = JsonNumberMode::Lossless;
+/// assert!(mode.is_lossless());
+/// assert_eq!(mode.description(), "Lossless string representation for decimals");
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
 pub enum JsonNumberMode {
     /// Lossless string representation for decimals
@@ -180,6 +208,24 @@ impl JsonNumberMode {
 }
 
 /// Raw data capture mode
+///
+/// Controls whether and how binary record data is captured in the output:
+/// - `Off` — no raw data (default, lowest overhead)
+/// - `Record` — full record payload in `__raw_b64`
+/// - `RecordRDW` — RDW header + payload in `__raw_b64`
+/// - `Field` — per-field raw bytes in `<FIELD_NAME>__raw_b64`
+///
+/// # Examples
+///
+/// ```
+/// use copybook_options::RawMode;
+///
+/// let mode = RawMode::Off;
+/// assert_eq!(mode, RawMode::Off);
+///
+/// let field_mode = RawMode::Field;
+/// assert_ne!(field_mode, RawMode::Off);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
 pub enum RawMode {
     /// No raw data capture

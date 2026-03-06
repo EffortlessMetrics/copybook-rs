@@ -32,6 +32,16 @@ const DEFAULT_PROPTEST_CASE_COUNT: u32 = 512;
 ///
 /// COBOL compilers differ on whether zero is positive (`0xC0`) or unsigned
 /// (`0xF0`). This enum lets callers choose the convention.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_overpunch::ZeroSignPolicy;
+///
+/// let policy = ZeroSignPolicy::Preferred;
+/// assert_eq!(policy, ZeroSignPolicy::Preferred);
+/// assert_ne!(policy, ZeroSignPolicy::Positive);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ZeroSignPolicy {
     /// Use positive sign for zero (C for EBCDIC, '{' for ASCII)

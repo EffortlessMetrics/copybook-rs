@@ -83,6 +83,19 @@ impl Error {
 /// - **CBKI**: Iterator and infrastructure state validation (e.g., fixed-format without LRECL -> `CBKI001_INVALID_STATE`)
 ///
 /// Implements `Serialize`/`Deserialize` for error code persistence and API responses.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_error::ErrorCode;
+///
+/// let code = ErrorCode::CBKP001_SYNTAX;
+/// assert_eq!(code.family_prefix(), "CBKP");
+/// assert_eq!(format!("{code}"), "CBKP001_SYNTAX");
+///
+/// let data_code = ErrorCode::CBKD301_RECORD_TOO_SHORT;
+/// assert_eq!(data_code.family_prefix(), "CBKD");
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[allow(non_camel_case_types)] // These are stable external error codes
 pub enum ErrorCode {

@@ -65,6 +65,21 @@ pub struct Field {
 }
 
 /// Field type and characteristics
+///
+/// # Examples
+///
+/// ```
+/// use copybook_core::FieldKind;
+///
+/// let alpha = FieldKind::Alphanum { len: 10 };
+/// assert!(matches!(alpha, FieldKind::Alphanum { len: 10 }));
+///
+/// let packed = FieldKind::PackedDecimal { digits: 7, scale: 2, signed: true };
+/// assert!(matches!(packed, FieldKind::PackedDecimal { signed: true, .. }));
+///
+/// let group = FieldKind::Group;
+/// assert!(matches!(group, FieldKind::Group));
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FieldKind {
     /// Alphanumeric field (PIC X)
@@ -150,6 +165,16 @@ pub struct SignSeparateInfo {
 }
 
 /// Sign placement for SIGN SEPARATE clause
+///
+/// # Examples
+///
+/// ```
+/// use copybook_core::SignPlacement;
+///
+/// let placement = SignPlacement::Leading;
+/// assert_eq!(placement, SignPlacement::Leading);
+/// assert_ne!(placement, SignPlacement::Trailing);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SignPlacement {
@@ -160,6 +185,22 @@ pub enum SignPlacement {
 }
 
 /// Array occurrence information
+///
+/// # Examples
+///
+/// ```
+/// use copybook_core::Occurs;
+///
+/// let fixed = Occurs::Fixed { count: 10 };
+/// assert!(matches!(fixed, Occurs::Fixed { count: 10 }));
+///
+/// let odo = Occurs::ODO {
+///     min: 0,
+///     max: 100,
+///     counter_path: "ITEM-COUNT".to_string(),
+/// };
+/// assert!(matches!(odo, Occurs::ODO { max: 100, .. }));
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Occurs {
     /// Fixed-size array

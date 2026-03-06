@@ -43,6 +43,18 @@ pub struct PicClause {
 }
 
 /// Types of PIC clauses
+///
+/// # Examples
+///
+/// ```
+/// use copybook_core::pic::PicKind;
+///
+/// let kind = PicKind::Alphanumeric;
+/// assert_eq!(kind, PicKind::Alphanumeric);
+///
+/// let numeric = PicKind::NumericDisplay;
+/// assert_ne!(numeric, PicKind::Alphanumeric);
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum PicKind {
     /// Alphanumeric field (`PIC X`).

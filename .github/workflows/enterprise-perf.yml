@@ -160,8 +160,6 @@ jobs:
           COMBINED_OVERHEAD: ${{ steps.overhead.outputs.combined_overhead }}
         with:
           script: |
-            const { context, github } = require('@actions/github');
-            
             let body = '## 🔒 Enterprise Performance Overhead\n\n';
             body += '| Feature | Overhead | Target | Status |\n';
             body += '|---------|----------|--------|--------|\n';
@@ -260,9 +258,9 @@ jobs:
             
             let summary = 'Enterprise Performance Overhead:\n';
             summary += `- Audit: ${auditOverhead}% (target: < 2%)\n`;
-            summary += `- Compliance: ${complianceOverhead}% (target: < 3%)\n';
-            summary += `- Security: ${securityOverhead}% (target: < 1%)\n';
-            summary += `- Combined: ${combinedOverhead}% (target: < 5%)\n';
+            summary += `- Compliance: ${complianceOverhead}% (target: < 3%)\n`;
+            summary += `- Security: ${securityOverhead}% (target: < 1%)\n`;
+            summary += `- Combined: ${combinedOverhead}% (target: < 5%)\n`;
             
             if (hasExceeds) {
               summary += '\n⚠️ Some overhead exceeds targets by > 2%';

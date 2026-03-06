@@ -81,6 +81,16 @@ pub struct CommonDeterminismArgs {
 }
 
 /// Available output rendering modes.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_cli_determinism::OutputFormat;
+///
+/// let fmt = OutputFormat::Human;
+/// assert_eq!(fmt, OutputFormat::Human);
+/// assert_ne!(fmt, OutputFormat::Json);
+/// ```
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
     /// Human-readable output with symbols and diff table.
@@ -144,6 +154,18 @@ impl DeterminismRun {
 }
 
 /// Executable verdict from determinism checks.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_cli_determinism::DeterminismVerdict;
+///
+/// let pass = DeterminismVerdict::Deterministic;
+/// assert_eq!(pass.exit_code(), 0);
+///
+/// let fail = DeterminismVerdict::NonDeterministic;
+/// assert_eq!(fail.exit_code(), 2);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeterminismVerdict {
     /// Both runs were byte-for-byte identical.

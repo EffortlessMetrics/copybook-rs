@@ -27,6 +27,16 @@ pub const DEFAULT_MAX_DIFFS: usize = 100;
 pub const BLAKE3_HEX_LEN: usize = 64;
 
 /// Mode of determinism checking (decode-only, encode-only, or full round-trip).
+///
+/// # Examples
+///
+/// ```
+/// use copybook_determinism::DeterminismMode;
+///
+/// let mode = DeterminismMode::DecodeOnly;
+/// assert_eq!(mode, DeterminismMode::DecodeOnly);
+/// assert_ne!(mode, DeterminismMode::RoundTrip);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DeterminismMode {

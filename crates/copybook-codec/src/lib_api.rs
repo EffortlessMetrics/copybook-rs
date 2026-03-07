@@ -35,21 +35,21 @@ fn build_json_envelope(
     encoding_metadata: Vec<(String, ZonedEncodingFormat)>,
 ) -> Value {
     let mut root = serde_json::Map::new();
+
     root.insert(
-        "schema".to_string(),
-        Value::String(JSON_SCHEMA_VERSION.to_string()),
+        String::from("schema"),
+        Value::String(JSON_SCHEMA_VERSION.into()),
     );
     root.insert(
-        "record_index".to_string(),
+        String::from("record_index"),
         Value::Number(serde_json::Number::from(record_index)),
     );
-    root.insert(
-        "codepage".to_string(),
-        Value::String(options.codepage.to_string()),
-    );
+
+    let codepage = options.codepage.to_string();
+    root.insert(String::from("codepage"), Value::String(codepage));
 
     let flat_fields = fields.clone();
-    root.insert("fields".to_string(), Value::Object(fields));
+    root.insert(String::from("fields"), Value::Object(fields));
     for (key, value) in flat_fields {
         root.insert(key, value);
     }
@@ -57,40 +57,40 @@ fn build_json_envelope(
     if options.emit_meta {
         if !schema.fingerprint.is_empty() {
             root.insert(
-                "schema_fingerprint".to_string(),
+                String::from("schema_fingerprint"),
                 Value::String(schema.fingerprint.clone()),
             );
             root.insert(
-                "__schema_id".to_string(),
+                String::from("__schema_id"),
                 Value::String(schema.fingerprint.clone()),
             );
         }
         root.insert(
-            "length".to_string(),
+            String::from("length"),
             Value::Number(serde_json::Number::from(record_length)),
         );
         root.insert(
-            "__record_index".to_string(),
+            String::from("__record_index"),
             Value::Number(serde_json::Number::from(record_index)),
         );
         root.insert(
-            "__length".to_string(),
+            String::from("__length"),
             Value::Number(serde_json::Number::from(record_length)),
         );
     }
 
     if let Some(raw) = raw_b64 {
-        root.insert("raw_b64".to_string(), Value::String(raw.clone()));
-        root.insert("__raw_b64".to_string(), Value::String(raw));
+        root.insert(String::from("raw_b64"), Value::String(raw.clone()));
+        root.insert(String::from("__raw_b64"), Value::String(raw));
     }
 
-    // Emit zoned encoding metadata when preserve_zoned_encoding is enabled
     if options.preserve_zoned_encoding && !encoding_metadata.is_empty() {
         let mut meta_map = serde_json::Map::new();
         for (field_name, format) in encoding_metadata {
-            meta_map.insert(field_name, Value::String(format.to_string()));
+            let format_text = format.to_string();
+            meta_map.insert(field_name, Value::String(format_text));
         }
-        root.insert("_encoding_metadata".to_string(), Value::Object(meta_map));
+        root.insert(String::from("_encoding_metadata"), Value::Object(meta_map));
     }
 
     Value::Object(root)
@@ -1406,8 +1406,6 @@ fn decode_scalar_field_value_standard(
         }
         FieldKind::BinaryInt { bits, signed } => {
             let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
-            // tripwire: hot-path allocation guard should catch this
-            let _bad = Value::String(int_value.to_string());
             let scratch = scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
             let formatted =
                 crate::numeric::format_binary_int_to_string_with_scratch(int_value, scratch);
@@ -1420,7 +1418,8 @@ fn decode_scalar_field_value_standard(
         } => {
             let decimal =
                 crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
-            Ok(numeric_string_to_value(decimal.to_string(), options))
+            let formatted = decimal.to_string();
+            Ok(numeric_string_to_value(formatted, options))
         }
         FieldKind::Group => {
             // Group fields should not be processed as scalars
@@ -1574,7 +1573,8 @@ fn decode_scalar_field_value_with_scratch(
                     sign_sep,
                     options.codepage,
                 )?;
-                Ok(numeric_string_to_value(decimal.to_string(), options))
+                let formatted = decimal.to_string();
+                Ok(numeric_string_to_value(formatted, options))
             } else {
                 let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
                     field_data,

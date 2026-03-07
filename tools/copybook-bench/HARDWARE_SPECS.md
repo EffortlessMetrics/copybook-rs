@@ -132,5 +132,5 @@ For production mainframe workloads, consider:
 
 - Issue #49: Benchmark Regression Testing Implementation
 - AC2: Performance Baseline Reconciliation
-- Specification: `docs/issue-49-tdd-handoff-package.md`
+- Specification: `docs/archived/issue-49-tdd-handoff-package.md`
 - Methodology: `copybook-bench/BASELINE_METHODOLOGY.md`

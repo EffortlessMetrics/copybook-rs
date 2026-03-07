@@ -43,11 +43,9 @@ categories:
       - docs/explanation/benchmark-reporting-architecture.md
       - docs/explanation/enterprise-audit-architecture.md
       - docs/explanation/enterprise-audit-api-contracts.md
-      - docs/explanation/enterprise-audit-implementation-blueprint.md
       - docs/explanation/enterprise-audit-integration-patterns.md
       - docs/explanation/enterprise-audit-performance-integration.md
       - docs/explanation/enterprise-audit-security-architecture.md
-      - docs/explanation/panic-elimination-api-contracts.md
       - docs/explanation/panic-elimination-architecture.md
       - docs/explanation/panic-elimination-implementation-blueprint.md
       - docs/explanation/performance-regression-monitoring.md
@@ -98,8 +96,6 @@ categories:
       - docs/specs/error-codes-specification.md
       - docs/specs/golden-fixtures-spec.md
       - docs/specs/issue-33-panic-elimination-spec.md
-      - docs/specs/issue-60-enterprise-audit-spec.md
-      - docs/specs/issue-enterprise-audit-spec.md
       - docs/specs/specification-validation-summary.md
       - docs/specs/structural-error-codes-spec.md
       - docs/specs/structural-performance-requirements-spec.md
@@ -205,6 +201,10 @@ categories:
       - docs/archived/benchmark-regression-testing.md
       - docs/archived/benchmark-api-contracts.md
       - docs/archived/issue-49-traceability-matrix.md
+      - docs/archived/enterprise-audit-implementation-blueprint.md
+      - docs/archived/panic-elimination-api-contracts.md
+      - docs/archived/issue-60-enterprise-audit-spec.md
+      - docs/archived/issue-enterprise-audit-spec.md
       - docs/api/structural-validation.md
       - docs/backlog/benchmark_tooling.md
       - docs/design/DETERMINISM_CLI.md

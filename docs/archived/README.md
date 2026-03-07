@@ -20,6 +20,19 @@ baseline (commit 1fa63633) and [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERN
 - `benchmark-api-contracts.md` — API contract reference (was `reference/`)
 - `issue-49-traceability-matrix.md` — AC-to-specification mapping (was `docs/`)
 
+### Superseded Enterprise-Audit and Panic-Elimination Planning Documents (4 documents)
+
+Moved during v0.4.3 docs hygiene (PR #400). These are historical planning
+artifacts for Issue #60 (enterprise audit) and Issue #33 (panic elimination)
+that contained present-tense guarantees and stale performance targets.
+
+| Document | Original location | Description |
+|----------|-------------------|-------------|
+| enterprise-audit-implementation-blueprint.md | explanation/ | Issue #60 4-week completion roadmap |
+| panic-elimination-api-contracts.md | explanation/ | Issue #33 API contract designs |
+| issue-60-enterprise-audit-spec.md | specs/ | Issue #60 comprehensive technical spec |
+| issue-enterprise-audit-spec.md | specs/ | Issue #60 acceptance criteria and issue template |
+
 ### Issue #102 Gate Receipts
 
 - `issue-102-architecture-review.md`

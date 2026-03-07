@@ -20,7 +20,7 @@ The copybook-rs project has implemented a comprehensive testing strategy with fi
 - 3 feature files: `copybook_parsing.feature`, `encode_decode.feature`, `error_handling.feature`
 - Executable specifications in human-readable format
 - Integration with CI workflow: `.github/workflows/ci.yml` (bdd-tests job)
-- Documentation: [`docs/BDD_TESTING.md`](docs/BDD_TESTING.md)
+- Documentation: [`docs/BDD_TESTING.md`](../BDD_TESTING.md)
 
 **Coverage Areas**:
 - Copybook parsing (simple fields, numeric fields, OCCURS, REDEFINES, Level-88)

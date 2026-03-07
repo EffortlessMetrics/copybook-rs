@@ -18,6 +18,7 @@ Start with **[START_HERE.md](START_HERE.md)** for the hand-maintained navigation
 
 ### Project
 - [Roadmap](ROADMAP.md) -- project status, next/later plan
+- [Report](REPORT.md) -- engineering status and performance snapshot
 - [Stability Guarantees](STABILITY_GUARANTEES.md) -- API stability contract
 - [Support Policy](SUPPORT_POLICY.md) -- release support windows
 - [Performance Governance](PERFORMANCE_GOVERNANCE.md) -- baseline and policy

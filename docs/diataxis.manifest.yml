@@ -15,7 +15,6 @@ categories:
     docs:
       - docs/how-to/README.md
       - docs/BDD_TESTING.md
-      - docs/how-to/benchmark-regression-testing.md
       - docs/how-to/configure-security-scanning.md
       - docs/how-to/error-handling-production.md
       - docs/how-to/performance-optimization.md
@@ -128,7 +127,6 @@ categories:
       - docs/reference/ERROR_CODES.md
       - docs/reference/GRAMMAR_RENAMES.md
       - docs/reference/LIBRARY_API.md
-      - docs/reference/benchmark-api-contracts.md
       - docs/reference/security-receipt-schema.json
       - docs/reference/security-receipt-schema.md
       - docs/API_FREEZE.md
@@ -168,7 +166,6 @@ categories:
       - docs/SPEC_GATE_STATUS.md
       - docs/issue-49-spec-gate-receipt.md
       - docs/issue-49-tdd-handoff-package.md
-      - docs/issue-49-traceability-matrix.md
       - docs/issue-49-schema-validation-report.md
       - docs/issue-49-spec.md
       - docs/issue-52-spec.md
@@ -205,6 +202,9 @@ categories:
       - docs/pr-90-regression-detector-receipt.md
       - docs/pr-105-docs-gate-receipt.md
       - docs/pr-105-performance-gate-receipt.md
+      - docs/archived/benchmark-regression-testing.md
+      - docs/archived/benchmark-api-contracts.md
+      - docs/archived/issue-49-traceability-matrix.md
       - docs/api/structural-validation.md
       - docs/backlog/benchmark_tooling.md
       - docs/design/DETERMINISM_CLI.md

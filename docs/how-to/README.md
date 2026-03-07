@@ -9,8 +9,6 @@ Use these documents when you need to solve a specific problem or perform an expl
 
 - **[Handle Errors in Production](error-handling-production.md)**  
   Implement structured handling for parse, schema, and data errors in enterprise pipelines.
-- **[Benchmark Regression Testing](benchmark-regression-testing.md)**  
-  Set up and run performance regression tests from issue-49 workflows.
 - **[Optimize Performance](performance-optimization.md)**  
   Tune decode/encode paths, scratch buffers, and throughput diagnostics.
 - **[Configure Security Scanning](configure-security-scanning.md)**  
@@ -27,7 +25,6 @@ Use these documents when you need to solve a specific problem or perform an expl
 ### Improving performance behavior
 
 - Start with [Optimize Performance](performance-optimization.md).
-- Add benchmarking checks using [Benchmark Regression Testing](benchmark-regression-testing.md).
 - Validate with governance docs:
   - [Performance Governance](../PERFORMANCE_GOVERNANCE.md)
   - [Operator Runbook](../perf/OPERATOR_RUNBOOK.md) (where applicable)

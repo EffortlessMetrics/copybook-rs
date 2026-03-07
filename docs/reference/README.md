@@ -17,8 +17,6 @@ Use these documents as canonical technical references and interface definitions.
   Feature-level support and dialect behavior matrix.
 - **[Benchmarks](BENCHMARKS.md)**  
   Reference details for benchmark behavior and outputs.
-- **[Benchmark API Contracts](benchmark-api-contracts.md)**  
-  Contract definitions used by issue-49 and performance reporting flows.
 - **[Grammar Renames](GRAMMAR_RENAMES.md)**  
   Rename behavior and aliasing reference for schema fields.
 - **[Security Receipt Schema](security-receipt-schema.md)** and **[security-receipt-schema.json](security-receipt-schema.json)**  

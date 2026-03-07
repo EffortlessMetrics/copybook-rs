@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Performance Regression Monitoring Architecture
 
-> **Note**: Performance numbers in this document reflect earlier planning phases.
-> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
-> See [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERNANCE.md) for current policy.
+> **Historical note**: This document reflects earlier design and planning work.
+> Performance figures and implementation checklists below are historical review evidence, not current project baselines or guarantees.
+> For the current state, see [START_HERE.md](../START_HERE.md), [ROADMAP.md](../ROADMAP.md), [REPORT.md](../REPORT.md), and [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERNANCE.md).
 ## Issue #49 - Enterprise Performance Gate Infrastructure
 
 ### Executive Summary

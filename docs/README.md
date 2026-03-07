@@ -36,7 +36,6 @@ Practical guides for accomplishing specific tasks.
 
 - **[Error Handling in Production](how-to/error-handling-production.md)** - Structured error handling patterns
 - **[Performance Optimization](how-to/performance-optimization.md)** - COBOL data processing optimization techniques
-- **[Benchmark Regression Testing](how-to/benchmark-regression-testing.md)** - Performance validation workflows (Issue #49)
 - Use the full how-to index: **[docs/how-to/README.md](how-to/README.md)**
 
 ### 💡 Explanation (Understanding-Oriented)
@@ -56,7 +55,6 @@ Technical specifications and API documentation.
 - **[Error Codes](reference/ERROR_CODES.md)** - Complete error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*)
 - **[Library API](reference/LIBRARY_API.md)** - Rust API reference
 - **[CLI Examples](reference/CLI_EXAMPLES.md)** - Command-line interface reference
-- **[Benchmark API Contracts](reference/benchmark-api-contracts.md)** - Performance monitoring APIs (Issue #49)
 - Use the full reference index: **[docs/reference/README.md](reference/README.md)**
 
 ---
@@ -68,11 +66,10 @@ Technical specifications and API documentation.
 **Status**: IMPLEMENTED
 
 **Documents**:
-- **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)** - Architecture and design rationale
-- **[Benchmark API Contracts](reference/benchmark-api-contracts.md)** - API specifications and contracts
-- **[Benchmark Regression Testing](how-to/benchmark-regression-testing.md)** - Step-by-step implementation guide
-- **[Traceability Matrix](issue-49-traceability-matrix.md)** - AC-to-specification mapping
+- **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)** - Architecture and design rationale (historical)
 - **[Performance Governance](PERFORMANCE_GOVERNANCE.md)** - Baseline and governance guidance
+- **[Troubleshooting Matrix](TROUBLESHOOTING_MATRIX.md)** - Common issues and resolutions
+- Earlier planning docs (API contracts, how-to, traceability matrix) archived to **[docs/archived/](archived/README.md)**
 
 ### Issue #52: Machine-Readable Benchmark Reporting (Foundation)
 
@@ -123,7 +120,6 @@ Rationale for significant architectural decisions.
 
 ### Feature Specifications
 - **[Issue #49 Specification](issue-49-spec.md)** - Performance regression monitoring requirements
-- **[Issue #49 Traceability Matrix](issue-49-traceability-matrix.md)** - AC-to-specification mapping
 - **[Issue #52 Specification](issue-52-spec.md)** - Machine-readable benchmark reporting
 - **[Issue #63 Technical Specification](issue-63-technical-specification.md)** - Panic elimination enterprise safety
 
@@ -178,9 +174,8 @@ Rationale for significant architectural decisions.
 - **[Test Suite Enhancement Architecture](explanation/test-suite-enhancement-architecture.md)** - Testing infrastructure
 
 ### Benchmarking
-- **[Benchmark Regression Testing](how-to/benchmark-regression-testing.md)** - Performance validation workflows (Issue #49)
-- **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)** - Architecture and design (Issue #49)
-- **[Benchmark API Contracts](reference/benchmark-api-contracts.md)** - API specifications (Issue #49)
+- **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)** - Architecture and design (Issue #49, historical)
+- **[Performance Governance](PERFORMANCE_GOVERNANCE.md)** - Current baseline and governance policy
 
 ---
 
@@ -195,7 +190,7 @@ Rationale for significant architectural decisions.
 1. Review **[Library API Reference](reference/LIBRARY_API.md)**
 2. Study **[Error Codes](reference/ERROR_CODES.md)**
 3. Follow **[Performance Optimization Guide](how-to/performance-optimization.md)**
-4. Use **[Benchmark Regression Testing](how-to/benchmark-regression-testing.md)** for performance validation
+4. Use **[Performance Governance](PERFORMANCE_GOVERNANCE.md)** for performance validation
 
 ### For Operations Teams
 1. Read **[Enterprise Deployment Tutorial](tutorials/enterprise-deployment.md)**
@@ -207,7 +202,7 @@ Rationale for significant architectural decisions.
 1. Study **[Architecture Decision Records](adr/)**
 2. Review **[Roadmap](ROADMAP.md)** for strategic direction
 3. Examine **[Implementation Blueprints](#implementation-blueprints)**
-4. Understand **[Benchmark API Contracts](reference/benchmark-api-contracts.md)** for performance monitoring
+4. Understand **[Performance Governance](PERFORMANCE_GOVERNANCE.md)** for performance monitoring
 
 ---
 

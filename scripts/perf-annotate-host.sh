@@ -2,35 +2,25 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 set -euo pipefail
 
-PERF="scripts/bench/perf.json"
+ROOT_DIR="$(git rev-parse --show-toplevel)"
 
-if [[ ! -f "$PERF" ]]; then
-  echo "Missing $PERF. Run bench.sh first." >&2
-  exit 1
-fi
-
-CPU=$(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //')
-CORES=$(nproc)
-KERN=$(uname -r)
-OS=$(uname -s)
-DATE=$(date -Is)
-
-# Detect WSL2 environment
-WSL2_DETECTED="false"
-if [[ -f /proc/version ]]; then
-  if grep -qi "microsoft" /proc/version; then
-    WSL2_DETECTED="true"
+bootstrap_rustup() {
+  if [ -n "${HOME:-}" ] && [ -f "$HOME/.cargo/env" ]; then
+    # Non-login bash shells may not populate Rust's shims on PATH.
+    . "$HOME/.cargo/env"
   fi
-fi
+}
 
-jq --arg cpu "$CPU" \
-  --argjson cores "$CORES" \
-  --arg kern "$KERN" \
-  --arg os "$OS" \
-  --arg ts "$DATE" \
-  --argjson wsl2 "$WSL2_DETECTED" \
-  '.summary |= (. // {}) | .summary += {host_cpu:$cpu, host_cores:$cores, host_kernel:$kern, host_os:$os, wsl2_detected:$wsl2, ts:$ts}' \
-  "$PERF" > "${PERF}.tmp"
-mv "${PERF}.tmp" "$PERF"
+run_cargo() {
+  bootstrap_rustup
 
-echo "Annotated $PERF with host info (WSL2: $WSL2_DETECTED)."
+  if command -v rustup >/dev/null 2>&1; then
+    rustup run stable cargo "$@"
+  elif command -v rustup.exe >/dev/null 2>&1; then
+    rustup.exe run stable cargo "$@"
+  else
+    cargo "$@"
+  fi
+}
+
+run_cargo run --quiet --manifest-path "$ROOT_DIR/tools/copybook-scripts/Cargo.toml" -- perf-annotate-host

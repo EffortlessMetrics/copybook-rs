@@ -39,6 +39,7 @@ members = [
     "crates/copybook-support-matrix",
     "tools/copybook-gen",
     "tools/copybook-bench",
+    "tools/copybook-scripts",
     "tools/xtask",
     "tests/bdd",
     "tests/proptest",

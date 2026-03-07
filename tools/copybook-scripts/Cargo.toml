@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-scripts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Native Rust replacements for small repository maintenance scripts"
+publish = false
+
+[[bin]]
+name = "copybook-scripts"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+chrono = { workspace = true }
+clap.workspace = true
+num_cpus = { workspace = true }
+serde_json.workspace = true
+
+[lints]
+workspace = true
+

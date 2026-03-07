@@ -3,18 +3,24 @@
 set -euo pipefail
 
 ROOT_DIR="$(git rev-parse --show-toplevel)"
-cd "$ROOT_DIR"
 
-fail=0
-patterns=("unwrap\(" "expect\(")
+bootstrap_rustup() {
+  if [ -n "${HOME:-}" ] && [ -f "$HOME/.cargo/env" ]; then
+    # Non-login bash shells may not populate Rust's shims on PATH.
+    . "$HOME/.cargo/env"
+  fi
+}
 
-for pattern in "${patterns[@]}"; do
-  while IFS= read -r file; do
-    if [[ -n "$file" ]]; then
-      echo "error: disallowed ${pattern%\\(} usage in $file"
-      fail=1
-    fi
-  done < <(rg --files-with-matches "$pattern" --glob 'src/**/*.rs' --glob '!target/*')
-done
+run_cargo() {
+  bootstrap_rustup
 
-exit $fail
+  if command -v rustup >/dev/null 2>&1; then
+    rustup run stable cargo "$@"
+  elif command -v rustup.exe >/dev/null 2>&1; then
+    rustup.exe run stable cargo "$@"
+  else
+    cargo "$@"
+  fi
+}
+
+run_cargo run --quiet --manifest-path "$ROOT_DIR/tools/copybook-scripts/Cargo.toml" -- check-no-unwrap-expect

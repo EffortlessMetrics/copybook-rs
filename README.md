@@ -68,6 +68,15 @@ See [COBOL_SUPPORT_MATRIX.md](docs/reference/COBOL_SUPPORT_MATRIX.md) for the fu
 | [Support Policy](docs/SUPPORT_POLICY.md) | Release support windows and response times |
 | [Roadmap](docs/ROADMAP.md) | Project status and what's next |
 
+## Exit Codes
+
+| Code | Tag  | Meaning (1-liner) | Test |
+|----:|:----:|--------------------|------|
+| 2 | CBKD | Data quality failure | exit_code_mapping::exit_code_cbkd_is_2 |
+| 3 | CBKE | Encode/validation failure | exit_code_mapping::exit_code_cbke_is_3 |
+| 4 | CBKF | Record format/RDW failure | exit_code_mapping::exit_code_cbkf_is_4 |
+| 5 | CBKI | Internal orchestration error | exit_code_mapping::exit_code_cbki_is_5 |
+
 ## Development
 
 ```bash

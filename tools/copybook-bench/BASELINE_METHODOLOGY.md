@@ -331,7 +331,7 @@ Measurements beyond 2 standard deviations from the mean are flagged as outliers.
 - Issue #49: Benchmark Regression Testing Implementation
 - AC2: Performance Baseline Reconciliation
 - `HARDWARE_SPECS.md`: Hardware configuration and measurement environment
-- `docs/issue-49-tdd-handoff-package.md`: TDD specification and acceptance criteria
+- `docs/archived/issue-49-tdd-handoff-package.md`: TDD specification and acceptance criteria
 - Criterion.rs documentation: https://bheisler.github.io/criterion.rs/book/
 
 ## Revision History

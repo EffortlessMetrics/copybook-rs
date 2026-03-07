@@ -150,12 +150,6 @@ PROPTEST_CASES=512 PROPTEST_SEED=copybook-rs-proptest cargo test -p copybook-pro
 
 ### Testing Integration Summary
 
-See [`docs/TESTING_INTEGRATION_SUMMARY.md`](../TESTING_INTEGRATION_SUMMARY.md) for:
-- How all testing methodologies work together
-- Feature flag dependencies between methodologies
-- CI workflow triggers and schedules
-- How to run all tests locally
-
 See [`docs/TESTING_COMMANDS.md`](../TESTING_COMMANDS.md) for:
 - Exact commands to run each test suite
 - Runtime class (PR-gate vs scheduled)

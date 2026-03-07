@@ -15,7 +15,7 @@ Golden fixtures are test cases that validate COBOL copybook parsing and data pro
 - **Enterprise Scenarios**: Real-world mainframe patterns from banking, insurance, retail, manufacturing
 - **Performance Integration**: Automated performance regression detection with baselines
 - **SHA-256 Verification**: Cryptographic validation of test outputs for consistency
-- **Comprehensive Coverage**: 458+ tests including edge cases and enterprise production scenarios
+- **Comprehensive Coverage**: 200+ tests including edge cases and enterprise production scenarios
 
 ## Running Golden Fixtures
 
@@ -318,7 +318,7 @@ Golden fixtures provide enterprise deployment confidence through:
 
 - **Cryptographic Verification**: SHA-256 hashes provide audit trails
 - **Deterministic Results**: Consistent outputs across environments
-- **Comprehensive Coverage**: 458+ tests covering all production scenarios
+- **Comprehensive Coverage**: 200+ tests covering all production scenarios
 - **Performance Baselines**: Documented performance characteristics
 - **Enterprise Patterns**: Validated against industry-standard record layouts
 

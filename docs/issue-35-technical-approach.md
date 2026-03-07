@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #35: Dependency & Security Scanning - Technical Approach & Architecture
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Executive Summary
 
 This document provides a comprehensive technical approach for implementing enterprise-grade dependency and security scanning infrastructure for copybook-rs. The analysis validates the specification in `docs/issue-35-spec.md` and provides detailed implementation guidance aligned with copybook-rs enterprise mainframe data processing requirements.

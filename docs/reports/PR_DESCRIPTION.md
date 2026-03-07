@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # feat: Implement Issue #53 Golden Fixtures Framework with Level-88 Support
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERNANCE.md) for current policy.
+
 **Issue**: #53
 **Branch**: `feat/issue-53-golden-fixtures`
 **Type**: Major Feature Enhancement

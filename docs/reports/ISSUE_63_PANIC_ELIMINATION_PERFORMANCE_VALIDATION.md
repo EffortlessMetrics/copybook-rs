@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs Issue #63 Panic Elimination Performance Validation
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERNANCE.md) for current policy.
+
 **Performance Baseline Specialist Assessment**: ⚠️ **PERFORMANCE REGRESSION DETECTED - REQUIRES OPTIMIZATION**
 **Validation Date**: 2025-09-28
 **Branch**: feat/issue-63-panic-elimination

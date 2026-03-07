@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Specification Validation Summary
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Overview
 
 This document validates the comprehensive architectural blueprint for Issue #48 "Binary round-trip encoding inconsistency in encode/decode cycle" against copybook-rs enterprise standards, performance targets, and architectural patterns.

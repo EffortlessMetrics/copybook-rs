@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #52 Specifications Validation Summary
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Overview
 
 This document validates that the comprehensive technical specifications created for Issue #52 machine-readable benchmark reporting infrastructure satisfy all 10 Acceptance Criteria (AC) test requirements identified in the existing test scaffolding.

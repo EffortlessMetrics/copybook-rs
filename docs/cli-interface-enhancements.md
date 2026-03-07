@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # CLI Interface Enhancements for Zoned Encoding Preservation
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Overview
 
 This document specifies the command-line interface enhancements required to support zoned decimal encoding format detection and preservation in copybook-rs. The enhancements maintain backward compatibility while providing fine-grained control over encoding behavior.

@@ -36,7 +36,6 @@ Practical guides for accomplishing specific tasks.
 
 - **[Error Handling in Production](how-to/error-handling-production.md)** - Structured error handling patterns
 - **[Performance Optimization](how-to/performance-optimization.md)** - COBOL data processing optimization techniques
-- **[Benchmark Regression Testing](how-to/benchmark-regression-testing.md)** ⭐ **NEW** - Performance validation workflows (Issue #49)
 - Use the full how-to index: **[docs/how-to/README.md](how-to/README.md)**
 
 ### 💡 Explanation (Understanding-Oriented)
@@ -46,7 +45,7 @@ Conceptual documentation explaining architecture and design decisions.
 - **[Panic Elimination Architecture](explanation/panic-elimination-architecture.md)** - Enterprise production safety design
 - **[Enterprise Audit API Contracts](explanation/enterprise-audit-api-contracts.md)** - Audit system architecture
 - **[Benchmark Reporting Architecture](explanation/benchmark-reporting-architecture.md)** - Machine-readable performance monitoring (Issue #52)
-- **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)** ⭐ **NEW** - Regression detection and CI integration (Issue #49)
+- **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)** - Regression detection and CI integration (Issue #49)
 - Use the full explanation index: **[docs/explanation/README.md](explanation/README.md)**
 
 ### 📖 Reference (Information-Oriented)
@@ -56,36 +55,21 @@ Technical specifications and API documentation.
 - **[Error Codes](reference/ERROR_CODES.md)** - Complete error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*)
 - **[Library API](reference/LIBRARY_API.md)** - Rust API reference
 - **[CLI Examples](reference/CLI_EXAMPLES.md)** - Command-line interface reference
-- **[Benchmark API Contracts](reference/benchmark-api-contracts.md)** ⭐ **NEW** - Performance monitoring APIs (Issue #49)
 - Use the full reference index: **[docs/reference/README.md](reference/README.md)**
 
 ---
 
 ## Issue-Specific Documentation
 
-### Issue #49: Performance Regression Monitoring ⭐ **NEW**
+### Issue #49: Performance Regression Monitoring
 
-**Status**: SPECIFICATION COMPLETE - Ready for TDD implementation
-**Priority**: AC2 (Baseline Reconciliation) FIRST, then AC1/AC3/AC4/AC5
+**Status**: IMPLEMENTED
 
-**Core Documents**:
-1. **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)** - Architecture and design rationale
-2. **[Benchmark API Contracts](reference/benchmark-api-contracts.md)** - API specifications and contracts
-3. **[Benchmark Regression Testing](how-to/benchmark-regression-testing.md)** - Step-by-step implementation guide
-4. **[Traceability Matrix](issue-49-traceability-matrix.md)** - AC-to-specification mapping
-
-**Supporting Documents**:
+**Documents**:
+- **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)** - Architecture and design rationale (historical)
 - **[Performance Governance](PERFORMANCE_GOVERNANCE.md)** - Baseline and governance guidance
-- **[Troubleshooting Matrix](TROUBLESHOOTING_MATRIX.md)** - Operational diagnostics for regression and reliability issues
-
-**Acceptance Criteria Coverage**:
-- **AC1**: Regression Detection Validation (>5% WARNING, >10% FAILURE)
-- **AC2**: Performance Baseline Reconciliation (PRIORITY 1 - CRITICAL PATH)
-- **AC3**: CI Regression Gating Validation (PR comments, baseline promotion)
-- **AC4**: Progressive Complexity Testing (developer optimization workflows)
-- **AC5**: Enhanced Diagnostics and Monitoring (health checks, verbose logging)
-
-**Implementation Path**: AC2 → AC1 → AC3 → AC4 → AC5
+- **[Troubleshooting Matrix](TROUBLESHOOTING_MATRIX.md)** - Common issues and resolutions
+- Earlier planning docs (API contracts, how-to, traceability matrix) archived to **[docs/archived/](archived/README.md)**
 
 ### Issue #52: Machine-Readable Benchmark Reporting (Foundation)
 
@@ -135,8 +119,7 @@ Rationale for significant architectural decisions.
 ## Specifications and Technical Documentation
 
 ### Feature Specifications
-- **[Issue #49 Specification](issue-49-spec.md)** ⭐ **NEW** - Performance regression monitoring requirements
-- **[Issue #49 Traceability Matrix](issue-49-traceability-matrix.md)** ⭐ **NEW** - AC-to-specification mapping
+- **[Issue #49 Specification](issue-49-spec.md)** - Performance regression monitoring requirements
 - **[Issue #52 Specification](issue-52-spec.md)** - Machine-readable benchmark reporting
 - **[Issue #63 Technical Specification](issue-63-technical-specification.md)** - Panic elimination enterprise safety
 
@@ -190,10 +173,9 @@ Rationale for significant architectural decisions.
 - **[Golden Fixtures Guide](GOLDEN_FIXTURES_GUIDE.md)** - Structural validation framework
 - **[Test Suite Enhancement Architecture](explanation/test-suite-enhancement-architecture.md)** - Testing infrastructure
 
-### Benchmarking ⭐ **NEW**
-- **[Benchmark Regression Testing](how-to/benchmark-regression-testing.md)** - Performance validation workflows (Issue #49)
-- **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)** - Architecture and design (Issue #49)
-- **[Benchmark API Contracts](reference/benchmark-api-contracts.md)** - API specifications (Issue #49)
+### Benchmarking
+- **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)** - Architecture and design (Issue #49, historical)
+- **[Performance Governance](PERFORMANCE_GOVERNANCE.md)** - Current baseline and governance policy
 
 ---
 
@@ -208,19 +190,19 @@ Rationale for significant architectural decisions.
 1. Review **[Library API Reference](reference/LIBRARY_API.md)**
 2. Study **[Error Codes](reference/ERROR_CODES.md)**
 3. Follow **[Performance Optimization Guide](how-to/performance-optimization.md)**
-4. **⭐ NEW**: Use **[Benchmark Regression Testing](how-to/benchmark-regression-testing.md)** for performance validation
+4. Use **[Performance Governance](PERFORMANCE_GOVERNANCE.md)** for performance validation
 
 ### For Operations Teams
 1. Read **[Enterprise Deployment Tutorial](tutorials/enterprise-deployment.md)**
 2. Review **[Production Readiness Report](PRODUCTION_READINESS.md)**
 3. Study **[Troubleshooting Matrix](TROUBLESHOOTING_MATRIX.md)**
-4. **⭐ NEW**: Monitor performance with **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)**
+4. Monitor performance with **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)**
 
 ### For Architects
 1. Study **[Architecture Decision Records](adr/)**
 2. Review **[Roadmap](ROADMAP.md)** for strategic direction
 3. Examine **[Implementation Blueprints](#implementation-blueprints)**
-4. **⭐ NEW**: Understand **[Benchmark API Contracts](reference/benchmark-api-contracts.md)** for performance monitoring
+4. Understand **[Performance Governance](PERFORMANCE_GOVERNANCE.md)** for performance monitoring
 
 ---
 
@@ -244,62 +226,6 @@ All documentation must meet these standards:
 3. **Completeness**: Covers all necessary information
 4. **Examples**: Includes concrete examples and code samples
 5. **Traceability**: Links to related issues, PRs, and specifications
-
-### Issue #49 Documentation Standards ⭐ **NEW**
-
-**Comprehensive Specification Coverage**:
-- **Explanation Document**: Architecture and design rationale
-- **Reference Document**: API contracts and specifications
-- **How-To Guide**: Step-by-step implementation procedures
-- **Traceability Matrix**: AC-to-specification mapping
-
-**TDD Integration**:
-- All tests tagged with `// AC:ID` for traceability
-- Test scaffolding documented in traceability matrix
-- Acceptance criteria mapped to test files
-
-**Priority Guidance**:
-- **AC2 (Baseline Reconciliation)**: CRITICAL PATH - Must complete first
-- **AC1 (Regression Detection)**: HIGH - Requires AC2 baseline
-- **AC3 (CI Integration)**: HIGH - Requires AC1 regression detection
-- **AC4 (Progressive Complexity)**: MEDIUM - Independent, developer productivity
-- **AC5 (Enhanced Diagnostics)**: MEDIUM - Independent, troubleshooting support
-
----
-
-## Recent Updates
-
-### 2025-09-30: Issue #49 Performance Regression Monitoring ⭐ **NEW**
-
-**Added**:
-- `docs/explanation/performance-regression-monitoring.md` - Comprehensive architecture
-- `docs/reference/benchmark-api-contracts.md` - Complete API specifications
-- `docs/how-to/benchmark-regression-testing.md` - Step-by-step implementation guide
-- `docs/issue-49-traceability-matrix.md` - AC-to-specification mapping
-
-**Key Features**:
-- Regression detection thresholds (5% WARNING, 10% FAILURE)
-- Performance baseline reconciliation procedures (AC2 PRIORITY 1)
-- CI integration with PR comments and baseline promotion
-- Progressive complexity testing for developer optimization
-- Enhanced diagnostics with health checks and verbose logging
-
-**Implementation Path**: AC2 → AC1 → AC3 → AC4 → AC5
-
-### 2025-09-29: Issue #52 Machine-Readable Benchmark Reporting (PR #67 Merged)
-
-**Added**:
-- `copybook-bench` reporting infrastructure
-- `bench-report` CLI tool
-- GitHub Actions integration
-- 90-day artifact retention
-
-### 2025-09-24: Issue #63 Panic Elimination (PR #65 Merged)
-
-**Added**:
-- Zero unsafe code enforcement
-- Structured error taxonomy
-- Enterprise production safety
 
 ---
 
@@ -374,10 +300,6 @@ For new documentation:
 
 ---
 
-**Documentation Index Version**: 2.0
-**Last Updated**: 2026-03-06
-**Total Documents**: 60+ comprehensive specifications and guides
-**Recent Addition**: v0.4.3 documentation refresh (edited PIC, dialect lever, field projection, determinism) ⭐
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

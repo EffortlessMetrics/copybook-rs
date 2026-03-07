@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #48: Binary round-trip encoding inconsistency in encode/decode cycle
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Context
 
 The copybook-rs codec exhibits a critical data integrity issue in the encode/decode pipeline where zoned decimal fields lose their original binary encoding format during round-trip operations. This affects the **copybook-codec** crate's numeric processing module and impacts enterprise mainframe data workflows that require byte-perfect round-trip fidelity.

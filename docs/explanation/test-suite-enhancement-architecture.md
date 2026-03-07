@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Test Suite Enhancement Architecture
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Overview
 
 This document provides the comprehensive architectural blueprint for enhancing copybook-rs test suite with real-world validation coverage, performance regression detection, and enterprise-scale testing infrastructure. The architecture maintains copybook-rs production-ready status while adding comprehensive test validation that strengthens confidence in enterprise mainframe deployments.

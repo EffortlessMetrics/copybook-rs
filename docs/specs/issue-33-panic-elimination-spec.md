@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #33: Comprehensive Panic Elimination Technical Specification
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Executive Summary
 
 This specification defines the systematic elimination of 243 `.unwrap()` and `.expect()` calls from copybook-rs production code, ensuring enterprise-grade reliability for mainframe data processing workloads while maintaining 4.1+ GiB/s DISPLAY and 560+ MiB/s COMP-3 performance targets.

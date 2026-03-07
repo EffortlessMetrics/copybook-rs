@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs Performance & Benchmarking Infrastructure Report
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](PERFORMANCE_GOVERNANCE.md) for current policy.
+
 **Exploration Date**: 2025-10-22  
 **Thoroughness Level**: Medium  
 **Objective**: Understand current benchmark setup and requirements for PR-C (perf receipts MVP)

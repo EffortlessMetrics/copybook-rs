@@ -15,8 +15,6 @@ Use these documents to understand architecture, design trade-offs, and system be
   Blueprint for implementing panic-free behavior in critical paths.
 - **[Enterprise Audit Architecture](enterprise-audit-architecture.md)**  
   Architectural overview for audit and compliance surfaces.
-- **[Enterprise Audit Implementation Blueprint](enterprise-audit-implementation-blueprint.md)**  
-  Detailed architecture and implementation sequence.
 - **[Enterprise Audit Integration Patterns](enterprise-audit-integration-patterns.md)**  
   Reference implementation patterns for enterprise telemetry and policy.
 - **[Security Scanning Architecture](security-scanning-architecture.md)**  
@@ -27,8 +25,6 @@ Use these documents to understand architecture, design trade-offs, and system be
   Design for improved correctness testing and reliability signal quality.
 - **[Test Suite API Contracts](test-suite-api-contracts.md)**  
   API-focused explanation of suite behavior and outputs.
-- **[Panic Elimination API Contracts](panic-elimination-api-contracts.md)**  
-  Contract-style detail for panic-elimination behavior.
 - **[Enterprise Audit API Contracts](enterprise-audit-api-contracts.md)**  
   Contractual behavior of audit APIs in context.
 - **[Enterprise Audit Performance Integration](enterprise-audit-performance-integration.md)**  

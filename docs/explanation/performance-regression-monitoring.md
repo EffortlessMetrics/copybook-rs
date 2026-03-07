@@ -1,5 +1,9 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Performance Regression Monitoring Architecture
+
+> **Historical note**: This document reflects earlier design and planning work.
+> Performance figures and implementation checklists below are historical review evidence, not current project baselines or guarantees.
+> For the current state, see [START_HERE.md](../START_HERE.md), [ROADMAP.md](../ROADMAP.md), [REPORT.md](../REPORT.md), and [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERNANCE.md).
 ## Issue #49 - Enterprise Performance Gate Infrastructure
 
 ### Executive Summary

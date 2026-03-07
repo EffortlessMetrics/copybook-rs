@@ -217,7 +217,7 @@ Encoding detection adds minimal overhead:
 - **Detection**: <1% performance impact during decode
 - **Preservation**: Metadata storage scales with field count
 - **Encode**: Format lookup optimizes encoding path
-- **Enterprise Targets**: Maintained at 4.1+ GiB/s DISPLAY, 560+ MiB/s COMP-3
+- **Enterprise Baseline**: 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (see [PERFORMANCE_GOVERNANCE.md](PERFORMANCE_GOVERNANCE.md))
 
 ## Production Best Practices
 

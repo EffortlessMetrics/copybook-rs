@@ -1,5 +1,9 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #49 Traceability Matrix
+
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](PERFORMANCE_GOVERNANCE.md) for current policy.
 ## Performance Regression Monitoring - AC to Specification Mapping
 
 ### Overview

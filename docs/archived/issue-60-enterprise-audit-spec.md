@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #60 Enterprise Audit System - Technical Specification
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Executive Summary
 
 This specification provides a comprehensive technical analysis and implementation roadmap for the Enterprise Audit System (Issue #60) in copybook-rs. The system integrates comprehensive regulatory compliance, security monitoring, performance tracking, and data lineage capabilities while maintaining copybook-rs's production-grade mainframe data processing performance (DISPLAY: 4.1+ GiB/s, COMP-3: 560+ MiB/s).

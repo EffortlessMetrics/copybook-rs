@@ -9,7 +9,7 @@ copybook-rs currently serves teams that need a memory-safe COBOL parser with tru
 
 | Area | Observation | Source |
 |------|-------------|--------|
-| Tests | `cargo test --workspace` reports 1825+ tests passing (10 ignored) | CI artifacts
+| Tests | `cargo test --workspace` reports 10,250+ tests passing (15 ignored) | CI artifacts
 | Performance | Receipts live at `scripts/bench/perf.json`; baseline: DISPLAY 205 MiB/s, COMP-3 58 MiB/s (see `docs/PERFORMANCE_GOVERNANCE.md`) | `scripts/bench/perf.json`, `docs/PERFORMANCE_GOVERNANCE.md`
 | Memory | Streaming architecture stays below 256 MiB on reference fixtures | Bench logs (`performance-final-validation.log`)
 | COBOL Coverage | COMP-1/COMP-2 and SIGN SEPARATE are fully supported (promoted to stable in v0.4.3); edited PIC and 88-level are implemented; nested ODOs and ODO-over-REDEFINES remain out of scope; RENAMES is partially supported (R1-R3, R4-R6 policy-limited) | `README.md`, `reference/COBOL_SUPPORT_MATRIX.md`, parser backlog |
@@ -18,7 +18,7 @@ copybook-rs currently serves teams that need a memory-safe COBOL parser with tru
 ## Strengths
 
 - Zero `unsafe` in public APIs; clippy pedantic enforcement across the workspace
-- Deterministic encode/decode flows with rich error taxonomy (CBKP*/CBKS*/CBKD*/CBKE*)
+- Deterministic encode/decode flows with rich error taxonomy (CBKP*/CBKS*/CBKD*/CBKE*/CBKR*/CBKC*/CBKF*/CBKI*/CBKA*/CBKW*)
 - Streaming design keeps memory usage predictable on multi-GB fixtures
 - Comprehensive documentation of limitations and validation evidence
 
@@ -43,7 +43,7 @@ copybook-rs currently serves teams that need a memory-safe COBOL parser with tru
 - Reference `README.md`, `docs/REPORT.md`, and this assessment when communicating status to stakeholders
 - Avoid marketing copy that implies production readiness until the actions above are complete
 
-_Last updated: 2025-09-30_
+_Last updated: 2026-03-06_
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

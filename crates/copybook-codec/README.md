@@ -34,6 +34,26 @@ println!("{json}");
 - Deterministic conversions with controlled rounding/precision behavior
 - Optional metrics and strict compatibility-policy checks
 - Optional audit-related feature path for enterprise usage
+- Edited PIC decode and encode support (E2/E3 phases)
+- Field projection via `project_schema()` for selective field decoding
+- Raw data capture modes (`RawMode::Record`, `RawMode::Field`, `RawMode::RecordRDW`)
+- Scratch buffer optimization for hot-path performance (`decode_record_with_scratch`)
+
+## Scratch buffer example
+
+```rust
+use copybook_core::parse_copybook;
+use copybook_codec::{decode_record_with_scratch, DecodeOptions, Codepage, JsonNumberMode};
+use copybook_codec::memory::ScratchBuffers;
+
+let schema = parse_copybook("01 A.\n   05 AMOUNT PIC S9(7)V99 COMP-3.\n")?;
+let options = DecodeOptions::new()
+    .with_codepage(Codepage::CP037)
+    .with_json_number_mode(JsonNumberMode::Lossless);
+
+let mut scratch = ScratchBuffers::new();
+let json = decode_record_with_scratch(&schema, &record_data, &options, &mut scratch)?;
+```
 
 ## API docs
 

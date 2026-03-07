@@ -105,18 +105,25 @@ handle.enable(Feature::VerboseLogging);
 
 ## Available Feature Flags
 
-### Experimental Features
+### Stable Features (Promoted from Experimental)
 
-Experimental features are under active development and may change without notice.
+These features were originally experimental but have been promoted to stable defaults as of v0.4.3. They are enabled by default and fully supported in production.
 
 | Flag | Default | Description |
 |-------|----------|-------------|
 | `sign_separate` | **Enabled** | SIGN SEPARATE clause support (promoted to stable v0.4.3) |
-| `renames_r4_r6` | Disabled | Enable RENAMES R4-R6 advanced scenarios |
 | `comp_1` | **Enabled** | COMP-1 single precision floating point (promoted to stable v0.4.3) |
 | `comp_2` | **Enabled** | COMP-2 double precision floating point (promoted to stable v0.4.3) |
 
 > **Note:** `sign_separate`, `comp_1`, and `comp_2` remain in the "experimental" category for organizational purposes but are **enabled by default since v0.4.3** (promoted to stable). They can still be disabled via `COPYBOOK_FF_SIGN_SEPARATE=0`, `COPYBOOK_FF_COMP_1=0`, or `COPYBOOK_FF_COMP_2=0` for compatibility testing.
+
+### Experimental Features
+
+Features still under active development and subject to change without notice.
+
+| Flag | Default | Description |
+|-------|----------|-------------|
+| `renames_r4_r6` | Disabled | Enable RENAMES R4-R6 advanced scenarios |
 
 ### Enterprise Features
 

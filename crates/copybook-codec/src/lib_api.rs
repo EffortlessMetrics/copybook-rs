@@ -21,6 +21,22 @@ use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
 use tracing::info;
 
+/// Recursively flatten hierarchical fields into a target map so that leaf
+/// field names are accessible at the root level for backward compatibility.
+fn flatten_fields_into(
+    source: &serde_json::Map<String, Value>,
+    target: &mut serde_json::Map<String, Value>,
+) {
+    for (key, value) in source {
+        if let Value::Object(nested) = value {
+            // Recurse into group objects to flatten their children
+            flatten_fields_into(nested, target);
+        } else {
+            target.insert(key.clone(), value.clone());
+        }
+    }
+}
+
 /// Build a standard JSON envelope for a decoded COBOL record.
 ///
 /// Wraps the decoded fields with metadata like schema version, record index,
@@ -48,11 +64,8 @@ fn build_json_envelope(
     let codepage = options.codepage.to_string();
     root.insert(String::from("codepage"), Value::String(codepage));
 
-    let flat_fields = fields.clone();
+    flatten_fields_into(&fields, &mut root);
     root.insert(String::from("fields"), Value::Object(fields));
-    for (key, value) in flat_fields {
-        root.insert(key, value);
-    }
 
     if options.emit_meta {
         if !schema.fingerprint.is_empty() {
@@ -571,6 +584,19 @@ fn process_fields_recursive(
                     encoding_acc,
                 )?;
             }
+            (FieldKind::Group, None) if field.level > 1 => {
+                let mut group_obj = serde_json::Map::new();
+                process_fields_recursive(
+                    &field.children,
+                    data,
+                    &mut group_obj,
+                    options,
+                    scratch_buffers,
+                    record_index,
+                    encoding_acc,
+                )?;
+                json_obj.insert(field.name.clone(), Value::Object(group_obj));
+            }
             (FieldKind::Group, None) => {
                 process_fields_recursive(
                     &field.children,
@@ -631,6 +657,19 @@ fn process_fields_recursive_with_scratch(
                     record_index,
                     encoding_acc,
                 )?;
+            }
+            (FieldKind::Group, None) if field.level > 1 => {
+                let mut group_obj = serde_json::Map::new();
+                process_fields_recursive_with_scratch(
+                    &field.children,
+                    data,
+                    &mut group_obj,
+                    options,
+                    scratch,
+                    record_index,
+                    encoding_acc,
+                )?;
+                json_obj.insert(field.name.clone(), Value::Object(group_obj));
             }
             (FieldKind::Group, None) => {
                 process_fields_recursive_with_scratch(

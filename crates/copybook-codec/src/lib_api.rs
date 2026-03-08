@@ -2904,10 +2904,7 @@ fn small_decimal_to_string(decimal: &crate::numeric::SmallDecimal) -> String {
 }
 
 #[inline]
-fn decimal_to_json_value(
-    decimal: &crate::numeric::SmallDecimal,
-    options: &DecodeOptions,
-) -> Value {
+fn decimal_to_json_value(decimal: &crate::numeric::SmallDecimal, options: &DecodeOptions) -> Value {
     let formatted = small_decimal_to_string(decimal);
     numeric_string_to_value(formatted, options)
 }

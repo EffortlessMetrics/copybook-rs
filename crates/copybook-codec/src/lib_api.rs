@@ -1141,20 +1141,18 @@ fn find_and_read_counter_field(
             signed,
             sign_separate,
         } => {
-            let mut scratch = crate::memory::ScratchBuffers::new();
-            let decimal_str = if let Some(sign_sep) = sign_separate {
-                // Use SIGN SEPARATE decoding
-                crate::numeric::decode_zoned_decimal_sign_separate(
+            let count = if let Some(sign_sep) = sign_separate {
+                let decimal = crate::numeric::decode_zoned_decimal_sign_separate(
                     field_data,
                     *digits,
                     *scale,
                     sign_sep,
                     options.codepage,
-                )?
-                .to_string()
+                )?;
+                decimal_counter_to_u32(&decimal, counter_path)?
             } else {
-                // Use standard zoned decimal decoding
-                crate::numeric::decode_zoned_decimal_to_string_with_scratch(
+                let mut scratch = crate::memory::ScratchBuffers::new();
+                let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
                     field_data,
                     *digits,
                     *scale,
@@ -1162,15 +1160,14 @@ fn find_and_read_counter_field(
                     options.codepage,
                     counter_field.blank_when_zero,
                     &mut scratch,
-                )?
+                )?;
+                decimal_str.parse::<u32>().map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                        format!("ODO counter '{counter_path}' has invalid value: {decimal_str}"),
+                    )
+                })?
             };
-
-            let count = decimal_str.parse::<u32>().map_err(|_| {
-                Error::new(
-                    ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                    format!("ODO counter '{counter_path}' has invalid value: {decimal_str}"),
-                )
-            })?;
 
             Ok(count)
         }
@@ -1359,12 +1356,13 @@ fn decode_scalar_field_value_standard(
                     sign_sep,
                     options.codepage,
                 )?;
-                let formatted = if *scale == 0 {
-                    format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
-                } else {
-                    decimal.to_string()
-                };
-                Ok(numeric_string_to_value(formatted, options))
+                Ok(zoned_decimal_to_json_value(
+                    &decimal,
+                    *digits,
+                    *scale,
+                    field.blank_when_zero,
+                    options,
+                ))
             } else if options.preserve_zoned_encoding {
                 // Use encoding-aware decoding for round-trip preservation
                 let (decimal, _encoding_info) = crate::numeric::decode_zoned_decimal_with_encoding(
@@ -1377,15 +1375,15 @@ fn decode_scalar_field_value_standard(
                     true, // preserve_encoding = true
                 )?;
 
-                let formatted = if *scale == 0 {
-                    format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
-                } else {
-                    decimal.to_string()
-                };
-
                 // Encoding info is collected by collect_zoned_encoding_info() at the caller level
                 // and emitted as _encoding_metadata in the JSON envelope
-                Ok(numeric_string_to_value(formatted, options))
+                Ok(zoned_decimal_to_json_value(
+                    &decimal,
+                    *digits,
+                    *scale,
+                    field.blank_when_zero,
+                    options,
+                ))
             } else {
                 // Use standard decoding
                 let decimal = crate::numeric::decode_zoned_decimal(
@@ -1396,12 +1394,13 @@ fn decode_scalar_field_value_standard(
                     options.codepage,
                     field.blank_when_zero,
                 )?;
-                let formatted = if *scale == 0 {
-                    format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
-                } else {
-                    decimal.to_string()
-                };
-                Ok(numeric_string_to_value(formatted, options))
+                Ok(zoned_decimal_to_json_value(
+                    &decimal,
+                    *digits,
+                    *scale,
+                    field.blank_when_zero,
+                    options,
+                ))
             }
         }
         FieldKind::BinaryInt { bits, signed } => {
@@ -1418,8 +1417,7 @@ fn decode_scalar_field_value_standard(
         } => {
             let decimal =
                 crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
-            let formatted = decimal.to_string();
-            Ok(numeric_string_to_value(formatted, options))
+            Ok(decimal_to_json_value(&decimal, options))
         }
         FieldKind::Group => {
             // Group fields should not be processed as scalars
@@ -1573,8 +1571,13 @@ fn decode_scalar_field_value_with_scratch(
                     sign_sep,
                     options.codepage,
                 )?;
-                let formatted = decimal.to_string();
-                Ok(numeric_string_to_value(formatted, options))
+                Ok(zoned_decimal_to_json_value(
+                    &decimal,
+                    *digits,
+                    *scale,
+                    field.blank_when_zero,
+                    options,
+                ))
             } else {
                 let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
                     field_data,
@@ -2893,6 +2896,50 @@ fn format_zoned_decimal_with_digits(
     }
 
     result
+}
+
+#[inline]
+fn small_decimal_to_string(decimal: &crate::numeric::SmallDecimal) -> String {
+    decimal.to_string()
+}
+
+#[inline]
+fn decimal_to_json_value(
+    decimal: &crate::numeric::SmallDecimal,
+    options: &DecodeOptions,
+) -> Value {
+    let formatted = small_decimal_to_string(decimal);
+    numeric_string_to_value(formatted, options)
+}
+
+#[inline]
+fn zoned_decimal_to_json_value(
+    decimal: &crate::numeric::SmallDecimal,
+    digits: u16,
+    scale: i16,
+    blank_when_zero: bool,
+    options: &DecodeOptions,
+) -> Value {
+    let formatted = if scale == 0 {
+        format_zoned_decimal_with_digits(decimal, digits, blank_when_zero)
+    } else {
+        small_decimal_to_string(decimal)
+    };
+    numeric_string_to_value(formatted, options)
+}
+
+#[inline]
+fn decimal_counter_to_u32(
+    decimal: &crate::numeric::SmallDecimal,
+    counter_path: &str,
+) -> Result<u32> {
+    let text = small_decimal_to_string(decimal);
+    text.parse::<u32>().map_err(|_| {
+        Error::new(
+            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+            format!("ODO counter '{counter_path}' has invalid value: {text}"),
+        )
+    })
 }
 
 #[cfg(test)]

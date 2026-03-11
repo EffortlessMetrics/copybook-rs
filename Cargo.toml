@@ -9,6 +9,7 @@ members = [
     "crates/copybook-fixed",
     "crates/copybook-rdw",
     "crates/copybook-record-io",
+    "crates/copybook-record-stream",
     "crates/copybook-overpunch",
     "crates/copybook-determinism",
     "crates/copybook-codepage",
@@ -71,6 +72,7 @@ copybook-zoned-format = { version = "=0.4.3", path = "crates/copybook-zoned-form
 copybook-fixed = { version = "=0.4.3", path = "crates/copybook-fixed" }
 copybook-rdw = { version = "=0.4.3", path = "crates/copybook-rdw" }
 copybook-record-io = { version = "=0.4.3", path = "crates/copybook-record-io" }
+copybook-record-stream = { version = "=0.4.3", path = "crates/copybook-record-stream" }
 copybook-overpunch = { version = "=0.4.3", path = "crates/copybook-overpunch" }
 copybook-determinism = { version = "=0.4.3", path = "crates/copybook-determinism" }
 copybook-safe-ops = { version = "=0.4.3", path = "crates/copybook-safe-ops" }

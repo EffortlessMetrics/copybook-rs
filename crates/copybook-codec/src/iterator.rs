@@ -213,12 +213,9 @@
 
 use crate::options::{DecodeOptions, RecordFormat};
 use copybook_core::{Error, ErrorCode, Result, Schema};
-use copybook_rdw::RdwHeader;
+use copybook_record_stream::{RawRecordStream, RecordStreamFormat};
 use serde_json::Value;
-use std::io::{BufReader, Read};
-
-const FIXED_FORMAT_LRECL_MISSING: &str = "Fixed format requires a fixed record length (LRECL). \
-     Set `schema.lrecl_fixed` or use `RecordFormat::Variable`.";
+use std::io::Read;
 
 /// Iterator over records in a data file, yielding decoded JSON values
 ///
@@ -257,18 +254,12 @@ const FIXED_FORMAT_LRECL_MISSING: &str = "Fixed format requires a fixed record l
 /// # }
 /// ```
 pub struct RecordIterator<R: Read> {
-    /// The buffered reader
-    reader: BufReader<R>,
+    /// Raw framing stream over the underlying reader
+    raw_stream: RawRecordStream<R>,
     /// The schema for decoding records
     schema: Schema,
     /// Decoding options
     options: DecodeOptions,
-    /// Current record index (1-based)
-    record_index: u64,
-    /// Whether the iterator has reached EOF
-    eof_reached: bool,
-    /// Buffer for reading record data
-    buffer: Vec<u8>,
 }
 
 impl<R: Read> RecordIterator<R> {
@@ -285,13 +276,17 @@ impl<R: Read> RecordIterator<R> {
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
+        let stream_format = match options.format {
+            RecordFormat::Fixed => RecordStreamFormat::Fixed,
+            RecordFormat::RDW => RecordStreamFormat::RDW,
+        };
+        let raw_stream =
+            RawRecordStream::new(reader, stream_format, schema.lrecl_fixed.map(|length| length as usize))?;
+
         Ok(Self {
-            reader: BufReader::new(reader),
+            raw_stream,
             schema: schema.clone(),
             options: options.clone(),
-            record_index: 0,
-            eof_reached: false,
-            buffer: Vec::new(),
         })
     }
 
@@ -302,14 +297,14 @@ impl<R: Read> RecordIterator<R> {
     #[inline]
     #[must_use]
     pub fn current_record_index(&self) -> u64 {
-        self.record_index
+        self.raw_stream.current_record_index()
     }
 
     /// Check if the iterator has reached the end of the file
     #[inline]
     #[must_use]
     pub fn is_eof(&self) -> bool {
-        self.eof_reached
+        self.raw_stream.is_eof()
     }
 
     /// Get a reference to the schema being used
@@ -378,74 +373,7 @@ impl<R: Read> RecordIterator<R> {
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn read_raw_record(&mut self) -> Result<Option<Vec<u8>>> {
-        if self.eof_reached {
-            return Ok(None);
-        }
-
-        self.buffer.clear();
-
-        let record_data = match self.options.format {
-            RecordFormat::Fixed => {
-                let lrecl = self.schema.lrecl_fixed.ok_or_else(|| {
-                    Error::new(ErrorCode::CBKI001_INVALID_STATE, FIXED_FORMAT_LRECL_MISSING)
-                })? as usize;
-                self.buffer.resize(lrecl, 0);
-
-                match self.reader.read_exact(&mut self.buffer) {
-                    Ok(()) => {
-                        self.record_index += 1;
-                        Some(self.buffer.clone())
-                    }
-                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                        self.eof_reached = true;
-                        return Ok(None);
-                    }
-                    Err(e) => {
-                        return Err(Error::new(
-                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                            format!("Failed to read fixed record: {e}"),
-                        ));
-                    }
-                }
-            }
-            RecordFormat::RDW => {
-                // Read RDW header
-                let mut rdw_header = [0u8; 4];
-                match self.reader.read_exact(&mut rdw_header) {
-                    Ok(()) => {}
-                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                        self.eof_reached = true;
-                        return Ok(None);
-                    }
-                    Err(e) => {
-                        return Err(Error::new(
-                            ErrorCode::CBKF221_RDW_UNDERFLOW,
-                            format!("Failed to read RDW header: {e}"),
-                        ));
-                    }
-                }
-
-                // Parse length (payload bytes only)
-                let length = usize::from(RdwHeader::from_bytes(rdw_header).length());
-
-                // Read payload
-                self.buffer.resize(length, 0);
-                match self.reader.read_exact(&mut self.buffer) {
-                    Ok(()) => {
-                        self.record_index += 1;
-                        Some(self.buffer.clone())
-                    }
-                    Err(e) => {
-                        return Err(Error::new(
-                            ErrorCode::CBKF221_RDW_UNDERFLOW,
-                            format!("Failed to read RDW payload: {e}"),
-                        ));
-                    }
-                }
-            }
-        };
-
-        Ok(record_data)
+        self.raw_stream.read_raw_record()
     }
 
     /// Decode the next record to JSON
@@ -469,16 +397,13 @@ impl<R: Read> Iterator for RecordIterator<R> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if self.eof_reached {
+        if self.raw_stream.is_eof() {
             return None;
         }
 
         match self.decode_next_record() {
             Ok(Some(value)) => Some(Ok(value)),
-            Ok(None) => {
-                self.eof_reached = true;
-                None
-            }
+            Ok(None) => None,
             Err(error) => {
                 // On error, we still advance the record index if we were able to read something
                 Some(Err(error))
@@ -822,7 +747,7 @@ mod tests {
         assert!(first.is_err());
         if let Err(e) = first {
             assert_eq!(e.code, ErrorCode::CBKI001_INVALID_STATE);
-            assert_eq!(e.message, FIXED_FORMAT_LRECL_MISSING);
+            assert_eq!(e.message, "Fixed format requires a fixed record length (LRECL).");
         }
     }
 

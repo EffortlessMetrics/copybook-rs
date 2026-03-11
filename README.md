@@ -176,6 +176,7 @@ The project is organized as a Cargo workspace with the following crates:
 - **copybook-fixed**: Fixed-length (LRECL) record framing reader/writer primitives
 - **copybook-rdw**: RDW (record descriptor word) framing primitives
 - **copybook-record-io**: Fixed-vs-RDW legacy record dispatch facade over framing microcrates
+- **copybook-record-stream**: Streaming raw record reader microcrate for fixed and RDW framing
 - **copybook-sequence-ring**: Deterministic sequence reordering primitive used by parallel worker pipelines
 - **copybook-contracts**: Canonical feature-flag contracts
 - **copybook-support-matrix**: Canonical COBOL support matrix contract data

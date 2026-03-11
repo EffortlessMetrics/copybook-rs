@@ -873,6 +873,7 @@ dependencies = [
  "copybook-overpunch",
  "copybook-rdw",
  "copybook-record-io",
+ "copybook-record-stream",
  "hex",
  "indexmap",
  "metrics",
@@ -1190,6 +1191,14 @@ dependencies = [
  "copybook-options",
  "copybook-rdw",
  "proptest",
+]
+
+[[package]]
+name = "copybook-record-stream"
+version = "0.4.3"
+dependencies = [
+ "copybook-core",
+ "copybook-rdw",
 ]
 
 [[package]]

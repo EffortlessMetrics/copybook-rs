@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-record-stream"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Streaming raw COBOL record reader microcrate for fixed and RDW framing"
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+copybook-core = { workspace = true }
+copybook-rdw = { workspace = true }
+
+[lints]
+workspace = true

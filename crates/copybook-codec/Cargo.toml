@@ -25,11 +25,12 @@ targets = ["x86_64-unknown-linux-gnu"]
 copybook-core = { workspace = true }
 copybook-charset = { workspace = true, features = ["clap"] }
 copybook-options.workspace = true
+copybook-rdw.workspace = true
 copybook-overpunch.workspace = true
 copybook-fixed.workspace = true
-copybook-rdw.workspace = true
 copybook-corruption.workspace = true
 copybook-record-io.workspace = true
+copybook-record-stream.workspace = true
 copybook-determinism.workspace = true
 copybook-error.workspace = true
 serde.workspace = true

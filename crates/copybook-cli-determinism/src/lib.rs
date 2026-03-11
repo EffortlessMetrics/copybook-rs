@@ -16,6 +16,7 @@ use copybook_codec::{
     },
 };
 use copybook_core::{Schema, parse_copybook};
+use copybook_exit_codes::ExitCode;
 use std::fmt::Write as _;
 use std::fs;
 use std::io::{self, Read};
@@ -188,8 +189,8 @@ impl DeterminismVerdict {
     #[must_use]
     pub const fn exit_code(&self) -> i32 {
         match self {
-            Self::Deterministic => 0,
-            Self::NonDeterministic => 2,
+            Self::Deterministic => ExitCode::Ok.as_i32(),
+            Self::NonDeterministic => ExitCode::Data.as_i32(),
         }
     }
 }

@@ -821,6 +821,7 @@ dependencies = [
  "copybook-cli-determinism",
  "copybook-codec",
  "copybook-core",
+ "copybook-exit-codes",
  "copybook-governance",
  "md5",
  "metrics",
@@ -849,6 +850,7 @@ dependencies = [
  "copybook-codec",
  "copybook-core",
  "copybook-determinism",
+ "copybook-exit-codes",
  "proptest",
  "serde_json",
  "tempfile",
@@ -1029,6 +1031,14 @@ dependencies = [
  "copybook-error",
  "serde_json",
  "tracing",
+]
+
+[[package]]
+name = "copybook-exit-codes"
+version = "0.4.3"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

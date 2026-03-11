@@ -166,6 +166,10 @@ path = "e2e_determinism_cli.rs"
 name = "e2e_decode_option_interactions"
 path = "e2e_decode_option_interactions.rs"
 
+[[test]]
+name = "e2e_uselesskey_runtime_fixtures"
+path = "e2e_uselesskey_runtime_fixtures.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true
@@ -178,3 +182,4 @@ base64.workspace = true
 assert_cmd.workspace = true
 predicates.workspace = true
 regex.workspace = true
+uselesskey.workspace = true

@@ -155,12 +155,12 @@ pub mod support_matrix;
 /// Shared utility functions and extension traits.
 pub mod utils;
 
+pub use copybook_parse_options::ParseOptions;
 pub use copybook_utils::{OptionExt, SliceExt, VecExt, safe_ops};
 pub use dialect::Dialect;
 pub use error::{Error, ErrorCode, ErrorContext, Result};
 pub use error_reporter::{ErrorMode, ErrorReport, ErrorReporter, ErrorSeverity, ErrorSummary};
 pub use feature_flags::{Feature, FeatureCategory, FeatureFlags, FeatureFlagsHandle, all_features};
-pub use parser::ParseOptions;
 pub use projection::project_schema;
 pub use schema::{Field, FieldKind, Occurs, Schema, SignPlacement, SignSeparateInfo, TailODO};
 

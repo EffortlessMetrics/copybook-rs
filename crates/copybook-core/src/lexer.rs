@@ -6,7 +6,7 @@
 //! preserves the `copybook_core::lexer` API used across parser and tests while
 //! keeping parsing logic in the dedicated microcrate.
 
-use crate::parser::ParseOptions;
+use copybook_parse_options::ParseOptions;
 
 pub use copybook_lexer::{CobolFormat, Token, TokenPos};
 

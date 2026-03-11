@@ -1193,6 +1193,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "copybook-safe-access"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+]
+
+[[package]]
 name = "copybook-safe-index"
 version = "0.4.3"
 dependencies = [
@@ -1241,6 +1248,7 @@ name = "copybook-utils"
 version = "0.4.3"
 dependencies = [
  "copybook-error",
+ "copybook-safe-access",
  "copybook-safe-ops",
 ]
 

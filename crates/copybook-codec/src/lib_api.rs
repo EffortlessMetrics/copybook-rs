@@ -14,6 +14,7 @@ use crate::options::{DecodeOptions, EncodeOptions, RecordFormat, ZonedEncodingFo
 use crate::zoned_overpunch::ZeroSignPolicy;
 use base64::Engine;
 use copybook_core::{Error, ErrorCode, Result, Schema};
+use copybook_json_access::{lookup_array as json_lookup_array, lookup_value as json_lookup_value};
 use serde_json::Value;
 use std::cell::RefCell;
 use std::convert::TryFrom;
@@ -1961,28 +1962,6 @@ fn validate_lib_api_odo_encoding(
     }
 
     Ok(())
-}
-
-fn json_lookup_value<'a>(value: &'a Value, field_path: &str) -> Option<&'a Value> {
-    let mut current = value;
-    for segment in field_path.split('.') {
-        current = current.as_object()?.get(segment)?;
-    }
-    Some(current)
-}
-
-fn json_lookup_array<'a>(value: &'a Value, field_path: &str) -> Option<&'a Vec<Value>> {
-    let leaf = field_path.split('.').next_back().unwrap_or("");
-    match json_lookup_value(value, field_path) {
-        Some(Value::Array(array)) => Some(array),
-        _ => {
-            if let Value::Object(obj) = value {
-                obj.get(leaf).and_then(|candidate| candidate.as_array())
-            } else {
-                None
-            }
-        }
-    }
 }
 
 /// Helper function to encode JSON fields to binary payload

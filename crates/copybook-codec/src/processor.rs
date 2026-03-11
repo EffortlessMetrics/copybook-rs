@@ -8,6 +8,7 @@ use crate::RunSummary;
 use copybook_corruption::{
     detect_ebcdic_corruption, detect_packed_corruption, detect_rdw_ascii_corruption,
 };
+use copybook_json_access::{lookup_array as json_lookup_array, lookup_value as json_lookup_value};
 use crate::memory::{ScratchBuffers, StreamingProcessor, WorkerPool};
 use crate::options::{DecodeOptions, EncodeOptions};
 use copybook_core::{
@@ -1183,28 +1184,6 @@ impl EncodeProcessor {
 
         Ok(())
     }
-
-fn json_lookup_value(value: &serde_json::Value, field_path: &str) -> Option<&serde_json::Value> {
-    let mut current = value;
-    for segment in field_path.split('.') {
-        current = current.as_object()?.get(segment)?;
-    }
-    Some(current)
-}
-
-fn json_lookup_array(value: &serde_json::Value, field_path: &str) -> Option<&Vec<Value>> {
-    let leaf = field_path.split('.').next_back().unwrap_or("");
-    match json_lookup_value(value, field_path) {
-        Some(serde_json::Value::Array(array)) => Some(array),
-        _ => {
-            if let serde_json::Value::Object(obj) = value {
-                obj.get(leaf).and_then(|value| value.as_array())
-            } else {
-                None
-            }
-        }
-    }
-}
 
     /// Enhance encode error with comprehensive context information
     fn enhance_encode_error_context(&self, mut error: Error, record_index: u64) -> Error {

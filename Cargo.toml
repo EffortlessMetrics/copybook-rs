@@ -24,6 +24,7 @@ members = [
     "crates/copybook-codec",
     "crates/copybook-codec-memory",
     "crates/copybook-sequence-ring",
+    "crates/copybook-json-access",
     "crates/copybook-safe-ops",
     "crates/copybook-rdw-predicates",
     "crates/copybook-safe-index",
@@ -92,6 +93,7 @@ copybook-codec = { version = "=0.4.3", path = "crates/copybook-codec" }
 copybook-codec-memory = { version = "=0.4.3", path = "crates/copybook-codec-memory" }
 copybook-cli-determinism = { version = "=0.4.3", path = "crates/copybook-cli-determinism" }
 copybook-sequence-ring = { version = "=0.4.3", path = "crates/copybook-sequence-ring" }
+copybook-json-access = { version = "=0.4.3", path = "crates/copybook-json-access" }
 copybook-arrow = { version = "=0.4.3", path = "crates/copybook-arrow" }
 copybook-governance = { version = "=0.4.3", path = "crates/copybook-governance" }
 copybook-governance-grid = { version = "=0.4.3", path = "crates/copybook-governance-grid" }

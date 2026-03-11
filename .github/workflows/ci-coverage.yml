@@ -69,7 +69,7 @@ jobs:
           --verbose \
           --timeout 300 \
           --all-features \
-          -- --test-threads 4
+          -- --test-threads 1
 
     - name: Generate coverage summary
       run: |

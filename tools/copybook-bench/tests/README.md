@@ -170,7 +170,7 @@ cargo flamegraph --bench progressive --features progressive
 - `test_baseline_reconciliation_complete()` - CLAUDE.md/REPORT.md consistency
 
 **Specifications**:
-- `docs/issue-49-tdd-handoff-package.md#ac2-baseline-reconciliation`
+- `docs/archived/issue-49-tdd-handoff-package.md#ac2-baseline-reconciliation`
 - `docs/reference/benchmark-api-contracts.md#baseline-management-api`
 
 ### AC1: regression_detection.rs
@@ -254,7 +254,7 @@ Tests for **new functionality** to be implemented:
 
 ### Primary Documents
 
-1. **TDD Handoff Package**: `docs/issue-49-tdd-handoff-package.md`
+1. **TDD Handoff Package**: `docs/archived/issue-49-tdd-handoff-package.md`
    - Complete test scaffolding requirements
    - AC priority and dependencies
    - Implementation procedures
@@ -382,7 +382,7 @@ After test scaffolding completion:
 ## Contact
 
 For questions or clarifications about test scaffolding:
-- Review `docs/issue-49-tdd-handoff-package.md`
+- Review `docs/archived/issue-49-tdd-handoff-package.md`
 - Check `docs/issue-49-traceability-matrix.md`
 - Consult `docs/reference/benchmark-api-contracts.md`
 ## License

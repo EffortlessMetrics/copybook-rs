@@ -1040,7 +1040,6 @@ cat target/perf.json
 
 ## References
 
-- [Testing Integration Summary](TESTING_INTEGRATION_SUMMARY.md) - How all testing methodologies work together
 - [CI Scripts README](../scripts/ci/README.md) - Local-first CI scripts
 - [Property Testing Documentation](PROPERTY_TESTING.md) - Property testing guide
 - [Fuzzing Documentation](FUZZING.md) - Fuzzing guide

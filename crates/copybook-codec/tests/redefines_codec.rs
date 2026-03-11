@@ -158,9 +158,10 @@ fn test_decode_group_redefines() {
     let f = fields_of(&env);
 
     assert_eq!(f["RAW-DATA"], "AAAABBBBCCCC");
-    assert_eq!(f["FIRST-PART"], "AAAA");
-    assert_eq!(f["SECOND-PART"], "BBBB");
-    assert_eq!(f["THIRD-PART"], "CCCC");
+    let pv = f["PARSED-VIEW"].as_object().expect("PARSED-VIEW group");
+    assert_eq!(pv["FIRST-PART"], "AAAA");
+    assert_eq!(pv["SECOND-PART"], "BBBB");
+    assert_eq!(pv["THIRD-PART"], "CCCC");
 }
 
 // ===========================================================================
@@ -250,13 +251,13 @@ fn test_decode_multiple_redefines_variants() {
 
     assert!(f.contains_key("BASE-FIELD"));
     assert!(f.contains_key("VIEW-A"));
-    assert!(f.contains_key("B-PART1"));
-    assert!(f.contains_key("B-PART2"));
+    assert!(f.contains_key("VIEW-B"));
     assert!(f.contains_key("VIEW-C"));
 
     assert_eq!(f["BASE-FIELD"], "1234567890");
-    assert_eq!(f["B-PART1"], "ABCDE");
-    assert_eq!(f["B-PART2"], "FGHIJ");
+    let vb = f["VIEW-B"].as_object().expect("VIEW-B group");
+    assert_eq!(vb["B-PART1"], "ABCDE");
+    assert_eq!(vb["B-PART2"], "FGHIJ");
 }
 
 // ===========================================================================
@@ -385,9 +386,11 @@ fn test_decode_redefines_nested_groups() {
     let f = fields_of(&env);
 
     assert_eq!(f["HEADER"], "TYP1AAAAAA BBBBB");
-    assert_eq!(f["HDR-TYPE"], "TYP1");
-    assert_eq!(f["BODY-A"], "AAAAAA");
-    assert_eq!(f["BODY-B"], " BBBBB");
+    let ph = f["PARSED-HDR"].as_object().expect("PARSED-HDR group");
+    assert_eq!(ph["HDR-TYPE"], "TYP1");
+    let hb = ph["HDR-BODY"].as_object().expect("HDR-BODY group");
+    assert_eq!(hb["BODY-A"], "AAAAAA");
+    assert_eq!(hb["BODY-B"], " BBBBB");
 }
 
 #[test]
@@ -797,10 +800,11 @@ fn test_redefines_json_group_structure() {
     let env = copybook_codec::decode_record(&schema, &data, &ascii_decode_opts()).unwrap();
     let f = fields_of(&env);
 
-    // Group REDEFINES children are flattened
+    // Group REDEFINES children are nested under the group
     assert_eq!(f["FLAT-DATA"], "XXXXYYYY");
-    assert_eq!(f["PART-X"], "XXXX");
-    assert_eq!(f["PART-Y"], "YYYY");
+    let sv = f["SPLIT-VIEW"].as_object().expect("SPLIT-VIEW group");
+    assert_eq!(sv["PART-X"], "XXXX");
+    assert_eq!(sv["PART-Y"], "YYYY");
 }
 
 #[test]
@@ -906,9 +910,10 @@ fn test_redefines_group_with_mixed_types() {
     let f = fields_of(&env);
 
     assert_eq!(f["RAW-AREA"], "JOHN    025OK");
-    assert_eq!(f["NAME"], "JOHN    ");
-    assert_eq!(f["FLAG"], "OK");
-    let age = &f["AGE"];
+    let tv = f["TYPED-VIEW"].as_object().expect("TYPED-VIEW group");
+    assert_eq!(tv["NAME"], "JOHN    ");
+    assert_eq!(tv["FLAG"], "OK");
+    let age = &tv["AGE"];
     assert!(
         age.is_number() || age.is_string(),
         "AGE should be numeric, got {age:?}"

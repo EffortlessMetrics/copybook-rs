@@ -201,7 +201,7 @@ pub struct EnterpriseMonitor {
 
 ## References
 
-- [Issue #33: Eliminate .unwrap() Panics](../issue-33-spec.md)
+- [Issue #33: Eliminate .unwrap() Panics](../archived/issue-33-spec.md)
 - [copybook-rs Production Readiness Report](../REPORT.md)
 - [Enterprise Audit System Specification](../specs/issue-60-enterprise-audit-spec.md)
 - [Golden Fixtures Framework](../golden-fixtures-spec.md)

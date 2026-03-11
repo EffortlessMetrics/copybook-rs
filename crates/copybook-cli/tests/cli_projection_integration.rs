@@ -323,11 +323,13 @@ fn test_cli_decode_group_selection_includes_children() -> TestResult<()> {
     let output_content = fs::read_to_string(&output_path)?;
     let json: Value = serde_json::from_str(output_content.lines().next().unwrap())?;
 
-    let record = json.get("fields").unwrap();
-    assert!(record.get("FIELD-A1").is_some());
-    assert!(record.get("FIELD-A2").is_some());
+    let fields = json.get("fields").unwrap();
+    // With hierarchical nesting, children live under their group object
+    let group_a = fields.get("GROUP-A").unwrap();
+    assert!(group_a.get("FIELD-A1").is_some());
+    assert!(group_a.get("FIELD-A2").is_some());
     // GROUP-B fields should not be present
-    assert!(record.get("FIELD-B1").is_none());
+    assert!(fields.get("GROUP-B").is_none());
 
     Ok(())
 }

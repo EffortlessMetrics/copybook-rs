@@ -381,7 +381,7 @@ High coverage doesn't guarantee bug-free code. Mutation testing helps ensure:
 
 ## Related Documentation
 
-- [Testing Integration Summary](TESTING_INTEGRATION_SUMMARY.md): Overview of all testing methodologies
+- [Testing Commands](TESTING_COMMANDS.md): Test suite commands and methodology overview
 - [BDD Testing](BDD_TESTING.md): Behavior-driven development guide
 - [User Guide](USER_GUIDE.md): Getting started with copybook-rs
 - [Library API](reference/LIBRARY_API.md): API documentation

@@ -93,6 +93,8 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete reference.
 - Add comprehensive tests for new functionality
 - Name tests by feature: `cobol_*`, `enterprise_*`, `parsing_*`, `encoding_*`
 - Update golden fixtures for end-to-end scenarios
+- Generate crypto-shaped test inputs (PEM, DER, private keys, certificates) at runtime with the workspace `uselesskey` dev dependency instead of committing secret-like blobs under `fixtures/` or `tests/fixtures/`
+- Prefer deterministic seeds derived from stable test scope, for example `module_path!()`, so CI output stays reproducible
 
 ## Pull Requests
 

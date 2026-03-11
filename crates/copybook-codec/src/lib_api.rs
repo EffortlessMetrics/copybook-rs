@@ -21,6 +21,22 @@ use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
 use tracing::info;
 
+/// Recursively flatten hierarchical fields into a target map so that leaf
+/// field names are accessible at the root level for backward compatibility.
+fn flatten_fields_into(
+    source: &serde_json::Map<String, Value>,
+    target: &mut serde_json::Map<String, Value>,
+) {
+    for (key, value) in source {
+        if let Value::Object(nested) = value {
+            // Recurse into group objects to flatten their children
+            flatten_fields_into(nested, target);
+        } else {
+            target.insert(key.clone(), value.clone());
+        }
+    }
+}
+
 /// Build a standard JSON envelope for a decoded COBOL record.
 ///
 /// Wraps the decoded fields with metadata like schema version, record index,
@@ -35,62 +51,59 @@ fn build_json_envelope(
     encoding_metadata: Vec<(String, ZonedEncodingFormat)>,
 ) -> Value {
     let mut root = serde_json::Map::new();
+
     root.insert(
-        "schema".to_string(),
-        Value::String(JSON_SCHEMA_VERSION.to_string()),
+        String::from("schema"),
+        Value::String(JSON_SCHEMA_VERSION.into()),
     );
     root.insert(
-        "record_index".to_string(),
+        String::from("record_index"),
         Value::Number(serde_json::Number::from(record_index)),
     );
-    root.insert(
-        "codepage".to_string(),
-        Value::String(options.codepage.to_string()),
-    );
 
-    let flat_fields = fields.clone();
-    root.insert("fields".to_string(), Value::Object(fields));
-    for (key, value) in flat_fields {
-        root.insert(key, value);
-    }
+    let codepage = options.codepage.to_string();
+    root.insert(String::from("codepage"), Value::String(codepage));
+
+    flatten_fields_into(&fields, &mut root);
+    root.insert(String::from("fields"), Value::Object(fields));
 
     if options.emit_meta {
         if !schema.fingerprint.is_empty() {
             root.insert(
-                "schema_fingerprint".to_string(),
+                String::from("schema_fingerprint"),
                 Value::String(schema.fingerprint.clone()),
             );
             root.insert(
-                "__schema_id".to_string(),
+                String::from("__schema_id"),
                 Value::String(schema.fingerprint.clone()),
             );
         }
         root.insert(
-            "length".to_string(),
+            String::from("length"),
             Value::Number(serde_json::Number::from(record_length)),
         );
         root.insert(
-            "__record_index".to_string(),
+            String::from("__record_index"),
             Value::Number(serde_json::Number::from(record_index)),
         );
         root.insert(
-            "__length".to_string(),
+            String::from("__length"),
             Value::Number(serde_json::Number::from(record_length)),
         );
     }
 
     if let Some(raw) = raw_b64 {
-        root.insert("raw_b64".to_string(), Value::String(raw.clone()));
-        root.insert("__raw_b64".to_string(), Value::String(raw));
+        root.insert(String::from("raw_b64"), Value::String(raw.clone()));
+        root.insert(String::from("__raw_b64"), Value::String(raw));
     }
 
-    // Emit zoned encoding metadata when preserve_zoned_encoding is enabled
     if options.preserve_zoned_encoding && !encoding_metadata.is_empty() {
         let mut meta_map = serde_json::Map::new();
         for (field_name, format) in encoding_metadata {
-            meta_map.insert(field_name, Value::String(format.to_string()));
+            let format_text = format.to_string();
+            meta_map.insert(field_name, Value::String(format_text));
         }
-        root.insert("_encoding_metadata".to_string(), Value::Object(meta_map));
+        root.insert(String::from("_encoding_metadata"), Value::Object(meta_map));
     }
 
     Value::Object(root)
@@ -571,6 +584,19 @@ fn process_fields_recursive(
                     encoding_acc,
                 )?;
             }
+            (FieldKind::Group, None) if field.level > 1 => {
+                let mut group_obj = serde_json::Map::new();
+                process_fields_recursive(
+                    &field.children,
+                    data,
+                    &mut group_obj,
+                    options,
+                    scratch_buffers,
+                    record_index,
+                    encoding_acc,
+                )?;
+                json_obj.insert(field.name.clone(), Value::Object(group_obj));
+            }
             (FieldKind::Group, None) => {
                 process_fields_recursive(
                     &field.children,
@@ -631,6 +657,19 @@ fn process_fields_recursive_with_scratch(
                     record_index,
                     encoding_acc,
                 )?;
+            }
+            (FieldKind::Group, None) if field.level > 1 => {
+                let mut group_obj = serde_json::Map::new();
+                process_fields_recursive_with_scratch(
+                    &field.children,
+                    data,
+                    &mut group_obj,
+                    options,
+                    scratch,
+                    record_index,
+                    encoding_acc,
+                )?;
+                json_obj.insert(field.name.clone(), Value::Object(group_obj));
             }
             (FieldKind::Group, None) => {
                 process_fields_recursive_with_scratch(
@@ -1141,20 +1180,18 @@ fn find_and_read_counter_field(
             signed,
             sign_separate,
         } => {
-            let mut scratch = crate::memory::ScratchBuffers::new();
-            let decimal_str = if let Some(sign_sep) = sign_separate {
-                // Use SIGN SEPARATE decoding
-                crate::numeric::decode_zoned_decimal_sign_separate(
+            let count = if let Some(sign_sep) = sign_separate {
+                let decimal = crate::numeric::decode_zoned_decimal_sign_separate(
                     field_data,
                     *digits,
                     *scale,
                     sign_sep,
                     options.codepage,
-                )?
-                .to_string()
+                )?;
+                decimal_counter_to_u32(&decimal, counter_path)?
             } else {
-                // Use standard zoned decimal decoding
-                crate::numeric::decode_zoned_decimal_to_string_with_scratch(
+                let mut scratch = crate::memory::ScratchBuffers::new();
+                let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
                     field_data,
                     *digits,
                     *scale,
@@ -1162,15 +1199,14 @@ fn find_and_read_counter_field(
                     options.codepage,
                     counter_field.blank_when_zero,
                     &mut scratch,
-                )?
+                )?;
+                decimal_str.parse::<u32>().map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                        format!("ODO counter '{counter_path}' has invalid value: {decimal_str}"),
+                    )
+                })?
             };
-
-            let count = decimal_str.parse::<u32>().map_err(|_| {
-                Error::new(
-                    ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                    format!("ODO counter '{counter_path}' has invalid value: {decimal_str}"),
-                )
-            })?;
 
             Ok(count)
         }
@@ -1359,12 +1395,13 @@ fn decode_scalar_field_value_standard(
                     sign_sep,
                     options.codepage,
                 )?;
-                let formatted = if *scale == 0 {
-                    format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
-                } else {
-                    decimal.to_string()
-                };
-                Ok(numeric_string_to_value(formatted, options))
+                Ok(zoned_decimal_to_json_value(
+                    &decimal,
+                    *digits,
+                    *scale,
+                    field.blank_when_zero,
+                    options,
+                ))
             } else if options.preserve_zoned_encoding {
                 // Use encoding-aware decoding for round-trip preservation
                 let (decimal, _encoding_info) = crate::numeric::decode_zoned_decimal_with_encoding(
@@ -1377,15 +1414,15 @@ fn decode_scalar_field_value_standard(
                     true, // preserve_encoding = true
                 )?;
 
-                let formatted = if *scale == 0 {
-                    format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
-                } else {
-                    decimal.to_string()
-                };
-
                 // Encoding info is collected by collect_zoned_encoding_info() at the caller level
                 // and emitted as _encoding_metadata in the JSON envelope
-                Ok(numeric_string_to_value(formatted, options))
+                Ok(zoned_decimal_to_json_value(
+                    &decimal,
+                    *digits,
+                    *scale,
+                    field.blank_when_zero,
+                    options,
+                ))
             } else {
                 // Use standard decoding
                 let decimal = crate::numeric::decode_zoned_decimal(
@@ -1396,18 +1433,17 @@ fn decode_scalar_field_value_standard(
                     options.codepage,
                     field.blank_when_zero,
                 )?;
-                let formatted = if *scale == 0 {
-                    format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
-                } else {
-                    decimal.to_string()
-                };
-                Ok(numeric_string_to_value(formatted, options))
+                Ok(zoned_decimal_to_json_value(
+                    &decimal,
+                    *digits,
+                    *scale,
+                    field.blank_when_zero,
+                    options,
+                ))
             }
         }
         FieldKind::BinaryInt { bits, signed } => {
             let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
-            // tripwire: hot-path allocation guard should catch this
-            let _bad = Value::String(int_value.to_string());
             let scratch = scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
             let formatted =
                 crate::numeric::format_binary_int_to_string_with_scratch(int_value, scratch);
@@ -1420,7 +1456,7 @@ fn decode_scalar_field_value_standard(
         } => {
             let decimal =
                 crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
-            Ok(numeric_string_to_value(decimal.to_string(), options))
+            Ok(decimal_to_json_value(&decimal, options))
         }
         FieldKind::Group => {
             // Group fields should not be processed as scalars
@@ -1574,7 +1610,13 @@ fn decode_scalar_field_value_with_scratch(
                     sign_sep,
                     options.codepage,
                 )?;
-                Ok(numeric_string_to_value(decimal.to_string(), options))
+                Ok(zoned_decimal_to_json_value(
+                    &decimal,
+                    *digits,
+                    *scale,
+                    field.blank_when_zero,
+                    options,
+                ))
             } else {
                 let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
                     field_data,
@@ -2893,6 +2935,47 @@ fn format_zoned_decimal_with_digits(
     }
 
     result
+}
+
+#[inline]
+fn small_decimal_to_string(decimal: &crate::numeric::SmallDecimal) -> String {
+    decimal.to_string()
+}
+
+#[inline]
+fn decimal_to_json_value(decimal: &crate::numeric::SmallDecimal, options: &DecodeOptions) -> Value {
+    let formatted = small_decimal_to_string(decimal);
+    numeric_string_to_value(formatted, options)
+}
+
+#[inline]
+fn zoned_decimal_to_json_value(
+    decimal: &crate::numeric::SmallDecimal,
+    digits: u16,
+    scale: i16,
+    blank_when_zero: bool,
+    options: &DecodeOptions,
+) -> Value {
+    let formatted = if scale == 0 {
+        format_zoned_decimal_with_digits(decimal, digits, blank_when_zero)
+    } else {
+        small_decimal_to_string(decimal)
+    };
+    numeric_string_to_value(formatted, options)
+}
+
+#[inline]
+fn decimal_counter_to_u32(
+    decimal: &crate::numeric::SmallDecimal,
+    counter_path: &str,
+) -> Result<u32> {
+    let text = small_decimal_to_string(decimal);
+    text.parse::<u32>().map_err(|_| {
+        Error::new(
+            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+            format!("ODO counter '{counter_path}' has invalid value: {text}"),
+        )
+    })
 }
 
 #[cfg(test)]

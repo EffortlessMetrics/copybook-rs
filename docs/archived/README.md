@@ -82,3 +82,40 @@ that contained present-tense guarantees and stale performance targets.
 - `IMPLEMENTATION_SUMMARY.md`
 - `INVESTIGATION_REPORT.md`
 - `SPEC_GATE_STATUS.md`
+
+### Roadmap History
+
+- `ROADMAP_v0.4.0_v0.5.0.md` — v0.4.0 and v0.5.0 milestone history, testing methodologies, CI snippets
+
+### Issue-Specific Specifications (completed issues)
+
+Moved during docs contract reset. All issues completed and closed.
+
+- `issue-33-comprehensive-architectural-blueprint.md` — Issue #33 system architecture
+- `issue-33-spec.md` — Issue #33 specification
+- `issue-35-ac-finalized.md` — Issue #35 acceptance criteria
+- `issue-35-spec.md` — Issue #35 specification
+- `issue-35-technical-approach.md` — Issue #35 technical approach
+- `issue-49-schema-validation-report.md` — Issue #49 validation report
+- `issue-49-spec-gate-receipt.md` — Issue #49 spec gate receipt
+- `issue-49-spec.md` — Issue #49 specification
+- `issue-49-tdd-handoff-package.md` — Issue #49 TDD handoff
+- `issue-52-spec.md` — Issue #52 specification
+- `issue-63-spec.md` — Issue #63 specification
+- `issue-63-technical-specification.md` — Issue #63 technical specification
+
+### Completed Gate and Status Documents
+
+- `DOCS_GATE_STATUS_COMPREHENSIVE.md` — Comprehensive docs gate status
+- `DOCS_REVIEW_ASSESSMENT_PANIC_ELIMINATION.md` — Panic elimination docs review
+- `SPEC_FINALIZATION_REPORT.md` — Spec finalization report
+- `ISSUE_53_DOCUMENTATION_SUMMARY.md` — Issue #53 documentation summary
+- `ISSUE-48.story.md` — Issue #48 user story
+- `issue-74-closure-plan.md` — Issue #74 closure plan (was `planning/`)
+- `issue-74-closure-summary.md` — Issue #74 closure summary (was `planning/`)
+
+### Superseded Planning and Quality Documents
+
+- `IMPLEMENTATION_ROADMAP.md` — Issue #53 golden fixtures implementation roadmap
+- `QUALITY_BLOCKERS.md` — Phase 1.2 quality blockers (all resolved)
+- `STRUCTURAL_VALIDATION_SPECS.md` — Structural validation specifications

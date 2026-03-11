@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-safe-collections"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Panic-safe extension traits for Option, Vec, and slice operations"
+documentation = "https://docs.rs/copybook-safe-collections"
+readme = "README.md"
+keywords = ["copybook", "safety", "collections", "traits"]
+categories = ["data-structures", "parsing"]
+
+include = ["src/**", "Cargo.toml", "README.md"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+copybook-error.workspace = true
+
+[lints]
+workspace = true

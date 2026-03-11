@@ -13,10 +13,12 @@ use copybook_codec::{
     Codepage, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
 use copybook_core::{Error as CoreError, Feature, FeatureCategory, FeatureFlags};
-use std::borrow::Cow;
+use copybook_safe_io::{
+    extract_panic_message, is_consumer_closed, panic_caused_by_std_pipe, write_all_ignoring_closed,
+};
 use std::convert::TryFrom;
 use std::error::Error as StdError;
-use std::io::{self, ErrorKind, Write};
+use std::io::{self, Write};
 use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode as ProcessExitCode;
@@ -1475,41 +1477,6 @@ fn env_flag(name: &str) -> bool {
     })
 }
 
-fn panic_caused_by_std_pipe(panic_payload: &dyn std::any::Any) -> bool {
-    let message = if let Some(&msg) = panic_payload.downcast_ref::<&str>() {
-        msg
-    } else if let Some(msg) = panic_payload.downcast_ref::<String>() {
-        msg.as_str()
-    } else {
-        return false;
-    };
-
-    let lower = message.to_ascii_lowercase();
-    let is_std_stream =
-        lower.contains("failed printing to stdout") || lower.contains("failed printing to stderr");
-    if !is_std_stream {
-        return false;
-    }
-
-    let is_broken_pipe = lower.contains("broken pipe")
-        || lower.contains("os error 32")
-        || lower.contains("error_broken_pipe")
-        || lower.contains("error_no_data");
-    let is_write_zero = lower.contains("write zero") || lower.contains("writezero");
-
-    is_broken_pipe || is_write_zero
-}
-
-fn extract_panic_message(panic_payload: &dyn std::any::Any) -> Cow<'_, str> {
-    if let Some(&msg) = panic_payload.downcast_ref::<&str>() {
-        return Cow::Borrowed(msg);
-    }
-    if let Some(msg) = panic_payload.downcast_ref::<String>() {
-        return Cow::Borrowed(msg.as_str());
-    }
-    Cow::Borrowed("unknown panic")
-}
-
 #[cfg(feature = "audit")]
 pub(crate) fn write_stdout_line(line: &str) -> Result<(), io::Error> {
     let mut buffer = String::with_capacity(line.len() + 1);
@@ -1528,27 +1495,12 @@ pub(crate) fn write_stderr_line(line: &str) -> Result<(), io::Error> {
 
 pub(crate) fn write_stdout_all(bytes: &[u8]) -> Result<(), io::Error> {
     let mut stdout = io::stdout().lock();
-    match stdout.write_all(bytes) {
-        Ok(()) => Ok(()),
-        Err(err) if is_consumer_closed(&err) => Ok(()),
-        Err(err) => Err(err),
-    }
+    write_all_ignoring_closed(&mut stdout, bytes)
 }
 
 pub(crate) fn write_stderr_all(bytes: &[u8]) -> Result<(), io::Error> {
     let mut stderr = io::stderr().lock();
-    match stderr.write_all(bytes) {
-        Ok(()) => Ok(()),
-        Err(err) if is_consumer_closed(&err) => Ok(()),
-        Err(err) => Err(err),
-    }
-}
-
-#[inline]
-fn is_consumer_closed(err: &io::Error) -> bool {
-    matches!(err.kind(), ErrorKind::BrokenPipe | ErrorKind::WriteZero)
-        || err.raw_os_error() == Some(109)
-        || err.raw_os_error() == Some(232)
+    write_all_ignoring_closed(&mut stderr, bytes)
 }
 
 mod commands {

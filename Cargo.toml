@@ -107,7 +107,7 @@ serde_json = { version = "1.0.149", features = ["preserve_order"] }
 serde_plain = "1.0.2"
 thiserror = "2.0.18"
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 
 # Memory management dependencies
 smallvec = "1.15.1"
@@ -115,9 +115,9 @@ crossbeam-channel = "0.5.15"
 indexmap = { version = "2.13.0", features = ["serde"] }
 
 # CLI dependencies
-clap = { version = "4.5.60", features = ["derive"] }
+clap = { version = "4.6.0", features = ["derive"] }
 tokio = { version = "1.50.0", features = ["full"] }
-tempfile = "3.26.0"
+tempfile = "3.27.0"
 
 # Telemetry dependencies
 metrics = "0.24.3"
@@ -132,10 +132,10 @@ base64 = "0.22.1"
 blake3 = "1.8.3"
 
 # Testing dependencies
-proptest = "1.10.0"
+proptest = "1.11.0"
 criterion = { version = "0.8.2", features = ["html_reports"] }
 hex = "0.4.3"
-assert_cmd = "2.1.2"
+assert_cmd = "2.2.0"
 predicates = "3.1.4"
 num_cpus = "1.17.0"
 roxmltree = "0.21.1"

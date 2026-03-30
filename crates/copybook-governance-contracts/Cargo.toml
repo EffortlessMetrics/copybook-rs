@@ -17,6 +17,10 @@ categories = ["config", "development-tools"]
 # Keep tarballs slim; whitelist essential files
 include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
 
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
 [dependencies]
 copybook-contracts.workspace = true
 copybook-support-matrix.workspace = true

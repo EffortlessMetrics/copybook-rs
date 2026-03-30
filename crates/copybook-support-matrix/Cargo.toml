@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 [package]
 name = "copybook-support-matrix"
 version.workspace = true
@@ -13,6 +14,10 @@ readme = "README.md"
 include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
 keywords = ["cobol", "copybook", "support-matrix"]
 categories = ["config", "development-tools"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 serde.workspace = true

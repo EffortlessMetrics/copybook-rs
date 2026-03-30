@@ -9,9 +9,15 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 description = "COBOL copybook lexical analysis and tokenization primitives."
+documentation = "https://docs.rs/copybook-lexer"
 readme = "README.md"
+include = ["src/**", "tests/**", "Cargo.toml", "README.md", "LICENSE"]
 keywords = ["cobol", "copybook", "lexer", "parser", "tokenizer"]
 categories = ["parsing", "text-processing"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 logos.workspace = true

@@ -822,6 +822,7 @@ dependencies = [
  "copybook-codec",
  "copybook-core",
  "copybook-governance",
+ "copybook-safe-io",
  "md5",
  "metrics",
  "metrics-exporter-prometheus",
@@ -1199,6 +1200,10 @@ dependencies = [
  "copybook-error",
  "proptest",
 ]
+
+[[package]]
+name = "copybook-safe-io"
+version = "0.4.3"
 
 [[package]]
 name = "copybook-safe-ops"

@@ -931,8 +931,9 @@ fn process_array_field(
             counter_path,
         } => {
             // Find the counter field and get its value
+            let scratch = scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
             let counter_value =
-                find_and_read_counter_field(counter_path, all_fields, data, options)?;
+                find_and_read_counter_field(counter_path, all_fields, data, options, scratch)?;
 
             let counter_field = find_field_by_path(all_fields, counter_path)?;
             let validation_context = crate::odo_redefines::OdoValidationContext {
@@ -1052,7 +1053,7 @@ fn process_array_field_with_scratch(
         } => {
             // Find the counter field and get its value
             let counter_value =
-                find_and_read_counter_field(counter_path, all_fields, data, options)?;
+                find_and_read_counter_field(counter_path, all_fields, data, options, scratch)?;
 
             let counter_field = find_field_by_path(all_fields, counter_path)?;
             let validation_context = crate::odo_redefines::OdoValidationContext {
@@ -1155,6 +1156,7 @@ fn find_and_read_counter_field(
     all_fields: &[copybook_core::Field],
     data: &[u8],
     options: &DecodeOptions,
+    scratch: &mut crate::memory::ScratchBuffers,
 ) -> Result<u32> {
     // Find the counter field by path
     let counter_field = find_field_by_path(all_fields, counter_path)?;
@@ -1190,7 +1192,6 @@ fn find_and_read_counter_field(
                 )?;
                 decimal_counter_to_u32(&decimal, counter_path)?
             } else {
-                let mut scratch = crate::memory::ScratchBuffers::new();
                 let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
                     field_data,
                     *digits,
@@ -1198,7 +1199,7 @@ fn find_and_read_counter_field(
                     *signed,
                     options.codepage,
                     counter_field.blank_when_zero,
-                    &mut scratch,
+                    scratch,
                 )?;
                 decimal_str.parse::<u32>().map_err(|_| {
                     Error::new(
@@ -1230,14 +1231,8 @@ fn find_and_read_counter_field(
             scale,
             signed,
         } => {
-            // OPTIMIZATION: Use scratch buffer for ODO counter decoding
-            let mut scratch = crate::memory::ScratchBuffers::new();
             let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
-                field_data,
-                *digits,
-                *scale,
-                *signed,
-                &mut scratch,
+                field_data, *digits, *scale, *signed, scratch,
             )?;
             let count = decimal_str.parse::<u32>().map_err(|_| {
                 Error::new(

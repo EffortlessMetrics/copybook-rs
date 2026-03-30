@@ -303,6 +303,24 @@ fn rt_deep_redefines_alternate_decoded() {
 }
 
 // ===========================================================================
+// 4b. Parent-child same-name group roundtrip
+// ===========================================================================
+
+#[test]
+fn rt_deep_parent_child_same_name_no_collision() {
+    // Regression: flat decode would collide on same-named fields at different
+    // levels; hierarchical decode nests group children correctly.
+    let cpy = r"
+01 REC.
+   05 GRP.
+      10 F PIC X(1).
+   05 F PIC X(1).
+";
+    let data = to_ebcdic("AB");
+    assert_roundtrip(cpy, &data);
+}
+
+// ===========================================================================
 // 5. ODO variable-length roundtrip (decode verification)
 // ===========================================================================
 

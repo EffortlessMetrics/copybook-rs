@@ -152,7 +152,10 @@ impl Parser {
         }
 
         // Build hierarchical structure from flat fields
-        let hierarchical_fields = self.build_hierarchy(flat_fields)?;
+        let mut hierarchical_fields = self.build_hierarchy(flat_fields)?;
+
+        // Disambiguate duplicate sibling names and recompute paths
+        finalize_names_and_paths(&mut hierarchical_fields, None, self.options.emit_filler);
 
         // Validate the structure (REDEFINES targets, ODO constraints, etc.)
         self.validate_structure(&hierarchical_fields)?;
@@ -318,9 +321,8 @@ impl Parser {
         Ok(result)
     }
 
-    /// Process field names for duplicates and FILLER handling
+    /// Process field names for FILLER handling (on flat list before hierarchy)
     fn process_field_names(&mut self, fields: &mut [Field]) {
-        // First pass: handle FILLER fields
         for field in fields.iter_mut() {
             if field.name.to_uppercase() == "FILLER" {
                 if self.options.emit_filler {
@@ -331,40 +333,6 @@ impl Parser {
                     // Keep FILLER name for now, will be filtered out in layout resolution
                     field.name = "FILLER".to_string();
                 }
-            }
-        }
-
-        // Second pass: handle duplicate names at each level
-        self.process_duplicates_at_level(fields, 0);
-    }
-
-    /// Process duplicate names recursively by level
-    fn process_duplicates_at_level(&mut self, fields: &mut [Field], parent_level: u8) {
-        let mut name_counts: std::collections::HashMap<String, u32> =
-            std::collections::HashMap::new();
-        let mut siblings = Vec::new();
-
-        // Find all siblings at the next level
-        for (i, field) in fields.iter().enumerate() {
-            if field.level == parent_level + 1 || (parent_level == 0 && field.level <= 49) {
-                siblings.push(i);
-            }
-        }
-
-        // Process duplicates among siblings
-        for &i in &siblings {
-            let field_name = fields[i].name.clone();
-
-            // Skip FILLER fields that won't be emitted
-            if field_name == "FILLER" && !self.options.emit_filler {
-                continue;
-            }
-
-            let count = name_counts.entry(field_name.clone()).or_insert(0);
-            *count += 1;
-
-            if *count > 1 {
-                fields[i].name = format!("{}__dup{}", field_name, count);
             }
         }
     }
@@ -1758,6 +1726,45 @@ impl Parser {
     }
 }
 
+/// Disambiguate duplicate names among true siblings (post-hierarchy) and recompute paths.
+///
+/// Walks the hierarchical field tree. At each level, siblings sharing a name
+/// get `__dup2`, `__dup3`, … suffixes. Paths are rebuilt from the parent path
+/// after renaming so they stay consistent.
+fn finalize_names_and_paths(fields: &mut [Field], parent_path: Option<&str>, emit_filler: bool) {
+    use std::collections::HashMap;
+
+    let mut counts: HashMap<String, u32> = HashMap::new();
+
+    for field in fields.iter_mut() {
+        // Skip FILLER fields that won't be emitted — they don't need unique names
+        if field.name == "FILLER" && !emit_filler {
+            field.path = match parent_path {
+                Some(parent) => format!("{parent}.{}", field.name),
+                None => field.name.clone(),
+            };
+            continue;
+        }
+
+        let base = field.name.clone();
+        let count = counts.entry(base.clone()).or_insert(0);
+        *count += 1;
+        if *count > 1 {
+            field.name = format!("{base}__dup{count}");
+        }
+
+        field.path = match parent_path {
+            Some(parent) => format!("{parent}.{}", field.name),
+            None => field.name.clone(),
+        };
+    }
+
+    for field in fields.iter_mut() {
+        let parent = field.path.clone();
+        finalize_names_and_paths(&mut field.children, Some(&parent), emit_filler);
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 #[allow(clippy::unwrap_used)]
@@ -1956,6 +1963,16 @@ mod tests {
         assert_eq!(root.children.len(), 2);
         assert_eq!(root.children[0].name, "FIELD-NAME");
         assert_eq!(root.children[1].name, "FIELD-NAME__dup2");
+    }
+
+    #[test]
+    fn test_parent_child_same_name_does_not_get_dup_suffix() {
+        let input = "01 U-J.\n   05 U-J PIC X(5).";
+        let schema = parse(input).unwrap();
+        let group = &schema.fields[0];
+        let child = &group.children[0];
+        assert_eq!(child.name, "U-J");
+        assert_eq!(child.path, "U-J.U-J");
     }
 
     #[test]

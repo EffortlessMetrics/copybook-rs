@@ -517,7 +517,6 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const core = require('@actions/core');
             const path = 'scripts/bench/perf.json';
             const summary = (() => {
               try {
@@ -561,7 +560,6 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            const core = require('@actions/core');
             const label = 'ready:perf-ok';
             try {
               await github.rest.issues.addLabels({

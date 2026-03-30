@@ -7,7 +7,7 @@
 **Specifications**:
 - Architecture: `docs/explanation/security-scanning-architecture.md`
 - How-To Guide: `docs/how-to/configure-security-scanning.md`
-- Acceptance Criteria: `docs/issue-35-ac-finalized.md`
+- Acceptance Criteria: `docs/archived/issue-35-ac-finalized.md`
 
 ---
 
@@ -291,7 +291,7 @@ grep "shared-key: advisory-db" .github/workflows/ci.yml .github/workflows/securi
 ## AC8: Documentation Completeness Review
 
 ### Test Spec
-`docs/issue-35-ac-finalized.md#ac8-documentation-updates`
+`docs/archived/issue-35-ac-finalized.md#ac8-documentation-updates`
 
 ### Validation Procedure
 

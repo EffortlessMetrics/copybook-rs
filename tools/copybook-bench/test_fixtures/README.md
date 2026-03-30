@@ -315,7 +315,7 @@ All fixtures validated against:
 1. **API Contracts**: `docs/reference/benchmark-api-contracts.md`
 2. **Performance Targets**: copybook-rs CLAUDE.md enterprise requirements
 3. **JSON Schema**: `PerformanceReport` and `BaselineStore` struct definitions (from `copybook-bench/src/reporting.rs` and `copybook-bench/src/baseline.rs`)
-4. **AC Specifications**: `docs/issue-49-tdd-handoff-package.md`
+4. **AC Specifications**: `docs/archived/issue-49-tdd-handoff-package.md`
 
 ## Testing Best Practices
 
@@ -378,13 +378,13 @@ All fixtures support `// AC:ID` tag traceability:
 - **AC4**: Progressive Complexity (`progressive/`)
 - **AC5**: Enhanced Diagnostics (`diagnostics/`)
 
-See `docs/issue-49-traceability-matrix.md` for complete traceability mapping.
+See `docs/archived/issue-49-traceability-matrix.md` for complete traceability mapping.
 
 ## Related Documentation
 
-- **Specification**: `docs/issue-49-spec.md`
-- **TDD Handoff**: `docs/issue-49-tdd-handoff-package.md`
-- **Traceability Matrix**: `docs/issue-49-traceability-matrix.md`
+- **Specification**: `docs/archived/issue-49-spec.md`
+- **TDD Handoff**: `docs/archived/issue-49-tdd-handoff-package.md`
+- **Traceability Matrix**: `docs/archived/issue-49-traceability-matrix.md`
 - **API Contracts**: `docs/reference/benchmark-api-contracts.md`
 - **Performance Report**: `docs/REPORT.md`
 - **Project README**: `CLAUDE.md`

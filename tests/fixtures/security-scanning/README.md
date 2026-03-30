@@ -160,7 +160,7 @@ check-jsonschema --schemafile docs/reference/security-receipt-schema.json \
 - **Architecture**: `docs/explanation/security-scanning-architecture.md`
 - **How-To Guide**: `docs/how-to/configure-security-scanning.md`
 - **JSON Schema**: `docs/reference/security-receipt-schema.json`
-- **Acceptance Criteria**: `docs/issue-35-ac-finalized.md`
+- **Acceptance Criteria**: `docs/archived/issue-35-ac-finalized.md`
 - **Integration Tests**: `copybook-bench/tests/issue_35_security_scanning_integration.rs`
 - **Manual Procedures**: `tests/manual/SECURITY_SCANNING_VALIDATION.md`
 - **Validation Script**: `scripts/validate-security-config.sh`

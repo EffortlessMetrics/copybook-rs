@@ -14,7 +14,7 @@ readme = "README.md"
 keywords = ["copybook", "corruption", "predicates", "comp3", "ebcdic"]
 categories = ["parsing", "data-structures"]
 
-include = ["src/**", "Cargo.toml", "README.md"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
 
 [package.metadata.docs.rs]
 all-features = false

@@ -15,6 +15,10 @@ include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
 keywords = ["cobol", "copybook", "feature-flags", "support-matrix", "runtime"]
 categories = ["development-tools", "data-management"]
 
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
 [dependencies]
 copybook-governance-grid.workspace = true
 serde.workspace = true

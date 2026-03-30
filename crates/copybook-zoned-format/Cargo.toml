@@ -14,7 +14,7 @@ readme = "README.md"
 keywords = ["cobol", "copybook", "zoned-decimal", "encoding", "options"]
 categories = ["data-structures", "encoding"]
 
-include = ["src/**", "Cargo.toml", "README.md"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
 
 [package.metadata.docs.rs]
 all-features = false

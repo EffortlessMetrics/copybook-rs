@@ -11,7 +11,7 @@ homepage.workspace = true
 description = "COBOL copybook lexical analysis and tokenization primitives."
 documentation = "https://docs.rs/copybook-lexer"
 readme = "README.md"
-include = ["src/**", "tests/**", "Cargo.toml", "README.md", "LICENSE"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
 keywords = ["cobol", "copybook", "lexer", "parser", "tokenizer"]
 categories = ["parsing", "text-processing"]
 

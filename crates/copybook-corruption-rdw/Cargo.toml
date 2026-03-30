@@ -26,7 +26,7 @@ copybook-rdw-predicates.workspace = true
 copybook-corruption-predicates.workspace = true
 
 [dev-dependencies]
-copybook-corruption.workspace = true
+copybook-corruption = { path = "../copybook-corruption" }
 proptest.workspace = true
 
 [lints]

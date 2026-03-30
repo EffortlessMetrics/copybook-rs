@@ -25,7 +25,7 @@ copybook-error.workspace = true
 copybook-safe-ops.workspace = true
 
 [dev-dependencies]
-copybook-safe-ops.workspace = true
+copybook-safe-ops = { path = "../copybook-safe-ops" }
 
 [lints]
 workspace = true

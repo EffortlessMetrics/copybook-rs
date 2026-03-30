@@ -24,6 +24,6 @@ targets = ["x86_64-unknown-linux-gnu"]
 workspace = true
 
 [dev-dependencies]
-copybook-corruption.workspace = true
-copybook-corruption-rdw.workspace = true
-copybook-rdw.workspace = true
+copybook-corruption = { path = "../copybook-corruption" }
+copybook-corruption-rdw = { path = "../copybook-corruption-rdw" }
+copybook-rdw = { path = "../copybook-rdw" }

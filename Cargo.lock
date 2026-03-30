@@ -867,6 +867,7 @@ dependencies = [
  "copybook-core",
  "copybook-corruption",
  "copybook-determinism",
+ "copybook-edited-pic",
  "copybook-error",
  "copybook-fixed",
  "copybook-options",
@@ -1011,6 +1012,14 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+]
+
+[[package]]
+name = "copybook-edited-pic"
+version = "0.4.3"
+dependencies = [
+ "copybook-core",
+ "tracing",
 ]
 
 [[package]]

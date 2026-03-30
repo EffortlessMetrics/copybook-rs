@@ -30,6 +30,7 @@ copybook-fixed.workspace = true
 copybook-rdw.workspace = true
 copybook-corruption.workspace = true
 copybook-record-io.workspace = true
+copybook-edited-pic.workspace = true
 copybook-determinism.workspace = true
 copybook-error.workspace = true
 serde.workspace = true

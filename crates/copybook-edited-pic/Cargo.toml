@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-edited-pic"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Edited COBOL PIC tokenize/decode/encode microcrate"
+documentation = "https://docs.rs/copybook-edited-pic"
+readme = "README.md"
+keywords = ["cobol", "copybook", "pic", "codec", "numeric"]
+categories = ["encoding", "parsing"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[dependencies]
+copybook-core = { workspace = true }
+tracing.workspace = true
+
+[lints]
+workspace = true

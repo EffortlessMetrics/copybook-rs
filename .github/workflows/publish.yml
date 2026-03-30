@@ -266,71 +266,77 @@ jobs:
         echo "All 36 publishable crates published successfully!"
 
     - name: Create GitHub Release
-      uses: actions/github-script@v8
-      with:
-        script: |
-          const tag = '${{ github.ref_name || github.event.inputs.tag }}';
-          const version = tag.replace('v', '');
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
 
-          const { data: release } = await github.rest.repos.createRelease({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            tag_name: tag,
-            name: `copybook-rs ${version}`,
-            body: `## copybook-rs ${version}
+        tag="${{ github.ref_name || github.event.inputs.tag }}"
+        version="${tag#v}"
+        repo_url="https://github.com/${{ github.repository }}"
 
-          **Installation:**
-          \`\`\`bash
-          cargo install copybook-cli@${version}
-          \`\`\`
+        cat > release-notes.md <<EOF
+        ## copybook-rs ${version}
 
-          **Published Crates (36):**
+        **Installation:**
+        \`\`\`bash
+        cargo install copybook-cli@${version}
+        \`\`\`
 
-          | Crate | crates.io | docs.rs |
-          |-------|-----------|---------|
-          | copybook-error | [${version}](https://crates.io/crates/copybook-error/${version}) | [docs](https://docs.rs/copybook-error/${version}) |
-          | copybook-determinism | [${version}](https://crates.io/crates/copybook-determinism/${version}) | [docs](https://docs.rs/copybook-determinism/${version}) |
-          | copybook-dialect | [${version}](https://crates.io/crates/copybook-dialect/${version}) | [docs](https://docs.rs/copybook-dialect/${version}) |
-          | copybook-codepage | [${version}](https://crates.io/crates/copybook-codepage/${version}) | [docs](https://docs.rs/copybook-codepage/${version}) |
-          | copybook-contracts | [${version}](https://crates.io/crates/copybook-contracts/${version}) | [docs](https://docs.rs/copybook-contracts/${version}) |
-          | copybook-support-matrix | [${version}](https://crates.io/crates/copybook-support-matrix/${version}) | [docs](https://docs.rs/copybook-support-matrix/${version}) |
-          | copybook-sequence-ring | [${version}](https://crates.io/crates/copybook-sequence-ring/${version}) | [docs](https://docs.rs/copybook-sequence-ring/${version}) |
-          | copybook-corruption-predicates | [${version}](https://crates.io/crates/copybook-corruption-predicates/${version}) | [docs](https://docs.rs/copybook-corruption-predicates/${version}) |
-          | copybook-rdw-predicates | [${version}](https://crates.io/crates/copybook-rdw-predicates/${version}) | [docs](https://docs.rs/copybook-rdw-predicates/${version}) |
-          | copybook-zoned-format | [${version}](https://crates.io/crates/copybook-zoned-format/${version}) | [docs](https://docs.rs/copybook-zoned-format/${version}) |
-          | copybook-lexer | [${version}](https://crates.io/crates/copybook-lexer/${version}) | [docs](https://docs.rs/copybook-lexer/${version}) |
-          | copybook-overflow | [${version}](https://crates.io/crates/copybook-overflow/${version}) | [docs](https://docs.rs/copybook-overflow/${version}) |
-          | copybook-error-reporter | [${version}](https://crates.io/crates/copybook-error-reporter/${version}) | [docs](https://docs.rs/copybook-error-reporter/${version}) |
-          | copybook-charset | [${version}](https://crates.io/crates/copybook-charset/${version}) | [docs](https://docs.rs/copybook-charset/${version}) |
-          | copybook-governance-contracts | [${version}](https://crates.io/crates/copybook-governance-contracts/${version}) | [docs](https://docs.rs/copybook-governance-contracts/${version}) |
-          | copybook-codec-memory | [${version}](https://crates.io/crates/copybook-codec-memory/${version}) | [docs](https://docs.rs/copybook-codec-memory/${version}) |
-          | copybook-overpunch | [${version}](https://crates.io/crates/copybook-overpunch/${version}) | [docs](https://docs.rs/copybook-overpunch/${version}) |
-          | copybook-safe-index | [${version}](https://crates.io/crates/copybook-safe-index/${version}) | [docs](https://docs.rs/copybook-safe-index/${version}) |
-          | copybook-safe-text | [${version}](https://crates.io/crates/copybook-safe-text/${version}) | [docs](https://docs.rs/copybook-safe-text/${version}) |
-          | copybook-governance-grid | [${version}](https://crates.io/crates/copybook-governance-grid/${version}) | [docs](https://docs.rs/copybook-governance-grid/${version}) |
-          | copybook-options | [${version}](https://crates.io/crates/copybook-options/${version}) | [docs](https://docs.rs/copybook-options/${version}) |
-          | copybook-safe-ops | [${version}](https://crates.io/crates/copybook-safe-ops/${version}) | [docs](https://docs.rs/copybook-safe-ops/${version}) |
-          | copybook-governance-runtime | [${version}](https://crates.io/crates/copybook-governance-runtime/${version}) | [docs](https://docs.rs/copybook-governance-runtime/${version}) |
-          | copybook-utils | [${version}](https://crates.io/crates/copybook-utils/${version}) | [docs](https://docs.rs/copybook-utils/${version}) |
-          | copybook-core | [${version}](https://crates.io/crates/copybook-core/${version}) | [docs](https://docs.rs/copybook-core/${version}) |
-          | copybook-governance | [${version}](https://crates.io/crates/copybook-governance/${version}) | [docs](https://docs.rs/copybook-governance/${version}) |
-          | copybook-fixed | [${version}](https://crates.io/crates/copybook-fixed/${version}) | [docs](https://docs.rs/copybook-fixed/${version}) |
-          | copybook-rdw | [${version}](https://crates.io/crates/copybook-rdw/${version}) | [docs](https://docs.rs/copybook-rdw/${version}) |
-          | copybook-corruption-detectors | [${version}](https://crates.io/crates/copybook-corruption-detectors/${version}) | [docs](https://docs.rs/copybook-corruption-detectors/${version}) |
-          | copybook-corruption-rdw | [${version}](https://crates.io/crates/copybook-corruption-rdw/${version}) | [docs](https://docs.rs/copybook-corruption-rdw/${version}) |
-          | copybook-record-io | [${version}](https://crates.io/crates/copybook-record-io/${version}) | [docs](https://docs.rs/copybook-record-io/${version}) |
-          | copybook-corruption | [${version}](https://crates.io/crates/copybook-corruption/${version}) | [docs](https://docs.rs/copybook-corruption/${version}) |
-          | copybook-codec | [${version}](https://crates.io/crates/copybook-codec/${version}) | [docs](https://docs.rs/copybook-codec/${version}) |
-          | copybook-arrow | [${version}](https://crates.io/crates/copybook-arrow/${version}) | [docs](https://docs.rs/copybook-arrow/${version}) |
-          | copybook-cli-determinism | [${version}](https://crates.io/crates/copybook-cli-determinism/${version}) | [docs](https://docs.rs/copybook-cli-determinism/${version}) |
-          | copybook-cli | [${version}](https://crates.io/crates/copybook-cli/${version}) | [docs](https://docs.rs/copybook-cli/${version}) |
+        **Published Crates (36):**
 
-          See [CHANGELOG.md](https://github.com/EffortlessMetrics/copybook-rs/blob/${tag}/CHANGELOG.md) for details.`,
-            draft: false,
-            prerelease: version.includes('-')
-          });
+        | Crate | crates.io | docs.rs |
+        |-------|-----------|---------|
+        | copybook-error | [${version}](https://crates.io/crates/copybook-error/${version}) | [docs](https://docs.rs/copybook-error/${version}) |
+        | copybook-determinism | [${version}](https://crates.io/crates/copybook-determinism/${version}) | [docs](https://docs.rs/copybook-determinism/${version}) |
+        | copybook-dialect | [${version}](https://crates.io/crates/copybook-dialect/${version}) | [docs](https://docs.rs/copybook-dialect/${version}) |
+        | copybook-codepage | [${version}](https://crates.io/crates/copybook-codepage/${version}) | [docs](https://docs.rs/copybook-codepage/${version}) |
+        | copybook-contracts | [${version}](https://crates.io/crates/copybook-contracts/${version}) | [docs](https://docs.rs/copybook-contracts/${version}) |
+        | copybook-support-matrix | [${version}](https://crates.io/crates/copybook-support-matrix/${version}) | [docs](https://docs.rs/copybook-support-matrix/${version}) |
+        | copybook-sequence-ring | [${version}](https://crates.io/crates/copybook-sequence-ring/${version}) | [docs](https://docs.rs/copybook-sequence-ring/${version}) |
+        | copybook-corruption-predicates | [${version}](https://crates.io/crates/copybook-corruption-predicates/${version}) | [docs](https://docs.rs/copybook-corruption-predicates/${version}) |
+        | copybook-rdw-predicates | [${version}](https://crates.io/crates/copybook-rdw-predicates/${version}) | [docs](https://docs.rs/copybook-rdw-predicates/${version}) |
+        | copybook-zoned-format | [${version}](https://crates.io/crates/copybook-zoned-format/${version}) | [docs](https://docs.rs/copybook-zoned-format/${version}) |
+        | copybook-lexer | [${version}](https://crates.io/crates/copybook-lexer/${version}) | [docs](https://docs.rs/copybook-lexer/${version}) |
+        | copybook-overflow | [${version}](https://crates.io/crates/copybook-overflow/${version}) | [docs](https://docs.rs/copybook-overflow/${version}) |
+        | copybook-error-reporter | [${version}](https://crates.io/crates/copybook-error-reporter/${version}) | [docs](https://docs.rs/copybook-error-reporter/${version}) |
+        | copybook-charset | [${version}](https://crates.io/crates/copybook-charset/${version}) | [docs](https://docs.rs/copybook-charset/${version}) |
+        | copybook-governance-contracts | [${version}](https://crates.io/crates/copybook-governance-contracts/${version}) | [docs](https://docs.rs/copybook-governance-contracts/${version}) |
+        | copybook-codec-memory | [${version}](https://crates.io/crates/copybook-codec-memory/${version}) | [docs](https://docs.rs/copybook-codec-memory/${version}) |
+        | copybook-overpunch | [${version}](https://crates.io/crates/copybook-overpunch/${version}) | [docs](https://docs.rs/copybook-overpunch/${version}) |
+        | copybook-safe-index | [${version}](https://crates.io/crates/copybook-safe-index/${version}) | [docs](https://docs.rs/copybook-safe-index/${version}) |
+        | copybook-safe-text | [${version}](https://crates.io/crates/copybook-safe-text/${version}) | [docs](https://docs.rs/copybook-safe-text/${version}) |
+        | copybook-governance-grid | [${version}](https://crates.io/crates/copybook-governance-grid/${version}) | [docs](https://docs.rs/copybook-governance-grid/${version}) |
+        | copybook-options | [${version}](https://crates.io/crates/copybook-options/${version}) | [docs](https://docs.rs/copybook-options/${version}) |
+        | copybook-safe-ops | [${version}](https://crates.io/crates/copybook-safe-ops/${version}) | [docs](https://docs.rs/copybook-safe-ops/${version}) |
+        | copybook-governance-runtime | [${version}](https://crates.io/crates/copybook-governance-runtime/${version}) | [docs](https://docs.rs/copybook-governance-runtime/${version}) |
+        | copybook-utils | [${version}](https://crates.io/crates/copybook-utils/${version}) | [docs](https://docs.rs/copybook-utils/${version}) |
+        | copybook-core | [${version}](https://crates.io/crates/copybook-core/${version}) | [docs](https://docs.rs/copybook-core/${version}) |
+        | copybook-governance | [${version}](https://crates.io/crates/copybook-governance/${version}) | [docs](https://docs.rs/copybook-governance/${version}) |
+        | copybook-fixed | [${version}](https://crates.io/crates/copybook-fixed/${version}) | [docs](https://docs.rs/copybook-fixed/${version}) |
+        | copybook-rdw | [${version}](https://crates.io/crates/copybook-rdw/${version}) | [docs](https://docs.rs/copybook-rdw/${version}) |
+        | copybook-corruption-detectors | [${version}](https://crates.io/crates/copybook-corruption-detectors/${version}) | [docs](https://docs.rs/copybook-corruption-detectors/${version}) |
+        | copybook-corruption-rdw | [${version}](https://crates.io/crates/copybook-corruption-rdw/${version}) | [docs](https://docs.rs/copybook-corruption-rdw/${version}) |
+        | copybook-record-io | [${version}](https://crates.io/crates/copybook-record-io/${version}) | [docs](https://docs.rs/copybook-record-io/${version}) |
+        | copybook-corruption | [${version}](https://crates.io/crates/copybook-corruption/${version}) | [docs](https://docs.rs/copybook-corruption/${version}) |
+        | copybook-codec | [${version}](https://crates.io/crates/copybook-codec/${version}) | [docs](https://docs.rs/copybook-codec/${version}) |
+        | copybook-arrow | [${version}](https://crates.io/crates/copybook-arrow/${version}) | [docs](https://docs.rs/copybook-arrow/${version}) |
+        | copybook-cli-determinism | [${version}](https://crates.io/crates/copybook-cli-determinism/${version}) | [docs](https://docs.rs/copybook-cli-determinism/${version}) |
+        | copybook-cli | [${version}](https://crates.io/crates/copybook-cli/${version}) | [docs](https://docs.rs/copybook-cli/${version}) |
 
-          console.log(\`Created release: \${release.html_url}\`);
+        See [CHANGELOG.md](${repo_url}/blob/${tag}/CHANGELOG.md) for details.
+        EOF
+
+        if gh release view "${tag}" >/dev/null 2>&1; then
+          gh release edit "${tag}" --title "copybook-rs ${version}" --notes-file release-notes.md
+          echo "Updated release ${tag}"
+        elif [[ "${version}" == *-* ]]; then
+          gh release create "${tag}" --title "copybook-rs ${version}" --notes-file release-notes.md --prerelease
+          echo "Created prerelease ${tag}"
+        else
+          gh release create "${tag}" --title "copybook-rs ${version}" --notes-file release-notes.md
+          echo "Created release ${tag}"
+        fi
 
   smoke-test:
     runs-on: ubuntu-latest

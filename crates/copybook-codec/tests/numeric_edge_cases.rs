@@ -113,11 +113,12 @@ fn test_comp3_single_byte_negative_values() {
 #[test]
 fn test_comp3_max_positive_18_digits() {
     // PIC S9(18) COMP-3 → 10 bytes (18 digits + sign nibble, packed)
-    // 999999999999999999 → 0x99 0x99 0x99 0x99 0x99 0x99 0x99 0x99 0x99 0x9C
+    // Even digit counts use a leading pad nibble before the digits and sign.
+    // 999999999999999999 → 0x09 0x99 0x99 0x99 0x99 0x99 0x99 0x99 0x99 0x9C
     let copybook = "01 VAL PIC S9(18) COMP-3.";
     let schema = parse_copybook(copybook).expect("parse");
 
-    let data: [u8; 10] = [0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x9C];
+    let data: [u8; 10] = [0x09, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x9C];
     let result = decode_record(&schema, &data, &decode_opts()).expect("decode");
     assert_eq!(result["VAL"], serde_json::json!("999999999999999999"));
 }
@@ -128,7 +129,7 @@ fn test_comp3_max_negative_18_digits() {
     let copybook = "01 VAL PIC S9(18) COMP-3.";
     let schema = parse_copybook(copybook).expect("parse");
 
-    let data: [u8; 10] = [0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x9D];
+    let data: [u8; 10] = [0x09, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x9D];
     let result = decode_record(&schema, &data, &decode_opts()).expect("decode");
     assert_eq!(result["VAL"], serde_json::json!("-999999999999999999"));
 }

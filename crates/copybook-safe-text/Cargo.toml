@@ -24,7 +24,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 copybook-error.workspace = true
 
 [dev-dependencies]
-copybook-safe-ops.workspace = true
+copybook-safe-ops = { path = "../copybook-safe-ops" }
 
 [lints]
 workspace = true

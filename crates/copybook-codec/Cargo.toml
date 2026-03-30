@@ -50,7 +50,7 @@ tempfile.workspace = true
 anyhow.workspace = true
 assert_cmd.workspace = true
 predicates.workspace = true
-copybook-options.workspace = true
+copybook-options = { path = "../copybook-options" }
 
 [features]
 default = ["comp3_fast"]

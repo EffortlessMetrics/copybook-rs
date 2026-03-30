@@ -26,7 +26,7 @@ copybook-corruption-rdw.workspace = true
 copybook-corruption-detectors.workspace = true
 
 [dev-dependencies]
-copybook-corruption-detectors.workspace = true
+copybook-corruption-detectors = { path = "../copybook-corruption-detectors" }
 
 [lints]
 workspace = true

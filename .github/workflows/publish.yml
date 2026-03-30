@@ -45,8 +45,13 @@ jobs:
         # Run tests to ensure quality
         cargo test --workspace --exclude copybook-bench --exclude copybook-bdd --release -j 2
 
-        # Verify the leaf crate (no workspace deps) packages correctly.
+        # Verify a leaf crate packages cleanly.
         cargo package -p copybook-error
+
+        # Verify publish manifests that intentionally keep path-only internal
+        # dev-dependencies for workspace tests strip cleanly for crates.io.
+        cargo package -p copybook-determinism --no-verify
+        cargo package -p copybook-rdw-predicates --no-verify
 
     - name: Publish all crates in dependency order
       env:

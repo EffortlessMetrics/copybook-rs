@@ -139,7 +139,6 @@ assert_cmd = "2.1.2"
 predicates = "3.1.4"
 num_cpus = "1.17.0"
 roxmltree = "0.21.1"
-uselesskey = { version = "0.2.0", default-features = false, features = ["x509"] }
 
 # BDD testing dependencies
 cucumber = "0.22.1"

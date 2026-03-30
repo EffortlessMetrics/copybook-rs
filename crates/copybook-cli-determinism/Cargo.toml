@@ -11,7 +11,7 @@ homepage = "https://github.com/EffortlessMetrics/copybook-rs"
 description = "Determinism command execution and output rendering for the copybook CLI."
 documentation = "https://docs.rs/copybook-cli-determinism"
 readme = "README.md"
-include = ["src/**", "tests/**", "Cargo.toml", "README.md", "LICENSE"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
 keywords = ["cobol", "copybook", "determinism", "cli"]
 categories = ["encoding", "command-line-utilities"]
 

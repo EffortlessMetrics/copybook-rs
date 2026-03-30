@@ -10,8 +10,8 @@
 use std::fs;
 use std::io::Write;
 
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
 use sha2::{Digest, Sha256};
 use tempfile::NamedTempFile;
 

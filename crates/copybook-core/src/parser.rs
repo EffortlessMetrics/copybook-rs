@@ -12,6 +12,7 @@ use crate::pic::PicClause;
 use crate::schema::{Field, FieldKind, Occurs, Schema, SignPlacement, SignSeparateInfo};
 use crate::utils::VecExt;
 use crate::{Error, Result};
+use copybook_parse_options::ParseOptions;
 
 /// Returns true if `s` is a valid COBOL data name (letter-start, alphanumeric + hyphen).
 fn is_cobol_data_name(s: &str) -> bool {
@@ -59,40 +60,6 @@ pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> 
     let tokens = Lexer::new_with_options(text, options).tokenize();
     let mut parser = Parser::with_options(tokens, options.clone());
     parser.parse_schema()
-}
-
-/// Options for controlling COBOL copybook parsing behavior.
-///
-/// Configures how the parser handles various COBOL dialect features,
-/// comment styles, and validation strictness.
-#[derive(Debug, Clone)]
-#[allow(clippy::struct_excessive_bools)]
-pub struct ParseOptions {
-    /// Whether to emit FILLER fields in the parsed schema output.
-    pub emit_filler: bool,
-    /// Codepage identifier used for fingerprint calculation (e.g., `"cp037"`).
-    pub codepage: String,
-    /// Whether to allow COBOL-2002 inline comments (`*>`).
-    pub allow_inline_comments: bool,
-    /// Whether to run in strict mode with less error tolerance.
-    pub strict: bool,
-    /// Whether to enforce strict comment parsing rules.
-    pub strict_comments: bool,
-    /// Dialect for ODO `min_count` interpretation.
-    pub dialect: crate::dialect::Dialect,
-}
-
-impl Default for ParseOptions {
-    fn default() -> Self {
-        Self {
-            emit_filler: false,
-            codepage: "cp037".to_string(),
-            allow_inline_comments: true,
-            strict: false,
-            strict_comments: false,
-            dialect: crate::dialect::Dialect::Normative,
-        }
-    }
 }
 
 /// Parser state for COBOL copybook parsing

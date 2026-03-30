@@ -928,6 +928,7 @@ dependencies = [
  "copybook-governance-contracts",
  "copybook-lexer",
  "copybook-overflow",
+ "copybook-parse-options",
  "copybook-utils",
  "hex",
  "logos",
@@ -1122,6 +1123,14 @@ dependencies = [
  "copybook-codepage",
  "copybook-error",
  "proptest",
+]
+
+[[package]]
+name = "copybook-parse-options"
+version = "0.4.3"
+dependencies = [
+ "copybook-dialect",
+ "serde",
 ]
 
 [[package]]

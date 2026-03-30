@@ -15,6 +15,7 @@ members = [
     "crates/copybook-charset",
     "crates/copybook-lexer",
     "crates/copybook-options",
+    "crates/copybook-parse-options",
     "crates/copybook-core",
     "crates/copybook-corruption",
     "crates/copybook-corruption-detectors",
@@ -81,6 +82,7 @@ copybook-rdw-predicates = { version = "=0.4.3", path = "crates/copybook-rdw-pred
 copybook-codepage = { version = "=0.4.3", path = "crates/copybook-codepage" }
 copybook-charset = { version = "=0.4.3", path = "crates/copybook-charset" }
 copybook-options = { version = "=0.4.3", path = "crates/copybook-options" }
+copybook-parse-options = { version = "=0.4.3", path = "crates/copybook-parse-options" }
 copybook-lexer = { version = "=0.4.3", path = "crates/copybook-lexer" }
 copybook-core = { version = "=0.4.3", path = "crates/copybook-core" }
 copybook-corruption = { version = "=0.4.3", path = "crates/copybook-corruption" }

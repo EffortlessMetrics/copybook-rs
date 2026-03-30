@@ -60,10 +60,14 @@ See [COBOL_SUPPORT_MATRIX.md](docs/reference/COBOL_SUPPORT_MATRIX.md) for the fu
 | Document | Description |
 |----------|-------------|
 | [Getting Started](docs/tutorials/getting-started.md) | Tutorial with bundled fixtures |
+| [Documentation Start](docs/START_HERE.md) | Hand-maintained documentation entry point |
 | [CLI Reference](docs/CLI_REFERENCE.md) | Command-line interface documentation |
 | [Library API](docs/reference/LIBRARY_API.md) | Rust library API reference |
 | [Error Codes](docs/reference/ERROR_CODES.md) | Error taxonomy (10 families, 61 codes) |
 | [Support Matrix](docs/reference/COBOL_SUPPORT_MATRIX.md) | COBOL feature coverage |
+| [Engineering Report](docs/REPORT.md) | Readiness and current engineering status |
+| [Design Docs](docs/design/) | Feature and design contracts |
+| [Internal Docs](docs/internal/) | Internal implementation and spec references |
 | [Stability Guarantees](docs/STABILITY_GUARANTEES.md) | API stability contract and versioning policy |
 | [Support Policy](docs/SUPPORT_POLICY.md) | Release support windows and response times |
 | [Roadmap](docs/ROADMAP.md) | Project status and what's next |

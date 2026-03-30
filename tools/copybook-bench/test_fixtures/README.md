@@ -378,7 +378,7 @@ All fixtures support `// AC:ID` tag traceability:
 - **AC4**: Progressive Complexity (`progressive/`)
 - **AC5**: Enhanced Diagnostics (`diagnostics/`)
 
-See `docs/issue-49-traceability-matrix.md` for complete traceability mapping.
+See `docs/archived/issue-49-traceability-matrix.md` for complete traceability mapping.
 
 ## Related Documentation
 

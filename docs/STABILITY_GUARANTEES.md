@@ -8,7 +8,7 @@ This document defines what users can expect to remain stable across releases, pr
 **Public APIs**
 - Library APIs documented in [Library API Reference](reference/LIBRARY_API.md): `parse_copybook`, `decode_record`, `encode_record`, `decode_file_to_jsonl`, `encode_jsonl_to_file`, `RecordIterator`
 - CLI command interfaces documented in [CLI Reference](CLI_REFERENCE.md): `parse`, `inspect`, `decode`, `encode`, `verify`, `support`
-- Error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*, CBKR*, CBKC*, CBKF*, CBKI*, CBKA*, CBKW* codes) - stable across minor versions
+- Published error codes documented in [Error Codes](reference/ERROR_CODES.md) remain stable across minor versions
 - Exit codes: 0 (success), 1 (unhandled), 2-5 (structured error codes)
 
 **Output Formats**
@@ -48,7 +48,7 @@ copybook-rs follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.h
 The project is in Engineering Preview. During 0.x releases:
 
 - **Minor (0.X.0)**: May include breaking changes to public APIs, CLI flags, or output formats. Migration notes provided in CHANGELOG.md.
-- **Patch (0.0.X)**: Bug fixes, security patches, performance improvements. No breaking changes.
+- **Patch (0.x.Z)**: Bug fixes, security patches, performance improvements. No breaking changes.
 
 We aim to minimize churn, but reserve the right to make breaking changes between minor releases while below 1.0.
 

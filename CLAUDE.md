@@ -23,6 +23,7 @@ Do not restate feature behavior in this file. Read the canonical source instead.
 | Performance policy | `docs/PERFORMANCE_GOVERNANCE.md` |
 | Perf receipts | `scripts/bench/perf.json` |
 | Project status | `docs/ROADMAP.md` |
+| Readiness report | `docs/REPORT.md` |
 | Dialect behavior | `docs/internal/features/d0_dialect_lever_contract.md` |
 | Edited PIC behavior | `docs/internal/features/e3_edited_pic_encode_contract.md` |
 | ODO design | `docs/design/NESTED_ODO_BEHAVIOR.md` |
@@ -71,7 +72,7 @@ cargo test --workspace
 cargo bench --package copybook-bench
 
 # Golden fixtures
-cargo test --workspace --test "*golden*"
+cargo test --workspace golden
 ```
 
 ## Processing Flow

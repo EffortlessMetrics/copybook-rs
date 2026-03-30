@@ -1454,9 +1454,11 @@ fn decode_scalar_field_value_standard(
             scale,
             signed,
         } => {
-            let decimal =
-                crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
-            Ok(decimal_to_json_value(&decimal, options))
+            let scratch = scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
+            let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
+                field_data, *digits, *scale, *signed, scratch,
+            )?;
+            Ok(numeric_string_to_value(decimal_str, options))
         }
         FieldKind::Group => {
             // Group fields should not be processed as scalars
@@ -2942,13 +2944,6 @@ fn small_decimal_to_string(decimal: &crate::numeric::SmallDecimal) -> String {
     decimal.to_string()
 }
 
-#[inline]
-fn decimal_to_json_value(decimal: &crate::numeric::SmallDecimal, options: &DecodeOptions) -> Value {
-    let formatted = small_decimal_to_string(decimal);
-    numeric_string_to_value(formatted, options)
-}
-
-#[inline]
 fn zoned_decimal_to_json_value(
     decimal: &crate::numeric::SmallDecimal,
     digits: u16,

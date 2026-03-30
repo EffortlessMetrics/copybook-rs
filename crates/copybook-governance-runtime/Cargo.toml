@@ -13,7 +13,7 @@ documentation = "https://docs.rs/copybook-governance-runtime"
 readme = "README.md"
 include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
 keywords = ["cobol", "copybook", "feature-flags", "support-matrix", "runtime"]
-categories = ["development-tools", "data-management"]
+categories = ["config", "development-tools"]
 
 [package.metadata.docs.rs]
 all-features = false

@@ -45,6 +45,67 @@ jobs:
         # Run tests to ensure quality
         cargo test --workspace --exclude copybook-bench --exclude copybook-bdd --release -j 2
 
+        # Validate publishable workspace metadata against crates.io constraints
+        python - <<'PY'
+        import json
+        import subprocess
+        import sys
+        import urllib.request
+
+        metadata = json.loads(
+            subprocess.check_output(
+                ["cargo", "metadata", "--format-version", "1", "--no-deps"],
+                text=True,
+            )
+        )
+        workspace_members = set(metadata["workspace_members"])
+        supported_categories = {
+            entry["slug"]
+            for entry in json.load(
+                urllib.request.urlopen("https://crates.io/api/v1/category_slugs")
+            )["category_slugs"]
+        }
+
+        errors = []
+        checked = 0
+        for package in metadata["packages"]:
+            if package["id"] not in workspace_members:
+                continue
+
+            publish = package.get("publish")
+            if publish == []:
+                continue
+
+            checked += 1
+            keywords = package.get("keywords") or []
+            categories = package.get("categories") or []
+
+            if len(keywords) > 5:
+                errors.append(
+                    f"{package['name']}: expected at most 5 keywords, found {len(keywords)}"
+                )
+            if len(categories) > 5:
+                errors.append(
+                    f"{package['name']}: expected at most 5 categories, found {len(categories)}"
+                )
+
+            invalid_categories = [
+                category for category in categories if category not in supported_categories
+            ]
+            if invalid_categories:
+                errors.append(
+                    f"{package['name']}: unsupported crates.io categories: {', '.join(invalid_categories)}"
+                )
+
+        if errors:
+            print("crates.io metadata preflight failed:", file=sys.stderr)
+            for error in errors:
+                print(f"  - {error}", file=sys.stderr)
+            sys.exit(1)
+
+        print(f"Validated crates.io metadata for {checked} publishable workspace crates.")
+        PY
+
         # Verify a leaf crate packages cleanly.
         cargo package -p copybook-error
 

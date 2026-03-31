@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # cargo-about configuration for generating third-party notices
+# This allowlist applies to third-party dependencies only.
+# The workspace and first-party crates remain AGPL-3.0-or-later.
 accepted = [
     "MIT",
     "Apache-2.0",

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **audit**: Implement `Display` for `AuditEventType` and `AuditSeverity` enums
 - **audit**: Add additional Clippy lint enforcement to audit module
 - **feature-flags**: Promote COMP-1/COMP-2 and SIGN SEPARATE features to stable
+- **facade**: Add published `copybook-rs` umbrella crate and `copybook` alias crate
 - **test**: Add e2e tests for `support` CLI subcommand (8 tests covering table/JSON/filter/governance)
 - **test**: Add e2e tests for `inspect` CLI flags (8 tests: codepage, strict, strict-comments, stdin)
 - **test**: Add e2e tests for `--strict-comments` and `--emit-filler` flags (6 tests)
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **core**: Refactor `PicToken` methods for clarity and consistency
 - **codec**: Improve JSON writer functionality
+- **docs**: Promote facade crates as the default Rust entrypoint while preserving granular `copybook-core` / `copybook-codec` packages
 
 ### Fixed
 

@@ -25,9 +25,9 @@ copybook-rs provides structured error codes in four main categories:
 **Solution**: Implement comprehensive parse error handling:
 
 ```rust
-use copybook_core::{parse_copybook, Error, ErrorCode};
+use copybook_rs::{Error, ErrorCode, parse_copybook};
 
-fn load_schema_safely(copybook_path: &str) -> Result<copybook_core::Schema, ProcessingError> {
+fn load_schema_safely(copybook_path: &str) -> Result<copybook_rs::Schema, ProcessingError> {
     let copybook_text = std::fs::read_to_string(copybook_path)
         .map_err(|e| ProcessingError::FileAccess {
             path: copybook_path.to_string(),
@@ -38,7 +38,7 @@ fn load_schema_safely(copybook_path: &str) -> Result<copybook_core::Schema, Proc
         Ok(schema) => {
             tracing::info!(
                 fields = %schema.fields.len(),
-                fixed_length = ?schema.fixed_record_length,
+                fixed_length = ?schema.lrecl_fixed,
                 "Schema loaded successfully"
             );
             Ok(schema)
@@ -131,10 +131,10 @@ enum ProcessingError {
 **Solution**: Implement graceful data error recovery:
 
 ```rust
-use copybook_codec::{decode_record, DecodeOptions, Error as CodecError};
+use copybook_rs::{DecodeOptions, ErrorCode, decode_record};
 
 fn process_record_safely(
-    schema: &copybook_core::Schema,
+    schema: &copybook_rs::Schema,
     record_data: &[u8],
     options: &DecodeOptions,
     record_number: u64,
@@ -144,57 +144,33 @@ fn process_record_safely(
             RecordResult::Success(json_value)
         }
         Err(error) => {
-            match &error {
-                CodecError::DataError { code, message, field_path, .. } => {
-                    tracing::warn!(
-                        record_number = %record_number,
-                        error_code = ?code,
-                        field_path = ?field_path,
-                        message = %message,
-                        "Data validation error - record skipped"
-                    );
+            tracing::warn!(
+                record_number = %record_number,
+                error_code = ?error.code,
+                field_path = ?error.context.as_ref().and_then(|ctx| ctx.field_path.as_ref()),
+                message = %error.message,
+                "Data validation error - record skipped"
+            );
 
-                    // Categorize data errors for different handling
-                    match code {
-                        copybook_codec::ErrorCode::CBKD101_INVALID_FIELD_TYPE => {
-                            RecordResult::DataError {
-                                record_number,
-                                field: field_path.clone().unwrap_or_default(),
-                                issue: "Invalid field type".to_string(),
-                                action: "Record skipped - verify data format".to_string(),
-                            }
-                        }
-
-                        copybook_codec::ErrorCode::CBKD201_TRUNCATED_RECORD => {
-                            RecordResult::DataError {
-                                record_number,
-                                field: "record_length".to_string(),
-                                issue: "Record truncated".to_string(),
-                                action: "Record skipped - check file integrity".to_string(),
-                            }
-                        }
-
-                        _ => RecordResult::DataError {
-                            record_number,
-                            field: field_path.clone().unwrap_or_default(),
-                            issue: message.clone(),
-                            action: "Record skipped".to_string(),
-                        }
-                    }
-                }
-
-                _ => {
-                    tracing::error!(
-                        record_number = %record_number,
-                        error = %error,
-                        "Unexpected decode error"
-                    );
-
-                    RecordResult::UnexpectedError {
-                        record_number,
-                        error: error.to_string(),
-                    }
-                }
+            match error.code {
+                ErrorCode::CBKD101_INVALID_FIELD_TYPE => RecordResult::DataError {
+                    record_number,
+                    field: error.context.as_ref().and_then(|ctx| ctx.field_path.clone()).unwrap_or_default(),
+                    issue: "Invalid field type".to_string(),
+                    action: "Record skipped - verify data format".to_string(),
+                },
+                ErrorCode::CBKD201_TRUNCATED_RECORD => RecordResult::DataError {
+                    record_number,
+                    field: "record_length".to_string(),
+                    issue: "Record truncated".to_string(),
+                    action: "Record skipped - check file integrity".to_string(),
+                },
+                _ => RecordResult::DataError {
+                    record_number,
+                    field: error.context.as_ref().and_then(|ctx| ctx.field_path.clone()).unwrap_or_default(),
+                    issue: error.message.clone(),
+                    action: "Record skipped".to_string(),
+                },
             }
         }
     }
@@ -536,12 +512,11 @@ pub async fn process_production_batch(
     };
 
     // 3. Configure processing options
-    let options = copybook_codec::DecodeOptions::new()
-        .with_codepage(copybook_codec::Codepage::CP037)
-        .with_format(copybook_codec::RecordFormat::Fixed)
-        .with_json_number_mode(copybook_codec::JsonNumberMode::Lossless)
-        .with_emit_meta(true)
-        .with_validate_structure(true);
+    let options = copybook_rs::DecodeOptions::new()
+        .with_codepage(copybook_rs::Codepage::CP037)
+        .with_format(copybook_rs::RecordFormat::Fixed)
+        .with_json_number_mode(copybook_rs::JsonNumberMode::Lossless)
+        .with_emit_meta(true);
 
     // 4. Process files with error handling and monitoring
     let mut successful_files = 0;
@@ -562,8 +537,9 @@ pub async fn process_production_batch(
 
         // Process file with timeout and monitoring
         let result = resource_monitor.process_with_timeout(|| {
+            let input = std::fs::File::open(input_file)?;
             let output = std::fs::File::create(&output_file)?;
-            copybook_codec::decode_file_to_jsonl(&schema, input_file, output, &options)
+            copybook_rs::decode_file_to_jsonl(&schema, input, output, &options)
                 .map_err(|e| e.into())
         });
 

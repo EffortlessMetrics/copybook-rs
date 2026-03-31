@@ -738,6 +738,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "copybook"
+version = "0.4.3"
+dependencies = [
+ "copybook-rs",
+]
+
+[[package]]
 name = "copybook-arrow"
 version = "0.4.3"
 dependencies = [
@@ -1190,6 +1197,15 @@ dependencies = [
  "copybook-options",
  "copybook-rdw",
  "proptest",
+]
+
+[[package]]
+name = "copybook-rs"
+version = "0.4.3"
+dependencies = [
+ "copybook-arrow",
+ "copybook-codec",
+ "copybook-core",
 ]
 
 [[package]]

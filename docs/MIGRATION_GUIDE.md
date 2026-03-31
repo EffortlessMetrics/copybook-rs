@@ -230,23 +230,20 @@ copybook decode customer.cpy data.bin \
 
 **After (copybook-rs Rust API):**
 ```rust
-use copybook_core::parse_copybook;
-use copybook_codec::{RecordDecoder, DecodeOptions, Codepage};
+use copybook_rs::{Codepage, DecodeOptions, JsonNumberMode, RecordFormat, decode_file_to_jsonl, parse_copybook};
 
 let copybook_text = std::fs::read_to_string("customer.cpy")?;
 let schema = parse_copybook(&copybook_text)?;
 
-let opts = DecodeOptions {
-    codepage: Codepage::Cp037,
-    strict: true,
-    ..Default::default()
-};
+let opts = DecodeOptions::new()
+    .with_codepage(Codepage::CP037)
+    .with_format(RecordFormat::Fixed)
+    .with_json_number_mode(JsonNumberMode::Lossless)
+    .with_strict_mode(true);
 
-let mut decoder = RecordDecoder::new(&schema, &opts)?;
-for record_result in decoder.decode_file("data.bin")? {
-    let json = record_result?;
-    println!("{}", serde_json::to_string(&json)?);
-}
+let input = std::fs::File::open("data.bin")?;
+let output = std::fs::File::create("data.jsonl")?;
+decode_file_to_jsonl(&schema, input, output, &opts)?;
 ```
 
 ## Migration from Python Tools
@@ -469,21 +466,16 @@ copybook encode customer.cpy transformed.jsonl \
 
 ```rust
 // Rust streaming integration
-use copybook_codec::RecordDecoder;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use copybook_rs::{DecodeOptions, RecordFormat, iter_records_from_file};
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut decoder = RecordDecoder::new(&schema, &opts)?;
-    let file = tokio::fs::File::open("data.bin").await?;
-    let reader = BufReader::new(file);
-    
-    let mut lines = reader.lines();
-    while let Some(line) = lines.next_line().await? {
-        let json = decoder.decode_record(line.as_bytes())?;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let opts = DecodeOptions::new().with_format(RecordFormat::Fixed);
+
+    for record in iter_records_from_file("data.bin", &schema, &opts)? {
+        let json = record?;
         // Process record
     }
-    
+
     Ok(())
 }
 ```

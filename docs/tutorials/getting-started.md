@@ -30,8 +30,8 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-copybook-core = { path = "../copybook-core" }
-copybook-codec = { path = "../copybook-codec" }
+copybook-rs = "0.4.3"
+# or: copybook = "0.4.3"
 ```
 
 ## Step 2: Your First COBOL Copybook
@@ -54,7 +54,7 @@ Create a simple COBOL copybook file `customer.cpy`:
 copybook-rs uses panic-safe operations throughout. Here's how to parse a copybook with proper error handling:
 
 ```rust
-use copybook_core::{parse_copybook, parse_copybook_with_options, ParseOptions};
+use copybook_rs::{parse_copybook, parse_copybook_with_options, ParseOptions};
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -87,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 copybook-rs provides comprehensive options for enterprise data processing:
 
 ```rust
-use copybook_codec::{DecodeOptions, Codepage, JsonNumberMode, RecordFormat};
+use copybook_rs::{Codepage, DecodeOptions, JsonNumberMode, RecordFormat};
 
 fn configure_decoder() -> DecodeOptions {
     DecodeOptions::new()
@@ -95,7 +95,6 @@ fn configure_decoder() -> DecodeOptions {
         .with_format(RecordFormat::Fixed)         // Fixed-length records
         .with_json_number_mode(JsonNumberMode::Lossless)  // Preserve precision
         .with_emit_meta(true)                     // Include metadata
-        .with_validate_structure(true)           // Enable validation
 }
 ```
 
@@ -110,13 +109,13 @@ fn configure_decoder() -> DecodeOptions {
 Process binary data with enterprise reliability:
 
 ```rust
-use copybook_codec::{decode_record, decode_record_with_scratch, memory::ScratchBuffers};
+use copybook_rs::{decode_record, decode_record_with_scratch, memory::ScratchBuffers};
 
 fn decode_customer_data(
-    schema: &copybook_core::Schema,
+    schema: &copybook_rs::Schema,
     record_data: &[u8],
     options: &DecodeOptions,
-) -> Result<serde_json::Value, copybook_codec::Error> {
+) -> copybook_rs::Result<serde_json::Value> {
 
     // Method 1: Simple decoding (suitable for small volumes)
     let json_value = decode_record(schema, record_data, options)?;
@@ -145,11 +144,11 @@ fn decode_customer_data(
 For production workloads, use streaming APIs:
 
 ```rust
-use copybook_codec::{iter_records_from_file, decode_file_to_jsonl};
-use std::path::Path;
+use copybook_rs::{decode_file_to_jsonl, iter_records_from_file};
+use std::{fs::File, path::Path};
 
 fn process_mainframe_file(
-    schema: &copybook_core::Schema,
+    schema: &copybook_rs::Schema,
     input_path: &Path,
     output_path: &Path,
     options: &DecodeOptions,
@@ -166,12 +165,13 @@ fn process_mainframe_file(
     }
 
     // Method 2: Direct file conversion with metrics
+    let input_file = File::open(input_path)?;
     let output_file = std::fs::File::create(output_path)?;
-    let summary = decode_file_to_jsonl(schema, input_path, output_file, options)?;
+    let summary = decode_file_to_jsonl(schema, input_file, output_file, options)?;
 
-    println!("Processed {} records in {:?}",
+    println!("Processed {} records in {:.3} seconds",
              summary.records_processed,
-             summary.processing_time);
+             summary.processing_time_seconds());
 
     Ok(())
 }
@@ -188,9 +188,9 @@ fn process_mainframe_file(
 copybook-rs provides a comprehensive error taxonomy for production monitoring:
 
 ```rust
-use copybook_core::{Error, ErrorCode};
+use copybook_rs::{Error, ErrorCode};
 
-fn handle_parsing_errors(result: Result<copybook_core::Schema, Error>) {
+fn handle_parsing_errors(result: Result<copybook_rs::Schema, Error>) {
     match result {
         Ok(schema) => {
             println!("Successfully parsed schema");
@@ -229,9 +229,10 @@ fn handle_parsing_errors(result: Result<copybook_core::Schema, Error>) {
 Here's a complete example that demonstrates enterprise-safe COBOL processing:
 
 ```rust
-use copybook_core::parse_copybook;
-use copybook_codec::{DecodeOptions, Codepage, JsonNumberMode, RecordFormat, decode_file_to_jsonl};
-use std::{path::Path, fs::File};
+use copybook_rs::{
+    Codepage, DecodeOptions, JsonNumberMode, RecordFormat, decode_file_to_jsonl, parse_copybook,
+};
+use std::fs::File;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Parse copybook with error handling
@@ -243,19 +244,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_codepage(Codepage::CP037)
         .with_format(RecordFormat::Fixed)
         .with_json_number_mode(JsonNumberMode::Lossless)
-        .with_emit_meta(true)
-        .with_validate_structure(true);
+        .with_emit_meta(true);
 
     // 3. Process data with streaming and metrics
-    let input_path = Path::new("customer_data.bin");
+    let input_file = File::open("customer_data.bin")?;
     let output_file = File::create("customer_data.jsonl")?;
 
-    let summary = decode_file_to_jsonl(&schema, input_path, output_file, &options)?;
+    let summary = decode_file_to_jsonl(&schema, input_file, output_file, &options)?;
 
     // 4. Report results
     println!("✅ Processing complete!");
     println!("📊 Records processed: {}", summary.records_processed);
-    println!("⏱️  Processing time: {:?}", summary.processing_time);
+    println!("⏱️  Processing time: {:.3} seconds", summary.processing_time_seconds());
     println!("💾 Memory usage: <256 MiB (bounded)");
 
     Ok(())

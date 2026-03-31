@@ -144,11 +144,11 @@ copybook-rs automatically detects zoned decimal encoding by analyzing digit zone
 ### Library API Usage
 
 ```rust
-use copybook_codec::{DecodeOptions, EncodeOptions, ZonedEncodingFormat};
+use copybook_rs::{Codepage, DecodeOptions, EncodeOptions, ZonedEncodingFormat, decode_record, encode_record};
 
 // Configure decode with encoding preservation
 let decode_opts = DecodeOptions::new()
-    .with_codepage(Codepage::Cp037)
+    .with_codepage(Codepage::CP037)
     .with_preserve_zoned_encoding(true) // Enable format detection
     .with_preferred_zoned_encoding(ZonedEncodingFormat::Ebcdic); // Fallback
 
@@ -158,7 +158,7 @@ let json_value = decode_record(&schema, &record_data, &decode_opts)?;
 
 // Configure encode to respect preserved formats
 let encode_opts = EncodeOptions::new()
-    .with_codepage(Codepage::Cp037)
+    .with_codepage(Codepage::CP037)
     .with_zoned_encoding_override(None); // Use preserved formats
 
 // Encode with original format preservation
@@ -259,13 +259,12 @@ diff original.bin roundtrip.bin  # Should be identical
 
 ### Library API for Custom Applications
 ```rust
-use copybook_core::parse_copybook;
-use copybook_codec::{decode_file_to_jsonl, DecodeOptions, Codepage};
+use copybook_rs::{Codepage, DecodeOptions, JsonNumberMode, decode_file_to_jsonl, parse_copybook};
 
 // Production-ready processing
 let schema = parse_copybook(&copybook_text)?;
 let opts = DecodeOptions::new()
-    .with_codepage(Codepage::Cp037)
+    .with_codepage(Codepage::CP037)
     .with_json_number_mode(JsonNumberMode::Lossless);
 
 let summary = decode_file_to_jsonl(&schema, input, output, &opts)?;

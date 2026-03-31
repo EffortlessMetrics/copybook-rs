@@ -18,6 +18,8 @@ API freeze is a development phase where:
 ## Public API Scope
 
 The following crates have frozen public APIs:
+- **copybook-rs**: Umbrella facade crate
+- **copybook**: Short alias facade crate
 - **copybook-core**: Core parsing and schema types
 - **copybook-codec**: Encoding and decoding codecs
 - **copybook-cli**: Command-line interface (binary crate)
@@ -220,6 +222,8 @@ cargo semver-checks check-release \
 
 5. **Publish**:
    ```bash
+   cargo publish -p copybook-rs
+   cargo publish -p copybook
    cargo publish -p copybook-core
    cargo publish -p copybook-codec
    ```

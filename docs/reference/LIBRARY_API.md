@@ -20,20 +20,19 @@ Encoding and decoding logic for converting between binary data and structured va
 
 ## Quick Start
 
-Add copybook-rs to your `Cargo.toml`:
+Add either facade crate to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-copybook-core = "0.1"
-copybook-codec = "0.1"
+copybook-rs = "0.4.3"
+# or: copybook = "0.4.3"
 ```
 
 Basic usage:
 
 ```rust
-use copybook_core::parse_copybook;
-use copybook_codec::{decode_file_to_jsonl, DecodeOptions, Codepage, RecordFormat};
-use std::path::Path;
+use copybook_rs::{parse_copybook, decode_file_to_jsonl, DecodeOptions, Codepage, RecordFormat};
+use std::fs::File;
 
 // Parse copybook
 let copybook_text = std::fs::read_to_string("customer.cpy")?;
@@ -41,17 +40,22 @@ let schema = parse_copybook(&copybook_text)?;
 
 // Configure decode options
 let opts = DecodeOptions {
-    codepage: Codepage::Cp037,
+    codepage: Codepage::CP037,
     format: RecordFormat::Fixed,
     ..Default::default()
 };
 
 // Decode to JSONL
-let output = std::fs::File::create("output.jsonl")?;
-let summary = decode_file_to_jsonl(&schema, Path::new("data.bin"), &opts, output)?;
+let input = File::open("data.bin")?;
+let output = File::create("output.jsonl")?;
+let summary = decode_file_to_jsonl(&schema, input, output, &opts)?;
 ```
 
 ## Core Types
+
+The facade crates re-export the `copybook-core` and `copybook-codec` public API
+at the crate root. Granular packages remain available when you need to depend on
+only one layer.
 
 ### Schema
 
@@ -130,17 +134,19 @@ pub enum Occurs {
 
 ```rust
 pub struct DecodeOptions {
-    pub codepage: Codepage,
     pub format: RecordFormat,
-    pub strict: bool,
-    pub max_errors: Option<u32>,
+    pub codepage: Codepage,
+    pub json_number_mode: JsonNumberMode,
     pub emit_filler: bool,
     pub emit_meta: bool,
     pub emit_raw: RawMode,
-    pub json_number: JsonNumberMode,
+    pub strict_mode: bool,
+    pub max_errors: Option<u64>,
     pub on_decode_unmappable: UnmappablePolicy,
+    pub threads: usize,
     pub preserve_zoned_encoding: bool,
     pub preferred_zoned_encoding: ZonedEncodingFormat,
+    pub float_format: FloatFormat,
 }
 ```
 
@@ -153,14 +159,19 @@ pub struct DecodeOptions {
 
 ```rust
 pub struct EncodeOptions {
-    pub codepage: Codepage,
     pub format: RecordFormat,
-    pub strict: bool,
-    pub max_errors: Option<u32>,
+    pub codepage: Codepage,
+    pub preferred_zoned_encoding: ZonedEncodingFormat,
     pub use_raw: bool,
     pub bwz_encode: bool,
-    pub preferred_zoned_encoding: ZonedEncodingFormat,
+    pub strict_mode: bool,
+    pub max_errors: Option<u64>,
+    pub threads: usize,
+    pub coerce_numbers: bool,
+    pub on_encode_unmappable: UnmappablePolicy,
+    pub json_number_mode: JsonNumberMode,
     pub zoned_encoding_override: Option<ZonedEncodingFormat>,
+    pub float_format: FloatFormat,
 }
 ```
 
@@ -338,7 +349,7 @@ Parse a COBOL copybook into a schema with **panic-safe operations**.
 
 **Example:**
 ```rust
-use copybook_core::{parse_copybook, parse_copybook_with_options, ParseOptions};
+use copybook_rs::{ParseOptions, parse_copybook, parse_copybook_with_options};
 
 let copybook = r#"
 01 CUSTOMER-RECORD.
@@ -366,10 +377,10 @@ let schema_custom = parse_copybook_with_options(copybook, &parse_options)?;
 
 ### Enhanced Safe Operations Module
 
-The copybook-core crate provides comprehensive panic-safe operations in the `utils::safe_ops` module:
+The facade re-exports the panic-safe operations in the `utils::safe_ops` module:
 
 ```rust
-use copybook_core::utils::safe_ops;
+use copybook_rs::utils::safe_ops;
 
 // Safe integer conversions with overflow checking
 let safe_u32 = safe_ops::safe_u64_to_u32(large_value, "field offset calculation")?;
@@ -402,14 +413,13 @@ safe_ops::safe_write_str(&mut json_buffer, ",\n")?;
 copybook-rs provides enterprise-grade encoding/decoding with comprehensive panic-safe operations:
 
 ```rust
-use copybook_codec::{decode_record_with_scratch, memory::ScratchBuffers};
+use copybook_rs::{decode_record_with_scratch, iter_records_from_file, memory::ScratchBuffers};
 
 // High-performance decoding with scratch buffer optimization
 let mut scratch = ScratchBuffers::new();
 let json_value = decode_record_with_scratch(&schema, &record_data, &options, &mut scratch)?;
 
 // Panic-safe iteration over large files
-use copybook_codec::iter_records_from_file;
 let iterator = iter_records_from_file("data.bin", &schema, &options)?;
 
 for (record_num, record_result) in iterator.enumerate() {
@@ -452,9 +462,9 @@ Decode an entire file to JSONL format with **enterprise reliability**.
 
 **Parameters:**
 - `schema` - Parsed copybook schema
-- `data_path` - Path to binary data file
-- `opts` - Decode configuration options
-- `output` - Writer for JSONL output
+- `input` - Any `Read` implementation containing binary records
+- `output` - Any `Write` implementation that receives JSONL output
+- `options` - Decode configuration options
 
 **Returns:**
 - `Ok(RunSummary)` - Processing statistics
@@ -462,8 +472,10 @@ Decode an entire file to JSONL format with **enterprise reliability**.
 
 **Example:**
 ```rust
+use std::fs::File;
+
 let opts = DecodeOptions {
-    codepage: Codepage::Cp037,
+    codepage: Codepage::CP037,
     format: RecordFormat::Fixed,
     emit_meta: true,
     preserve_zoned_encoding: true, // Enable encoding preservation
@@ -471,8 +483,9 @@ let opts = DecodeOptions {
     ..Default::default()
 };
 
-let output = std::fs::File::create("output.jsonl")?;
-let summary = decode_file_to_jsonl(&schema, Path::new("data.bin"), &opts, output)?;
+let input = File::open("data.bin")?;
+let output = File::create("output.jsonl")?;
+let summary = decode_file_to_jsonl(&schema, input, output, &opts)?;
 
 println!("Processed {} records with {} errors",
          summary.records_processed, summary.records_with_errors);
@@ -480,11 +493,11 @@ println!("Processed {} records with {} errors",
 
 ### Telemetry & Metrics (opt-in)
 
-Enable the `metrics` cargo feature on `copybook-codec` when you want the decoder to emit counters and gauges that can be scraped by any [`metrics`](https://crates.io/crates/metrics) compatible recorder:
+Enable the `metrics` cargo feature on `copybook-rs` when you want the decoder to emit counters and gauges that can be scraped by any [`metrics`](https://crates.io/crates/metrics) compatible recorder:
 
 ```toml
 [dependencies]
-copybook-codec = { version = "0.3", features = ["metrics"] }
+copybook-rs = { version = "0.4.3", features = ["metrics"] }
 ```
 
 The CLI forwards the same feature:
@@ -514,9 +527,9 @@ Even without the feature, the library emits an `INFO` log with target `copybook:
 ```rust
 pub fn encode_jsonl_to_file(
     schema: &Schema,
-    jsonl_path: &Path,
-    opts: &EncodeOptions,
-    out_path: &Path,
+    input: impl Read,
+    output: impl Write,
+    options: &EncodeOptions,
 ) -> Result<RunSummary, Error>
 ```
 
@@ -524,9 +537,9 @@ Encode JSONL data to binary format.
 
 **Parameters:**
 - `schema` - Parsed copybook schema
-- `jsonl_path` - Path to JSONL input file
-- `opts` - Encode configuration options
-- `out_path` - Path for binary output file
+- `input` - Any `Read` implementation that yields JSONL input
+- `output` - Any `Write` implementation that receives encoded binary records
+- `options` - Encode configuration options
 
 **Returns:**
 - `Ok(RunSummary)` - Processing statistics
@@ -534,8 +547,10 @@ Encode JSONL data to binary format.
 
 **Example:**
 ```rust
+use std::fs::File;
+
 let opts = EncodeOptions {
-    codepage: Codepage::Cp037,
+    codepage: Codepage::CP037,
     format: RecordFormat::Fixed,
     use_raw: true,
     zoned_encoding_override: None, // Respect preserved formats
@@ -544,52 +559,51 @@ let opts = EncodeOptions {
 
 // Or with explicit format override:
 let opts_override = EncodeOptions {
-    codepage: Codepage::Cp037,
+    codepage: Codepage::CP037,
     format: RecordFormat::Fixed,
     zoned_encoding_override: Some(ZonedEncodingFormat::Ascii), // Force ASCII zones
     ..Default::default()
 };
 
+let input = File::open("input.jsonl")?;
+let output = File::create("output.bin")?;
 let summary = encode_jsonl_to_file(
     &schema,
-    Path::new("input.jsonl"),
+    input,
+    output,
     &opts,
-    Path::new("output.bin"),
 )?;
 ```
 
 ### Record-Level Processing
 
 ```rust
-pub struct RecordDecoder {
-    // Internal fields
+use copybook_rs::{
+    DecodeOptions, RecordIterator, RecordFormat, decode_record, decode_record_with_scratch,
+    iter_records_from_file, memory::ScratchBuffers,
+};
+use std::io::Cursor;
+
+let options = DecodeOptions::new().with_format(RecordFormat::Fixed);
+
+// Decode a single record directly
+let json_value = decode_record(&schema, b"HELLO", &options)?;
+
+// Reuse scratch buffers on hot paths
+let mut scratch = ScratchBuffers::new();
+let json_value = decode_record_with_scratch(&schema, b"WORLD", &options, &mut scratch)?;
+
+// Iterate records from any reader
+let iter = RecordIterator::new(Cursor::new(b"HELLOWORLD"), &schema, &options)?;
+for record in iter {
+    let json_value = record?;
+    println!("{json_value}");
 }
 
-impl RecordDecoder {
-    pub fn new(schema: &Schema, opts: &DecodeOptions) -> Result<Self, Error>;
-    
-    pub fn decode_record(&mut self, data: &[u8]) -> Result<serde_json::Value, Error>;
-    
-    pub fn decode_file<P: AsRef<Path>>(&mut self, path: P) -> Result<RecordIterator, Error>;
-}
-
-// Enhanced RecordIterator with truncated record detection
-pub struct RecordIterator<R: Read> {
-    // Internal fields
-}
-
-impl<R: Read> RecordIterator<R> {
-    /// Create new RecordIterator with enhanced validation
-    /// 
-    /// For fixed-format processing, requires schema.lrecl_fixed to be set
-    /// for proper truncated record detection.
-    pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self>;
-}
-
-impl<R: Read> Iterator for RecordIterator<R> {
-    type Item = Result<serde_json::Value, Error>;
-    
-    fn next(&mut self) -> Option<Self::Item>;
+// Or iterate directly from a file path
+for record in iter_records_from_file("data.bin", &schema, &options)? {
+    let json_value = record?;
+    println!("{json_value}");
 }
 ```
 
@@ -638,7 +652,7 @@ impl<W: Write> JsonWriter<W> {
 
 **Example:**
 ```rust
-use copybook_codec::{JsonWriter, DecodeOptions};
+use copybook_rs::{DecodeOptions, JsonWriter};
 use std::io::Cursor;
 
 // Create JsonWriter with schema access
@@ -659,24 +673,18 @@ let json_output = cursor.into_inner();
 ```
 
 ```rust
-let mut decoder = RecordDecoder::new(&schema, &opts)?;
+use copybook_rs::{RecordIterator, decode_record};
 
-// Decode single record
 let record_data = &[0x01, 0x02, 0x03, /* ... */];
-let json_value = decoder.decode_record(record_data)?;
+let json_value = decode_record(&schema, record_data, &opts)?;
 
-// Enhanced iterator with truncation detection
 let file = std::fs::File::open("data.bin")?;
-let mut iter = RecordIterator::new(file, &schema, &opts)?;
+let iter = RecordIterator::new(file, &schema, &opts)?;
 
 for record_result in iter {
     match record_result {
         Ok(json_value) => println!("{}", serde_json::to_string(&json_value)?),
-        Err(e) => {
-            // Enhanced error messages for truncated records:
-            // "Record 15 too short: expected 120 bytes, got 85 bytes"
-            eprintln!("Record error: {}", e);
-        }
+        Err(e) => eprintln!("Record error: {}", e),
     }
 }
 ```
@@ -750,15 +758,15 @@ pub struct ErrorContext {
 ### Panic-Safe Error Handling Patterns
 
 ```rust
-use copybook_core::{parse_copybook, Error, ErrorCode};
-use copybook_core::utils::{OptionExt, VecExt};
+use copybook_rs::{Error, ErrorCode, parse_copybook};
+use copybook_rs::utils::{OptionExt, VecExt};
 
 // Enhanced error handling with panic safety
 match parse_copybook(text) {
     Ok(schema) => {
         tracing::info!(
             fields = %schema.fields.len(),
-            fixed_length = ?schema.fixed_record_length,
+            fixed_length = ?schema.lrecl_fixed,
             "Schema parsed successfully with panic-safe operations"
         );
     },
@@ -801,7 +809,7 @@ match parse_copybook(text) {
 }
 
 // Using panic-safe extension traits
-use copybook_core::utils::{OptionExt, VecExt, SliceExt};
+use copybook_rs::utils::{OptionExt, SliceExt, VecExt};
 
 // Safe option unwrapping with structured errors
 let field = schema.fields
@@ -830,16 +838,17 @@ let token = tokens
 
 // Collect errors during processing
 let mut errors = Vec::new();
-let opts = DecodeOptions {
-    strict: false,
-    max_errors: Some(100),
-    ..Default::default()
-};
+let opts = DecodeOptions::new()
+    .with_strict_mode(false)
+    .with_max_errors(Some(100));
 
-match decode_file_to_jsonl(&schema, path, &opts, output) {
+let input = std::fs::File::open("data.bin")?;
+let output = std::fs::File::create("output.jsonl")?;
+
+match decode_file_to_jsonl(&schema, input, output, &opts) {
     Ok(summary) => {
-        if summary.error_count > 0 {
-            println!("Completed with {} errors", summary.error_count);
+        if summary.records_with_errors > 0 {
+            println!("Completed with {} record errors", summary.records_with_errors);
         }
     },
     Err(e) => {
@@ -1052,6 +1061,7 @@ if schema.fields.iter().any(|f| f.redefines_of.is_some()) {
 ### Parallel Processing
 
 ```rust
+use copybook_rs::decode_record;
 use std::sync::Arc;
 use std::thread;
 
@@ -1062,9 +1072,10 @@ let handles: Vec<_> = (0..num_threads).map(|i| {
     let schema = Arc::clone(&schema);
     let opts = Arc::clone(&opts);
     
-    thread::spawn(move || {
-        let mut decoder = RecordDecoder::new(&schema, &opts)?;
-        // Process chunk of data
+    thread::spawn(move || -> Result<(), copybook_rs::Error> {
+        for record_data in records_for_thread(i) {
+            let _json = decode_record(&schema, &record_data, &opts)?;
+        }
         Ok(())
     })
 }).collect();
@@ -1074,18 +1085,13 @@ for handle in handles {
 }
 ```
 
-### Custom Codepage Support
+### Codepage Selection
 
 ```rust
-// Extend with custom codepage (requires feature flag)
-#[cfg(feature = "custom-codepage")]
-use copybook_codec::CustomCodepage;
+use copybook_rs::{Codepage, DecodeOptions, EncodeOptions};
 
-let custom_cp = CustomCodepage::from_table(&conversion_table)?;
-let opts = DecodeOptions {
-    codepage: Codepage::Custom(custom_cp),
-    ..Default::default()
-};
+let decode_opts = DecodeOptions::new().with_codepage(Codepage::CP037);
+let encode_opts = EncodeOptions::new().with_codepage(Codepage::ASCII);
 ```
 
 ## Integration Examples
@@ -1147,10 +1153,8 @@ fn streaming_decode(
     let (output_tx, output_rx) = bounded(100);
     
     thread::spawn(move || {
-        let mut decoder = RecordDecoder::new(&schema, &opts).unwrap();
-        
         while let Ok(data) = input_rx.recv() {
-            match decoder.decode_record(&data) {
+            match decode_record(&schema, &data, &opts) {
                 Ok(json) => output_tx.send(json).unwrap(),
                 Err(e) => eprintln!("Decode error: {}", e),
             }
@@ -1167,14 +1171,16 @@ fn streaming_decode(
 
 ```rust
 // Reuse buffers for better performance
+use copybook_rs::{decode_record_with_scratch, memory::ScratchBuffers};
+
 let mut buffer = Vec::with_capacity(1024);
-let mut decoder = RecordDecoder::new(&schema, &opts)?;
+let mut scratch = ScratchBuffers::new();
 
 for record_data in record_iterator {
     buffer.clear();
     buffer.extend_from_slice(record_data);
     
-    let json_value = decoder.decode_record(&buffer)?;
+    let json_value = decode_record_with_scratch(&schema, &buffer, &opts, &mut scratch)?;
     // Process json_value
 }
 ```
@@ -1219,10 +1225,9 @@ mod tests {
         
         let schema = parse_copybook(copybook).unwrap();
         let opts = DecodeOptions::default().with_emit_meta(true);
-        let mut decoder = RecordDecoder::new(&schema, &opts).unwrap();
 
         let data = b"1234JOHN      ";
-        let json = decoder.decode_record(data).unwrap();
+        let json = decode_record(&schema, data, &opts).unwrap();
 
         assert_eq!(json["ID"], "1234");
         assert_eq!(json["NAME"], "JOHN      ");
@@ -1264,7 +1269,7 @@ copybook-rs provides comprehensive support for preserving zoned decimal encoding
 ### Core API
 
 ```rust
-use copybook_codec::{DecodeOptions, EncodeOptions, ZonedEncodingFormat};
+use copybook_rs::{Codepage, DecodeOptions, EncodeOptions, RecordFormat, ZonedEncodingFormat};
 
 // Configure encoding preservation during decode
 let decode_opts = DecodeOptions::new()
@@ -1298,7 +1303,7 @@ impl ZonedEncodingFormat {
 ```rust
 // Decode with encoding preservation
 let decode_opts = DecodeOptions::new()
-    .with_codepage(Codepage::Cp037)
+    .with_codepage(Codepage::CP037)
     .with_format(RecordFormat::Fixed)
     .with_preserve_zoned_encoding(true)
     .with_preferred_zoned_encoding(ZonedEncodingFormat::Ebcdic)
@@ -1306,7 +1311,7 @@ let decode_opts = DecodeOptions::new()
 
 // Encode with format override
 let encode_opts = EncodeOptions::new()
-    .with_codepage(Codepage::Cp037)
+    .with_codepage(Codepage::CP037)
     .with_format(RecordFormat::Fixed)
     .with_zoned_encoding_override(Some(ZonedEncodingFormat::Ascii));
 ```
@@ -1314,10 +1319,9 @@ let encode_opts = EncodeOptions::new()
 ### Round-Trip Example
 
 ```rust
-use copybook_core::parse_copybook;
-use copybook_codec::{
-    decode_record, encode_record, DecodeOptions, EncodeOptions,
-    ZonedEncodingFormat, Codepage, RecordFormat
+use copybook_rs::{
+    Codepage, DecodeOptions, EncodeOptions, RecordFormat, ZonedEncodingFormat, decode_record,
+    encode_record, parse_copybook,
 };
 
 // Parse schema
@@ -1336,7 +1340,7 @@ let original_data = &[
 
 // Step 1: Decode with encoding preservation
 let decode_opts = DecodeOptions::new()
-    .with_codepage(Codepage::Cp037)
+    .with_codepage(Codepage::CP037)
     .with_format(RecordFormat::Fixed)
     .with_preserve_zoned_encoding(true)
     .with_emit_meta(true);
@@ -1355,7 +1359,7 @@ let json_value = decode_record(&schema, original_data, &decode_opts)?;
 
 // Step 2: Encode preserving original format
 let encode_opts = EncodeOptions::new()
-    .with_codepage(Codepage::Cp037)
+    .with_codepage(Codepage::CP037)
     .with_format(RecordFormat::Fixed)
     .with_zoned_encoding_override(None); // Use preserved formats
 
@@ -1384,7 +1388,7 @@ let preserved_opts = EncodeOptions::new()
 ### Error Handling
 
 ```rust
-use copybook_core::{Error, ErrorCode};
+use copybook_rs::{Error, ErrorCode};
 
 match decode_record(&schema, &data, &opts) {
     Ok(json) => {
@@ -1454,12 +1458,10 @@ let customer_id = json["CUSTOMER_ID"].as_str().unwrap();
 // CobolDecoder decoder = new CobolDecoder(schema, "CP037", true);
 
 // copybook-rs equivalent
-let opts = DecodeOptions {
-    codepage: Codepage::Cp037,
-    strict: true,
-    ..Default::default()
-};
-let decoder = RecordDecoder::new(&schema, &opts)?;
+let opts = DecodeOptions::new()
+    .with_codepage(Codepage::CP037)
+    .with_strict_mode(true);
+let json = decode_record(&schema, data, &opts)?;
 ```
 
 ## API Stability

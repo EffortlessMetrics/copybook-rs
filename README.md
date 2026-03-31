@@ -14,6 +14,12 @@ Rust toolkit for COBOL copybook parsing and fixed-record data conversion. Determ
 
 Engineering Preview (v0.4.3). Stable CLI and library APIs; feature completeness is preview-level. See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
 
+## Rust Library Crates
+
+- `copybook-rs`: canonical umbrella facade crate; import it as `copybook_rs`
+- `copybook`: short alias package with the same facade API
+- `copybook-core` + `copybook-codec`: granular crates for teams that want tighter dependency boundaries
+
 ## Try It Now
 
 The repo includes test fixtures. After building, run this to see it work:
@@ -71,6 +77,9 @@ See [COBOL_SUPPORT_MATRIX.md](docs/reference/COBOL_SUPPORT_MATRIX.md) for the fu
 | [Stability Guarantees](docs/STABILITY_GUARANTEES.md) | API stability contract and versioning policy |
 | [Support Policy](docs/SUPPORT_POLICY.md) | Release support windows and response times |
 | [Roadmap](docs/ROADMAP.md) | Project status and what's next |
+
+Library users can start with either `copybook-rs` or `copybook` and drop down to
+`copybook-core` / `copybook-codec` only when they want the more granular split.
 
 ## Exit Codes
 

@@ -37,9 +37,8 @@ Configure your build for enterprise deployment:
 ```toml
 # Cargo.toml for production deployment
 [dependencies]
-copybook-core = "0.1"
-copybook-codec = "0.1"
-copybook-cli = "0.1"
+copybook-rs = "0.4.3"
+copybook-cli = "0.4.3"
 
 # Production features
 tracing = "0.1"
@@ -73,8 +72,7 @@ cargo clippy --workspace -- -D warnings -W clippy::pedantic
 Implement comprehensive error handling for production monitoring:
 
 ```rust
-use copybook_core::{Error, ErrorCode};
-use copybook_codec::DecodeOptions;
+use copybook_rs::{DecodeOptions, Error, ErrorCode};
 use tracing::{error, warn, info, debug};
 use std::collections::HashMap;
 
@@ -178,8 +176,7 @@ pub enum ErrorSeverity {
 Design a robust enterprise processing pipeline:
 
 ```rust
-use copybook_core::parse_copybook;
-use copybook_codec::{DecodeOptions, Codepage, JsonNumberMode, RecordFormat};
+use copybook_rs::{Codepage, DecodeOptions, JsonNumberMode, RecordFormat, parse_copybook};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
@@ -187,7 +184,7 @@ use tracing::{info, error, instrument};
 
 /// Enterprise data processing pipeline with reliability features
 pub struct EnterpriseProcessor {
-    schema: Arc<copybook_core::Schema>,
+    schema: Arc<copybook_rs::Schema>,
     options: DecodeOptions,
     error_handler: EnterpriseErrorHandler,
 }
@@ -203,7 +200,7 @@ impl EnterpriseProcessor {
 
         info!(
             fields_count = %schema.fields.len(),
-            fixed_length = ?schema.fixed_record_length,
+            fixed_length = ?schema.lrecl_fixed,
             has_tail_odo = %schema.tail_odo.is_some(),
             "Schema loaded successfully"
         );
@@ -213,8 +210,7 @@ impl EnterpriseProcessor {
             .with_codepage(Codepage::CP037)
             .with_format(RecordFormat::Fixed)
             .with_json_number_mode(JsonNumberMode::Lossless)
-            .with_emit_meta(true)
-            .with_validate_structure(true);
+            .with_emit_meta(true);
 
         Ok(Self {
             schema: Arc::new(schema),
@@ -240,12 +236,13 @@ impl EnterpriseProcessor {
         let start_time = std::time::Instant::now();
 
         // Use high-performance file processing
+        let input_std = std::fs::File::open(input_path)?;
         let output_file = tokio::fs::File::create(output_path).await?;
         let output_std = output_file.into_std().await;
 
-        let summary = copybook_codec::decode_file_to_jsonl(
+        let summary = copybook_rs::decode_file_to_jsonl(
             &self.schema,
-            input_path,
+            input_std,
             output_std,
             &self.options,
         )?;
@@ -317,10 +314,11 @@ impl EnterpriseProcessor {
 
             let task = tokio::spawn(async move {
                 let _permit = permit;
+                let input_std = std::fs::File::open(&input_file)?;
 
-                let result = copybook_codec::decode_file_to_jsonl(
+                let result = copybook_rs::decode_file_to_jsonl(
                     &schema,
-                    &input_file,
+                    input_std,
                     std::fs::File::create(&output_file)?,
                     &options,
                 );

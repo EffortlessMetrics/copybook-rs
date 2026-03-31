@@ -50,7 +50,11 @@ jobs:
           copybook-codepage \
           copybook-contracts \
           copybook-support-matrix \
-          copybook-sequence-ring; do
+          copybook-sequence-ring \
+          copybook-corruption-predicates \
+          copybook-rdw-predicates \
+          copybook-zoned-format \
+          copybook-lexer; do
           echo "Testing ${crate}..."
           cargo publish -p "${crate}" --dry-run
           echo "  ${crate} dry-run successful"
@@ -58,7 +62,7 @@ jobs:
 
     - name: Package manifest check (all publishable crates)
       run: |
-        echo "=== Package manifest check for all 25 publishable crates ==="
+        echo "=== Package manifest check for all 38 publishable crates ==="
 
         # All publishable crates in dependency order
         for crate in \
@@ -69,24 +73,37 @@ jobs:
           copybook-contracts \
           copybook-support-matrix \
           copybook-sequence-ring \
+          copybook-corruption-predicates \
+          copybook-rdw-predicates \
+          copybook-zoned-format \
+          copybook-lexer \
           copybook-overflow \
           copybook-error-reporter \
           copybook-charset \
           copybook-governance-contracts \
           copybook-codec-memory \
           copybook-overpunch \
-          copybook-utils \
+          copybook-safe-index \
+          copybook-safe-text \
           copybook-governance-grid \
           copybook-options \
+          copybook-safe-ops \
           copybook-governance-runtime \
+          copybook-utils \
           copybook-core \
           copybook-governance \
           copybook-fixed \
           copybook-rdw \
+          copybook-corruption-detectors \
+          copybook-corruption-rdw \
           copybook-record-io \
+          copybook-corruption \
           copybook-codec \
           copybook-arrow \
-          copybook-cli; do
+          copybook-cli-determinism \
+          copybook-rs \
+          copybook-cli \
+          copybook; do
           echo "Checking ${crate}..."
           cargo package -p "${crate}" --list > /dev/null
           echo "  ${crate} package file list OK"
@@ -97,18 +114,24 @@ jobs:
       run: |
         echo "Publish preflight checks passed!"
         echo ""
-        echo "Validated 25 publishable crates:"
-        echo "  Level 0 (7): copybook-error, copybook-determinism, copybook-dialect,"
-        echo "               copybook-codepage, copybook-contracts, copybook-support-matrix,"
-        echo "               copybook-sequence-ring"
-        echo "  Level 1 (6): copybook-overflow, copybook-error-reporter, copybook-charset,"
-        echo "               copybook-governance-contracts, copybook-codec-memory, copybook-overpunch"
-        echo "  Level 2 (3): copybook-utils, copybook-governance-grid, copybook-options"
-        echo "  Level 3 (2): copybook-governance-runtime, copybook-core"
-        echo "  Level 4 (3): copybook-governance, copybook-fixed, copybook-rdw"
-        echo "  Level 5 (1): copybook-record-io"
-        echo "  Level 6 (1): copybook-codec"
-        echo "  Level 7 (2): copybook-arrow, copybook-cli"
+        echo "Validated 38 publishable crates:"
+        echo "  Level 0 (11): copybook-error, copybook-determinism, copybook-dialect,"
+        echo "                copybook-codepage, copybook-contracts, copybook-support-matrix,"
+        echo "                copybook-sequence-ring, copybook-corruption-predicates,"
+        echo "                copybook-rdw-predicates, copybook-zoned-format, copybook-lexer"
+        echo "  Level 1 (8): copybook-overflow, copybook-error-reporter, copybook-charset,"
+        echo "               copybook-governance-contracts, copybook-codec-memory, copybook-overpunch,"
+        echo "               copybook-safe-index, copybook-safe-text"
+        echo "  Level 2 (3): copybook-governance-grid, copybook-options, copybook-safe-ops"
+        echo "  Level 3 (2): copybook-governance-runtime, copybook-utils"
+        echo "  Level 4 (2): copybook-core, copybook-governance"
+        echo "  Level 5 (4): copybook-fixed, copybook-rdw, copybook-corruption-detectors,"
+        echo "               copybook-corruption-rdw"
+        echo "  Level 6 (2): copybook-record-io, copybook-corruption"
+        echo "  Level 7 (1): copybook-codec"
+        echo "  Level 8 (2): copybook-arrow, copybook-cli-determinism"
+        echo "  Level 9 (2): copybook-rs, copybook-cli"
+        echo "  Level 10 (1): copybook"
         echo ""
         echo "Downstream publish dry-runs are run just-in-time in .github/workflows/publish.yml"
         echo "after upstream crates exist on crates.io."

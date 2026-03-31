@@ -169,8 +169,7 @@ These tests verify REDEFINES clause handling:
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
-use copybook_core::parse_copybook;
-use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
+use copybook_rs::{Codepage, DecodeOptions, EncodeOptions, RecordFormat, parse_copybook};
 use proptest::prelude::*;
 
 proptest! {

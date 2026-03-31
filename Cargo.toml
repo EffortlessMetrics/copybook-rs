@@ -22,6 +22,8 @@ members = [
     "crates/copybook-corruption-predicates",
     "crates/copybook-dialect",
     "crates/copybook-codec",
+    "crates/copybook-rs",
+    "crates/copybook",
     "crates/copybook-codec-memory",
     "crates/copybook-sequence-ring",
     "crates/copybook-safe-ops",
@@ -89,6 +91,8 @@ copybook-corruption-rdw = { version = "=0.4.3", path = "crates/copybook-corrupti
 copybook-corruption-predicates = { version = "=0.4.3", path = "crates/copybook-corruption-predicates" }
 copybook-dialect = { version = "=0.4.3", path = "crates/copybook-dialect" }
 copybook-codec = { version = "=0.4.3", path = "crates/copybook-codec" }
+copybook-rs = { version = "=0.4.3", path = "crates/copybook-rs" }
+copybook = { version = "=0.4.3", path = "crates/copybook" }
 copybook-codec-memory = { version = "=0.4.3", path = "crates/copybook-codec-memory" }
 copybook-cli-determinism = { version = "=0.4.3", path = "crates/copybook-cli-determinism" }
 copybook-sequence-ring = { version = "=0.4.3", path = "crates/copybook-sequence-ring" }

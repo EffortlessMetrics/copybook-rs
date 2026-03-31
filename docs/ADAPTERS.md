@@ -20,9 +20,11 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-copybook-arrow = { version = "0.4.2" }
-copybook-codec = { version = "0.4.2" }
-copybook-core = { version = "0.4.2" }
+copybook-rs = { version = "0.4.3", features = ["arrow"] }
+# or keep the granular split:
+# copybook-arrow = { version = "0.4.3" }
+# copybook-codec = { version = "0.4.3" }
+# copybook-core = { version = "0.4.3" }
 ```
 
 ### Basic Usage
@@ -30,9 +32,8 @@ copybook-core = { version = "0.4.2" }
 #### Decode to Arrow
 
 ```rust
-use copybook_arrow::{json_to_record_batch, json_to_schema, ArrowWriter};
-use copybook_codec::{DecodeOptions, RecordFormat, Codepage, JsonNumberMode, UnmappablePolicy};
-use copybook_core::parse_copybook;
+use copybook_rs::arrow::{ArrowWriter, json_to_record_batch, json_to_schema};
+use copybook_rs::{Codepage, DecodeOptions, JsonNumberMode, RecordFormat, parse_copybook};
 
 // Parse copybook
 let copybook = r#"
@@ -49,7 +50,7 @@ let options = DecodeOptions::new()
     .with_codepage(Codepage::CP037)
     .with_json_number_mode(JsonNumberMode::Lossless);
 
-let json_value = copybook_codec::decode_record(&schema, binary_data, &options)?;
+let json_value = copybook_rs::decode_record(&schema, binary_data, &options)?;
 
 // Convert to Arrow
 let arrow_schema = json_to_schema(&json_value)?;
@@ -61,7 +62,7 @@ writer.add_batch(batch);
 #### Write to Parquet
 
 ```rust
-use copybook_arrow::{json_to_schema, ParquetFileWriter};
+use copybook_rs::arrow::{ParquetFileWriter, json_to_schema};
 use parquet::file::properties::{Compression, WriterProperties};
 
 // Create Arrow schema

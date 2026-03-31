@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-rs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Umbrella facade crate for COBOL copybook parsing and deterministic fixed-record conversion."
+documentation = "https://docs.rs/copybook-rs"
+readme = "README.md"
+keywords = ["cobol", "copybook", "mainframe", "ebcdic", "etl"]
+categories = ["encoding", "parsing", "data-structures"]
+
+include = ["src/**", "tests/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+copybook-core.workspace = true
+copybook-codec.workspace = true
+copybook-arrow = { workspace = true, optional = true }
+
+[features]
+default = []
+arrow = ["dep:copybook-arrow"]
+audit = ["copybook-core/audit", "copybook-codec/audit"]
+metrics = ["copybook-codec/metrics"]
+comprehensive-tests = ["copybook-core/comprehensive-tests", "copybook-codec/comprehensive-tests"]
+
+[lints]
+workspace = true

@@ -82,7 +82,7 @@ copybook parse --feature-flags-config /path/to/config.toml
 Feature flags can be controlled programmatically:
 
 ```rust
-use copybook_core::{Feature, FeatureFlags, FeatureFlagsHandle};
+use copybook_rs::{Feature, FeatureFlags, FeatureFlagsHandle};
 
 // Get global feature flags
 let flags = FeatureFlags::global();
@@ -291,7 +291,7 @@ Stage 3: Full rollout (remove flag once stable)
 ### Example 4: Library Integration
 
 ```rust
-use copybook_core::{Feature, FeatureFlags};
+use copybook_rs::{Feature, FeatureFlags, Result, Schema, parse_copybook};
 
 fn process_copybook(text: &str) -> Result<Schema> {
     let flags = FeatureFlags::global();
@@ -338,7 +338,7 @@ If tests fail with feature flags:
 ## Related Documentation
 
 - [CLI Reference](CLI_REFERENCE.md) - Complete CLI command reference
-- [Library API](https://docs.rs/copybook-core) - Rust library documentation
+- [Library API](https://docs.rs/copybook-rs) - Rust library documentation
 - [ROADMAP](ROADMAP.md) - Project roadmap and feature status
 - [CONTRIBUTING](CONTRIBUTING.md) - Contribution guidelines
 

@@ -304,7 +304,7 @@ Check CI logs for detailed errors. The quick lane and the dedicated `bdd-tests` 
 - [Gherkin Syntax](https://cucumber.io/docs/gherkin/)
 - [BDD Best Practices](https://cucumber.io/docs/bdd/)
 - [copybook-rs BDD README](../tests/bdd/README.md)
-- [copybook-rs Documentation](https://docs.rs/copybook-core)
+- [copybook-rs Documentation](https://docs.rs/copybook-rs)
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

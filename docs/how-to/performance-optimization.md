@@ -172,14 +172,13 @@ impl WorkloadProfile {
     pub fn get_optimized_options(&self) -> DecodeOptions {
         let mut options = DecodeOptions::new()
             .with_codepage(copybook_codec::Codepage::CP037)
-            .with_format(copybook_codec::RecordFormat::Fixed)
-            .with_validate_structure(true); // Always enable validation for safety
+            .with_format(copybook_codec::RecordFormat::Fixed);
 
         match self.optimization_strategy {
             OptimizationStrategy::DisplayOptimized => {
                 // Optimize for high-speed string processing
                 options = options
-                    .with_json_number_mode(copybook_codec::JsonNumberMode::Number) // Faster for DISPLAY
+                    .with_json_number_mode(copybook_codec::JsonNumberMode::Native) // Faster for DISPLAY
                     .with_emit_meta(false); // Reduce output size
 
                 tracing::info!(
@@ -716,7 +715,7 @@ pub fn validate_enterprise_performance(
     tracing::info!("Starting enterprise performance validation");
 
     let display_options = DecodeOptions::new()
-        .with_json_number_mode(copybook_codec::JsonNumberMode::Number)
+        .with_json_number_mode(copybook_codec::JsonNumberMode::Native)
         .with_emit_meta(false);
 
     let comp3_options = DecodeOptions::new()

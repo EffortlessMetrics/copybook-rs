@@ -833,8 +833,7 @@ copybook verify \
 #### Programmatic Verification
 
 ```rust
-use copybook_codec::{decode_file_to_jsonl, DecodeOptions};
-use copybook_core::parse_copybook;
+use copybook_rs::{decode_file_to_jsonl, DecodeOptions, parse_copybook};
 
 fn verify_determinism(
     copybook: &str,
@@ -848,7 +847,9 @@ fn verify_determinism(
 
     for i in 0..runs {
         let output = format!("output_{}.jsonl", i);
-        decode_file_to_jsonl(&schema, input, std::path::Path::new(&output), &options)?;
+        let input_file = std::fs::File::open(input)?;
+        let output_file = std::fs::File::create(&output)?;
+        decode_file_to_jsonl(&schema, input_file, output_file, &options)?;
 
         let content = std::fs::read_to_string(&output)?;
         results.push(content);

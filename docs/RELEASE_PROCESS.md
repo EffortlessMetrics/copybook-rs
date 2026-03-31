@@ -217,8 +217,10 @@ If you see version mismatch errors, ensure all workspace crates use exact versio
 
 ```toml
 # In Cargo.toml workspace.dependencies
-copybook-core = { version = "=0.4.2", path = "copybook-core" }
-copybook-codec = { version = "=0.4.2", path = "copybook-codec" }
+copybook-core = { version = "=0.4.3", path = "crates/copybook-core" }
+copybook-codec = { version = "=0.4.3", path = "crates/copybook-codec" }
+copybook-rs = { version = "=0.4.3", path = "crates/copybook-rs" }
+copybook = { version = "=0.4.3", path = "crates/copybook" }
 ```
 
 ## Manual Changelog Update

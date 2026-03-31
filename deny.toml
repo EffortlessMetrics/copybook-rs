@@ -31,7 +31,8 @@ ignore = [
 [licenses]
 # The confidence threshold for detecting a license from a license text.
 confidence-threshold = 0.8
-# List of explicitly allowed licenses
+# List of explicitly allowed third-party dependency licenses.
+# This does not change the workspace or first-party crate license, which remains AGPL-3.0-or-later.
 allow = [
     "MIT",
     "Apache-2.0",

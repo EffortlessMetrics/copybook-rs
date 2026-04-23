@@ -125,6 +125,42 @@ fn test_valid_odo_configuration() {
 }
 
 #[test]
+fn test_nested_tail_odo_encode_uses_schema_path_resolution() {
+    let copybook = r#"
+01 RECORD-LAYOUT.
+   05 HEADER.
+      10 ITEM-COUNT PIC 9(2).
+   05 DETAIL.
+      10 ITEMS OCCURS 1 TO 5 TIMES DEPENDING ON ITEM-COUNT.
+         15 ITEM-CODE PIC X(2).
+"#;
+
+    let schema = parse_copybook(copybook).unwrap();
+    let payload = json!({
+        "HEADER": { "ITEM-COUNT": "02" },
+        "DETAIL": {
+            "ITEMS": [
+                { "ITEM-CODE": "A1" },
+                { "ITEM-CODE": "B2" }
+            ]
+        }
+    });
+
+    let options = EncodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII);
+
+    let encoded = copybook_codec::encode_record(&schema, &payload, &options)
+        .expect("nested ODO encode should resolve schema paths from tail metadata");
+
+    assert_eq!(&encoded[..2], b"02");
+    assert_eq!(
+        encoded.len(),
+        usize::try_from(schema.lrecl_fixed.unwrap()).unwrap()
+    );
+}
+
+#[test]
 fn test_odo_strict_mode_clamp_fatal() {
     let copybook = r#"
 01 RECORD-LAYOUT.

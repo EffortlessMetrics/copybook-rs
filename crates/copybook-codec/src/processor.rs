@@ -1118,6 +1118,10 @@ impl EncodeProcessor {
     ) -> Result<(), Error> {
         // Check if schema has tail ODO
         if let Some(ref tail_odo) = schema.tail_odo {
+            let array_schema_path = resolve_schema_path(schema, &tail_odo.array_path)
+                .unwrap_or_else(|| tail_odo.array_path.clone());
+            let counter_schema_path = resolve_schema_path(schema, &tail_odo.counter_path)
+                .unwrap_or_else(|| tail_odo.counter_path.clone());
             let fields_object = if let Some(fields_value) = json_value.get("fields") {
                 fields_value
             } else {
@@ -1125,28 +1129,28 @@ impl EncodeProcessor {
             };
 
             if let Some(array) = json_lookup_array(fields_object, &tail_odo.array_path) {
-                let array_field = schema.find_field(&tail_odo.array_path).ok_or_else(|| {
+                let array_field = schema.find_field(&array_schema_path).ok_or_else(|| {
                     Error::new(
                         ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                         format!(
                             "ODO array field '{}' not found in schema",
-                            tail_odo.array_path
+                            array_schema_path
                         ),
                     )
                     .with_context(
                         crate::odo_redefines::create_comprehensive_error_context(
                             record_index,
-                            &tail_odo.array_path,
+                            &array_schema_path,
                             0,
                             None,
                         ),
                     )
                 })?;
 
-                let counter_field = schema.find_field(&tail_odo.counter_path).ok_or_else(|| {
+                let counter_field = schema.find_field(&counter_schema_path).ok_or_else(|| {
                     crate::odo_redefines::handle_missing_counter_field(
-                        &tail_odo.counter_path,
-                        &tail_odo.array_path,
+                        &counter_schema_path,
+                        &array_schema_path,
                         schema,
                         record_index,
                         0,
@@ -1155,8 +1159,8 @@ impl EncodeProcessor {
 
                 if json_lookup_value(fields_object, &tail_odo.counter_path).is_none() {
                     return Err(crate::odo_redefines::handle_missing_counter_field(
-                        &tail_odo.counter_path,
-                        &tail_odo.array_path,
+                        &counter_schema_path,
+                        &array_schema_path,
                         schema,
                         record_index,
                         counter_field.offset as u64,
@@ -1164,8 +1168,8 @@ impl EncodeProcessor {
                 }
 
                 let validation_context = crate::odo_redefines::OdoValidationContext {
-                    field_path: tail_odo.array_path.clone(),
-                    counter_path: tail_odo.counter_path.clone(),
+                    field_path: array_schema_path,
+                    counter_path: counter_schema_path,
                     record_index,
                     byte_offset: array_field.offset as u64,
                 };
@@ -1185,11 +1189,24 @@ impl EncodeProcessor {
     }
 
 fn json_lookup_value(value: &serde_json::Value, field_path: &str) -> Option<&serde_json::Value> {
-    let mut current = value;
-    for segment in field_path.split('.') {
-        current = current.as_object()?.get(segment)?;
+    let segments: Vec<&str> = field_path.split('.').collect();
+    for start_idx in 0..segments.len() {
+        let mut current = value;
+        let mut found = true;
+        for segment in &segments[start_idx..] {
+            match current.as_object().and_then(|obj| obj.get(*segment)) {
+                Some(next) => current = next,
+                None => {
+                    found = false;
+                    break;
+                }
+            }
+        }
+        if found {
+            return Some(current);
+        }
     }
-    Some(current)
+    None
 }
 
 fn json_lookup_array(value: &serde_json::Value, field_path: &str) -> Option<&Vec<Value>> {
@@ -1204,6 +1221,24 @@ fn json_lookup_array(value: &serde_json::Value, field_path: &str) -> Option<&Vec
             }
         }
     }
+}
+
+fn resolve_schema_path(schema: &Schema, path_or_name: &str) -> Option<String> {
+    if schema.find_field(path_or_name).is_some() {
+        return Some(path_or_name.to_string());
+    }
+
+    let needle = path_or_name.rsplit('.').next().unwrap_or(path_or_name);
+    let mut matches = schema
+        .all_fields()
+        .into_iter()
+        .filter(|field| field.name.eq_ignore_ascii_case(needle));
+
+    let first = matches.next()?;
+    if matches.next().is_some() {
+        return None;
+    }
+    Some(first.path.clone())
 }
 
     /// Enhance encode error with comprehensive context information

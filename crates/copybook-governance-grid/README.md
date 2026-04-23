@@ -22,15 +22,20 @@ for binding in governance_bindings() {
 // Get summary statistics
 let summary = summarize_governance();
 assert!(summary.total_support_features > 0);
+
+let audit = copybook_governance_grid::audit_governance();
+assert!(audit.is_clean());
 ```
 
 ## Public API
 
 - `GovernedFeatureBinding` — Maps a support-matrix ID to required feature flags
 - `GovernanceSummary` — Coverage statistics
+- `GovernanceAudit` — Detailed consistency diagnostics for missing/orphaned/duplicate mappings
 - `governance_bindings()` — All static governance rows
 - `feature_flags_for_support_id()` — Look up flags for a specific support entry
 - `summarize_governance()` — Aggregate coverage summary
+- `audit_governance()` — Validate grid integrity against support-matrix IDs
 
 ## License
 

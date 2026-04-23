@@ -3,8 +3,8 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use copybook_governance_grid::{
-    Feature, FeatureFlags, FeatureId, feature_flags_for_support_id, governance_bindings,
-    summarize_governance,
+    Feature, FeatureFlags, FeatureId, audit_governance, feature_flags_for_support_id,
+    governance_bindings, summarize_governance,
 };
 
 // ── Binding registry ────────────────────────────────────────────────────────
@@ -222,6 +222,15 @@ fn summarize_governance_is_deterministic() {
     assert_eq!(a.total_support_features, b.total_support_features);
     assert_eq!(a.mapped_support_features, b.mapped_support_features);
     assert_eq!(a.total_linked_feature_flags, b.total_linked_feature_flags);
+}
+
+#[test]
+fn audit_governance_reports_clean_state() {
+    let audit = audit_governance();
+    assert!(audit.is_clean());
+    assert!(audit.missing_support_ids.is_empty());
+    assert!(audit.orphaned_binding_ids.is_empty());
+    assert!(audit.duplicate_binding_ids.is_empty());
 }
 
 // ── Re-exported types ───────────────────────────────────────────────────────

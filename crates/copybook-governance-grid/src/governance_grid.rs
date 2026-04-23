@@ -87,6 +87,28 @@ pub struct GovernanceSummary {
     pub total_linked_feature_flags: usize,
 }
 
+/// Detailed consistency diagnostics for governance-grid mappings.
+#[derive(Debug, Default)]
+pub struct GovernanceAudit {
+    /// Support-matrix IDs that currently have no governance binding row.
+    pub missing_support_ids: Vec<FeatureId>,
+    /// Governance rows whose `support_id` is no longer in the support matrix.
+    pub orphaned_binding_ids: Vec<FeatureId>,
+    /// Support IDs that appear multiple times in governance bindings.
+    pub duplicate_binding_ids: Vec<FeatureId>,
+}
+
+impl GovernanceAudit {
+    /// Returns `true` when no mapping consistency issues were detected.
+    #[inline]
+    #[must_use]
+    pub fn is_clean(&self) -> bool {
+        self.missing_support_ids.is_empty()
+            && self.orphaned_binding_ids.is_empty()
+            && self.duplicate_binding_ids.is_empty()
+    }
+}
+
 impl GovernanceSummary {
     /// Whether every support feature has at least one governance row.
     #[inline]
@@ -120,6 +142,47 @@ pub fn summarize_governance() -> GovernanceSummary {
         total_support_features: support_count,
         mapped_support_features: mapped_count,
         total_linked_feature_flags: linked_flags,
+    }
+}
+
+/// Run consistency diagnostics for the governance grid against support-matrix features.
+///
+/// This is intended for BDD/integration checks where callers need exact issue classes
+/// instead of aggregate counts.
+#[inline]
+#[must_use]
+pub fn audit_governance() -> GovernanceAudit {
+    let support_ids = crate::support_matrix::all_features()
+        .iter()
+        .map(|feature| feature.id)
+        .collect::<Vec<_>>();
+    let binding_ids = GOVERNANCE_BINDINGS
+        .iter()
+        .map(|binding| binding.support_id)
+        .collect::<Vec<_>>();
+
+    let missing_support_ids = support_ids
+        .iter()
+        .copied()
+        .filter(|id| !binding_ids.contains(id))
+        .collect::<Vec<_>>();
+    let orphaned_binding_ids = binding_ids
+        .iter()
+        .copied()
+        .filter(|id| !support_ids.contains(id))
+        .collect::<Vec<_>>();
+
+    let mut duplicate_binding_ids = Vec::new();
+    for (i, id) in binding_ids.iter().enumerate() {
+        if binding_ids[i + 1..].contains(id) && !duplicate_binding_ids.contains(id) {
+            duplicate_binding_ids.push(*id);
+        }
+    }
+
+    GovernanceAudit {
+        missing_support_ids,
+        orphaned_binding_ids,
+        duplicate_binding_ids,
     }
 }
 
@@ -263,5 +326,14 @@ mod tests {
         let flags = feature_flags_for_support_id(FeatureId::Comp1Comp2).unwrap();
         assert!(flags.contains(&Feature::Comp1));
         assert!(flags.contains(&Feature::Comp2));
+    }
+
+    #[test]
+    fn test_audit_governance_is_clean_for_current_grid() {
+        let audit = audit_governance();
+        assert!(audit.is_clean());
+        assert!(audit.missing_support_ids.is_empty());
+        assert!(audit.orphaned_binding_ids.is_empty());
+        assert!(audit.duplicate_binding_ids.is_empty());
     }
 }

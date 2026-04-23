@@ -5,6 +5,7 @@
 //! and docs can be tracked as a first-class compatibility surface.
 
 use crate::{feature_flags::Feature, support_matrix::FeatureId};
+use std::collections::HashSet;
 
 /// A single link between a support-matrix entry and its runtime feature flags.
 #[derive(Debug, Clone, Copy)]
@@ -107,18 +108,32 @@ impl GovernanceSummary {
 #[inline]
 #[must_use]
 pub fn summarize_governance() -> GovernanceSummary {
-    let support_count = crate::support_matrix::all_features().len();
-    let mut mapped_count = 0usize;
+    summarize_governance_from_parts(crate::support_matrix::all_features(), &GOVERNANCE_BINDINGS)
+}
+
+fn summarize_governance_from_parts(
+    support_features: &[crate::support_matrix::FeatureSupport],
+    bindings: &[GovernedFeatureBinding],
+) -> GovernanceSummary {
+    let support_ids = support_features
+        .iter()
+        .map(|feature| feature.id)
+        .collect::<HashSet<_>>();
+    let support_count = support_ids.len();
+
+    let mut mapped_ids = HashSet::with_capacity(bindings.len());
     let mut linked_flags = 0usize;
 
-    for binding in &GOVERNANCE_BINDINGS {
-        mapped_count += 1;
+    for binding in bindings {
+        if support_ids.contains(&binding.support_id) {
+            mapped_ids.insert(binding.support_id);
+        }
         linked_flags += binding.feature_flags.len();
     }
 
     GovernanceSummary {
         total_support_features: support_count,
-        mapped_support_features: mapped_count,
+        mapped_support_features: mapped_ids.len(),
         total_linked_feature_flags: linked_flags,
     }
 }
@@ -263,5 +278,61 @@ mod tests {
         let flags = feature_flags_for_support_id(FeatureId::Comp1Comp2).unwrap();
         assert!(flags.contains(&Feature::Comp1));
         assert!(flags.contains(&Feature::Comp2));
+    }
+
+    #[test]
+    fn test_all_features_known_is_false_when_not_fully_mapped() {
+        let incomplete = GovernanceSummary {
+            total_support_features: 7,
+            mapped_support_features: 6,
+            total_linked_feature_flags: 4,
+        };
+        assert!(!incomplete.all_features_known());
+    }
+
+    #[test]
+    fn test_summary_ignores_duplicate_and_unknown_bindings_for_mapped_count() {
+        use crate::support_matrix::{FeatureSupport, SupportStatus};
+
+        static DUPLICATE_AND_UNKNOWN_BINDINGS: [GovernedFeatureBinding; 3] = [
+            GovernedFeatureBinding {
+                support_id: FeatureId::Level88Conditions,
+                feature_flags: &[],
+                rationale: "known feature",
+            },
+            GovernedFeatureBinding {
+                support_id: FeatureId::Level88Conditions,
+                feature_flags: &[],
+                rationale: "duplicate known feature",
+            },
+            GovernedFeatureBinding {
+                support_id: FeatureId::NestedOdo,
+                feature_flags: &[],
+                rationale: "known feature",
+            },
+        ];
+
+        let support_subset = [
+            FeatureSupport {
+                id: FeatureId::Level88Conditions,
+                name: "level 88",
+                description: "test",
+                status: SupportStatus::Supported,
+                doc_ref: None,
+            },
+            FeatureSupport {
+                id: FeatureId::Level66Renames,
+                name: "level 66",
+                description: "test",
+                status: SupportStatus::Partial,
+                doc_ref: None,
+            },
+        ];
+
+        let summary =
+            summarize_governance_from_parts(&support_subset, &DUPLICATE_AND_UNKNOWN_BINDINGS);
+        assert_eq!(summary.total_support_features, 2);
+        assert_eq!(summary.mapped_support_features, 1);
+        assert!(!summary.all_features_known());
     }
 }

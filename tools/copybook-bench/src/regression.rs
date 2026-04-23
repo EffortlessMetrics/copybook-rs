@@ -795,10 +795,24 @@ impl PerformanceRegressionDetector {
             .filter(|change| matches!(change.change_direction, ChangeDirection::Degradation))
             .map(|change| change.change_percent)
             .fold(0.0f64, f64::max);
+        let max_improvement = comparison
+            .throughput_changes
+            .iter()
+            .chain(comparison.memory_changes.iter())
+            .chain(comparison.latency_changes.iter())
+            .filter(|change| matches!(change.change_direction, ChangeDirection::Improvement))
+            .map(|change| change.change_percent)
+            .fold(0.0f64, f64::max);
 
         let is_significant = tests.t_test_result.significant;
 
-        if max_degradation < 2.0 || !is_significant {
+        if !is_significant {
+            Ok(RegressionStatus::NoRegression)
+        } else if max_improvement >= 2.0 && max_degradation < 2.0 {
+            Ok(RegressionStatus::Improvement {
+                magnitude: max_improvement,
+            })
+        } else if max_degradation < 2.0 {
             Ok(RegressionStatus::NoRegression)
         } else if max_degradation < 5.0 {
             Ok(RegressionStatus::MinorRegression {
@@ -1764,6 +1778,126 @@ mod tests {
             .run_statistical_tests(&baseline_metrics, &current_metrics)
             .unwrap();
         assert!(statistical_tests.t_test_result.degrees_of_freedom > 0);
+    }
+
+    #[test]
+    fn test_determine_regression_status_detects_improvement() {
+        let detector = PerformanceRegressionDetector::new();
+        let comparison = MetricsComparison {
+            throughput_changes: vec![MetricChange {
+                metric_name: "display_throughput_mean".to_string(),
+                baseline_value: 100.0,
+                current_value: 110.0,
+                change_percent: 10.0,
+                change_direction: ChangeDirection::Improvement,
+                statistical_significance: true,
+            }],
+            memory_changes: vec![MetricChange {
+                metric_name: "peak_memory_mb".to_string(),
+                baseline_value: 100.0,
+                current_value: 98.5,
+                change_percent: 1.5,
+                change_direction: ChangeDirection::Neutral,
+                statistical_significance: false,
+            }],
+            latency_changes: vec![MetricChange {
+                metric_name: "p95_latency_ms".to_string(),
+                baseline_value: 10.0,
+                current_value: 9.8,
+                change_percent: 2.0,
+                change_direction: ChangeDirection::Neutral,
+                statistical_significance: false,
+            }],
+            overall_change_percent: 4.5,
+        };
+        let tests = StatisticalTestResults {
+            t_test_result: TTestResult {
+                statistic: 4.0,
+                p_value: 0.01,
+                degrees_of_freedom: 98,
+                significant: true,
+            },
+            mann_whitney_u_result: MannWhitneyResult {
+                u_statistic: 1200.0,
+                p_value: 0.03,
+                significant: true,
+            },
+            effect_size: EffectSize {
+                cohens_d: 0.8,
+                glass_delta: 0.8,
+                hedges_g: 0.79,
+                interpretation: EffectSizeInterpretation::Large,
+            },
+            power_analysis: PowerAnalysisResult {
+                power: 0.9,
+                required_sample_size: 64,
+                adequate_power: true,
+            },
+        };
+
+        let status = detector
+            .determine_regression_status(&comparison, &tests)
+            .unwrap();
+        match status {
+            RegressionStatus::Improvement { magnitude } => {
+                assert_eq!(magnitude, 10.0);
+            }
+            _ => panic!("Expected improvement status"),
+        }
+    }
+
+    #[test]
+    fn test_determine_regression_status_prefers_regression_when_present() {
+        let detector = PerformanceRegressionDetector::new();
+        let comparison = MetricsComparison {
+            throughput_changes: vec![MetricChange {
+                metric_name: "display_throughput_mean".to_string(),
+                baseline_value: 100.0,
+                current_value: 95.0,
+                change_percent: 5.0,
+                change_direction: ChangeDirection::Degradation,
+                statistical_significance: true,
+            }],
+            memory_changes: vec![MetricChange {
+                metric_name: "peak_memory_mb".to_string(),
+                baseline_value: 100.0,
+                current_value: 90.0,
+                change_percent: 10.0,
+                change_direction: ChangeDirection::Improvement,
+                statistical_significance: true,
+            }],
+            latency_changes: vec![],
+            overall_change_percent: 7.5,
+        };
+        let tests = StatisticalTestResults {
+            t_test_result: TTestResult {
+                statistic: 3.0,
+                p_value: 0.01,
+                degrees_of_freedom: 98,
+                significant: true,
+            },
+            mann_whitney_u_result: MannWhitneyResult {
+                u_statistic: 1200.0,
+                p_value: 0.03,
+                significant: true,
+            },
+            effect_size: EffectSize {
+                cohens_d: 0.7,
+                glass_delta: 0.7,
+                hedges_g: 0.69,
+                interpretation: EffectSizeInterpretation::Medium,
+            },
+            power_analysis: PowerAnalysisResult {
+                power: 0.9,
+                required_sample_size: 64,
+                adequate_power: true,
+            },
+        };
+
+        let status = detector
+            .determine_regression_status(&comparison, &tests)
+            .unwrap();
+        assert!(matches!(status, RegressionStatus::MajorRegression { .. }));
     }
 
     #[test]

@@ -51,6 +51,11 @@ impl PerformanceReport {
 
     /// Validate against SLO thresholds
     pub fn validate_slos(&mut self, display_slo: f64, comp3_slo: f64) {
+        // Recompute validation from current metrics each time to keep behavior idempotent.
+        self.status = default_status();
+        self.warnings.clear();
+        self.errors.clear();
+
         if let Some(display) = self.display_gibs {
             if display < display_slo {
                 self.status = "failure".to_string();
@@ -144,6 +149,25 @@ mod tests {
         report.validate_slos(4.1, 560.0);
         assert_eq!(report.status, "failure");
         assert!(!report.errors.is_empty());
+    }
+
+    #[test]
+    fn test_slo_validation_recomputes_without_stale_messages() {
+        let mut report = PerformanceReport::new();
+        report.display_gibs = Some(3.0);
+        report.comp3_mibs = Some(500.0);
+
+        report.validate_slos(4.1, 560.0);
+        assert_eq!(report.status, "failure");
+        assert!(!report.errors.is_empty());
+
+        report.display_gibs = Some(5.0);
+        report.comp3_mibs = Some(700.0);
+        report.validate_slos(4.1, 560.0);
+
+        assert_eq!(report.status, "success");
+        assert!(report.errors.is_empty());
+        assert!(report.warnings.is_empty());
     }
 
     #[test]

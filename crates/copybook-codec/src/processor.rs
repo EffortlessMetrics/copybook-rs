@@ -1125,7 +1125,12 @@ impl EncodeProcessor {
             };
 
             if let Some(array) = json_lookup_array(fields_object, &tail_odo.array_path) {
-                let array_field = schema.find_field(&tail_odo.array_path).ok_or_else(|| {
+                let array_field =
+                    crate::odo_redefines::find_field_by_path_or_unique_name(
+                        schema,
+                        &tail_odo.array_path,
+                    )
+                    .ok_or_else(|| {
                     Error::new(
                         ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                         format!(
@@ -1141,17 +1146,22 @@ impl EncodeProcessor {
                             None,
                         ),
                     )
-                })?;
+                    })?;
 
-                let counter_field = schema.find_field(&tail_odo.counter_path).ok_or_else(|| {
-                    crate::odo_redefines::handle_missing_counter_field(
-                        &tail_odo.counter_path,
-                        &tail_odo.array_path,
+                let counter_field =
+                    crate::odo_redefines::find_field_by_path_or_unique_name(
                         schema,
-                        record_index,
-                        0,
+                        &tail_odo.counter_path,
                     )
-                })?;
+                    .ok_or_else(|| {
+                        crate::odo_redefines::handle_missing_counter_field(
+                            &tail_odo.counter_path,
+                            &tail_odo.array_path,
+                            schema,
+                            record_index,
+                            0,
+                        )
+                    })?;
 
                 if json_lookup_value(fields_object, &tail_odo.counter_path).is_none() {
                     return Err(crate::odo_redefines::handle_missing_counter_field(

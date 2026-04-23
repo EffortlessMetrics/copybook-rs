@@ -1947,31 +1947,37 @@ fn validate_lib_api_odo_encoding(
     }
 
     if let Some(array) = json_lookup_array(fields_value, &tail_odo.array_path) {
-        let array_field = schema.find_field(&tail_odo.array_path).ok_or_else(|| {
-            Error::new(
-                ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                format!(
-                    "ODO array field '{}' not found in schema",
-                    tail_odo.array_path
-                ),
-            )
-            .with_context(crate::odo_redefines::create_comprehensive_error_context(
-                0,
-                &tail_odo.array_path,
-                0,
-                None,
-            ))
-        })?;
+        let array_field =
+            crate::odo_redefines::find_field_by_path_or_unique_name(schema, &tail_odo.array_path)
+                .ok_or_else(|| {
+                Error::new(
+                    ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                    format!(
+                        "ODO array field '{}' not found in schema",
+                        tail_odo.array_path
+                    ),
+                )
+                .with_context(
+                    crate::odo_redefines::create_comprehensive_error_context(
+                        0,
+                        &tail_odo.array_path,
+                        0,
+                        None,
+                    ),
+                )
+            })?;
 
-        let counter_field = schema.find_field(&tail_odo.counter_path).ok_or_else(|| {
-            crate::odo_redefines::handle_missing_counter_field(
-                &tail_odo.counter_path,
-                &tail_odo.array_path,
-                schema,
-                0,
-                0,
-            )
-        })?;
+        let counter_field =
+            crate::odo_redefines::find_field_by_path_or_unique_name(schema, &tail_odo.counter_path)
+                .ok_or_else(|| {
+                    crate::odo_redefines::handle_missing_counter_field(
+                        &tail_odo.counter_path,
+                        &tail_odo.array_path,
+                        schema,
+                        0,
+                        0,
+                    )
+                })?;
 
         if json_lookup_value(fields_value, &tail_odo.counter_path).is_none() {
             return Err(crate::odo_redefines::handle_missing_counter_field(

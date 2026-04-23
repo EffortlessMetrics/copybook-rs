@@ -13,6 +13,35 @@ use serde_json::Value;
 use std::collections::HashMap;
 use tracing::{debug, warn};
 
+/// Resolve a schema field by exact path first, then by unique field name.
+///
+/// Tail-ODO metadata may store short names (for example `ARRAY`) while other
+/// subsystems require canonical schema paths (for example `RECORD.ARRAY`).
+/// This helper keeps lookup strict by allowing the name fallback only when it
+/// resolves to exactly one field in the schema.
+#[must_use]
+pub fn find_field_by_path_or_unique_name<'a>(
+    schema: &'a Schema,
+    path_or_name: &str,
+) -> Option<&'a Field> {
+    if let Some(field) = schema.find_field(path_or_name) {
+        return Some(field);
+    }
+
+    let target_name = path_or_name.rsplit('.').next().unwrap_or(path_or_name);
+    let mut matches = schema
+        .all_fields()
+        .into_iter()
+        .filter(|field| field.name.eq_ignore_ascii_case(target_name));
+
+    let first_match = matches.next()?;
+    if matches.next().is_some() {
+        return None;
+    }
+
+    Some(first_match)
+}
+
 /// ODO validation result
 #[derive(Debug, Clone)]
 pub struct OdoValidationResult {

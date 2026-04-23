@@ -5,6 +5,7 @@
 //! and docs can be tracked as a first-class compatibility surface.
 
 use crate::{feature_flags::Feature, support_matrix::FeatureId};
+use std::collections::HashSet;
 
 /// A single link between a support-matrix entry and its runtime feature flags.
 #[derive(Debug, Clone, Copy)]
@@ -103,24 +104,31 @@ impl GovernanceSummary {
     }
 }
 
+fn summarize_governance_from_bindings(
+    support_ids: impl Iterator<Item = FeatureId>,
+    bindings: &[GovernedFeatureBinding],
+) -> GovernanceSummary {
+    let support_id_set: HashSet<_> = support_ids.collect();
+    let bound_support_ids: HashSet<_> = bindings.iter().map(|b| b.support_id).collect();
+
+    let linked_flags = bindings.iter().map(|b| b.feature_flags.len()).sum();
+    let mapped_count = support_id_set.intersection(&bound_support_ids).count();
+
+    GovernanceSummary {
+        total_support_features: support_id_set.len(),
+        mapped_support_features: mapped_count,
+        total_linked_feature_flags: linked_flags,
+    }
+}
+
 /// Summarize governance mapping health for the current set of support and feature entries.
 #[inline]
 #[must_use]
 pub fn summarize_governance() -> GovernanceSummary {
-    let support_count = crate::support_matrix::all_features().len();
-    let mut mapped_count = 0usize;
-    let mut linked_flags = 0usize;
-
-    for binding in &GOVERNANCE_BINDINGS {
-        mapped_count += 1;
-        linked_flags += binding.feature_flags.len();
-    }
-
-    GovernanceSummary {
-        total_support_features: support_count,
-        mapped_support_features: mapped_count,
-        total_linked_feature_flags: linked_flags,
-    }
+    summarize_governance_from_bindings(
+        crate::support_matrix::all_features().iter().map(|f| f.id),
+        &GOVERNANCE_BINDINGS,
+    )
 }
 
 #[cfg(test)]
@@ -264,4 +272,49 @@ mod tests {
         assert!(flags.contains(&Feature::Comp1));
         assert!(flags.contains(&Feature::Comp2));
     }
+
+    #[test]
+    fn test_summarize_governance_ignores_duplicate_bindings_for_mapped_count() {
+        let duplicate_bindings = [
+            GovernedFeatureBinding {
+                support_id: FeatureId::Level88Conditions,
+                feature_flags: &[],
+                rationale: "dup-1",
+            },
+            GovernedFeatureBinding {
+                support_id: FeatureId::Level88Conditions,
+                feature_flags: &[],
+                rationale: "dup-2",
+            },
+        ];
+
+        let summary = summarize_governance_from_bindings(
+            [FeatureId::Level88Conditions, FeatureId::Level66Renames].into_iter(),
+            &duplicate_bindings,
+        );
+
+        assert_eq!(summary.total_support_features, 2);
+        assert_eq!(summary.mapped_support_features, 1);
+        assert!(!summary.all_features_known());
+    }
+
+    #[test]
+    fn test_summarize_governance_excludes_unknown_binding_ids() {
+        let bindings = [GovernedFeatureBinding {
+            support_id: FeatureId::SignSeparate,
+            feature_flags: &SIGN_SEPARATE_MAPPING,
+            rationale: "known",
+        }];
+
+        let summary = summarize_governance_from_bindings(
+            [FeatureId::Level88Conditions, FeatureId::Level66Renames].into_iter(),
+            &bindings,
+        );
+
+        assert_eq!(summary.total_support_features, 2);
+        assert_eq!(summary.mapped_support_features, 0);
+        assert!(!summary.all_features_known());
+        assert_eq!(summary.explicit_bindings(), 1);
+    }
+
 }

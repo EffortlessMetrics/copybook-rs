@@ -127,7 +127,7 @@ logos = "0.16.1"
 regex = "1.12.3"
 
 # Crypto dependencies
-sha2 = "0.10.9"
+sha2 = "0.11.0"
 base64 = "0.22.1"
 blake3 = "1.8.3"
 

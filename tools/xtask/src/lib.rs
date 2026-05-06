@@ -6,6 +6,7 @@
 use anyhow::{Result, bail};
 use std::{fs, path::Path};
 
+pub mod lint_policy;
 pub mod perf;
 
 #[derive(Default, Debug, Clone)]

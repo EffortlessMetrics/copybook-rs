@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+schema_version = "1.0"
+
+[[allow]]
+glob = ".github/**"
+kind = "ci_declarative"
+owner = "release/ci"
+reason = "GitHub Actions workflows and repository automation are platform-required configuration."
+surface = "ci"
+classification = "config"
+covered_by = ["cargo xtask check-lint-policy"]
+
+[[allow]]
+glob = "docs/**"
+kind = "documentation"
+owner = "docs"
+reason = "Repository documentation is authored in Markdown and schema/config formats consumed outside Rust."
+surface = "docs"
+classification = "documentation"
+covered_by = ["cargo xtask check-lint-policy"]
+
+[[allow]]
+glob = "fixtures/**"
+kind = "fixture_input"
+owner = "quality/fixtures"
+reason = "Fixture workspaces intentionally contain analyzed source and data files."
+surface = "fixtures"
+classification = "test"
+covered_by = ["cargo test --workspace"]
+
+[[allow]]
+glob = "tests/fixtures/**"
+kind = "fixture_input"
+owner = "quality/fixtures"
+reason = "Test fixtures intentionally contain non-Rust source and data files."
+surface = "fixtures"
+classification = "test"
+covered_by = ["cargo test --workspace"]
+
+[[allow]]
+glob = "scripts/**"
+kind = "repo_automation"
+owner = "devex"
+reason = "Shell and helper scripts wrap cargo/xtask workflows for local and CI operators."
+surface = "tooling"
+classification = "tooling"
+covered_by = ["cargo xtask check-lint-policy"]
+
+[[allow]]
+glob = "tools/copybook-bench/test_fixtures/**"
+kind = "benchmark_fixture"
+owner = "performance"
+reason = "Benchmark diagnostics and receipts are test data, not product implementation code."
+surface = "benchmarks"
+classification = "test"
+covered_by = ["cargo test -p copybook-bench"]

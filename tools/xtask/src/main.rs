@@ -4,6 +4,7 @@ use copybook_core::support_matrix;
 use std::{fs, path::Path};
 use xtask::{Counts, counts, perf};
 
+mod lint_policy;
 mod pr_insights;
 
 fn main() -> Result<()> {
@@ -22,6 +23,7 @@ fn main() -> Result<()> {
         ["perf", "--out-dir", out_dir] => perf::run(false, Some(out_dir)),
         ["perf", "--enforce", "--out-dir", out_dir] => perf::run(true, Some(out_dir)),
         ["perf", "--summarize-last" | "--summarize"] => perf_summarize_last(),
+        ["check-lint-policy"] => lint_policy::check_lint_policy(),
         ["pr-insights"] => pr_insights::generate_summary(),
         _ => {
             eprintln!(
@@ -34,6 +36,7 @@ fn main() -> Result<()> {
                  perf --enforce                  Run perf with SLO enforcement\n\
                  perf --out-dir <path>           Run perf with custom output directory\n\
                  perf --summarize-last           Summarize latest perf.json with SLO comparison\n\
+                 check-lint-policy               Verify workspace lint policy ledgers\n\
                  pr-insights                     Generate PR insights report (nextest + perf)"
             );
             Ok(())

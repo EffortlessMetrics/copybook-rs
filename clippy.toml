@@ -15,13 +15,11 @@ pass-by-value-size-limit = 256
 
 # Safety and correctness
 avoid-breaking-exported-api = true
-allow-expect-in-tests = true
-allow-unwrap-in-tests = true
-allow-panic-in-tests = true
+# Workspace policy forbids test carveouts; tests use Result-returning helpers or narrow #[expect(..., reason = "...")].
 
 # Code style preferences
 allow-one-hash-in-raw-strings = true
 
 # Enterprise patterns
 max-suggested-slice-pattern-length = 3
-msrv = "1.92"
+msrv = "1.93"

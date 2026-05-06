@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+schema_version = "0.3"
+
+# Semantic no-panic exceptions use identity = path + family + selector.
+# last_seen locations are advisory only. Empty means no panic-family exception is
+# approved at this policy layer yet.

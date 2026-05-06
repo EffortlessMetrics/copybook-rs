@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+schema = 1
+
+# Temporary lint-policy exceptions belong here. Each entry must include lint,
+# path, owner, reason, and expires. Empty means no repo-local lint debt has been
+# approved for this policy layer yet.

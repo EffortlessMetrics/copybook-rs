@@ -7,7 +7,7 @@ Thank you for your interest in contributing to copybook-rs. This guide will help
 
 ### Prerequisites
 
-- **Rust 1.92+** (MSRV enforced at workspace level)
+- **Rust 1.93+** (MSRV enforced at workspace level)
 - **Git** for version control
 - **Cargo** (comes with Rust)
 - **[just](https://github.com/casey/just)** task runner (for `just ci-quick`, `just pr`)
@@ -61,7 +61,7 @@ See [CLAUDE.md](CLAUDE.md) for complete command reference.
 - **Zero unsafe code** in public APIs
 - **Clippy pedantic compliance** enforced in CI
 - **Comprehensive test coverage** for new features
-- **MSRV compatibility** (Rust 1.92+)
+- **MSRV compatibility** (Rust 1.93+)
 - **Idiomatic Rust patterns** (div_ceil, is_empty, range contains)
 - **Safe type conversions** (try_from() instead of unsafe casts)
 - **Display trait** for user-facing types

@@ -5,7 +5,7 @@ Maintainer and operator guidance for Claude Code working in this repository.
 
 ## Project Identity
 
-- Rust workspace, Edition 2024, MSRV 1.92
+- Rust workspace, Edition 2024, MSRV 1.93
 - COBOL copybook parsing and data conversion (EBCDIC/ASCII to JSON and back)
 - Engineering Preview v0.4.3
 - 36 publishable crates under `crates/`, 3 dev-only under `tools/`, 3 test suites under `tests/`

@@ -14,7 +14,7 @@ This document describes the implementation of the copybook-rs benchmark containe
 ### 1. Dockerfile (`/Dockerfile`)
 
 **Base Image**: `rust:1.89-bookworm`
-- Matches MSRV (Rust 1.92)
+- Matches MSRV (Rust 1.93)
 - Debian Bookworm base for compatibility
 - Full Rust toolchain for `cargo bench` execution
 
@@ -60,7 +60,7 @@ This document describes the implementation of the copybook-rs benchmark containe
 ```
 ==> copybook-rs benchmark container
 ==> Commit: abc1234
-==> Rustc: rustc 1.92.0 (...)
+==> Rustc: rustc 1.93.0 (...)
 ==> CPU: AMD Ryzen 9 9950X3D
 ==> Cores: 32
 

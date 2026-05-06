@@ -11,6 +11,7 @@ Internal build/maintenance tasks for `copybook-rs`.
 - Validate repository reports and metadata consistency.
 - Run perf workflows and generate baseline receipts (`perf.json`, `meta.json`).
 - Produce last-run benchmark summaries for PR and release checks.
+- Verify Clippy policy, lint inheritance, and policy exception ledgers.
 
 ## Commands
 
@@ -20,6 +21,7 @@ cargo run -p xtask -- docs verify-tests
 cargo run -p xtask -- docs verify-support-matrix
 cargo run -p xtask -- perf --out-dir target/custom-bench
 cargo run -p xtask -- perf --summarize-last
+cargo xtask check-lint-policy
 ```
 
 ## Outputs

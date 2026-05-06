@@ -1,0 +1,46 @@
+schema_version = "1.0"
+
+[[allow]]
+glob = ".claude/hooks/*.py"
+kind = "agent_hook"
+owner = "automation"
+reason = "Claude/Codex hook integration is supplied as Python by the local agent environment."
+surface = "automation"
+classification = "tooling"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "scripts/**/*.sh"
+kind = "shell_automation"
+owner = "release/ci"
+reason = "Repository CI, benchmark, fuzzing, release, and validation entrypoints are shell boundaries."
+surface = "ci"
+classification = "tooling"
+covered_by = ["cargo xtask check-file-policy", "cargo test --workspace"]
+
+[[allow]]
+glob = "scripts/*.py"
+kind = "agent_automation"
+owner = "automation"
+reason = "Agent review and cleanup helpers are Python tooling and not product runtime code."
+surface = "automation"
+classification = "tooling"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "tools/*.sh"
+kind = "maintenance_script"
+owner = "developer-tools"
+reason = "One-off repository maintenance helpers live outside the Rust workspace task surface."
+surface = "developer-tools"
+classification = "tooling"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "deploy/**/*.sh"
+kind = "deployment_validation"
+owner = "release/ci"
+reason = "Deployment platform validation is shell-based at the Kubernetes boundary."
+surface = "deployment"
+classification = "tooling"
+covered_by = ["cargo xtask check-file-policy"]

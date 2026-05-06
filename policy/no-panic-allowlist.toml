@@ -1,0 +1,5 @@
+schema_version = "0.3"
+
+# No active panic-family exceptions are approved for the target policy.
+# Temporary exceptions must use [[allow]] with path + family + selector identity,
+# advisory last_seen, owner, explanation, classification, and optional expires.

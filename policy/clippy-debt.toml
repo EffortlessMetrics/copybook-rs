@@ -1,0 +1,15 @@
+schema = 1
+
+[[debt]]
+lint = "allow-attributes"
+path = "**/*.rs"
+owner = "lint-policy"
+reason = "Existing source tree contains historical #[allow] suppressions; migrate to narrow #[expect(..., reason = \"...\")] receipts in follow-up cleanup PRs."
+expires = "2026-07-01"
+
+[[debt]]
+lint = "clippy::arithmetic_side_effects"
+path = "crates/**/*.rs"
+owner = "codec-safety"
+reason = "Parser, codec, and record-layout arithmetic needs staged checked/wrapping/saturating policy triage before this warning can become a clean gate."
+expires = "2026-07-01"

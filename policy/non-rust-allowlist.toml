@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+schema_version = "1.0"
+
+[[allow]]
+glob = ".github/workflows/*.yml"
+kind = "ci_declarative"
+owner = "release/ci"
+reason = "GitHub Actions workflows are platform-required CI configuration."
+surface = "ci"
+classification = "config"
+covered_by = ["cargo xtask check-lint-policy"]
+
+[[allow]]
+glob = "fixtures/**"
+kind = "fixture_input"
+owner = "parser-fixtures"
+reason = "Fixture workspaces intentionally contain analyzed COBOL, JSON, and supporting source files."
+surface = "fixtures"
+classification = "test"
+covered_by = ["cargo test --workspace"]
+
+[[allow]]
+glob = "docs/**"
+kind = "documentation"
+owner = "docs"
+reason = "Documentation and examples are intentionally non-Rust content."
+surface = "docs"
+classification = "documentation"
+covered_by = ["cargo xtask check-lint-policy"]

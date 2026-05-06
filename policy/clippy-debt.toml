@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+schema = 1
+
+# Temporary lint exceptions belong here instead of weakening Cargo.toml or clippy.toml.
+# Each entry must include lint, path, owner, reason, and expires.

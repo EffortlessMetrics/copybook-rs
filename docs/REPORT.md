@@ -180,7 +180,7 @@ parse, codec, and structural validation. See
 
 ### Code Quality
 
-- Rust Edition 2024 with MSRV 1.92 (aligned with CI test matrix)
+- Rust Edition 2024 with MSRV 1.93 (aligned with CI test matrix)
 - Clippy pedantic compliance enforced (complete compliance achieved)
 - Comprehensive error handling with structured error taxonomy
 - Idiomatic Rust patterns throughout codebase

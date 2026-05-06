@@ -56,7 +56,7 @@
 - [ ] `cargo test --workspace` passes (or `cargo nextest run --workspace`)
 - [ ] `bash scripts/ci/governance-bdd-smoke.sh` passes (if governance or BDD touched)
 - [ ] Follows [conventional commit format](https://www.conventionalcommits.org/) (e.g., `feat(core):`, `fix(codec):`)
-- [ ] MSRV compliance (Rust 1.92+) verified if dependencies changed
+- [ ] MSRV compliance (Rust 1.93+) verified if dependencies changed
 - [ ] Golden fixtures updated if applicable
 
 ## Testing Instructions

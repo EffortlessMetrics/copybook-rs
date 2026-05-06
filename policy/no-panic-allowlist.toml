@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+schema_version = "0.3"
+
+# No panic-family exceptions are accepted by default. If a temporary exception is
+# needed, add a narrow [[allow]] entry with path + family + selector identity,
+# owner, classification, explanation, optional expires, and advisory last_seen.

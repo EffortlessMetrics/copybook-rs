@@ -4,6 +4,7 @@ use copybook_core::support_matrix;
 use std::{fs, path::Path};
 use xtask::{Counts, counts, perf};
 
+mod lint_policy;
 mod pr_insights;
 
 fn main() -> Result<()> {
@@ -23,18 +24,22 @@ fn main() -> Result<()> {
         ["perf", "--enforce", "--out-dir", out_dir] => perf::run(true, Some(out_dir)),
         ["perf", "--summarize-last" | "--summarize"] => perf_summarize_last(),
         ["pr-insights"] => pr_insights::generate_summary(),
+        ["check-lint-policy"] => lint_policy::check(),
         _ => {
             eprintln!(
-                "Usage: cargo run -p xtask -- [docs|perf|pr-insights] <subcommand>\n\
-                 \n\
-                 docs sync-tests                 Sync test status from junit.xml\n\
-                 docs verify-tests               Verify test status is in sync\n\
-                 docs verify-support-matrix      Verify support matrix registry ↔ docs\n\
-                 perf                            Run perf benchmark runner\n\
-                 perf --enforce                  Run perf with SLO enforcement\n\
-                 perf --out-dir <path>           Run perf with custom output directory\n\
-                 perf --summarize-last           Summarize latest perf.json with SLO comparison\n\
-                 pr-insights                     Generate PR insights report (nextest + perf)"
+                "{}",
+                concat!(
+                    "Usage: cargo xtask [docs|perf|pr-insights|check-lint-policy] <subcommand>\n\n",
+                    "docs sync-tests                 Sync test status from junit.xml\n",
+                    "docs verify-tests               Verify test status is in sync\n",
+                    "docs verify-support-matrix      Verify support matrix registry ↔ docs\n",
+                    "perf                            Run perf benchmark runner\n",
+                    "perf --enforce                  Run perf with SLO enforcement\n",
+                    "perf --out-dir <path>           Run perf with custom output directory\n",
+                    "perf --summarize-last           Summarize latest perf.json with SLO comparison\n",
+                    "pr-insights                     Generate PR insights report (nextest + perf)\n",
+                    "check-lint-policy               Verify lint policy ledgers and workspace wiring",
+                ),
             );
             Ok(())
         }

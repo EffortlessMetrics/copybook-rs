@@ -44,7 +44,7 @@ pub fn safe_array_bound(
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_u64_to_u32(value: u64, context: &str) -> Result<u32> {
-    u32::try_from(value).map_err(|_| {
+    u32::try_from(value).map_err(|_error| {
         Error::new(
             ErrorCode::CBKS141_RECORD_TOO_LARGE,
             format!(
@@ -61,7 +61,7 @@ pub fn safe_u64_to_u32(value: u64, context: &str) -> Result<u32> {
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_u64_to_u16(value: u64, context: &str) -> Result<u16> {
-    u16::try_from(value).map_err(|_| {
+    u16::try_from(value).map_err(|_error| {
         Error::new(
             ErrorCode::CBKS141_RECORD_TOO_LARGE,
             format!(
@@ -78,7 +78,7 @@ pub fn safe_u64_to_u16(value: u64, context: &str) -> Result<u16> {
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_usize_to_u32(value: usize, context: &str) -> Result<u32> {
-    u32::try_from(value).map_err(|_| {
+    u32::try_from(value).map_err(|_error| {
         Error::new(
             ErrorCode::CBKS141_RECORD_TOO_LARGE,
             format!(

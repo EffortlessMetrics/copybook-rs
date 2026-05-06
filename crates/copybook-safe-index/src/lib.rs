@@ -25,7 +25,12 @@ pub fn safe_divide(numerator: usize, denominator: usize, context: &str) -> Resul
             format!("Division by zero in {context}"),
         ));
     }
-    Ok(numerator / denominator)
+    numerator.checked_div(denominator).ok_or_else(|| {
+        Error::new(
+            ErrorCode::CBKP001_SYNTAX,
+            format!("Division by zero in {context}"),
+        )
+    })
 }
 
 /// Access a slice index with explicit bounds checking.
@@ -39,21 +44,23 @@ pub fn safe_slice_get<T>(slice: &[T], index: usize, context: &str) -> Result<T>
 where
     T: Copy,
 {
-    if index < slice.len() {
-        Ok(slice[index])
-    } else {
-        Err(Error::new(
+    slice.get(index).copied().ok_or_else(|| {
+        Error::new(
             ErrorCode::CBKP001_SYNTAX,
             format!(
                 "Slice bounds violation in {context}: index {index} >= length {}",
                 slice.len()
             ),
-        ))
-    }
+        )
+    })
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used, clippy::unwrap_used)]
+#[expect(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    reason = "legacy tests are being migrated to Result-returning panic-free helpers"
+)]
 mod tests {
     use super::*;
     use proptest::prelude::*;

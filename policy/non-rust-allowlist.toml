@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+schema_version = "1.0"
+
+[[allow]]
+glob = ".github/workflows/*.yml"
+kind = "ci_declarative"
+owner = "release/ci"
+reason = "GitHub Actions workflow definitions are platform-required YAML."
+surface = "ci"
+classification = "config"
+covered_by = ["cargo run -p xtask -- check-file-policy"]
+
+[[allow]]
+glob = "docs/**/*.md"
+kind = "documentation"
+owner = "docs"
+reason = "User-facing and governance documentation is maintained as Markdown."
+surface = "docs"
+classification = "documentation"
+covered_by = ["cargo run -p xtask -- docs verify-support-matrix"]
+
+[[allow]]
+glob = "README.md"
+kind = "documentation"
+owner = "docs"
+reason = "Repository entrypoint documentation is maintained as Markdown."
+surface = "docs"
+classification = "documentation"
+covered_by = ["cargo run -p xtask -- docs verify-tests"]

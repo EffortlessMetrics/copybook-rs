@@ -7,6 +7,7 @@ use anyhow::{Result, bail};
 use std::{fs, path::Path};
 
 pub mod perf;
+pub mod policy;
 
 #[derive(Default, Debug, Clone)]
 pub struct Counts {

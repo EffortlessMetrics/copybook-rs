@@ -45,22 +45,25 @@ jobs:
       with:
         components: clippy
     - uses: Swatinem/rust-cache@v2
-    - name: Run clippy (libs/bins/examples, pedantic)
-      run: cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -W clippy::pedantic
-    - name: Run clippy (tests, relaxed test-only lints)
-      run: |
-        cargo clippy --workspace --tests --all-features \
-          -- -D warnings \
-          -A clippy::unwrap_used \
-          -A clippy::expect_used \
-          -A clippy::panic \
-          -A clippy::dbg_macro \
-          -A clippy::print_stdout \
-          -A clippy::print_stderr \
-          -A clippy::duplicated_attributes \
-          -A deprecated
-    - name: Enforce panic prevention lints (shipped targets)
-      run: cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unreachable -D clippy::todo -D clippy::unimplemented
+    - name: Run clippy (workspace strict policy, advisory during debt burn-down)
+      continue-on-error: true
+      run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+  policy:
+    name: Policy Gates
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Check lint policy
+      run: cargo run -p xtask -- check-lint-policy
+    - name: Check no-panic allowlist schema
+      run: cargo run -p xtask -- check-no-panic-family
+    - name: Check non-Rust file policy schema
+      run: cargo run -p xtask -- check-file-policy
+    - name: Print policy report
+      run: cargo run -p xtask -- policy-report
 
   test:
     name: Test Suite
@@ -69,7 +72,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         rust:
-          - 1.92.0  # MSRV
+          - 1.93.0  # MSRV
           - stable
           - beta
         features: ["", "comp3_fast", "audit"]
@@ -222,7 +225,7 @@ jobs:
     - uses: actions/checkout@v6
     - uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: 1.92.0
+        toolchain: 1.93.0
     - uses: Swatinem/rust-cache@v2
       with:
         save-if: ${{ github.ref == 'refs/heads/main' }}

@@ -18,7 +18,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn parse_usize(s: &str, context: &str) -> Result<usize> {
-    s.parse().map_err(|_| {
+    s.parse().map_err(|_error| {
         Error::new(
             ErrorCode::CBKP001_SYNTAX,
             format!("Invalid numeric value '{s}' in {context}"),
@@ -34,7 +34,7 @@ pub fn parse_usize(s: &str, context: &str) -> Result<usize> {
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn parse_isize(s: &str, context: &str) -> Result<isize> {
-    s.parse().map_err(|_| {
+    s.parse().map_err(|_error| {
         Error::new(
             ErrorCode::CBKP001_SYNTAX,
             format!("Invalid signed numeric value '{s}' in {context}"),
@@ -50,7 +50,7 @@ pub fn parse_isize(s: &str, context: &str) -> Result<isize> {
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_parse_u16(s: &str, context: &str) -> Result<u16> {
-    s.parse().map_err(|_| {
+    s.parse().map_err(|_error| {
         Error::new(
             ErrorCode::CBKP001_SYNTAX,
             format!("Invalid u16 value '{s}' in {context}"),

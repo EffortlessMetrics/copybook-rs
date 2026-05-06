@@ -27,6 +27,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// assert_eq!(err.family_prefix(), "CBKP");
 /// assert_eq!(err.to_string(), "CBKP001_SYNTAX: unexpected token");
 /// ```
+#[expect(
+    clippy::error_impl_error,
+    reason = "public API exposes copybook_error::Error as the canonical error type"
+)]
 #[derive(Error, Debug, Clone, PartialEq)]
 pub struct Error {
     /// Stable error code for programmatic handling
@@ -97,7 +101,10 @@ impl Error {
 /// assert_eq!(data_code.family_prefix(), "CBKD");
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[allow(non_camel_case_types)] // These are stable external error codes
+#[expect(
+    non_camel_case_types,
+    reason = "stable external error codes intentionally preserve their published identifiers"
+)]
 pub enum ErrorCode {
     // =============================================================================
     // Parse Errors (CBKP*) - Copybook syntax and COBOL clause processing

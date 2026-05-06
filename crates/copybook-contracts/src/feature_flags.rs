@@ -356,7 +356,7 @@ impl FeatureFlags {
     /// Set the global feature flags.
     #[inline]
     pub fn set_global(flags: Self) {
-        let _ = GLOBAL_FLAGS.set(flags);
+        let _already_initialized = GLOBAL_FLAGS.set(flags).is_err();
     }
 
     /// Create feature flags from environment variables.

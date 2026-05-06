@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+schema = 1
+
+# Temporary lint debt belongs here as narrow, expiring receipts.  Keep this file
+# empty when no workspace-level weakenings are required.

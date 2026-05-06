@@ -22,8 +22,14 @@ pub const fn rdw_is_suspect_ascii_corruption(rdw_header: [u8; RDW_HEADER_LEN]) -
 #[inline]
 #[must_use]
 pub fn rdw_is_suspect_ascii_corruption_slice(rdw_bytes: &[u8]) -> bool {
-    rdw_bytes.len() >= RDW_HEADER_LEN
-        && rdw_is_suspect_ascii_corruption([rdw_bytes[0], rdw_bytes[1], rdw_bytes[2], rdw_bytes[3]])
+    let Some(header) = rdw_bytes.get(..RDW_HEADER_LEN) else {
+        return false;
+    };
+    let Ok(header) = <[u8; RDW_HEADER_LEN]>::try_from(header) else {
+        return false;
+    };
+
+    rdw_is_suspect_ascii_corruption(header)
 }
 
 #[inline]
@@ -33,7 +39,11 @@ const fn is_ascii_digit(byte: u8) -> bool {
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used, clippy::unwrap_used)]
+#[expect(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    reason = "legacy test helpers are being migrated under the panic-free policy"
+)]
 mod tests {
     use super::*;
 

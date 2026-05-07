@@ -2,7 +2,7 @@
 # copybook-rs
 
 [![CI Quick](https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml/badge.svg)](https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml)
-[![codecov](https://codecov.io/gh/EffortlessMetrics/copybook-rs/branch/main/graph/badge.svg)](https://codecov.io/gh/EffortlessMetrics/copybook-rs)
+[![Codecov](https://codecov.io/gh/EffortlessMetrics/copybook-rs/branch/main/graph/badge.svg)](https://codecov.io/gh/EffortlessMetrics/copybook-rs)
 [![Security Audit](https://github.com/EffortlessMetrics/copybook-rs/workflows/Weekly%20Security%20Scan/badge.svg)](https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/security-scan.yml)
 [![Dependency Review](https://img.shields.io/badge/dependencies-Dependabot-blue.svg)](https://github.com/EffortlessMetrics/copybook-rs/blob/main/.github/dependabot.yml)
 [![MSRV](https://img.shields.io/badge/MSRV-1.92-blue.svg)](https://www.rust-lang.org)

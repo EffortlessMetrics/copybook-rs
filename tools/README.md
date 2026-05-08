@@ -30,9 +30,12 @@ Small Rust-native replacements for repository-maintenance shell scripts.
 
 ```bash
 cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- check-no-unwrap-expect
+cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- check-performance-docs
+cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- check-public-result-docs
 cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- guard-hotpaths
 cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- perf-annotate-host
 cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- soak-dispatch
+cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- validate-perf-receipt scripts/bench/perf.json
 cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- clean-merge-conflicts path/to/file.rs
 ```
 

@@ -1227,7 +1227,9 @@ dependencies = [
  "chrono",
  "clap",
  "num_cpus",
+ "regex",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]

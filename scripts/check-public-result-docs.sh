@@ -1,25 +1,19 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Lists public Result fns missing #[inline]/#[must_use]/# Errors
 set -euo pipefail
 
-scan_dirs=("crates/copybook-codec/src" "crates/copybook-core/src")
-miss=0
+ROOT_DIR="$(git rev-parse --show-toplevel)"
 
-for dir in "${scan_dirs[@]}"; do
-  while IFS=: read -r file line sig; do
-    # Inspect a small window above the signature for attrs/docs
-    hdr="$(sed -n "$((line-4)),$((line-1))p" "$file")"
-    if ! printf '%s\n' "$hdr" | rg -q '^\s*#\[\s*inline\s*\]'; then
-      echo "missing #[inline]      @ $file:$line"; miss=1
-    fi
-    if ! printf '%s\n' "$hdr" | rg -q '^\s*#\[\s*must_use[^\]]*\]'; then
-      echo "missing #[must_use]    @ $file:$line"; miss=1
-    fi
-    if ! printf '%s\n' "$hdr" | rg -q '^\s*///\s*#\s*Errors'; then
-      echo "missing doc '# Errors' @ $file:$line"; miss=1
-    fi
-  done < <(rg -n '^\s*pub\s+fn\s+\w+.*->\s*Result<' "$dir")
-done
+bootstrap_rustup() {
+  if [ -n "${HOME:-}" ] && [ -f "$HOME/.cargo/env" ]; then
+    # Non-login bash shells may not populate Rust's shims on PATH.
+    . "$HOME/.cargo/env"
+  fi
+}
 
-exit $miss
+run_cargo() {
+  bootstrap_rustup
+  cargo "$@"
+}
+
+run_cargo run --quiet --manifest-path "$ROOT_DIR/tools/copybook-scripts/Cargo.toml" -- check-public-result-docs

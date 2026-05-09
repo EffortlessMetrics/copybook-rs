@@ -5,6 +5,24 @@
 
 <!-- Provide a brief description of what this PR does and why -->
 
+## CI Economics
+
+<!-- Complete this section for every PR. See docs/ci/lem-budgeting.md for LEM definition. -->
+
+- **Estimated LEM:** <!-- e.g., 18 LEM → ~$0.14 -->
+- **LEM band:** <!-- Pennies (0-12) / Default (13-35) / Elevated (36-75) / High (76-125) / Over ceiling (>125) -->
+- **Workflows touched:** <!-- List workflows added, removed, or modified -->
+- **Risk packs activated:** <!-- e.g., lexer_parser, record_codec — or "none" for docs-only -->
+- **Default PR impact:** <!-- Will this change the ordinary PR gate? If yes, how? -->
+- **Branch protection impact:** <!-- None / Adds required check / Removes required check -->
+- **Failure mode caught:** <!-- What regression would this catch that the previous gate missed? -->
+- **Cheaper signal considered:** <!-- What cheaper check was considered and ruled out? -->
+- **Rollback path:** <!-- How to revert if this creates a regression -->
+- **Commands run:** <!-- List commands you ran locally to validate this PR -->
+
+<!-- Labels that affect LEM: full-ci, platform-matrix, coverage, mutation, fuzz, perf, property-tests, wasm, arrow, security-audit, release-check -->
+<!-- If LEM > 125, add ci-budget-ack or ci-budget-override label and explain below -->
+
 ## Type of Change
 
 <!-- Mark the relevant option with an 'x' -->

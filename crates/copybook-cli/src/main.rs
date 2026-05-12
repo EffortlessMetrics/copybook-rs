@@ -7,14 +7,12 @@
 
 use crate::exit_codes::ExitCode;
 use anyhow::{Error as AnyhowError, anyhow};
-use clap::error::ErrorKind as ClapErrorKind;
 use clap::{Args, ColorChoice, Parser, Subcommand, ValueEnum};
 use copybook_codec::{
     Codepage, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
 use copybook_core::{Error as CoreError, Feature, FeatureCategory, FeatureFlags};
 use std::borrow::Cow;
-use std::convert::TryFrom;
 use std::error::Error as StdError;
 use std::io::{self, ErrorKind, Write};
 use std::panic::AssertUnwindSafe;
@@ -24,7 +22,6 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::Level;
-use tracing_subscriber::EnvFilter;
 
 #[cfg(feature = "metrics")]
 use std::net::SocketAddr;
@@ -552,335 +549,8 @@ fn main() -> ProcessExitCode {
     }
 }
 
-#[allow(clippy::too_many_lines)]
 fn run() -> anyhow::Result<ExitCode> {
-    #[allow(clippy::panic)]
-    if std::env::var("COPYBOOK_TEST_PANIC")
-        .map(|v| v == "1")
-        .unwrap_or(false)
-    {
-        panic!("COPYBOOK_TEST_PANIC triggered");
-    }
-
-    let cli = match Cli::try_parse() {
-        Ok(cli) => cli,
-        Err(err) => {
-            let kind = err.kind();
-            let _ = err.print();
-            if matches!(
-                kind,
-                ClapErrorKind::DisplayHelp | ClapErrorKind::DisplayVersion
-            ) {
-                let op = if matches!(kind, ClapErrorKind::DisplayVersion) {
-                    "version"
-                } else {
-                    "help"
-                };
-                let diagnostics = ExitDiagnostics::new(
-                    ExitCode::Ok,
-                    "completed",
-                    op,
-                    "", // op_stage will be overridden by emit_exit_diagnostics_stage
-                    Level::INFO,
-                    0,
-                );
-                emit_exit_diagnostics_stage(&diagnostics, Stage::Finalize);
-                return Ok(ExitCode::Ok);
-            }
-            let exit_code = ExitCode::Encode;
-            let message = err.to_string();
-            let diagnostics = ExitDiagnostics::new(
-                exit_code,
-                &message,
-                "cli_parse",
-                "", // op_stage will be overridden by emit_exit_diagnostics_stage
-                Level::ERROR,
-                exit_code.as_i32(),
-            )
-            .with_error(Some(&err));
-            emit_exit_diagnostics_stage(&diagnostics, Stage::Parse);
-            return Ok(exit_code);
-        }
-    };
-
-    #[cfg(feature = "metrics")]
-    let metrics_opts = cli.metrics.clone();
-
-    #[cfg(feature = "metrics")]
-    let metrics_server = metrics_start_if_requested(&metrics_opts)?;
-
-    #[cfg(feature = "metrics")]
-    if metrics_server.is_some() {
-        describe_metrics_once();
-    }
-
-    #[cfg(feature = "metrics")]
-    let _metrics_guard = metrics_grace_guard(&metrics_opts);
-
-    // Handle feature flags
-    let feature_flags = initialize_feature_flags(&cli.feature_flags)?;
-
-    // Set global feature flags for use by parser
-    copybook_core::feature_flags::FeatureFlags::set_global(feature_flags.clone());
-
-    if cli.feature_flags.list_features {
-        list_all_features(&feature_flags);
-        return Ok(ExitCode::Ok);
-    }
-
-    let strict_policy = effective_strict_policy(&cli);
-    let verbose = cli.verbose || feature_flags.is_enabled(Feature::VerboseLogging);
-    let command = cli.command;
-
-    // Initialize tracing
-    let default_directive = if verbose { "debug" } else { "warn" };
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_directive));
-    tracing_subscriber::fmt()
-        .with_env_filter(env_filter)
-        .with_ansi(false)
-        .with_writer(|| BrokenPipeSafeStderr(std::io::stderr()))
-        .init();
-
-    let help_requested =
-        std::env::args_os().any(|arg| arg == "--help" || arg == "-h" || arg == "-?" || arg == "/?");
-    let version_requested = std::env::args_os().any(|arg| arg == "--version" || arg == "-V");
-    if !(help_requested || version_requested) {
-        tracing::info!(
-            invocation_id = %invocation_id(),
-            version = env!("CARGO_PKG_VERSION"),
-            commit = option_env!("GIT_SHA").unwrap_or("unknown"),
-            os = std::env::consts::OS,
-            arch = std::env::consts::ARCH,
-            strict_policy,
-            "copybook-cli start"
-        );
-    }
-
-    let (exit_status, exit_op): (anyhow::Result<ExitCode>, &'static str) = match command {
-        Commands::Parse {
-            copybook,
-            output,
-            strict,
-            strict_comments,
-            dialect,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            (
-                crate::commands::parse::run(
-                    &copybook,
-                    output,
-                    strict,
-                    strict_comments,
-                    effective_dialect,
-                ),
-                "parse",
-            )
-        }
-        Commands::Inspect {
-            copybook,
-            codepage,
-            strict,
-            strict_comments,
-            dialect,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            (
-                crate::commands::inspect::run(
-                    &copybook,
-                    codepage,
-                    strict,
-                    strict_comments,
-                    effective_dialect,
-                ),
-                "inspect",
-            )
-        }
-        Commands::Decode {
-            copybook,
-            input,
-            output,
-            format,
-            codepage,
-            json_number,
-            strict,
-            max_errors,
-            fail_fast,
-            emit_filler,
-            emit_meta,
-            emit_raw,
-            on_decode_unmappable,
-            threads,
-            strict_comments,
-            preserve_zoned_encoding,
-            preferred_zoned_encoding: preferred_zoned_encoding_cli,
-            float_format,
-            dialect,
-            select,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            (
-                crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
-                    copybook: &copybook,
-                    input: &input,
-                    output: &output,
-                    format,
-                    codepage,
-                    json_number,
-                    strict,
-                    max_errors,
-                    fail_fast,
-                    emit_filler,
-                    emit_meta,
-                    emit_raw,
-                    on_decode_unmappable,
-                    threads,
-                    strict_comments,
-                    preserve_zoned_encoding,
-                    preferred_zoned_encoding: preferred_zoned_encoding_cli.into(),
-                    float_format,
-                    strict_policy,
-                    dialect: effective_dialect.into(),
-                    select: &select,
-                }),
-                "decode",
-            )
-        }
-        Commands::Encode {
-            copybook,
-            input,
-            output,
-            format,
-            codepage,
-            use_raw,
-            bwz_encode,
-            strict,
-            max_errors,
-            fail_fast,
-            threads,
-            coerce_numbers,
-            strict_comments,
-            zoned_encoding_override,
-            float_format,
-            dialect,
-            select,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            (
-                crate::commands::encode::run(
-                    &copybook,
-                    &input,
-                    &output,
-                    &crate::commands::encode::EncodeCliOptions {
-                        format,
-                        codepage,
-                        use_raw,
-                        bwz_encode,
-                        strict,
-                        max_errors,
-                        fail_fast,
-                        threads,
-                        coerce_numbers,
-                        strict_comments,
-                        zoned_encoding_override,
-                        float_format,
-                        dialect: effective_dialect.into(),
-                        select: &select,
-                    },
-                ),
-                "encode",
-            )
-        }
-        #[cfg(feature = "audit")]
-        Commands::Audit { audit_command } => {
-            // Run audit command asynchronously
-            let runtime = tokio::runtime::Runtime::new()?;
-            (
-                runtime
-                    .block_on(crate::commands::audit::run(audit_command))
-                    .map_err(|err| anyhow!(err)),
-                "audit",
-            )
-        }
-        Commands::Verify {
-            copybook,
-            input,
-            report,
-            format,
-            codepage,
-            strict,
-            max_errors,
-            sample,
-            strict_comments,
-            dialect,
-            select,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            let value = max_errors.unwrap_or(10);
-            let normalized_max_errors = u32::try_from(value).map_err(|_| {
-                anyhow!(
-                    "--max-errors must be between 0 and {} (received {value})",
-                    u32::MAX
-                )
-            })?;
-
-            let opts = crate::commands::verify::VerifyOptions {
-                format,
-                codepage,
-                strict,
-                max_errors: normalized_max_errors,
-                sample: sample.unwrap_or(5),
-                strict_comments,
-                dialect: effective_dialect.into(),
-                select: &select,
-            };
-            (
-                crate::commands::verify::run(&copybook, &input, report, &opts),
-                "verify",
-            )
-        }
-        Commands::Support { args } => (crate::commands::support::run(&args), "support"),
-        Commands::Determinism { command } => {
-            (crate::commands::determinism::run(&command), "determinism")
-        }
-    };
-
-    #[cfg(feature = "metrics")]
-    if let (Err(err), Some((handle, _))) = (&exit_status, &metrics_server) {
-        let records_processed = metrics_records_total(handle);
-        bump_error_if_pre_run(err, records_processed);
-    }
-
-    let status = exit_status?;
-
-    let diagnostics = if status == ExitCode::Ok {
-        ExitDiagnostics::new(
-            ExitCode::Ok,
-            "completed",
-            exit_op,
-            "", // op_stage will be overridden by emit_exit_diagnostics_stage
-            Level::INFO,
-            0,
-        )
-    } else {
-        ExitDiagnostics::new(
-            status,
-            "command completed with non-zero exit code",
-            exit_op,
-            "", // op_stage will be overridden by emit_exit_diagnostics_stage
-            Level::ERROR,
-            status.as_i32(),
-        )
-    };
-
-    let stage = if status == ExitCode::Ok {
-        Stage::Finalize
-    } else {
-        Stage::Execute
-    };
-    emit_exit_diagnostics_stage(&diagnostics, stage);
-
-    Ok(status)
+    runtime::run()
 }
 
 #[cfg(feature = "metrics")]
@@ -1565,6 +1235,7 @@ mod commands {
 }
 
 mod exit_codes;
+mod runtime;
 mod utils;
 
 #[cfg(test)]

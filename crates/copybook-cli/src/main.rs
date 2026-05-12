@@ -552,335 +552,549 @@ fn main() -> ProcessExitCode {
     }
 }
 
-#[allow(clippy::too_many_lines)]
 fn run() -> anyhow::Result<ExitCode> {
-    #[allow(clippy::panic)]
-    if std::env::var("COPYBOOK_TEST_PANIC")
-        .map(|v| v == "1")
-        .unwrap_or(false)
-    {
-        panic!("COPYBOOK_TEST_PANIC triggered");
-    }
+    cli_runtime::maybe_trigger_test_panic();
 
-    let cli = match Cli::try_parse() {
-        Ok(cli) => cli,
-        Err(err) => {
-            let kind = err.kind();
-            let _ = err.print();
-            if matches!(
-                kind,
-                ClapErrorKind::DisplayHelp | ClapErrorKind::DisplayVersion
-            ) {
-                let op = if matches!(kind, ClapErrorKind::DisplayVersion) {
-                    "version"
-                } else {
-                    "help"
-                };
-                let diagnostics = ExitDiagnostics::new(
-                    ExitCode::Ok,
-                    "completed",
-                    op,
-                    "", // op_stage will be overridden by emit_exit_diagnostics_stage
-                    Level::INFO,
-                    0,
-                );
-                emit_exit_diagnostics_stage(&diagnostics, Stage::Finalize);
-                return Ok(ExitCode::Ok);
-            }
-            let exit_code = ExitCode::Encode;
-            let message = err.to_string();
-            let diagnostics = ExitDiagnostics::new(
-                exit_code,
-                &message,
-                "cli_parse",
-                "", // op_stage will be overridden by emit_exit_diagnostics_stage
-                Level::ERROR,
-                exit_code.as_i32(),
-            )
-            .with_error(Some(&err));
-            emit_exit_diagnostics_stage(&diagnostics, Stage::Parse);
-            return Ok(exit_code);
-        }
+    let cli = match cli_runtime::parse_cli_or_exit() {
+        cli_runtime::CliParseOutcome::Run(cli) => *cli,
+        cli_runtime::CliParseOutcome::Exit(exit_code) => return Ok(exit_code),
     };
 
-    #[cfg(feature = "metrics")]
-    let metrics_opts = cli.metrics.clone();
-
-    #[cfg(feature = "metrics")]
-    let metrics_server = metrics_start_if_requested(&metrics_opts)?;
-
-    #[cfg(feature = "metrics")]
-    if metrics_server.is_some() {
-        describe_metrics_once();
-    }
-
-    #[cfg(feature = "metrics")]
-    let _metrics_guard = metrics_grace_guard(&metrics_opts);
-
-    // Handle feature flags
-    let feature_flags = initialize_feature_flags(&cli.feature_flags)?;
-
-    // Set global feature flags for use by parser
-    copybook_core::feature_flags::FeatureFlags::set_global(feature_flags.clone());
-
-    if cli.feature_flags.list_features {
-        list_all_features(&feature_flags);
-        return Ok(ExitCode::Ok);
-    }
-
-    let strict_policy = effective_strict_policy(&cli);
-    let verbose = cli.verbose || feature_flags.is_enabled(Feature::VerboseLogging);
-    let command = cli.command;
-
-    // Initialize tracing
-    let default_directive = if verbose { "debug" } else { "warn" };
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_directive));
-    tracing_subscriber::fmt()
-        .with_env_filter(env_filter)
-        .with_ansi(false)
-        .with_writer(|| BrokenPipeSafeStderr(std::io::stderr()))
-        .init();
-
-    let help_requested =
-        std::env::args_os().any(|arg| arg == "--help" || arg == "-h" || arg == "-?" || arg == "/?");
-    let version_requested = std::env::args_os().any(|arg| arg == "--version" || arg == "-V");
-    if !(help_requested || version_requested) {
-        tracing::info!(
-            invocation_id = %invocation_id(),
-            version = env!("CARGO_PKG_VERSION"),
-            commit = option_env!("GIT_SHA").unwrap_or("unknown"),
-            os = std::env::consts::OS,
-            arch = std::env::consts::ARCH,
-            strict_policy,
-            "copybook-cli start"
-        );
-    }
-
-    let (exit_status, exit_op): (anyhow::Result<ExitCode>, &'static str) = match command {
-        Commands::Parse {
-            copybook,
-            output,
-            strict,
-            strict_comments,
-            dialect,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            (
-                crate::commands::parse::run(
-                    &copybook,
-                    output,
-                    strict,
-                    strict_comments,
-                    effective_dialect,
-                ),
-                "parse",
-            )
-        }
-        Commands::Inspect {
-            copybook,
-            codepage,
-            strict,
-            strict_comments,
-            dialect,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            (
-                crate::commands::inspect::run(
-                    &copybook,
-                    codepage,
-                    strict,
-                    strict_comments,
-                    effective_dialect,
-                ),
-                "inspect",
-            )
-        }
-        Commands::Decode {
-            copybook,
-            input,
-            output,
-            format,
-            codepage,
-            json_number,
-            strict,
-            max_errors,
-            fail_fast,
-            emit_filler,
-            emit_meta,
-            emit_raw,
-            on_decode_unmappable,
-            threads,
-            strict_comments,
-            preserve_zoned_encoding,
-            preferred_zoned_encoding: preferred_zoned_encoding_cli,
-            float_format,
-            dialect,
-            select,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            (
-                crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
-                    copybook: &copybook,
-                    input: &input,
-                    output: &output,
-                    format,
-                    codepage,
-                    json_number,
-                    strict,
-                    max_errors,
-                    fail_fast,
-                    emit_filler,
-                    emit_meta,
-                    emit_raw,
-                    on_decode_unmappable,
-                    threads,
-                    strict_comments,
-                    preserve_zoned_encoding,
-                    preferred_zoned_encoding: preferred_zoned_encoding_cli.into(),
-                    float_format,
-                    strict_policy,
-                    dialect: effective_dialect.into(),
-                    select: &select,
-                }),
-                "decode",
-            )
-        }
-        Commands::Encode {
-            copybook,
-            input,
-            output,
-            format,
-            codepage,
-            use_raw,
-            bwz_encode,
-            strict,
-            max_errors,
-            fail_fast,
-            threads,
-            coerce_numbers,
-            strict_comments,
-            zoned_encoding_override,
-            float_format,
-            dialect,
-            select,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            (
-                crate::commands::encode::run(
-                    &copybook,
-                    &input,
-                    &output,
-                    &crate::commands::encode::EncodeCliOptions {
-                        format,
-                        codepage,
-                        use_raw,
-                        bwz_encode,
-                        strict,
-                        max_errors,
-                        fail_fast,
-                        threads,
-                        coerce_numbers,
-                        strict_comments,
-                        zoned_encoding_override,
-                        float_format,
-                        dialect: effective_dialect.into(),
-                        select: &select,
-                    },
-                ),
-                "encode",
-            )
-        }
-        #[cfg(feature = "audit")]
-        Commands::Audit { audit_command } => {
-            // Run audit command asynchronously
-            let runtime = tokio::runtime::Runtime::new()?;
-            (
-                runtime
-                    .block_on(crate::commands::audit::run(audit_command))
-                    .map_err(|err| anyhow!(err)),
-                "audit",
-            )
-        }
-        Commands::Verify {
-            copybook,
-            input,
-            report,
-            format,
-            codepage,
-            strict,
-            max_errors,
-            sample,
-            strict_comments,
-            dialect,
-            select,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            let value = max_errors.unwrap_or(10);
-            let normalized_max_errors = u32::try_from(value).map_err(|_| {
-                anyhow!(
-                    "--max-errors must be between 0 and {} (received {value})",
-                    u32::MAX
-                )
-            })?;
-
-            let opts = crate::commands::verify::VerifyOptions {
-                format,
-                codepage,
-                strict,
-                max_errors: normalized_max_errors,
-                sample: sample.unwrap_or(5),
-                strict_comments,
-                dialect: effective_dialect.into(),
-                select: &select,
-            };
-            (
-                crate::commands::verify::run(&copybook, &input, report, &opts),
-                "verify",
-            )
-        }
-        Commands::Support { args } => (crate::commands::support::run(&args), "support"),
-        Commands::Determinism { command } => {
-            (crate::commands::determinism::run(&command), "determinism")
-        }
+    let runtime = match cli_runtime::initialize(cli)? {
+        cli_runtime::InitOutcome::Run(runtime) => runtime,
+        cli_runtime::InitOutcome::Exit(exit_code) => return Ok(exit_code),
     };
+    let command_dispatch::CommandRun { status, op } =
+        command_dispatch::execute(runtime.command, runtime.strict_policy)?;
 
     #[cfg(feature = "metrics")]
-    if let (Err(err), Some((handle, _))) = (&exit_status, &metrics_server) {
+    if let (Err(err), Some((handle, _))) = (&status, &runtime.metrics_server) {
         let records_processed = metrics_records_total(handle);
         bump_error_if_pre_run(err, records_processed);
     }
 
-    let status = exit_status?;
+    exit_reporting::finish(status?, op)
+}
 
-    let diagnostics = if status == ExitCode::Ok {
-        ExitDiagnostics::new(
-            ExitCode::Ok,
-            "completed",
-            exit_op,
-            "", // op_stage will be overridden by emit_exit_diagnostics_stage
-            Level::INFO,
-            0,
-        )
-    } else {
-        ExitDiagnostics::new(
-            status,
-            "command completed with non-zero exit code",
-            exit_op,
+mod cli_runtime {
+    use super::*;
+
+    pub(super) enum CliParseOutcome {
+        Run(Box<Cli>),
+        Exit(ExitCode),
+    }
+
+    pub(super) enum InitOutcome {
+        Run(RuntimeContext),
+        Exit(ExitCode),
+    }
+
+    pub(super) struct RuntimeContext {
+        pub(super) command: Commands,
+        pub(super) strict_policy: bool,
+        #[cfg(feature = "metrics")]
+        pub(super) metrics_server: Option<(
+            metrics_exporter_prometheus::PrometheusHandle,
+            std::thread::JoinHandle<()>,
+        )>,
+        #[cfg(feature = "metrics")]
+        _metrics_guard: MetricsGraceGuard,
+    }
+
+    pub(super) fn maybe_trigger_test_panic() {
+        #[allow(clippy::panic)]
+        if std::env::var("COPYBOOK_TEST_PANIC")
+            .map(|v| v == "1")
+            .unwrap_or(false)
+        {
+            panic!("COPYBOOK_TEST_PANIC triggered");
+        }
+    }
+
+    pub(super) fn parse_cli_or_exit() -> CliParseOutcome {
+        match Cli::try_parse() {
+            Ok(cli) => CliParseOutcome::Run(Box::new(cli)),
+            Err(err) => handle_parse_error(err),
+        }
+    }
+
+    pub(super) fn initialize(cli: Cli) -> anyhow::Result<InitOutcome> {
+        #[cfg(feature = "metrics")]
+        let metrics_opts = cli.metrics.clone();
+
+        #[cfg(feature = "metrics")]
+        let metrics_server = metrics_start_if_requested(&metrics_opts)?;
+
+        #[cfg(feature = "metrics")]
+        if metrics_server.is_some() {
+            describe_metrics_once();
+        }
+
+        #[cfg(feature = "metrics")]
+        let metrics_guard = metrics_grace_guard(&metrics_opts);
+
+        let feature_flags = initialize_feature_flags(&cli.feature_flags)?;
+        copybook_core::feature_flags::FeatureFlags::set_global(feature_flags.clone());
+
+        if cli.feature_flags.list_features {
+            list_all_features(&feature_flags);
+            return Ok(InitOutcome::Exit(ExitCode::Ok));
+        }
+
+        let strict_policy = effective_strict_policy(&cli);
+        initialize_tracing(cli.verbose || feature_flags.is_enabled(Feature::VerboseLogging));
+        emit_startup_log(strict_policy);
+
+        Ok(InitOutcome::Run(RuntimeContext {
+            command: cli.command,
+            strict_policy,
+            #[cfg(feature = "metrics")]
+            metrics_server,
+            #[cfg(feature = "metrics")]
+            _metrics_guard: metrics_guard,
+        }))
+    }
+
+    fn handle_parse_error(err: clap::Error) -> CliParseOutcome {
+        let kind = err.kind();
+        let _ = err.print();
+        if matches!(
+            kind,
+            ClapErrorKind::DisplayHelp | ClapErrorKind::DisplayVersion
+        ) {
+            let op = if matches!(kind, ClapErrorKind::DisplayVersion) {
+                "version"
+            } else {
+                "help"
+            };
+            let diagnostics = ExitDiagnostics::new(
+                ExitCode::Ok,
+                "completed",
+                op,
+                "", // op_stage will be overridden by emit_exit_diagnostics_stage
+                Level::INFO,
+                0,
+            );
+            emit_exit_diagnostics_stage(&diagnostics, Stage::Finalize);
+            return CliParseOutcome::Exit(ExitCode::Ok);
+        }
+
+        let exit_code = ExitCode::Encode;
+        let message = err.to_string();
+        let diagnostics = ExitDiagnostics::new(
+            exit_code,
+            &message,
+            "cli_parse",
             "", // op_stage will be overridden by emit_exit_diagnostics_stage
             Level::ERROR,
-            status.as_i32(),
+            exit_code.as_i32(),
         )
-    };
+        .with_error(Some(&err));
+        emit_exit_diagnostics_stage(&diagnostics, Stage::Parse);
+        CliParseOutcome::Exit(exit_code)
+    }
 
-    let stage = if status == ExitCode::Ok {
-        Stage::Finalize
-    } else {
-        Stage::Execute
-    };
-    emit_exit_diagnostics_stage(&diagnostics, stage);
+    fn initialize_tracing(verbose: bool) {
+        let default_directive = if verbose { "debug" } else { "warn" };
+        let env_filter =
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_directive));
+        tracing_subscriber::fmt()
+            .with_env_filter(env_filter)
+            .with_ansi(false)
+            .with_writer(|| BrokenPipeSafeStderr(std::io::stderr()))
+            .init();
+    }
 
-    Ok(status)
+    fn emit_startup_log(strict_policy: bool) {
+        let help_requested = std::env::args_os()
+            .any(|arg| arg == "--help" || arg == "-h" || arg == "-?" || arg == "/?");
+        let version_requested = std::env::args_os().any(|arg| arg == "--version" || arg == "-V");
+        if !(help_requested || version_requested) {
+            tracing::info!(
+                invocation_id = %invocation_id(),
+                version = env!("CARGO_PKG_VERSION"),
+                commit = option_env!("GIT_SHA").unwrap_or("unknown"),
+                os = std::env::consts::OS,
+                arch = std::env::consts::ARCH,
+                strict_policy,
+                "copybook-cli start"
+            );
+        }
+    }
+}
+
+mod command_dispatch {
+    use super::*;
+
+    pub(super) struct CommandRun {
+        pub(super) status: anyhow::Result<ExitCode>,
+        pub(super) op: &'static str,
+    }
+
+    pub(super) fn execute(command: Commands, strict_policy: bool) -> anyhow::Result<CommandRun> {
+        let (status, op) = match command {
+            Commands::Parse {
+                copybook,
+                output,
+                strict,
+                strict_comments,
+                dialect,
+            } => run_parse(copybook, output, strict, strict_comments, dialect),
+            Commands::Inspect {
+                copybook,
+                codepage,
+                strict,
+                strict_comments,
+                dialect,
+            } => run_inspect(copybook, codepage, strict, strict_comments, dialect),
+            Commands::Decode {
+                copybook,
+                input,
+                output,
+                format,
+                codepage,
+                json_number,
+                strict,
+                max_errors,
+                fail_fast,
+                emit_filler,
+                emit_meta,
+                emit_raw,
+                on_decode_unmappable,
+                threads,
+                strict_comments,
+                preserve_zoned_encoding,
+                preferred_zoned_encoding: preferred_zoned_encoding_cli,
+                float_format,
+                dialect,
+                select,
+            } => run_decode(DecodeDispatchArgs {
+                copybook,
+                input,
+                output,
+                format,
+                codepage,
+                json_number,
+                strict,
+                max_errors,
+                fail_fast,
+                emit_filler,
+                emit_meta,
+                emit_raw,
+                on_decode_unmappable,
+                threads,
+                strict_comments,
+                preserve_zoned_encoding,
+                preferred_zoned_encoding_cli,
+                float_format,
+                dialect,
+                select,
+                strict_policy,
+            }),
+            Commands::Encode {
+                copybook,
+                input,
+                output,
+                format,
+                codepage,
+                use_raw,
+                bwz_encode,
+                strict,
+                max_errors,
+                fail_fast,
+                threads,
+                coerce_numbers,
+                strict_comments,
+                zoned_encoding_override,
+                float_format,
+                dialect,
+                select,
+            } => run_encode(EncodeDispatchArgs {
+                copybook,
+                input,
+                output,
+                format,
+                codepage,
+                use_raw,
+                bwz_encode,
+                strict,
+                max_errors,
+                fail_fast,
+                threads,
+                coerce_numbers,
+                strict_comments,
+                zoned_encoding_override,
+                float_format,
+                dialect,
+                select,
+            }),
+            #[cfg(feature = "audit")]
+            Commands::Audit { audit_command } => run_audit(audit_command)?,
+            Commands::Verify {
+                copybook,
+                input,
+                report,
+                format,
+                codepage,
+                strict,
+                max_errors,
+                sample,
+                strict_comments,
+                dialect,
+                select,
+            } => run_verify(VerifyDispatchArgs {
+                copybook,
+                input,
+                report,
+                format,
+                codepage,
+                strict,
+                max_errors,
+                sample,
+                strict_comments,
+                dialect,
+                select,
+            })?,
+            Commands::Support { args } => (crate::commands::support::run(&args), "support"),
+            Commands::Determinism { command } => {
+                (crate::commands::determinism::run(&command), "determinism")
+            }
+        };
+
+        Ok(CommandRun { status, op })
+    }
+
+    fn run_parse(
+        copybook: PathBuf,
+        output: Option<PathBuf>,
+        strict: bool,
+        strict_comments: bool,
+        dialect: Option<DialectPreference>,
+    ) -> (anyhow::Result<ExitCode>, &'static str) {
+        let effective_dialect = effective_dialect(dialect);
+        (
+            crate::commands::parse::run(
+                &copybook,
+                output,
+                strict,
+                strict_comments,
+                effective_dialect,
+            ),
+            "parse",
+        )
+    }
+
+    fn run_inspect(
+        copybook: PathBuf,
+        codepage: Codepage,
+        strict: bool,
+        strict_comments: bool,
+        dialect: Option<DialectPreference>,
+    ) -> (anyhow::Result<ExitCode>, &'static str) {
+        let effective_dialect = effective_dialect(dialect);
+        (
+            crate::commands::inspect::run(
+                &copybook,
+                codepage,
+                strict,
+                strict_comments,
+                effective_dialect,
+            ),
+            "inspect",
+        )
+    }
+
+    struct DecodeDispatchArgs {
+        copybook: PathBuf,
+        input: PathBuf,
+        output: PathBuf,
+        format: RecordFormat,
+        codepage: Codepage,
+        json_number: JsonNumberMode,
+        strict: bool,
+        max_errors: Option<u64>,
+        fail_fast: bool,
+        emit_filler: bool,
+        emit_meta: bool,
+        emit_raw: RawMode,
+        on_decode_unmappable: UnmappablePolicy,
+        threads: usize,
+        strict_comments: bool,
+        preserve_zoned_encoding: bool,
+        preferred_zoned_encoding_cli: ZonedEncodingPreference,
+        float_format: FloatFormat,
+        dialect: Option<DialectPreference>,
+        select: Vec<String>,
+        strict_policy: bool,
+    }
+
+    fn run_decode(args: DecodeDispatchArgs) -> (anyhow::Result<ExitCode>, &'static str) {
+        let effective_dialect = effective_dialect(args.dialect);
+        (
+            crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
+                copybook: &args.copybook,
+                input: &args.input,
+                output: &args.output,
+                format: args.format,
+                codepage: args.codepage,
+                json_number: args.json_number,
+                strict: args.strict,
+                max_errors: args.max_errors,
+                fail_fast: args.fail_fast,
+                emit_filler: args.emit_filler,
+                emit_meta: args.emit_meta,
+                emit_raw: args.emit_raw,
+                on_decode_unmappable: args.on_decode_unmappable,
+                threads: args.threads,
+                strict_comments: args.strict_comments,
+                preserve_zoned_encoding: args.preserve_zoned_encoding,
+                preferred_zoned_encoding: args.preferred_zoned_encoding_cli.into(),
+                float_format: args.float_format,
+                strict_policy: args.strict_policy,
+                dialect: effective_dialect.into(),
+                select: &args.select,
+            }),
+            "decode",
+        )
+    }
+
+    struct EncodeDispatchArgs {
+        copybook: PathBuf,
+        input: PathBuf,
+        output: PathBuf,
+        format: RecordFormat,
+        codepage: Codepage,
+        use_raw: bool,
+        bwz_encode: bool,
+        strict: bool,
+        max_errors: Option<u64>,
+        fail_fast: bool,
+        threads: usize,
+        coerce_numbers: bool,
+        strict_comments: bool,
+        zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
+        float_format: FloatFormat,
+        dialect: Option<DialectPreference>,
+        select: Vec<String>,
+    }
+
+    fn run_encode(args: EncodeDispatchArgs) -> (anyhow::Result<ExitCode>, &'static str) {
+        let effective_dialect = effective_dialect(args.dialect);
+        (
+            crate::commands::encode::run(
+                &args.copybook,
+                &args.input,
+                &args.output,
+                &crate::commands::encode::EncodeCliOptions {
+                    format: args.format,
+                    codepage: args.codepage,
+                    use_raw: args.use_raw,
+                    bwz_encode: args.bwz_encode,
+                    strict: args.strict,
+                    max_errors: args.max_errors,
+                    fail_fast: args.fail_fast,
+                    threads: args.threads,
+                    coerce_numbers: args.coerce_numbers,
+                    strict_comments: args.strict_comments,
+                    zoned_encoding_override: args.zoned_encoding_override,
+                    float_format: args.float_format,
+                    dialect: effective_dialect.into(),
+                    select: &args.select,
+                },
+            ),
+            "encode",
+        )
+    }
+
+    #[cfg(feature = "audit")]
+    fn run_audit(
+        audit_command: crate::commands::audit::AuditCommand,
+    ) -> anyhow::Result<(anyhow::Result<ExitCode>, &'static str)> {
+        let runtime = tokio::runtime::Runtime::new()?;
+        Ok((
+            runtime
+                .block_on(crate::commands::audit::run(audit_command))
+                .map_err(|err| anyhow!(err)),
+            "audit",
+        ))
+    }
+
+    struct VerifyDispatchArgs {
+        copybook: PathBuf,
+        input: PathBuf,
+        report: Option<PathBuf>,
+        format: RecordFormat,
+        codepage: Codepage,
+        strict: bool,
+        max_errors: Option<u64>,
+        sample: Option<u32>,
+        strict_comments: bool,
+        dialect: Option<DialectPreference>,
+        select: Vec<String>,
+    }
+
+    fn run_verify(
+        args: VerifyDispatchArgs,
+    ) -> anyhow::Result<(anyhow::Result<ExitCode>, &'static str)> {
+        let effective_dialect = effective_dialect(args.dialect);
+        let value = args.max_errors.unwrap_or(10);
+        let normalized_max_errors = u32::try_from(value).map_err(|_| {
+            anyhow!(
+                "--max-errors must be between 0 and {} (received {value})",
+                u32::MAX
+            )
+        })?;
+
+        let opts = crate::commands::verify::VerifyOptions {
+            format: args.format,
+            codepage: args.codepage,
+            strict: args.strict,
+            max_errors: normalized_max_errors,
+            sample: args.sample.unwrap_or(5),
+            strict_comments: args.strict_comments,
+            dialect: effective_dialect.into(),
+            select: &args.select,
+        };
+        Ok((
+            crate::commands::verify::run(&args.copybook, &args.input, args.report, &opts),
+            "verify",
+        ))
+    }
+}
+
+mod exit_reporting {
+    use super::*;
+
+    pub(super) fn finish(status: ExitCode, op: &'static str) -> anyhow::Result<ExitCode> {
+        let diagnostics = if status == ExitCode::Ok {
+            ExitDiagnostics::new(
+                ExitCode::Ok,
+                "completed",
+                op,
+                "", // op_stage will be overridden by emit_exit_diagnostics_stage
+                Level::INFO,
+                0,
+            )
+        } else {
+            ExitDiagnostics::new(
+                status,
+                "command completed with non-zero exit code",
+                op,
+                "", // op_stage will be overridden by emit_exit_diagnostics_stage
+                Level::ERROR,
+                status.as_i32(),
+            )
+        };
+
+        let stage = if status == ExitCode::Ok {
+            Stage::Finalize
+        } else {
+            Stage::Execute
+        };
+        emit_exit_diagnostics_stage(&diagnostics, stage);
+
+        Ok(status)
+    }
 }
 
 #[cfg(feature = "metrics")]

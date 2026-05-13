@@ -2,7 +2,7 @@
 use anyhow::{Result, bail};
 use copybook_core::support_matrix;
 use std::{fs, path::Path};
-use xtask::{Counts, counts, perf};
+use xtask::{Counts, badges, counts, perf, ripr};
 
 mod pr_insights;
 
@@ -14,6 +14,8 @@ fn main() -> Result<()> {
         .collect::<Vec<_>>()
         .as_slice()
     {
+        ["badges"] => badges::run(false),
+        ["badges", "--check"] => badges::run(true),
         ["docs", "sync-tests"] => sync(),
         ["docs", "verify-tests"] => verify(),
         ["docs", "verify-support-matrix"] => verify_support_matrix(),
@@ -23,10 +25,16 @@ fn main() -> Result<()> {
         ["perf", "--enforce", "--out-dir", out_dir] => perf::run(true, Some(out_dir)),
         ["perf", "--summarize-last" | "--summarize"] => perf_summarize_last(),
         ["pr-insights"] => pr_insights::generate_summary(),
+        ["ripr-pr"] => ripr::pr(false),
+        ["ripr-pr", "--check"] => ripr::pr(true),
+        ["ripr-review-comments"] => ripr::review_comments(false),
+        ["ripr-review-comments", "--check"] => ripr::review_comments(true),
         _ => {
             eprintln!(
-                "Usage: cargo run -p xtask -- [docs|perf|pr-insights] <subcommand>\n\
+                "Usage: cargo xtask [badges|docs|perf|pr-insights|ripr-pr|ripr-review-comments] <subcommand>\n\
                  \n\
+                 badges                          Regenerate public Shields badge endpoints\n\
+                 badges --check                  Check committed public badge endpoint drift\n\
                  docs sync-tests                 Sync test status from junit.xml\n\
                  docs verify-tests               Verify test status is in sync\n\
                  docs verify-support-matrix      Verify support matrix registry ↔ docs\n\
@@ -34,7 +42,11 @@ fn main() -> Result<()> {
                  perf --enforce                  Run perf with SLO enforcement\n\
                  perf --out-dir <path>           Run perf with custom output directory\n\
                  perf --summarize-last           Summarize latest perf.json with SLO comparison\n\
-                 pr-insights                     Generate PR insights report (nextest + perf)"
+                 pr-insights                     Generate PR insights report (nextest + perf)\n\
+                 ripr-pr                         Generate PR-scoped RIPR evidence\n\
+                 ripr-pr --check                 Check PR-scoped RIPR evidence contract\n\
+                 ripr-review-comments            Generate RIPR review guidance\n\
+                 ripr-review-comments --check    Check RIPR review guidance contract"
             );
             Ok(())
         }

@@ -4,7 +4,9 @@ use copybook_core::support_matrix;
 use std::{fs, path::Path};
 use xtask::{Counts, counts, perf};
 
+mod badges;
 mod pr_insights;
+mod ripr;
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -22,10 +24,16 @@ fn main() -> Result<()> {
         ["perf", "--out-dir", out_dir] => perf::run(false, Some(out_dir)),
         ["perf", "--enforce", "--out-dir", out_dir] => perf::run(true, Some(out_dir)),
         ["perf", "--summarize-last" | "--summarize"] => perf_summarize_last(),
+        ["badges"] => badges::run(false),
+        ["badges", "--check"] => badges::run(true),
+        ["ripr-pr"] => ripr::pr(false),
+        ["ripr-pr", "--check"] => ripr::pr(true),
+        ["ripr-review-comments"] => ripr::review_comments(false),
+        ["ripr-review-comments", "--check"] => ripr::review_comments(true),
         ["pr-insights"] => pr_insights::generate_summary(),
         _ => {
             eprintln!(
-                "Usage: cargo run -p xtask -- [docs|perf|pr-insights] <subcommand>\n\
+                "Usage: cargo xtask <task>\n\
                  \n\
                  docs sync-tests                 Sync test status from junit.xml\n\
                  docs verify-tests               Verify test status is in sync\n\
@@ -34,6 +42,12 @@ fn main() -> Result<()> {
                  perf --enforce                  Run perf with SLO enforcement\n\
                  perf --out-dir <path>           Run perf with custom output directory\n\
                  perf --summarize-last           Summarize latest perf.json with SLO comparison\n\
+                 badges                          Regenerate public Shields endpoint JSON\n\
+                 badges --check                  Verify committed badge endpoints are current\n\
+                 ripr-pr                         Produce PR-scoped RIPR evidence\n\
+                 ripr-pr --check                 Verify PR-scoped RIPR evidence contract\n\
+                 ripr-review-comments            Produce RIPR review guidance\n\
+                 ripr-review-comments --check    Verify RIPR review guidance contract\n\
                  pr-insights                     Generate PR insights report (nextest + perf)"
             );
             Ok(())

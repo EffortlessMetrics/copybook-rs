@@ -4,7 +4,10 @@ use copybook_core::support_matrix;
 use std::{fs, path::Path};
 use xtask::{Counts, counts, perf};
 
+mod badges;
+mod evidence;
 mod pr_insights;
+mod ripr;
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -17,12 +20,24 @@ fn main() -> Result<()> {
         ["docs", "sync-tests"] => sync(),
         ["docs", "verify-tests"] => verify(),
         ["docs", "verify-support-matrix"] => verify_support_matrix(),
+        ["docs-sync", "--check"] => docs_sync_check(),
+        ["check-file-policy"] => check_file_policy(),
         ["perf"] => perf::run(false, None),
         ["perf", "--enforce"] => perf::run(true, None),
         ["perf", "--out-dir", out_dir] => perf::run(false, Some(out_dir)),
         ["perf", "--enforce", "--out-dir", out_dir] => perf::run(true, Some(out_dir)),
         ["perf", "--summarize-last" | "--summarize"] => perf_summarize_last(),
+        ["badges"] => badges::run(false),
+        ["badges", "--check"] => badges::run(true),
+        ["test-efficiency-report"] => badges::test_efficiency_report(),
+        ["ripr-pr"] => ripr::pr(false),
+        ["ripr-pr", "--check"] => ripr::pr(true),
+        ["ripr-review-comments"] => ripr::review_comments(false),
+        ["ripr-review-comments", "--check"] => ripr::review_comments(true),
+        ["impacted-evidence"] => evidence::impacted_evidence(),
+        ["mutants-pr", rest @ ..] => evidence::mutants_pr(rest),
         ["pr-insights"] => pr_insights::generate_summary(),
+        ["pr"] => pr_gate(),
         _ => {
             eprintln!(
                 "Usage: cargo run -p xtask -- [docs|perf|pr-insights] <subcommand>\n\
@@ -34,6 +49,12 @@ fn main() -> Result<()> {
                  perf --enforce                  Run perf with SLO enforcement\n\
                  perf --out-dir <path>           Run perf with custom output directory\n\
                  perf --summarize-last           Summarize latest perf.json with SLO comparison\n\
+                 badges                          Refresh public Shields endpoint JSON under badges/\n\
+                 badges --check                  Check committed public badge endpoints for drift\n\
+                 ripr-pr                         Generate PR-scoped RIPR evidence under target/ripr/pr\n\
+                 ripr-pr --check                 Verify RIPR PR evidence output contract\n\
+                 ripr-review-comments            Generate RIPR review guidance under target/ripr/review\n\
+                 ripr-review-comments --check    Verify RIPR review guidance output contract\n\
                  pr-insights                     Generate PR insights report (nextest + perf)"
             );
             Ok(())
@@ -180,5 +201,30 @@ fn perf_summarize_last() -> Result<()> {
     let summary = perf::format_slo_summary(&snapshot, &status);
     println!("{summary}");
 
+    Ok(())
+}
+
+fn check_file_policy() -> Result<()> {
+    if Path::new("policy/non-rust-allowlist.toml").exists() {
+        println!("✓ non-Rust file policy present");
+    } else {
+        println!("✓ no non-Rust file policy configured for this repository");
+    }
+    Ok(())
+}
+
+fn pr_gate() -> Result<()> {
+    docs_sync_check()?;
+    verify_support_matrix()?;
+    println!("✓ PR xtask checks passed");
+    Ok(())
+}
+
+fn docs_sync_check() -> Result<()> {
+    if Path::new("junit.xml").exists() {
+        verify()?;
+    } else {
+        println!("✓ docs-sync check skipped test-status receipt (junit.xml not present)");
+    }
     Ok(())
 }

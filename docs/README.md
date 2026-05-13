@@ -23,6 +23,7 @@ Start with **[START_HERE.md](START_HERE.md)** for the hand-maintained navigation
 - [Support Policy](SUPPORT_POLICY.md) -- release support windows
 - [Performance Governance](PERFORMANCE_GOVERNANCE.md) -- baseline and policy
 - [Release Process](RELEASE_PROCESS.md) -- release workflow
+- [VERIFICATION.md](VERIFICATION.md) -- README badge meanings, generated endpoints, and PR evidence boundaries
 
 ### Architecture
 - [Architecture Decision Records](adr/) -- ADRs for significant decisions

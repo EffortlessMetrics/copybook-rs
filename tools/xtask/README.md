@@ -18,12 +18,21 @@ Internal build/maintenance tasks for `copybook-rs`.
 cargo run -p xtask -- docs sync-tests
 cargo run -p xtask -- docs verify-tests
 cargo run -p xtask -- docs verify-support-matrix
+cargo xtask badges
+cargo xtask badges --check
+cargo xtask ripr-pr
+cargo xtask ripr-pr --check
+cargo xtask ripr-review-comments
+cargo xtask ripr-review-comments --check
 cargo run -p xtask -- perf --out-dir target/custom-bench
 cargo run -p xtask -- perf --summarize-last
 ```
 
 ## Outputs
 
+- `badges/ripr-plus.json` for the public, repo-scoped Shields endpoint.
+- `target/ripr/pr/repo-exposure.{json,md}` for diff-scoped PR evidence.
+- `target/ripr/review/comments.{json,md}` for advisory review guidance.
 - `target/benchmarks/<timestamp>/perf.json`
 - `target/benchmarks/<timestamp>/meta.json`
 - Updated report blocks in docs when supported by the command.

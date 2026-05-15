@@ -2210,7 +2210,11 @@ fn encode_single_field(
                 )?;
 
                 // Convert to EBCDIC and write to buffer
-                let bytes = crate::charset::utf8_to_ebcdic(&encoded, options.codepage)?;
+                let bytes = crate::charset::utf8_to_ebcdic_with_policy(
+                    &encoded,
+                    options.codepage,
+                    options.on_encode_unmappable,
+                )?;
                 let field_len = field.len as usize;
                 let copy_len = bytes.len().min(field_len);
 
@@ -2367,7 +2371,11 @@ fn encode_alphanum_field(
             .with_field(field.path.clone()));
         }
 
-        let bytes = crate::charset::utf8_to_ebcdic(text, options.codepage)?;
+        let bytes = crate::charset::utf8_to_ebcdic_with_policy(
+            text,
+            options.codepage,
+            options.on_encode_unmappable,
+        )?;
         let copy_len = bytes.len().min(field_len);
 
         if current_offset + field_len <= buffer.len() {

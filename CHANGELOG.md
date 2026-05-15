@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **codec**: Wire `EncodeOptions::on_encode_unmappable` through the `lib_api` encode path. The option was settable and round-tripped through CLI/option tests but had no effect on encoding — `utf8_to_ebcdic` always errored on unmappable characters regardless of policy. Adds `utf8_to_ebcdic_with_policy` to `copybook-charset` and routes `Replace` (substitute codepage space) and `Skip` (drop the character) through `encode_alphanum_field` and the edited-PIC encode path.
 - Release prep: resolve clippy/rustdoc gate failures across core, codec, arrow examples, and test suites
 - Release prep: stabilize enterprise throughput assertions in `enterprise_mainframe_production_scenarios` for CI-consistent performance checks
 - **ci**: Add `workflow_dispatch` trigger to CI Quick and Feature Flags CI workflows

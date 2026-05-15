@@ -413,9 +413,10 @@ pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy)
     Ok(result)
 }
 
-/// Convert UTF-8 string to EBCDIC bytes
+/// Convert UTF-8 string to EBCDIC bytes, erroring on unmappable characters.
 ///
-/// Encodes a UTF-8 string into EBCDIC bytes for the specified codepage.
+/// Equivalent to [`utf8_to_ebcdic_with_policy`] called with
+/// [`UnmappablePolicy::Error`].
 ///
 /// # Examples
 ///
@@ -431,6 +432,45 @@ pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy)
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
+    utf8_to_ebcdic_with_policy(text, codepage, UnmappablePolicy::Error)
+}
+
+/// Convert UTF-8 string to EBCDIC bytes with an explicit unmappable policy.
+///
+/// Encodes `text` into EBCDIC bytes for `codepage`. When a character cannot
+/// be mapped to the target codepage, behaviour is controlled by `policy`:
+///
+/// - [`UnmappablePolicy::Error`]: return an error (matches [`utf8_to_ebcdic`]).
+/// - [`UnmappablePolicy::Replace`]: substitute the codepage's space byte and
+///   log a warning. The output length is preserved.
+/// - [`UnmappablePolicy::Skip`]: drop the character and log a warning. The
+///   output is shorter than the input by one byte per skipped character;
+///   callers that need fixed-width output should pad after encoding.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_charset::{utf8_to_ebcdic_with_policy, Codepage, UnmappablePolicy};
+///
+/// // Replace policy substitutes EBCDIC space (0x40) for unmappable characters.
+/// let ebcdic = utf8_to_ebcdic_with_policy("A日B", Codepage::CP037, UnmappablePolicy::Replace).unwrap();
+/// assert_eq!(ebcdic, vec![0xC1, 0x40, 0xC2]);
+///
+/// // Skip policy drops unmappable characters.
+/// let ebcdic = utf8_to_ebcdic_with_policy("A日B", Codepage::CP037, UnmappablePolicy::Skip).unwrap();
+/// assert_eq!(ebcdic, vec![0xC1, 0xC2]);
+/// ```
+///
+/// # Errors
+/// Returns an error if `codepage` is unsupported, or if `policy` is
+/// [`UnmappablePolicy::Error`] and the text contains an unmappable character.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
+pub fn utf8_to_ebcdic_with_policy(
+    text: &str,
+    codepage: Codepage,
+    policy: UnmappablePolicy,
+) -> Result<Vec<u8>> {
     // ASCII pass-through mode (transparent 8-bit, not Windows-1252)
     if codepage == Codepage::ASCII {
         return Ok(text.as_bytes().to_vec());
@@ -462,11 +502,28 @@ pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
     for ch in text.chars() {
         if let Some(&ebcdic_byte) = reverse_table.get(&ch) {
             result.push(ebcdic_byte);
-        } else {
-            return Err(Error::new(
-                ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
-                format!("Character '{ch}' cannot be mapped to {codepage:?}"),
-            ));
+            continue;
+        }
+        match policy {
+            UnmappablePolicy::Error => {
+                return Err(Error::new(
+                    ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+                    format!("Character '{ch}' cannot be mapped to {codepage:?}"),
+                ));
+            }
+            UnmappablePolicy::Replace => {
+                warn!(
+                    "CBKC301_INVALID_EBCDIC_BYTE: Character '{}' cannot be mapped to {:?}, replacing with space",
+                    ch, codepage
+                );
+                result.push(space_byte(codepage));
+            }
+            UnmappablePolicy::Skip => {
+                warn!(
+                    "CBKC301_INVALID_EBCDIC_BYTE: Character '{}' cannot be mapped to {:?}, skipping",
+                    ch, codepage
+                );
+            }
         }
     }
 
@@ -683,6 +740,56 @@ mod tests {
         // Chinese character cannot be mapped to CP037
         let err = utf8_to_ebcdic("日", Codepage::CP037).unwrap_err();
         assert_eq!(err.code, ErrorCode::CBKC301_INVALID_EBCDIC_BYTE);
+    }
+
+    #[test]
+    fn test_utf8_to_ebcdic_policy_error_matches_default() {
+        let default = utf8_to_ebcdic("日", Codepage::CP037).unwrap_err();
+        let explicit =
+            utf8_to_ebcdic_with_policy("日", Codepage::CP037, UnmappablePolicy::Error).unwrap_err();
+        assert_eq!(default.code, explicit.code);
+    }
+
+    #[test]
+    fn test_utf8_to_ebcdic_policy_replace_substitutes_space() {
+        // Unmappable character is replaced with the codepage's space byte
+        // (0x40 for CP037). Length matches the input character count.
+        let result =
+            utf8_to_ebcdic_with_policy("A日B", Codepage::CP037, UnmappablePolicy::Replace).unwrap();
+        assert_eq!(result, vec![0xC1, 0x40, 0xC2]);
+    }
+
+    #[test]
+    fn test_utf8_to_ebcdic_policy_skip_drops_unmappable() {
+        // Unmappable character is dropped; output is shorter than input.
+        let result =
+            utf8_to_ebcdic_with_policy("A日B", Codepage::CP037, UnmappablePolicy::Skip).unwrap();
+        assert_eq!(result, vec![0xC1, 0xC2]);
+    }
+
+    #[test]
+    fn test_utf8_to_ebcdic_policy_replace_all_unmappable() {
+        // Every character unmappable: output is all space bytes.
+        let result =
+            utf8_to_ebcdic_with_policy("日本語", Codepage::CP037, UnmappablePolicy::Replace)
+                .unwrap();
+        assert_eq!(result, vec![0x40, 0x40, 0x40]);
+    }
+
+    #[test]
+    fn test_utf8_to_ebcdic_policy_skip_all_unmappable() {
+        // Every character unmappable: output is empty.
+        let result =
+            utf8_to_ebcdic_with_policy("日本語", Codepage::CP037, UnmappablePolicy::Skip).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_utf8_to_ebcdic_policy_ascii_passthrough_ignores_policy() {
+        // ASCII codepage is a pure pass-through; the policy has no effect.
+        let result =
+            utf8_to_ebcdic_with_policy("Hello", Codepage::ASCII, UnmappablePolicy::Error).unwrap();
+        assert_eq!(result, b"Hello");
     }
 
     #[test]

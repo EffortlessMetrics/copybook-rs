@@ -7,6 +7,15 @@
 //!
 //! The decode algorithm walks the input string and PIC pattern in lockstep, extracting numeric digits
 //! and validating formatting symbols. The encode algorithm formats numeric values according to the pattern.
+//!
+//! Encoding is decomposed into three single-responsibility submodules:
+//! - [`encode_pattern`]: structural analysis of the PIC token pattern
+//! - [`encode_scale`]: input parsing and scale adjustment of the digit vector
+//! - [`encode_render`]: token-driven rendering into the output buffer
+
+mod encode_pattern;
+mod encode_render;
+mod encode_scale;
 
 use copybook_core::{Error, ErrorCode, Result};
 use tracing::warn;
@@ -559,346 +568,53 @@ pub fn decode_edited_numeric(
     })
 }
 
-/// Parsed numeric value for encoding
-#[derive(Debug, Clone)]
-struct ParsedNumeric {
-    /// Sign of the number
-    sign: Sign,
-    /// All digits without decimal point (e.g., "12345" for 123.45)
-    digits: Vec<u8>,
-    /// Position of decimal point from right (0 for integers, 2 for 2 decimal places)
-    decimal_places: usize,
-}
-
-/// Parse a numeric string into its components for encoding
-fn parse_numeric_value(value: &str) -> Result<ParsedNumeric> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return Err(Error::new(
-            ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
-            "Empty numeric value",
-        ));
-    }
-
-    let mut chars = trimmed.chars().peekable();
-    let sign = if chars.peek() == Some(&'-') {
-        chars.next();
-        Sign::Negative
-    } else if chars.peek() == Some(&'+') {
-        chars.next();
-        Sign::Positive
-    } else {
-        Sign::Positive
-    };
-
-    let mut digits = Vec::new();
-    let mut found_decimal = false;
-    let mut decimal_places = 0;
-    let mut found_digit = false;
-
-    for ch in chars {
-        if ch.is_ascii_digit() {
-            digits.push(ch as u8 - b'0');
-            if found_decimal {
-                decimal_places += 1;
-            }
-            found_digit = true;
-        } else if ch == '.' {
-            if found_decimal {
-                return Err(Error::new(
-                    ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
-                    format!("Multiple decimal points in value: {value}"),
-                ));
-            }
-            found_decimal = true;
-        } else {
-            return Err(Error::new(
-                ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
-                format!("Invalid character '{ch}' in numeric value: {value}"),
-            ));
-        }
-    }
-
-    if !found_digit {
-        return Err(Error::new(
-            ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
-            format!("No digits found in value: {value}"),
-        ));
-    }
-
-    Ok(ParsedNumeric {
-        sign,
-        digits,
-        decimal_places,
-    })
-}
-
-/// Encode a numeric value to an edited PIC string
+/// Encode a numeric value to an edited PIC string.
+///
+/// Orchestrates four single-responsibility phases:
+/// 1. Parse the input string into a signed digit vector.
+/// 2. Adjust those digits to the pattern's target scale.
+/// 3. Analyze the pattern's structural metrics and validate the value fits.
+/// 4. Render the output buffer token by token.
 ///
 /// # Errors
-/// Returns error if the value cannot be encoded to the pattern
+/// Returns an error if the input value is malformed or does not fit the pattern.
 #[inline]
-#[allow(clippy::too_many_lines)]
 pub fn encode_edited_numeric(
     value: &str,
     pattern: &[PicToken],
     scale: u16,
     _blank_when_zero: bool,
 ) -> Result<String> {
-    // Parse the input value
-    let parsed = parse_numeric_value(value)?;
+    let parsed = encode_scale::parse(value)?;
+    let is_zero = encode_scale::is_all_zero(&parsed.digits);
+    let effective_sign = encode_scale::effective_sign(is_zero, parsed.sign);
 
-    // All tokens are now supported in E3.7 (including Space)
-    // No unsupported token check needed
+    let target_scale = scale as usize;
+    let adjusted_digits =
+        encode_scale::adjust_to_scale(parsed.digits, parsed.decimal_places, target_scale);
+    let int_digits = adjusted_digits.len().saturating_sub(target_scale);
 
-    // Check if value is all zeros (force positive sign)
-    let is_zero = parsed.digits.iter().all(|&d| d == 0);
-    let effective_sign = if is_zero { Sign::Positive } else { parsed.sign };
-
-    // Count numeric positions and decimal point in pattern
-    let mut has_decimal = false;
-    for token in pattern {
-        if *token == PicToken::DecimalPoint {
-            has_decimal = true;
-        }
-    }
-
-    // Calculate expected decimal places from pattern
-    let _pattern_decimal_places = if has_decimal {
-        // Count numeric positions after decimal point
-        let mut after_decimal = 0;
-        let mut found = false;
-        for token in pattern {
-            if *token == PicToken::DecimalPoint {
-                found = true;
-            } else if found
-                && matches!(
-                    token,
-                    PicToken::Digit | PicToken::ZeroSuppress | PicToken::ZeroInsert
-                )
-            {
-                after_decimal += 1;
-            }
-        }
-        after_decimal
-    } else {
-        0
-    };
-
-    // Adjust digits to match pattern scale
-    let scale = scale as usize;
-    let mut adjusted_digits = parsed.digits.clone();
-
-    // Pad or truncate to match scale
-    if scale > parsed.decimal_places {
-        // Need to add trailing zeros
-        let to_add = scale - parsed.decimal_places;
-        adjusted_digits.extend(std::iter::repeat_n(0, to_add));
-    } else if scale < parsed.decimal_places {
-        // Need to truncate (round down for now)
-        let to_remove = parsed.decimal_places - scale;
-        for _ in 0..to_remove {
-            adjusted_digits.pop();
-        }
-    }
-
-    // Calculate integer and fractional parts
-    let decimal_places = scale;
-    let total_digits = adjusted_digits.len();
-    let int_digits = total_digits.saturating_sub(decimal_places);
-
-    // Count integer and fractional positions in pattern
-    let mut int_positions = 0;
-    let mut frac_positions = 0;
-    let mut after_decimal = false;
-    for token in pattern {
-        match token {
-            PicToken::Digit
-            | PicToken::ZeroSuppress
-            | PicToken::ZeroInsert
-            | PicToken::AsteriskFill => {
-                if after_decimal {
-                    frac_positions += 1;
-                } else {
-                    int_positions += 1;
-                }
-            }
-            PicToken::DecimalPoint => {
-                after_decimal = true;
-            }
-            _ => {}
-        }
-    }
-
-    // Check if value fits in pattern
-    if int_digits > int_positions || decimal_places > frac_positions {
+    let metrics = encode_pattern::analyze(pattern);
+    if int_digits > metrics.int_positions || target_scale > metrics.frac_positions {
         return Err(Error::new(
             ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
             format!(
-                "Value too long for pattern (pattern has {int_positions} integer positions, value has {int_digits} digits)"
+                "Value too long for pattern (pattern has {ip} integer positions, value has {id} digits)",
+                ip = metrics.int_positions,
+                id = int_digits,
             ),
         ));
     }
 
-    // Calculate output length (CR and DB are 2 characters each, others are 1)
-    let output_len: usize = pattern
-        .iter()
-        .map(|token| match token {
-            PicToken::Credit | PicToken::Debit => 2,
-            _ => 1,
-        })
-        .sum();
-
-    // Build output string by filling from right to left
-    let mut result: Vec<char> = vec![' '; output_len];
-    let mut int_digit_idx = int_digits; // Start from the end
-    let mut frac_digit_idx = decimal_places; // Start from the end
-
-    // Fill from right to left
-    // We need to track character position separately from token index
-    let mut char_pos = output_len;
-    for (token_idx, token) in pattern.iter().enumerate().rev() {
-        // Determine how many characters this token occupies
-        let token_width = match token {
-            PicToken::Credit | PicToken::Debit => 2,
-            _ => 1,
-        };
-        char_pos -= token_width;
-
-        match token {
-            PicToken::Digit => {
-                let digit = {
-                    // Check if this position is before or after decimal
-                    let is_after_decimal = pattern[..token_idx].contains(&PicToken::DecimalPoint);
-                    if is_after_decimal && frac_digit_idx > 0 {
-                        frac_digit_idx -= 1;
-                        char::from_digit(
-                            u32::from(adjusted_digits[int_digits + frac_digit_idx]),
-                            10,
-                        )
-                        .unwrap_or('0')
-                    } else if !is_after_decimal && int_digit_idx > 0 {
-                        int_digit_idx -= 1;
-                        char::from_digit(u32::from(adjusted_digits[int_digit_idx]), 10)
-                            .unwrap_or('0')
-                    } else {
-                        '0'
-                    }
-                };
-                result[char_pos] = digit;
-            }
-            PicToken::ZeroSuppress => {
-                let is_after_decimal = pattern[..token_idx].contains(&PicToken::DecimalPoint);
-                if is_after_decimal && frac_digit_idx > 0 {
-                    frac_digit_idx -= 1;
-                    let d = adjusted_digits[int_digits + frac_digit_idx];
-                    result[char_pos] = char::from_digit(u32::from(d), 10).unwrap_or('0');
-                } else if !is_after_decimal && int_digit_idx > 0 {
-                    int_digit_idx -= 1;
-                    let d = adjusted_digits[int_digit_idx];
-                    result[char_pos] = char::from_digit(u32::from(d), 10).unwrap_or('0');
-                } else {
-                    result[char_pos] = ' ';
-                }
-            }
-            PicToken::ZeroInsert => {
-                let is_after_decimal = pattern[..token_idx].contains(&PicToken::DecimalPoint);
-                if is_after_decimal && frac_digit_idx > 0 {
-                    frac_digit_idx -= 1;
-                    let d = adjusted_digits[int_digits + frac_digit_idx];
-                    result[char_pos] = char::from_digit(u32::from(d), 10).unwrap_or('0');
-                } else if !is_after_decimal && int_digit_idx > 0 {
-                    int_digit_idx -= 1;
-                    let d = adjusted_digits[int_digit_idx];
-                    result[char_pos] = char::from_digit(u32::from(d), 10).unwrap_or('0');
-                } else {
-                    result[char_pos] = '0';
-                }
-            }
-            PicToken::AsteriskFill => {
-                let is_after_decimal = pattern[..token_idx].contains(&PicToken::DecimalPoint);
-                if is_after_decimal && frac_digit_idx > 0 {
-                    frac_digit_idx -= 1;
-                    let d = adjusted_digits[int_digits + frac_digit_idx];
-                    result[char_pos] = char::from_digit(u32::from(d), 10).unwrap_or('0');
-                } else if !is_after_decimal && int_digit_idx > 0 {
-                    int_digit_idx -= 1;
-                    let d = adjusted_digits[int_digit_idx];
-                    result[char_pos] = char::from_digit(u32::from(d), 10).unwrap_or('0');
-                } else {
-                    result[char_pos] = '*';
-                }
-            }
-            PicToken::DecimalPoint => {
-                result[char_pos] = '.';
-            }
-            PicToken::Comma => {
-                // Commas are always displayed, but become spaces during zero suppression
-                // Check if there are any significant digits to the right (already filled)
-                // or if the value is not zero
-                let has_significant_right = result[char_pos + 1..]
-                    .iter()
-                    .any(|&ch| ch != ' ' && ch != '0' && ch != ',' && ch != '.');
-                result[char_pos] = if !is_zero || has_significant_right {
-                    ','
-                } else {
-                    ' '
-                };
-            }
-            PicToken::Slash => {
-                // Slashes are always displayed (date format use case)
-                result[char_pos] = '/';
-            }
-            PicToken::Currency => {
-                // Currency symbol ($) is always displayed at its pattern position
-                result[char_pos] = '$';
-            }
-            PicToken::LeadingPlus | PicToken::TrailingPlus => {
-                result[char_pos] = match effective_sign {
-                    Sign::Positive => '+',
-                    Sign::Negative => '-',
-                };
-            }
-            PicToken::LeadingMinus | PicToken::TrailingMinus => {
-                result[char_pos] = match effective_sign {
-                    Sign::Positive => ' ',
-                    Sign::Negative => '-',
-                };
-            }
-            PicToken::Credit => {
-                // CR occupies 2 characters: "CR" for negative, "  " for positive
-                match effective_sign {
-                    Sign::Positive => {
-                        result[char_pos] = ' ';
-                        result[char_pos + 1] = ' ';
-                    }
-                    Sign::Negative => {
-                        result[char_pos] = 'C';
-                        result[char_pos + 1] = 'R';
-                    }
-                }
-            }
-            PicToken::Debit => {
-                // DB occupies 2 characters: "DB" for negative, "  " for positive
-                match effective_sign {
-                    Sign::Positive => {
-                        result[char_pos] = ' ';
-                        result[char_pos + 1] = ' ';
-                    }
-                    Sign::Negative => {
-                        result[char_pos] = 'D';
-                        result[char_pos + 1] = 'B';
-                    }
-                }
-            }
-            PicToken::Space => {
-                // B token always inserts a literal space character
-                result[char_pos] = ' ';
-            }
-        }
-    }
-
-    Ok(result.into_iter().collect())
+    Ok(encode_render::render(
+        pattern,
+        &adjusted_digits,
+        int_digits,
+        target_scale,
+        effective_sign,
+        is_zero,
+        metrics.output_len,
+    ))
 }
 
 #[cfg(test)]

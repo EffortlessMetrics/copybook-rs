@@ -948,11 +948,9 @@ pub mod utils {
             .map(|p| p.validation_time_ms)
             .sum();
         let total_records_u64 = u64::try_from(total_records).unwrap_or(u64::MAX);
-        let average_validation_time = if total_records_u64 == 0 {
-            0
-        } else {
-            total_validation_time / total_records_u64
-        };
+        let average_validation_time = total_validation_time
+            .checked_div(total_records_u64)
+            .unwrap_or(0);
 
         BatchFidelityMetrics {
             total_records,

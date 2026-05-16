@@ -9,9 +9,9 @@
 //! and validating formatting symbols. The encode algorithm formats numeric values according to the pattern.
 //!
 //! Encoding is decomposed into three single-responsibility submodules:
-//! - [`encode_pattern`]: structural analysis of the PIC token pattern
-//! - [`encode_scale`]: input parsing and scale adjustment of the digit vector
-//! - [`encode_render`]: token-driven rendering into the output buffer
+//! - `encode_pattern`: structural analysis of the PIC token pattern
+//! - `encode_scale`: input parsing and scale adjustment of the digit vector
+//! - `encode_render`: token-driven rendering into the output buffer
 
 mod encode_pattern;
 mod encode_render;

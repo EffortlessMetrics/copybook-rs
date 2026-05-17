@@ -14,9 +14,9 @@ bootstrap_rustup() {
 run_cargo() {
   bootstrap_rustup
 
-  if command -v rustup >/dev/null 2>&1; then
+  if command -v rustup >/dev/null 2>&1 && rustup toolchain list | grep -q '^stable'; then
     rustup run stable cargo "$@"
-  elif command -v rustup.exe >/dev/null 2>&1; then
+  elif command -v rustup.exe >/dev/null 2>&1 && rustup.exe toolchain list | grep -q '^stable'; then
     rustup.exe run stable cargo "$@"
   else
     cargo "$@"

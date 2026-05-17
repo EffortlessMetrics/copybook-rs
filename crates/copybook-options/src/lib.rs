@@ -17,6 +17,85 @@ pub use copybook_zoned_format::ZonedEncodingFormat;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+const DEFAULT_RECORD_FORMAT: RecordFormat = RecordFormat::Fixed;
+const DEFAULT_CODEPAGE: Codepage = Codepage::CP037;
+const DEFAULT_JSON_NUMBER_MODE: JsonNumberMode = JsonNumberMode::Lossless;
+const DEFAULT_UNMAPPABLE_POLICY: UnmappablePolicy = UnmappablePolicy::Error;
+const DEFAULT_THREAD_COUNT: usize = 1;
+const DEFAULT_ZONED_ENCODING: ZonedEncodingFormat = ZonedEncodingFormat::Auto;
+const DEFAULT_FLOAT_FORMAT: FloatFormat = FloatFormat::IeeeBigEndian;
+
+macro_rules! impl_common_option_builders {
+    () => {
+        /// Set the record format.
+        #[must_use]
+        #[inline]
+        pub fn with_format(mut self, format: RecordFormat) -> Self {
+            self.format = format;
+            self
+        }
+
+        /// Set the codepage.
+        #[must_use]
+        #[inline]
+        pub fn with_codepage(mut self, codepage: Codepage) -> Self {
+            self.codepage = codepage;
+            self
+        }
+
+        /// Enable or disable strict mode.
+        #[must_use]
+        #[inline]
+        pub fn with_strict_mode(mut self, strict_mode: bool) -> Self {
+            self.strict_mode = strict_mode;
+            self
+        }
+
+        /// Set the maximum number of errors before stopping.
+        #[must_use]
+        #[inline]
+        pub fn with_max_errors(mut self, max_errors: Option<u64>) -> Self {
+            self.max_errors = max_errors;
+            self
+        }
+
+        /// Set the number of threads for parallel processing.
+        #[must_use]
+        #[inline]
+        pub fn with_threads(mut self, threads: usize) -> Self {
+            self.threads = threads;
+            self
+        }
+
+        /// Set the JSON number mode.
+        #[must_use]
+        #[inline]
+        pub fn with_json_number_mode(mut self, mode: JsonNumberMode) -> Self {
+            self.json_number_mode = mode;
+            self
+        }
+
+        /// Set the preferred zoned decimal encoding format.
+        #[must_use]
+        #[inline]
+        pub fn with_preferred_zoned_encoding(
+            mut self,
+            preferred_zoned_encoding: ZonedEncodingFormat,
+        ) -> Self {
+            self.preferred_zoned_encoding = preferred_zoned_encoding;
+            self
+        }
+
+        /// Set floating-point representation for COMP-1/COMP-2 fields.
+        #[must_use]
+        #[inline]
+        pub fn with_float_format(mut self, float_format: FloatFormat) -> Self {
+            self.float_format = float_format;
+            self
+        }
+    };
+}
+
 /// Floating-point binary format for COMP-1/COMP-2 fields.
 ///
 /// Copybooks define field usage but not the compiler's concrete floating-point
@@ -252,19 +331,19 @@ pub enum RawMode {
 impl Default for DecodeOptions {
     fn default() -> Self {
         Self {
-            format: RecordFormat::Fixed,
-            codepage: Codepage::CP037,
-            json_number_mode: JsonNumberMode::Lossless,
+            format: DEFAULT_RECORD_FORMAT,
+            codepage: DEFAULT_CODEPAGE,
+            json_number_mode: DEFAULT_JSON_NUMBER_MODE,
             emit_filler: false,
             emit_meta: false,
             emit_raw: RawMode::Off,
             strict_mode: false,
             max_errors: None,
-            on_decode_unmappable: UnmappablePolicy::Error,
-            threads: 1,
+            on_decode_unmappable: DEFAULT_UNMAPPABLE_POLICY,
+            threads: DEFAULT_THREAD_COUNT,
             preserve_zoned_encoding: false,
-            preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-            float_format: FloatFormat::IeeeBigEndian,
+            preferred_zoned_encoding: DEFAULT_ZONED_ENCODING,
+            float_format: DEFAULT_FLOAT_FORMAT,
         }
     }
 }
@@ -301,29 +380,7 @@ impl DecodeOptions {
         Self::default()
     }
 
-    /// Set the record format
-    #[must_use]
-    #[inline]
-    pub fn with_format(mut self, format: RecordFormat) -> Self {
-        self.format = format;
-        self
-    }
-
-    /// Set the codepage
-    #[must_use]
-    #[inline]
-    pub fn with_codepage(mut self, codepage: Codepage) -> Self {
-        self.codepage = codepage;
-        self
-    }
-
-    /// Set the JSON number mode
-    #[must_use]
-    #[inline]
-    pub fn with_json_number_mode(mut self, mode: JsonNumberMode) -> Self {
-        self.json_number_mode = mode;
-        self
-    }
+    impl_common_option_builders!();
 
     /// Enable or disable FILLER field emission
     #[must_use]
@@ -355,35 +412,11 @@ impl DecodeOptions {
         self
     }
 
-    /// Enable or disable strict mode
-    #[must_use]
-    #[inline]
-    pub fn with_strict_mode(mut self, strict_mode: bool) -> Self {
-        self.strict_mode = strict_mode;
-        self
-    }
-
-    /// Set the maximum number of errors before stopping
-    #[must_use]
-    #[inline]
-    pub fn with_max_errors(mut self, max_errors: Option<u64>) -> Self {
-        self.max_errors = max_errors;
-        self
-    }
-
     /// Set the policy for unmappable characters
     #[must_use]
     #[inline]
     pub fn with_unmappable_policy(mut self, policy: UnmappablePolicy) -> Self {
         self.on_decode_unmappable = policy;
-        self
-    }
-
-    /// Set the number of threads for parallel processing
-    #[must_use]
-    #[inline]
-    pub fn with_threads(mut self, threads: usize) -> Self {
-        self.threads = threads;
         self
     }
 
@@ -400,46 +433,24 @@ impl DecodeOptions {
         self.preserve_zoned_encoding = preserve_zoned_encoding;
         self
     }
-
-    /// Set the preferred zoned encoding format for ambiguous detection
-    ///
-    /// This format is used as a fallback when auto-detection cannot determine
-    /// the encoding from the data (e.g., all-zero fields, mixed encodings).
-    #[must_use]
-    #[inline]
-    pub fn with_preferred_zoned_encoding(
-        mut self,
-        preferred_zoned_encoding: ZonedEncodingFormat,
-    ) -> Self {
-        self.preferred_zoned_encoding = preferred_zoned_encoding;
-        self
-    }
-
-    /// Set floating-point representation for COMP-1/COMP-2 fields
-    #[must_use]
-    #[inline]
-    pub fn with_float_format(mut self, float_format: FloatFormat) -> Self {
-        self.float_format = float_format;
-        self
-    }
 }
 
 impl Default for EncodeOptions {
     fn default() -> Self {
         Self {
-            format: RecordFormat::Fixed,
-            codepage: Codepage::CP037,
-            preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+            format: DEFAULT_RECORD_FORMAT,
+            codepage: DEFAULT_CODEPAGE,
+            preferred_zoned_encoding: DEFAULT_ZONED_ENCODING,
             use_raw: false,
             bwz_encode: false,
             strict_mode: false,
             max_errors: None,
-            threads: 1,
+            threads: DEFAULT_THREAD_COUNT,
             coerce_numbers: false,
-            on_encode_unmappable: UnmappablePolicy::Error,
-            json_number_mode: JsonNumberMode::Lossless,
+            on_encode_unmappable: DEFAULT_UNMAPPABLE_POLICY,
+            json_number_mode: DEFAULT_JSON_NUMBER_MODE,
             zoned_encoding_override: None,
-            float_format: FloatFormat::IeeeBigEndian,
+            float_format: DEFAULT_FLOAT_FORMAT,
         }
     }
 }
@@ -477,21 +488,7 @@ impl EncodeOptions {
         Self::default()
     }
 
-    /// Set the record format
-    #[must_use]
-    #[inline]
-    pub fn with_format(mut self, format: RecordFormat) -> Self {
-        self.format = format;
-        self
-    }
-
-    /// Set the codepage
-    #[must_use]
-    #[inline]
-    pub fn with_codepage(mut self, codepage: Codepage) -> Self {
-        self.codepage = codepage;
-        self
-    }
+    impl_common_option_builders!();
 
     /// Enable or disable raw data usage
     #[must_use]
@@ -509,41 +506,6 @@ impl EncodeOptions {
         self
     }
 
-    /// Set the preferred zoned encoding fallback when overrides and preserved formats are absent
-    #[must_use]
-    #[inline]
-    pub fn with_preferred_zoned_encoding(
-        mut self,
-        preferred_zoned_encoding: ZonedEncodingFormat,
-    ) -> Self {
-        self.preferred_zoned_encoding = preferred_zoned_encoding;
-        self
-    }
-
-    /// Enable or disable strict mode
-    #[must_use]
-    #[inline]
-    pub fn with_strict_mode(mut self, strict_mode: bool) -> Self {
-        self.strict_mode = strict_mode;
-        self
-    }
-
-    /// Set the maximum number of errors before stopping
-    #[must_use]
-    #[inline]
-    pub fn with_max_errors(mut self, max_errors: Option<u64>) -> Self {
-        self.max_errors = max_errors;
-        self
-    }
-
-    /// Set the number of threads for parallel processing
-    #[must_use]
-    #[inline]
-    pub fn with_threads(mut self, threads: usize) -> Self {
-        self.threads = threads;
-        self
-    }
-
     /// Enable or disable number coercion
     #[must_use]
     #[inline]
@@ -557,14 +519,6 @@ impl EncodeOptions {
     #[inline]
     pub fn with_unmappable_policy(mut self, policy: UnmappablePolicy) -> Self {
         self.on_encode_unmappable = policy;
-        self
-    }
-
-    /// Set the JSON number mode
-    #[must_use]
-    #[inline]
-    pub fn with_json_number_mode(mut self, mode: JsonNumberMode) -> Self {
-        self.json_number_mode = mode;
         self
     }
 
@@ -590,14 +544,6 @@ impl EncodeOptions {
     #[inline]
     pub fn with_zoned_encoding_format(mut self, format: ZonedEncodingFormat) -> Self {
         self.zoned_encoding_override = Some(format);
-        self
-    }
-
-    /// Set floating-point representation for COMP-1/COMP-2 fields
-    #[must_use]
-    #[inline]
-    pub fn with_float_format(mut self, float_format: FloatFormat) -> Self {
-        self.float_format = float_format;
         self
     }
 }
@@ -802,9 +748,9 @@ mod tests {
     #[test]
     fn test_decode_options_serialization() {
         let options = DecodeOptions {
-            format: RecordFormat::Fixed,
-            codepage: Codepage::CP037,
-            json_number_mode: JsonNumberMode::Lossless,
+            format: DEFAULT_RECORD_FORMAT,
+            codepage: DEFAULT_CODEPAGE,
+            json_number_mode: DEFAULT_JSON_NUMBER_MODE,
             emit_filler: true,
             emit_meta: true,
             emit_raw: RawMode::Record,

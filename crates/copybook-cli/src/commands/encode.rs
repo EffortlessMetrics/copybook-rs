@@ -3,15 +3,13 @@
 
 use crate::exit_codes::ExitCode;
 use crate::utils::{
-    ParseOptionsConfig, apply_field_projection, atomic_write, build_parse_options,
-    determine_exit_code, read_file_or_stdin,
+    ParseOptionsConfig, determine_exit_code, effective_error_options, parse_projected_schema,
+    process_input_to_output, write_processing_summary,
 };
-use crate::{write_stderr_all, write_stdout_all};
-use anyhow::{anyhow, bail};
+use crate::write_stderr_all;
+use anyhow::bail;
 use copybook_codec::{Codepage, EncodeOptions, FloatFormat, RecordFormat};
-use copybook_core::parse_copybook_with_options;
 use std::fmt::Write as _;
-use std::fs;
 use std::path::Path;
 use tracing::info;
 
@@ -47,29 +45,20 @@ pub fn run(
         info!("Inline comments (*>) disabled (COBOL-85 compatibility)");
     }
 
-    // Read copybook file or stdin
-    let copybook_text = read_file_or_stdin(copybook)?;
+    let working_schema = parse_projected_schema(
+        copybook,
+        &ParseOptionsConfig {
+            strict: options.strict,
+            strict_comments: options.strict_comments,
+            codepage: &options.codepage.to_string(),
+            emit_filler: false,
+            dialect: options.dialect,
+        },
+        options.select,
+    )?;
 
-    // Parse copybook with options
-    let parse_options = build_parse_options(&ParseOptionsConfig {
-        strict: options.strict,
-        strict_comments: options.strict_comments,
-        codepage: &options.codepage.to_string(),
-        emit_filler: false,
-        dialect: options.dialect,
-    });
-    let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
-
-    // Apply field projection if --select is provided
-    let working_schema = apply_field_projection(schema, options.select)?;
-
-    // Configure encode options - use strict mode when fail_fast is enabled
-    let effective_strict_mode = options.strict || options.fail_fast;
-    let effective_max_errors = if options.fail_fast {
-        Some(1)
-    } else {
-        options.max_errors
-    };
+    let (effective_strict_mode, effective_max_errors) =
+        effective_error_options(options.strict, options.max_errors, options.fail_fast);
 
     let encode_options = EncodeOptions::new()
         .with_format(options.format)
@@ -83,75 +72,19 @@ pub fn run(
         .with_zoned_encoding_override(options.zoned_encoding_override)
         .with_float_format(options.float_format);
 
-    // Check if output is stdout
     let write_to_stdout = output == Path::new("-");
-
-    // Encode file
-    let summary = if write_to_stdout {
-        // Write directly to stdout (no atomic write, no summary)
-        let input_file = fs::File::open(input)?;
-        let mut stdout = std::io::stdout().lock();
+    let summary = process_input_to_output(input, output, |input_file, output_writer| {
         copybook_codec::encode_jsonl_to_file(
             &working_schema,
             input_file,
-            &mut stdout,
+            output_writer,
             &encode_options,
-        )?
-    } else {
-        // Use atomic write for file output
-        let mut summary = None;
-        atomic_write(output, |output_writer| {
-            let input_file = fs::File::open(input).map_err(std::io::Error::other)?;
-            let run_summary = copybook_codec::encode_jsonl_to_file(
-                &working_schema,
-                input_file,
-                output_writer,
-                &encode_options,
-            )
-            .map_err(std::io::Error::other)?;
-            summary = Some(run_summary);
-            Ok(())
-        })?;
-        summary.ok_or_else(|| {
-            anyhow!("Internal error: summary not populated after successful processing")
-        })?
-    };
+        )
+        .map_err(Into::into)
+    })?;
 
-    // Print comprehensive summary (only when not writing to stdout)
     if !write_to_stdout {
-        let mut summary_output = String::new();
-        writeln!(&mut summary_output, "=== Encode Summary ===")?;
-        writeln!(
-            &mut summary_output,
-            "Records processed: {}",
-            summary.records_processed
-        )?;
-        if summary.records_with_errors > 0 {
-            writeln!(
-                &mut summary_output,
-                "Records with errors: {}",
-                summary.records_with_errors
-            )?;
-        }
-        if summary.warnings > 0 {
-            writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
-        }
-        writeln!(
-            &mut summary_output,
-            "Processing time: {}ms",
-            summary.processing_time_ms
-        )?;
-        writeln!(
-            &mut summary_output,
-            "Bytes processed: {}",
-            summary.bytes_processed
-        )?;
-        writeln!(
-            &mut summary_output,
-            "Throughput: {:.2} MB/s",
-            summary.throughput_mbps
-        )?;
-        write_stdout_all(summary_output.as_bytes())?;
+        write_processing_summary("Encode", &summary, false)?;
     }
 
     // Provide detailed feedback about encode status

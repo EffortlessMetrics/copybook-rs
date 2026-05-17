@@ -2,7 +2,10 @@
 //! Utility functions for CLI operations
 
 use crate::exit_codes::ExitCode;
-use copybook_core::{ParseOptions, Schema};
+use copybook_codec::RunSummary;
+use copybook_core::{ParseOptions, Schema, parse_copybook_with_options};
+use std::fmt::Write as FmtWrite;
+use std::fs;
 use std::io::{self, Read, Write};
 use std::path::Path;
 #[cfg(test)]
@@ -85,6 +88,128 @@ pub fn build_parse_options(config: &ParseOptionsConfig) -> ParseOptions {
         allow_inline_comments: !config.strict_comments,
         dialect: config.dialect,
     }
+}
+
+/// Build parse options, read a copybook, parse it, and apply optional field projection.
+///
+/// This consolidates the common decode/encode command setup path so both commands
+/// parse copybooks and selectors consistently.
+///
+/// # Errors
+///
+/// Returns an error when reading the copybook, parsing it, or applying field
+/// projection fails.
+pub fn parse_projected_schema(
+    copybook: &Path,
+    config: &ParseOptionsConfig<'_>,
+    select_args: &[String],
+) -> anyhow::Result<Schema> {
+    let copybook_text = read_file_or_stdin(copybook)?;
+    let parse_options = build_parse_options(config);
+    let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
+    apply_field_projection(schema, select_args)
+}
+
+/// Return the strictness/max-error pair implied by common processing flags.
+///
+/// `--fail-fast` forces strict mode and limits processing to the first error for
+/// both encode and decode operations.
+#[must_use]
+pub const fn effective_error_options(
+    strict: bool,
+    max_errors: Option<u64>,
+    fail_fast: bool,
+) -> (bool, Option<u64>) {
+    if fail_fast {
+        (true, Some(1))
+    } else {
+        (strict, max_errors)
+    }
+}
+
+/// Run a streaming processor, using stdout directly for `-` and atomic writes for files.
+///
+/// The processor receives an opened input file and the destination writer, and must
+/// return the resulting [`RunSummary`].
+///
+/// # Errors
+///
+/// Returns an error if opening the input, writing the output, or running the
+/// processor fails.
+pub fn process_input_to_output<F>(
+    input: &Path,
+    output: &Path,
+    mut processor: F,
+) -> anyhow::Result<RunSummary>
+where
+    F: FnMut(fs::File, &mut dyn Write) -> anyhow::Result<RunSummary>,
+{
+    if output == Path::new("-") {
+        let input_file = fs::File::open(input)?;
+        let mut stdout = std::io::stdout().lock();
+        return processor(input_file, &mut stdout);
+    }
+
+    let mut summary = None;
+    atomic_write(output, |output_writer| {
+        let input_file = fs::File::open(input).map_err(io::Error::other)?;
+        let run_summary = processor(input_file, output_writer).map_err(io::Error::other)?;
+        summary = Some(run_summary);
+        Ok(())
+    })?;
+
+    summary.ok_or_else(|| {
+        anyhow::anyhow!("Internal error: summary not populated after successful processing")
+    })
+}
+
+/// Render and write a standard CLI processing summary.
+///
+/// Set `always_show_counts` for commands that historically print zero-valued error
+/// and warning counts. Encode omits those rows when the counts are zero.
+///
+/// # Errors
+///
+/// Returns an error if formatting or writing to stdout fails.
+pub fn write_processing_summary(
+    title: &str,
+    summary: &RunSummary,
+    always_show_counts: bool,
+) -> anyhow::Result<()> {
+    let mut summary_output = String::new();
+    writeln!(&mut summary_output, "=== {title} Summary ===")?;
+    writeln!(
+        &mut summary_output,
+        "Records processed: {}",
+        summary.records_processed
+    )?;
+    if always_show_counts || summary.records_with_errors > 0 {
+        writeln!(
+            &mut summary_output,
+            "Records with errors: {}",
+            summary.records_with_errors
+        )?;
+    }
+    if always_show_counts || summary.warnings > 0 {
+        writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
+    }
+    writeln!(
+        &mut summary_output,
+        "Processing time: {}ms",
+        summary.processing_time_ms
+    )?;
+    writeln!(
+        &mut summary_output,
+        "Bytes processed: {}",
+        summary.bytes_processed
+    )?;
+    writeln!(
+        &mut summary_output,
+        "Throughput: {:.2} MB/s",
+        summary.throughput_mbps
+    )?;
+    crate::write_stdout_all(summary_output.as_bytes())?;
+    Ok(())
 }
 
 /// Atomically write data to a file using temporary file + rename

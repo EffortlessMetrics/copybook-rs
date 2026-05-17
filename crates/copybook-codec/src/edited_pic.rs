@@ -85,6 +85,7 @@ pub enum Sign {
 /// Returns error if the PIC pattern is malformed
 #[inline]
 #[allow(clippy::too_many_lines)]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn tokenize_edited_pic(pic_str: &str) -> Result<Vec<PicToken>> {
     let mut tokens = Vec::new();
     let mut chars = pic_str.chars().peekable();

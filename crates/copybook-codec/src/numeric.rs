@@ -4541,6 +4541,7 @@ fn encode_f64_to_ibm_hex_parts(value: f64, bits: u32) -> Result<(u8, u64)> {
 /// # Errors
 /// Returns `CBKD301_RECORD_TOO_SHORT` if the data slice has fewer than 4 bytes.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_float_single_ieee_be(data: &[u8]) -> Result<f32> {
     validate_float_buffer_len(data, 4, "COMP-1")?;
     let bytes: [u8; 4] = [data[0], data[1], data[2], data[3]];
@@ -4552,6 +4553,7 @@ pub fn decode_float_single_ieee_be(data: &[u8]) -> Result<f32> {
 /// # Errors
 /// Returns `CBKD301_RECORD_TOO_SHORT` if the data slice has fewer than 8 bytes.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_float_double_ieee_be(data: &[u8]) -> Result<f64> {
     validate_float_buffer_len(data, 8, "COMP-2")?;
     let bytes: [u8; 8] = [
@@ -4565,6 +4567,7 @@ pub fn decode_float_double_ieee_be(data: &[u8]) -> Result<f64> {
 /// # Errors
 /// Returns `CBKD301_RECORD_TOO_SHORT` if the data slice has fewer than 4 bytes.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_float_single_ibm_hex(data: &[u8]) -> Result<f32> {
     validate_float_buffer_len(data, 4, "COMP-1")?;
     let word = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
@@ -4588,6 +4591,7 @@ pub fn decode_float_single_ibm_hex(data: &[u8]) -> Result<f32> {
 /// # Errors
 /// Returns `CBKD301_RECORD_TOO_SHORT` if the data slice has fewer than 8 bytes.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_float_double_ibm_hex(data: &[u8]) -> Result<f64> {
     validate_float_buffer_len(data, 8, "COMP-2")?;
     let word = u64::from_be_bytes([
@@ -4609,6 +4613,7 @@ pub fn decode_float_double_ibm_hex(data: &[u8]) -> Result<f64> {
 /// # Errors
 /// Returns format-specific decode errors.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_float_single_with_format(data: &[u8], format: FloatFormat) -> Result<f32> {
     match format {
         FloatFormat::IeeeBigEndian => decode_float_single_ieee_be(data),
@@ -4621,6 +4626,7 @@ pub fn decode_float_single_with_format(data: &[u8], format: FloatFormat) -> Resu
 /// # Errors
 /// Returns format-specific decode errors.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_float_double_with_format(data: &[u8], format: FloatFormat) -> Result<f64> {
     match format {
         FloatFormat::IeeeBigEndian => decode_float_double_ieee_be(data),
@@ -4633,6 +4639,7 @@ pub fn decode_float_double_with_format(data: &[u8], format: FloatFormat) -> Resu
 /// # Errors
 /// Returns `CBKD301_RECORD_TOO_SHORT` if the data slice has fewer than 4 bytes.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_float_single(data: &[u8]) -> Result<f32> {
     decode_float_single_ieee_be(data)
 }
@@ -4642,6 +4649,7 @@ pub fn decode_float_single(data: &[u8]) -> Result<f32> {
 /// # Errors
 /// Returns `CBKD301_RECORD_TOO_SHORT` if the data slice has fewer than 8 bytes.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_float_double(data: &[u8]) -> Result<f64> {
     decode_float_double_ieee_be(data)
 }
@@ -4651,6 +4659,7 @@ pub fn decode_float_double(data: &[u8]) -> Result<f64> {
 /// # Errors
 /// Returns `CBKE510_NUMERIC_OVERFLOW` if the buffer has fewer than 4 bytes.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_float_single_ieee_be(value: f32, buffer: &mut [u8]) -> Result<()> {
     validate_float_encode_buffer_len(buffer, 4, "COMP-1")?;
     let bytes = value.to_be_bytes();
@@ -4663,6 +4672,7 @@ pub fn encode_float_single_ieee_be(value: f32, buffer: &mut [u8]) -> Result<()> 
 /// # Errors
 /// Returns `CBKE510_NUMERIC_OVERFLOW` if the buffer has fewer than 8 bytes.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_float_double_ieee_be(value: f64, buffer: &mut [u8]) -> Result<()> {
     validate_float_encode_buffer_len(buffer, 8, "COMP-2")?;
     let bytes = value.to_be_bytes();
@@ -4677,6 +4687,7 @@ pub fn encode_float_double_ieee_be(value: f64, buffer: &mut [u8]) -> Result<()> 
 /// - `CBKE510_NUMERIC_OVERFLOW` if the buffer is too small
 /// - `CBKE510_NUMERIC_OVERFLOW` for non-finite values or exponent overflow
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_float_single_ibm_hex(value: f32, buffer: &mut [u8]) -> Result<()> {
     validate_float_encode_buffer_len(buffer, 4, "COMP-1")?;
     let sign = value.is_sign_negative();
@@ -4701,6 +4712,7 @@ pub fn encode_float_single_ibm_hex(value: f32, buffer: &mut [u8]) -> Result<()> 
 /// - `CBKE510_NUMERIC_OVERFLOW` if the buffer is too small
 /// - `CBKE510_NUMERIC_OVERFLOW` for non-finite values or exponent overflow
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_float_double_ibm_hex(value: f64, buffer: &mut [u8]) -> Result<()> {
     validate_float_encode_buffer_len(buffer, 8, "COMP-2")?;
     let sign = value.is_sign_negative();
@@ -4749,6 +4761,7 @@ pub fn encode_float_double_with_format(
 /// # Errors
 /// Returns `CBKE510_NUMERIC_OVERFLOW` if the buffer has fewer than 4 bytes.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_float_single(value: f32, buffer: &mut [u8]) -> Result<()> {
     encode_float_single_ieee_be(value, buffer)
 }
@@ -4758,6 +4771,7 @@ pub fn encode_float_single(value: f32, buffer: &mut [u8]) -> Result<()> {
 /// # Errors
 /// Returns `CBKE510_NUMERIC_OVERFLOW` if the buffer has fewer than 8 bytes.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_float_double(value: f64, buffer: &mut [u8]) -> Result<()> {
     encode_float_double_ieee_be(value, buffer)
 }

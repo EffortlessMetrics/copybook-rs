@@ -60,21 +60,28 @@ pub fn safe_parse_u16(s: &str, context: &str) -> Result<u16> {
 
 /// Safely access a string character with bounds checking.
 ///
+/// The `index` is a Unicode scalar value (Rust `char`) position, not a UTF-8
+/// byte offset. Error messages report the same character length so diagnostics
+/// stay consistent for multibyte text.
+///
 /// # Errors
 ///
 /// Returns `CBKP001_SYNTAX` if `index` is out of bounds.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_string_char_at(s: &str, index: usize, context: &str) -> Result<char> {
-    s.chars().nth(index).ok_or_else(|| {
-        Error::new(
-            ErrorCode::CBKP001_SYNTAX,
-            format!(
-                "String character access out of bounds in {context}: index {index} >= length {}",
-                s.len()
-            ),
-        )
-    })
+    match s.chars().nth(index) {
+        Some(ch) => Ok(ch),
+        None => {
+            let char_len = s.chars().count();
+            Err(Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                format!(
+                    "String character access out of bounds in {context}: index {index} >= character length {char_len}"
+                ),
+            ))
+        }
+    }
 }
 
 /// Safely format data into a string buffer for JSON generation.
@@ -157,6 +164,22 @@ mod tests {
             safe_string_char_at("abc", 3, "test"),
             Err(error) if error.code == ErrorCode::CBKP001_SYNTAX
         ));
+    }
+
+    #[test]
+    fn safe_string_char_at_multibyte_error_reports_character_length() {
+        let error = safe_string_char_at("日本語", 3, "unicode-test").unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
+        assert!(error.message.contains("unicode-test"));
+        assert!(error.message.contains("index 3 >= character length 3"));
+        assert!(!error.message.contains("length 9"));
+    }
+
+    #[test]
+    fn safe_string_char_at_emoji_error_reports_character_length() {
+        let error = safe_string_char_at("🦀🐍", 2, "emoji-test").unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
+        assert!(error.message.contains("index 2 >= character length 2"));
     }
 
     // --- safe_write tests ---

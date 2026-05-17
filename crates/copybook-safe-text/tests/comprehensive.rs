@@ -114,6 +114,23 @@ fn char_at_emoji() {
     assert!(safe_string_char_at(s, 2, "ctx").is_err());
 }
 
+#[test]
+fn char_at_multibyte_out_of_bounds_reports_char_count_not_bytes() {
+    let err = safe_string_char_at("日本語", 3, "unicode-ctx").unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKP001_SYNTAX);
+    assert!(err.message.contains("unicode-ctx"));
+    assert!(err.message.contains("index 3 >= character length 3"));
+    assert!(!err.message.contains("length 9"));
+}
+
+#[test]
+fn char_at_emoji_out_of_bounds_reports_char_count_not_bytes() {
+    let err = safe_string_char_at("🦀🐍", 2, "emoji-ctx").unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKP001_SYNTAX);
+    assert!(err.message.contains("index 2 >= character length 2"));
+    assert!(!err.message.contains("length 8"));
+}
+
 // ── safe_write ──────────────────────────────────────────────────────
 
 #[test]

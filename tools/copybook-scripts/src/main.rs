@@ -9,6 +9,7 @@ use std::process::Command;
 use anyhow::{Context, Result, bail};
 use chrono::SecondsFormat;
 use clap::{Parser, Subcommand};
+use regex::Regex;
 use serde_json::{Map, Value};
 
 #[derive(Debug, Parser)]
@@ -29,6 +30,18 @@ enum CommandKind {
         #[arg(value_name = "PATH")]
         file: PathBuf,
     },
+    AdaptReviewAgents {
+        #[arg(long, value_name = "DIR", default_value = ".claude/agents4/review")]
+        agents_dir: PathBuf,
+    },
+    FixAgentIssues {
+        #[arg(long, value_name = "DIR", default_value = ".claude/agents4/review")]
+        agents_dir: PathBuf,
+    },
+    FinalCleanupAgents {
+        #[arg(long, value_name = "DIR", default_value = ".claude/agents4/review")]
+        agents_dir: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
@@ -39,6 +52,15 @@ fn main() -> Result<()> {
         CommandKind::PerfAnnotateHost => perf_annotate_host(),
         CommandKind::SoakDispatch => soak_dispatch(),
         CommandKind::CleanMergeConflicts { file } => clean_merge_conflicts(file),
+        CommandKind::AdaptReviewAgents { agents_dir } => {
+            process_agent_files(agents_dir, AgentMigrationStep::Adapt)
+        }
+        CommandKind::FixAgentIssues { agents_dir } => {
+            process_agent_files(agents_dir, AgentMigrationStep::Fix)
+        }
+        CommandKind::FinalCleanupAgents { agents_dir } => {
+            process_agent_files(agents_dir, AgentMigrationStep::FinalCleanup)
+        }
     }
 }
 
@@ -335,4 +357,367 @@ fn clean_merge_conflicts(file: PathBuf) -> Result<()> {
 
     fs::write(&target, out).with_context(|| format!("failed to write {}", target.display()))?;
     Ok(())
+}
+
+#[derive(Debug, Clone, Copy)]
+enum AgentMigrationStep {
+    Adapt,
+    Fix,
+    FinalCleanup,
+}
+
+impl AgentMigrationStep {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Adapt => "process",
+            Self::Fix => "fix",
+            Self::FinalCleanup => "clean up",
+        }
+    }
+
+    fn past_tense(self) -> &'static str {
+        match self {
+            Self::Adapt => "Updated",
+            Self::Fix => "Fixed",
+            Self::FinalCleanup => "Cleaned up",
+        }
+    }
+
+    fn summary_noun(self) -> &'static str {
+        match self {
+            Self::Adapt => "Updated",
+            Self::Fix => "Fixed",
+            Self::FinalCleanup => "Final cleanup applied to",
+        }
+    }
+}
+
+fn process_agent_files(agents_dir: PathBuf, step: AgentMigrationStep) -> Result<()> {
+    let root = workspace_root()?;
+    let dir = if agents_dir.is_absolute() {
+        agents_dir
+    } else {
+        root.join(agents_dir)
+    };
+
+    if !dir.exists() {
+        println!("Error: Directory {} does not exist", dir.display());
+        return Ok(());
+    }
+
+    let mut agent_files = Vec::new();
+    for entry in fs::read_dir(&dir).with_context(|| format!("failed to read {}", dir.display()))? {
+        let path = entry?.path();
+        if path.extension().and_then(|ext| ext.to_str()) == Some("md") {
+            agent_files.push(path);
+        }
+    }
+    agent_files.sort();
+
+    if agent_files.is_empty() {
+        println!("No .md files found in {}", dir.display());
+        return Ok(());
+    }
+
+    let action = match step {
+        AgentMigrationStep::Adapt => "to process",
+        AgentMigrationStep::Fix => "to fix",
+        AgentMigrationStep::FinalCleanup => "for final cleanup",
+    };
+    println!("Found {} agent files {action}", agent_files.len());
+
+    let mut changed_count = 0;
+    for file in &agent_files {
+        if process_agent_file(file, step)? {
+            changed_count += 1;
+        }
+    }
+
+    println!(
+        "\nCompleted! {} {} of {} agent files.",
+        step.summary_noun(),
+        changed_count,
+        agent_files.len()
+    );
+    Ok(())
+}
+
+fn file_display_name(path: &Path) -> String {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map_or_else(|| path.display().to_string(), ToString::to_string)
+}
+
+fn process_agent_file(path: &Path, step: AgentMigrationStep) -> Result<bool> {
+    let name = file_display_name(path);
+    match step {
+        AgentMigrationStep::Adapt => println!("Processing {name}..."),
+        AgentMigrationStep::Fix => println!("Fixing {name}..."),
+        AgentMigrationStep::FinalCleanup => println!("Final cleanup of {name}..."),
+    }
+
+    let original =
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+    let updated = match step {
+        AgentMigrationStep::Adapt => adapt_review_agent(&original)?,
+        AgentMigrationStep::Fix => fix_agent_issues(&original)?,
+        AgentMigrationStep::FinalCleanup => final_cleanup_agent(&original)?,
+    };
+
+    if updated == original {
+        println!("  - No {} needed for {name}", step.label());
+        return Ok(false);
+    }
+
+    fs::write(path, updated).with_context(|| format!("failed to write {}", path.display()))?;
+    println!("  ✓ {} {name}", step.past_tense());
+    Ok(true)
+}
+
+fn replace_all(mut content: String, replacements: &[(&str, &str)]) -> String {
+    for (from, to) in replacements {
+        content = content.replace(from, to);
+    }
+    content
+}
+
+fn adapt_review_agent(source: &str) -> Result<String> {
+    let replacements = [
+        (
+            "BitNet.rs neural network inference",
+            "copybook-rs enterprise mainframe data processing",
+        ),
+        ("BitNet neural network", "copybook-rs enterprise mainframe"),
+        ("BitNet.rs", "copybook-rs"),
+        ("neural network", "COBOL parsing"),
+        ("quantization", "COBOL parsing"),
+        ("inference", "data conversion"),
+        ("GPU", "enterprise performance"),
+        ("I2S, TL1, TL2", "DISPLAY, COMP, COMP-3"),
+        ("quantization accuracy", "COBOL parsing accuracy"),
+        ("cross-validation", "mainframe compatibility"),
+        ("GGUF", "EBCDIC"),
+        ("tensor", "field"),
+        ("model", "copybook"),
+        ("CUDA", "SIMD"),
+        (
+            ">99% accuracy",
+            "enterprise performance targets (DISPLAY ≥ 4.1 GiB/s, COMP-3 ≥ 560 MiB/s)",
+        ),
+        ("99.8%", "4.1 GiB/s"),
+        ("99.6%", "560 MiB/s"),
+        ("bitnet-quantization", "copybook-core"),
+        ("bitnet-kernels", "copybook-codec"),
+        ("bitnet-inference", "copybook-cli"),
+        ("bitnet-wasm", "copybook-gen"),
+        ("bitnet-tokenizers", "copybook-bench"),
+        ("--no-default-features --features cpu", "--workspace"),
+        (
+            "--no-default-features --features gpu",
+            "--workspace --release",
+        ),
+        ("cargo run -p xtask -- crossval", "cargo xtask ci"),
+        (
+            "cargo run -p xtask -- benchmark",
+            "cargo bench --package copybook-bench",
+        ),
+        ("./scripts/verify-tests.sh", "cargo xtask ci --quick"),
+        ("CUDA unavailable", "xtask unavailable"),
+        ("GPU memory", "parsing memory"),
+        ("C++ reference", "mainframe compatibility"),
+        ("CPU: ok, GPU: ok", "workspace release ok"),
+        ("tokens/sec", "records/sec"),
+        ("I2S: 99.X%", "DISPLAY: X.Y GiB/s"),
+        ("quantization kernels", "COBOL parsing kernels"),
+        ("inference pipeline", "data processing pipeline"),
+        (
+            "1-bit neural networks",
+            "enterprise mainframe data processing",
+        ),
+    ];
+
+    let mut content = replace_all(source.to_string(), &replacements);
+    let bitnet_crate = Regex::new(r"bitnet-[a-zA-Z]+")?;
+    content = bitnet_crate
+        .replace_all(&content, |caps: &regex::Captures<'_>| match &caps[0] {
+            "bitnet-quantization" => "copybook-core",
+            "bitnet-kernels" => "copybook-codec",
+            "bitnet-inference" => "copybook-cli",
+            "bitnet-wasm" => "copybook-gen",
+            "bitnet-tokenizers" => "copybook-bench",
+            _ => "copybook-core",
+        })
+        .into_owned();
+
+    let test_features = Regex::new(r"cargo test --workspace --no-default-features --features \w+")?;
+    content = test_features
+        .replace_all(&content, "cargo test --workspace")
+        .into_owned();
+
+    let build_features = Regex::new(r"cargo build --release --no-default-features --features \w+")?;
+    content = build_features
+        .replace_all(&content, "cargo build --workspace --release")
+        .into_owned();
+
+    let evidence = Regex::new(
+        r"tests: cargo test: (\d+)/(\d+) pass; CPU: (\d+)/(\d+), GPU: (\d+)/(\d+); quarantined: (\d+) \(linked\)",
+    )?;
+    content = evidence
+        .replace_all(
+            &content,
+            "tests: nextest: $1/$2 pass; enterprise validation: $3/$4; quarantined: $7 (linked)",
+        )
+        .into_owned();
+
+    Ok(content)
+}
+
+fn fix_agent_issues(source: &str) -> Result<String> {
+    let mut content = source.to_string();
+    let bad_frontmatter = Regex::new(r"(?m)^copybook: sonnet$")?;
+    content = bad_frontmatter
+        .replace_all(&content, "model: sonnet")
+        .into_owned();
+
+    let replacements = [
+        ("--workspace --workspace", "--workspace"),
+        ("--workspace --release --workspace", "--workspace --release"),
+        ("copybook-core parsing", "copybook-core"),
+        ("copybook-codec parsing", "copybook-codec"),
+        ("deCOBOL parsing", "data conversion"),
+        (
+            "I2S: 4.1 GiB/s, TL1: 560 MiB/s, TL2: 99.7%",
+            "DISPLAY: ≥4.1 GiB/s, COMP-3: ≥560 MiB/s",
+        ),
+        ("copybook.gguf", "copybook.cpy"),
+        ("copybooks/bitnet/", "examples/"),
+        ("weight deCOBOL parsing", "field layout computation"),
+        (
+            "COBOL parsing/deCOBOL parsing",
+            "COBOL parsing/data conversion",
+        ),
+        (
+            "COBOL parsing kernels (DISPLAY, COMP, COMP-3)",
+            "COBOL parsing engines (lexer, parser, AST)",
+        ),
+        ("records/sec", "GiB/s for DISPLAY, MiB/s for COMP-3"),
+        ("BITNET_DETERMINISTIC=1", "deterministic parsing"),
+        ("BITNET_EBCDIC", "COPYBOOK_DATA"),
+    ];
+    content = replace_all(content, &replacements);
+
+    let workspace_refs = Regex::new(r"bitnet-\*")?;
+    Ok(workspace_refs
+        .replace_all(&content, "copybook-*")
+        .into_owned())
+}
+
+fn final_cleanup_agent(source: &str) -> Result<String> {
+    let replacements = [
+        (
+            "1-bit quantized COBOL parsings",
+            "enterprise mainframe data processing",
+        ),
+        (
+            "Neural Network Security Testing (NNST)",
+            "COBOL Parsing Security Testing",
+        ),
+        ("HuggingFace tokens", "mainframe authentication tokens"),
+        ("copybook poisoning attacks", "malicious copybook attacks"),
+        (
+            "copybook-rs workspace crates",
+            "copybook-rs 5-crate workspace (core, codec, cli, gen, bench)",
+        ),
+        (
+            "cargo clippy --workspace --all-targets --workspace",
+            "cargo clippy --workspace --all-targets",
+        ),
+        (
+            "--workspace -- -D warnings",
+            "-- -D warnings -W clippy::pedantic",
+        ),
+        ("COBOL parsing COBOL parsing", "COBOL parsing"),
+        ("enterprise performance/CPU", "high-performance"),
+        ("enterprise performance memory", "memory"),
+        ("SIMD enterprise performance", "SIMD CPU"),
+        ("GiB/s for DISPLAY, MiB/s for COMP-3ond", "records/second"),
+        (
+            "GiB/s for DISPLAY, MiB/s for COMP-3",
+            "GiB/s (DISPLAY), MiB/s (COMP-3)",
+        ),
+        (
+            "cargo bench --workspace --workspace",
+            "cargo bench --package copybook-bench",
+        ),
+        (
+            "cargo test --workspace --workspace",
+            "cargo test --workspace",
+        ),
+        (
+            "I2S ≥4.1 GiB/s, TL1 ≥560 MiB/s, TL2 ≥99.7%",
+            "DISPLAY ≥4.1 GiB/s, COMP-3 ≥560 MiB/s",
+        ),
+        ("I2S: 4.1 GiB/s", "DISPLAY: 4.1+ GiB/s"),
+        ("TL1: 560 MiB/s", "COMP-3: 560+ MiB/s"),
+        ("copybook weight handling", "copybook field handling"),
+        ("weight data conversion", "field layout computation"),
+        ("Tensor Core acceleration", "SIMD acceleration"),
+        ("mixed precision", "high-precision"),
+        ("--tokens 128", "--batch-size 128"),
+        (
+            "--copybook examples/copybook.cpy --tokens",
+            "--input examples/data.bin --copybook examples/schema.cpy --records",
+        ),
+        ("Neural Network Validation", "COBOL Parsing Validation"),
+        ("attention computation", "field processing"),
+        ("KV cache", "field cache"),
+    ];
+    let mut content = replace_all(source.to_string(), &replacements);
+
+    let dequantize = Regex::new(r"test_dequantize_cpu_and_gpu_paths")?;
+    content = dequantize
+        .replace_all(&content, "enterprise_performance_validation")
+        .into_owned();
+
+    let data_env = Regex::new(r#"COPYBOOK_DATA="[^"]*""#)?;
+    Ok(data_env
+        .replace_all(&content, "COPYBOOK_TEST_DATA=\"examples/test.cpy\"")
+        .into_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{adapt_review_agent, final_cleanup_agent, fix_agent_issues};
+
+    #[test]
+    fn adapt_review_agents_rewrites_bitnet_domain_terms() {
+        let source = "BitNet.rs neural network inference uses bitnet-kernels and CUDA.";
+        let updated = adapt_review_agent(source)
+            .unwrap_or_else(|error| panic!("adaptation should succeed: {error}"));
+
+        assert!(updated.contains("copybook-rs enterprise mainframe data processing"));
+        assert!(updated.contains("copybook-codec"));
+        assert!(updated.contains("SIMD"));
+    }
+
+    #[test]
+    fn fix_agent_issues_repairs_frontmatter_and_metrics() {
+        let source = "copybook: sonnet\nI2S: 4.1 GiB/s, TL1: 560 MiB/s, TL2: 99.7%";
+        let updated =
+            fix_agent_issues(source).unwrap_or_else(|error| panic!("fix should succeed: {error}"));
+
+        assert!(updated.contains("model: sonnet"));
+        assert!(updated.contains("DISPLAY: ≥4.1 GiB/s, COMP-3: ≥560 MiB/s"));
+    }
+
+    #[test]
+    fn final_cleanup_agents_rewrites_residual_patterns() {
+        let source = "Neural Network Security Testing (NNST) COPYBOOK_DATA=\"bad\" test_dequantize_cpu_and_gpu_paths";
+        let updated = final_cleanup_agent(source)
+            .unwrap_or_else(|error| panic!("cleanup should succeed: {error}"));
+
+        assert!(updated.contains("COBOL Parsing Security Testing"));
+        assert!(updated.contains("COPYBOOK_TEST_DATA=\"examples/test.cpy\""));
+        assert!(updated.contains("enterprise_performance_validation"));
+    }
 }

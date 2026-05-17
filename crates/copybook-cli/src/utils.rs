@@ -2,13 +2,61 @@
 //! Utility functions for CLI operations
 
 use crate::exit_codes::ExitCode;
-use copybook_core::{ParseOptions, Schema};
+use copybook_codec::RunSummary;
+use copybook_core::{ParseOptions, Schema, parse_copybook_with_options};
+use std::fmt::Write as FmtWrite;
+use std::fs;
 use std::io::{self, Read, Write};
 use std::path::Path;
 #[cfg(test)]
 use std::path::PathBuf;
 use tempfile::NamedTempFile;
 use tracing::{debug, info};
+
+/// Effective error handling derived from CLI `strict`, `max_errors`, and `fail_fast` flags.
+pub struct ErrorPolicy {
+    pub strict_mode: bool,
+    pub max_errors: Option<u64>,
+}
+
+/// Normalize strict/error-limit flags shared by encode and decode commands.
+#[must_use]
+pub const fn effective_error_policy(
+    strict: bool,
+    fail_fast: bool,
+    max_errors: Option<u64>,
+) -> ErrorPolicy {
+    ErrorPolicy {
+        strict_mode: strict || fail_fast,
+        max_errors: if fail_fast { Some(1) } else { max_errors },
+    }
+}
+
+/// Emit the common strict-comments informational trace used by CLI commands.
+pub fn log_strict_comments(strict_comments: bool) {
+    if strict_comments {
+        info!("Inline comments (*>) disabled (COBOL-85 compatibility)");
+    }
+}
+
+/// Read, parse, and optionally project a copybook schema.
+///
+/// This consolidates the parse/projection pipeline shared by commands that
+/// transform data using a copybook.
+///
+/// # Errors
+///
+/// Returns an error when the copybook cannot be read, parsed, or projected.
+pub fn parse_projected_schema(
+    copybook: &Path,
+    config: &ParseOptionsConfig,
+    select_args: &[String],
+) -> anyhow::Result<Schema> {
+    let copybook_text = read_file_or_stdin(copybook)?;
+    let parse_options = build_parse_options(config);
+    let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
+    apply_field_projection(schema, select_args)
+}
 
 /// Parse --select arguments (supports comma-separated and multiple flags)
 ///
@@ -85,6 +133,91 @@ pub fn build_parse_options(config: &ParseOptionsConfig) -> ParseOptions {
         allow_inline_comments: !config.strict_comments,
         dialect: config.dialect,
     }
+}
+
+/// Run a streaming transformation, writing either to stdout (`-`) or atomically to a file.
+///
+/// # Errors
+///
+/// Returns an error when input cannot be opened, the transformation fails, or the
+/// output cannot be written atomically.
+pub fn run_with_output<T, F>(
+    input: &Path,
+    output: &Path,
+    mut process: F,
+) -> anyhow::Result<(T, bool)>
+where
+    F: FnMut(fs::File, &mut dyn Write) -> anyhow::Result<T>,
+{
+    let write_to_stdout = output == Path::new("-");
+
+    if write_to_stdout {
+        let input_file = fs::File::open(input)?;
+        let mut stdout = std::io::stdout().lock();
+        return Ok((process(input_file, &mut stdout)?, true));
+    }
+
+    let mut summary = None;
+    atomic_write(output, |output_writer| {
+        let input_file = fs::File::open(input).map_err(std::io::Error::other)?;
+        let run_summary = process(input_file, output_writer).map_err(std::io::Error::other)?;
+        summary = Some(run_summary);
+        Ok(())
+    })?;
+
+    let summary = summary.ok_or_else(|| {
+        anyhow::anyhow!("Internal error: summary not populated after successful processing")
+    })?;
+    Ok((summary, false))
+}
+
+/// Controls how issue counts are printed in a processing summary.
+pub struct SummaryIssueCountStyle {
+    pub show_zero_counts: bool,
+    pub repeat_nonzero_counts: bool,
+}
+
+/// Append the standard encode/decode processing summary to `output`.
+///
+/// # Errors
+///
+/// Returns a formatting error if writing to the provided string fails.
+pub fn append_processing_summary(
+    output: &mut String,
+    title: &str,
+    summary: &RunSummary,
+    issue_style: SummaryIssueCountStyle,
+) -> std::fmt::Result {
+    writeln!(output, "=== {title} Summary ===")?;
+    writeln!(output, "Records processed: {}", summary.records_processed)?;
+    if issue_style.show_zero_counts || summary.records_with_errors > 0 {
+        writeln!(
+            output,
+            "Records with errors: {}",
+            summary.records_with_errors
+        )?;
+    }
+    if issue_style.show_zero_counts || summary.warnings > 0 {
+        writeln!(output, "Warnings: {}", summary.warnings)?;
+    }
+    writeln!(output, "Processing time: {}ms", summary.processing_time_ms)?;
+    writeln!(output, "Bytes processed: {}", summary.bytes_processed)?;
+    writeln!(output, "Throughput: {:.2} MB/s", summary.throughput_mbps)?;
+
+    if issue_style.repeat_nonzero_counts {
+        if summary.has_warnings() {
+            writeln!(output, "Warnings: {}", summary.warnings)?;
+        }
+        if summary.has_errors() {
+            writeln!(
+                output,
+                "Records with errors: {}",
+                summary.records_with_errors
+            )?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Atomically write data to a file using temporary file + rename
@@ -238,6 +371,63 @@ mod tests {
             determine_exit_code(true, true, ExitCode::Encode),
             ExitCode::Encode
         ); // Both warnings and errors adopt failure variant
+    }
+
+    #[test]
+    fn test_effective_error_policy() {
+        let lenient = effective_error_policy(false, false, Some(25));
+        assert!(!lenient.strict_mode);
+        assert_eq!(lenient.max_errors, Some(25));
+
+        let fail_fast = effective_error_policy(false, true, Some(25));
+        assert!(fail_fast.strict_mode);
+        assert_eq!(fail_fast.max_errors, Some(1));
+
+        let strict = effective_error_policy(true, false, None);
+        assert!(strict.strict_mode);
+        assert_eq!(strict.max_errors, None);
+    }
+
+    #[test]
+    fn test_append_processing_summary_styles() -> Result<()> {
+        let summary = RunSummary {
+            records_processed: 3,
+            records_with_errors: 1,
+            warnings: 2,
+            processing_time_ms: 42,
+            bytes_processed: 2048,
+            throughput_mbps: 1.5,
+            ..RunSummary::default()
+        };
+
+        let mut encode_summary = String::new();
+        append_processing_summary(
+            &mut encode_summary,
+            "Encode",
+            &summary,
+            SummaryIssueCountStyle {
+                show_zero_counts: false,
+                repeat_nonzero_counts: false,
+            },
+        )?;
+        assert!(encode_summary.contains("=== Encode Summary ==="));
+        assert_eq!(encode_summary.matches("Warnings: 2").count(), 1);
+        assert_eq!(encode_summary.matches("Records with errors: 1").count(), 1);
+
+        let mut decode_summary = String::new();
+        append_processing_summary(
+            &mut decode_summary,
+            "Decode",
+            &summary,
+            SummaryIssueCountStyle {
+                show_zero_counts: true,
+                repeat_nonzero_counts: true,
+            },
+        )?;
+        assert!(decode_summary.contains("=== Decode Summary ==="));
+        assert_eq!(decode_summary.matches("Warnings: 2").count(), 2);
+        assert_eq!(decode_summary.matches("Records with errors: 1").count(), 2);
+        Ok(())
     }
 
     #[test]

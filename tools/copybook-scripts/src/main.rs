@@ -26,6 +26,7 @@ enum CommandKind {
     GuardHotpaths,
     PerfAnnotateHost,
     SoakDispatch,
+    CheckPublicResultDocs,
     CleanMergeConflicts {
         #[arg(value_name = "PATH")]
         file: PathBuf,
@@ -42,6 +43,7 @@ fn main() -> Result<()> {
         CommandKind::GuardHotpaths => guard_hotpaths(),
         CommandKind::PerfAnnotateHost => perf_annotate_host(),
         CommandKind::SoakDispatch => soak_dispatch(),
+        CommandKind::CheckPublicResultDocs => check_public_result_docs(),
         CommandKind::CleanMergeConflicts { file } => clean_merge_conflicts(file),
         CommandKind::AdaptReviewAgents => adapt_review_agents(),
         CommandKind::FixAgentIssues => fix_agent_issues(),
@@ -148,6 +150,112 @@ fn collect_rs_paths(root: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
             }
 
             if has_component(&entry_path, "src") {
+                out.push(entry_path);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn looks_like_public_result_fn(line: &str) -> bool {
+    let trimmed = line.trim_start();
+    trimmed.starts_with("pub fn ") && trimmed.contains("->") && trimmed.contains("Result<")
+}
+
+fn header_window(lines: &[&str], line_index: usize) -> String {
+    let start = line_index.saturating_sub(4);
+    lines[start..line_index].join("\n")
+}
+
+fn has_inline_attr(header: &str) -> bool {
+    header
+        .lines()
+        .any(|line| line.trim_start().starts_with("#[inline"))
+}
+
+fn has_must_use_attr(header: &str) -> bool {
+    header
+        .lines()
+        .any(|line| line.trim_start().starts_with("#[must_use"))
+}
+
+fn has_errors_doc(header: &str) -> bool {
+    header.lines().any(|line| {
+        let trimmed = line.trim_start();
+        trimmed.starts_with("///") && trimmed[3..].trim_start().starts_with("# Errors")
+    })
+}
+
+fn check_public_result_docs() -> Result<()> {
+    let root = workspace_root()?;
+    let scan_dirs = [
+        root.join("crates").join("copybook-codec").join("src"),
+        root.join("crates").join("copybook-core").join("src"),
+    ];
+    let mut miss = false;
+
+    for dir in scan_dirs {
+        let mut paths = Vec::new();
+        collect_rs_paths_under(&dir, &mut paths)?;
+        paths.sort();
+
+        for path in paths {
+            let source = fs::read_to_string(&path)
+                .with_context(|| format!("failed to read {}", path.display()))?;
+            let lines: Vec<&str> = source.lines().collect();
+            let rel = path.strip_prefix(&root).unwrap_or(&path);
+
+            for (idx, line) in lines.iter().enumerate() {
+                if !looks_like_public_result_fn(line) {
+                    continue;
+                }
+
+                let header = header_window(&lines, idx);
+                let line_no = idx + 1;
+
+                if !has_inline_attr(&header) {
+                    println!("missing #[inline]      @ {}:{line_no}", rel.display());
+                    miss = true;
+                }
+                if !has_must_use_attr(&header) {
+                    println!("missing #[must_use]    @ {}:{line_no}", rel.display());
+                    miss = true;
+                }
+                if !has_errors_doc(&header) {
+                    println!("missing doc '# Errors' @ {}:{line_no}", rel.display());
+                    miss = true;
+                }
+            }
+        }
+    }
+
+    if miss {
+        bail!("public Result function docs check failed");
+    }
+
+    Ok(())
+}
+
+fn collect_rs_paths_under(root: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+    let mut entries = vec![root.to_path_buf()];
+
+    while let Some(path) = entries.pop() {
+        for item in fs::read_dir(&path)? {
+            let entry = item?;
+            let file_type = entry.file_type()?;
+            let entry_path = entry.path();
+
+            if file_type.is_dir() {
+                entries.push(entry_path);
+                continue;
+            }
+
+            if !file_type.is_file() {
+                continue;
+            }
+
+            if entry_path.extension().and_then(|ext| ext.to_str()) == Some("rs") {
                 out.push(entry_path);
             }
         }

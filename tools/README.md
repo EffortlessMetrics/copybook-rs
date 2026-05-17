@@ -26,7 +26,7 @@ cargo run --package copybook-gen -- generate-golden-fixtures --enterprise --outp
 
 ### copybook-scripts
 
-Small Rust-native replacements for repository-maintenance shell scripts.
+Small Rust-native replacements for repository-maintenance shell and Python scripts.
 
 ```bash
 cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- check-no-unwrap-expect
@@ -34,6 +34,9 @@ cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- guard-hot
 cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- perf-annotate-host
 cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- soak-dispatch
 cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- clean-merge-conflicts path/to/file.rs
+cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- adapt-review-agents
+cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- fix-agent-issues
+cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- final-cleanup-agents
 ```
 
 ### xtask

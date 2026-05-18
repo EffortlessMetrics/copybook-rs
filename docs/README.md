@@ -15,6 +15,7 @@ Start with **[START_HERE.md](START_HERE.md)** for the hand-maintained navigation
 - [COBOL Support Matrix](reference/COBOL_SUPPORT_MATRIX.md) -- feature coverage
 - [Error Codes](reference/ERROR_CODES.md) -- 10 families, 61 stable codes
 - [CLI Examples](reference/CLI_EXAMPLES.md) -- copy-paste command recipes
+- [Source-of-Truth System](reference/SPEC_SYSTEM.md) -- repo control plane for proposals, specs, ADRs, plans, active goals, and proof
 
 ### Project
 - [Roadmap](ROADMAP.md) -- project status, next/later plan
@@ -25,6 +26,8 @@ Start with **[START_HERE.md](START_HERE.md)** for the hand-maintained navigation
 - [Release Process](RELEASE_PROCESS.md) -- release workflow
 
 ### Architecture
+- [Proposals](proposals/) -- lane motivation, users, risks, and success criteria
+- [Specs](specs/) -- behavior contracts, acceptance examples, and proof requirements
 - [Architecture Decision Records](adr/) -- ADRs for significant decisions
 - [Design docs](design/) -- ODO, RENAMES, feature contracts
 - [Internal feature specs](internal/features/) -- dialect lever, edited PIC

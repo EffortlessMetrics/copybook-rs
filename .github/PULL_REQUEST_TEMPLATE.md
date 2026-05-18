@@ -5,6 +5,42 @@
 
 <!-- Provide a brief description of what this PR does and why -->
 
+## Source-of-Truth Links
+
+Proposal: n/a
+Spec: n/a
+ADR: n/a
+Plan item: n/a
+Active goal: n/a
+
+## Scope
+
+- [ ] Proposal / why
+- [ ] Spec / behavior contract
+- [ ] ADR / durable decision
+- [ ] Plan / sequencing
+- [ ] Active goal / current execution state
+- [ ] Runtime / implementation
+- [ ] Policy ledger
+- [ ] Support-tier update
+- [ ] Generated status / receipt
+
+## Non-goals
+
+<!-- What this PR explicitly does not do -->
+
+## Proof
+
+```bash
+# commands run
+```
+
+Results:
+
+Claim boundary:
+
+Rollback:
+
 ## Type of Change
 
 <!-- Mark the relevant option with an 'x' -->

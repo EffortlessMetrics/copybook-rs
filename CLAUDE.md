@@ -3,6 +3,28 @@
 
 Maintainer and operator guidance for Claude Code working in this repository.
 
+## Source-of-Truth Workflow
+
+Before changing files for a lane or work item, read:
+
+1. `docs/reference/SPEC_SYSTEM.md`
+2. `.copybook/goals/active.toml` when it exists
+3. the linked implementation plan
+4. the linked spec for the selected work item
+5. any linked ADRs
+
+Work on exactly one work item at a time. Do not create a new lane, mix semantic
+artifact types, broaden support claims, or hand-edit generated status unless the
+selected plan item explicitly requires it. A PR is ready only when the intended
+artifact or code change exists, linked docs are updated, proof commands have run
+or are explicitly marked unavailable, claim boundaries are respected, and
+`git diff --check` passes.
+
+Stop and report instead of guessing when the active goal is missing or stale,
+linked specs are missing, proof commands cannot run, generated status differs
+from committed status, requested work conflicts with an ADR, or the branch
+contains unrelated staged changes.
+
 ## Project Identity
 
 - Rust workspace, Edition 2024, MSRV 1.92

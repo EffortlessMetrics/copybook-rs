@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Root facade for the copybook-rs COBOL copybook and mainframe data crate family."
+documentation = "https://docs.rs/copybook"
+readme = "README.md"
+keywords = ["copybook", "cobol", "mainframe", "ebcdic", "fixed-width"]
+categories = ["parsing", "encoding", "data-structures"]
+
+# Keep the root facade tarball focused on the public crate surface.
+include = ["src/**", "Cargo.toml", "README.md"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+copybook-charset.workspace = true
+copybook-codec.workspace = true
+copybook-codepage.workspace = true
+copybook-contracts.workspace = true
+copybook-core.workspace = true
+copybook-determinism.workspace = true
+copybook-error.workspace = true
+copybook-error-reporter.workspace = true
+copybook-fixed.workspace = true
+copybook-governance-contracts.workspace = true
+copybook-options.workspace = true
+copybook-overflow.workspace = true
+copybook-overpunch.workspace = true
+copybook-rdw.workspace = true
+copybook-record-io.workspace = true
+copybook-support-matrix.workspace = true
+copybook-utils.workspace = true
+
+[lints]
+workspace = true

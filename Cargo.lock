@@ -738,6 +738,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "copybook"
+version = "0.4.3"
+dependencies = [
+ "copybook-charset",
+ "copybook-codec",
+ "copybook-codepage",
+ "copybook-contracts",
+ "copybook-core",
+ "copybook-determinism",
+ "copybook-error",
+ "copybook-error-reporter",
+ "copybook-fixed",
+ "copybook-governance-contracts",
+ "copybook-options",
+ "copybook-overflow",
+ "copybook-overpunch",
+ "copybook-rdw",
+ "copybook-record-io",
+ "copybook-support-matrix",
+ "copybook-utils",
+]
+
+[[package]]
 name = "copybook-arrow"
 version = "0.4.3"
 dependencies = [
@@ -1190,6 +1213,13 @@ dependencies = [
  "copybook-options",
  "copybook-rdw",
  "proptest",
+]
+
+[[package]]
+name = "copybook-rs"
+version = "0.4.3"
+dependencies = [
+ "copybook",
 ]
 
 [[package]]

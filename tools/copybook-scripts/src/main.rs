@@ -51,7 +51,7 @@ fn main() -> Result<()> {
         CommandKind::PerfAnnotateHost => perf_annotate_host(),
         CommandKind::SoakAggregate => soak_aggregate(),
         CommandKind::SoakDispatch => soak_dispatch(),
-        CommandKind::ValidatePerfReceipt { receipt_file } => validate_perf_receipt(receipt_file),
+        CommandKind::ValidatePerfReceipt { receipt_file } => validate_perf_receipt(&receipt_file),
         CommandKind::AuditScriptMigrations => audit_script_migrations(),
         CommandKind::CleanMergeConflicts { file } => clean_merge_conflicts(file),
         CommandKind::AdaptReviewAgents => adapt_review_agents(),
@@ -1154,7 +1154,7 @@ fn canonical_json_without_integrity(receipt: &Value) -> Result<String> {
     Ok(out)
 }
 
-fn validate_perf_receipt(receipt_file: PathBuf) -> Result<()> {
+fn validate_perf_receipt(receipt_file: &Path) -> Result<()> {
     println!(
         "🔍 Validating performance receipt: {}",
         receipt_file.display()
@@ -1165,7 +1165,7 @@ fn validate_perf_receipt(receipt_file: PathBuf) -> Result<()> {
     }
 
     let receipt: Value = serde_json::from_str(
-        &fs::read_to_string(&receipt_file)
+        &fs::read_to_string(receipt_file)
             .with_context(|| format!("failed to read {}", receipt_file.display()))?,
     )
     .context("❌ Invalid JSON format")?;

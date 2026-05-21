@@ -44,6 +44,8 @@ use std::collections::HashSet;
 /// assert_eq!(projected.fields[0].children.len(), 1);
 /// assert_eq!(projected.fields[0].children[0].name, "ID");
 /// ```
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn project_schema(schema: &Schema, selections: &[String]) -> Result<Schema> {
     if selections.is_empty() {
         return Ok(Schema::from_fields(Vec::new()));

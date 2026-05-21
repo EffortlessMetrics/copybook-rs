@@ -159,10 +159,14 @@ impl FromStr for Codepage {
 
     #[inline]
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let s = s.to_lowercase();
         Ok(Self::METADATA
             .iter()
-            .find_map(|(codepage, metadata)| (metadata.display_name == s).then_some(*codepage))
+            .find_map(|(codepage, metadata)| {
+                metadata
+                    .display_name
+                    .eq_ignore_ascii_case(s)
+                    .then_some(*codepage)
+            })
             // Default to CP037 for backward compatibility
             .unwrap_or(Self::CP037))
     }
@@ -223,10 +227,9 @@ impl FromStr for UnmappablePolicy {
 
     #[inline]
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let s = s.to_lowercase();
         Ok(Self::NAMES
             .iter()
-            .find_map(|(policy, name)| (*name == s).then_some(*policy))
+            .find_map(|(policy, name)| name.eq_ignore_ascii_case(s).then_some(*policy))
             // Default to Error for backward compatibility
             .unwrap_or(Self::Error))
     }

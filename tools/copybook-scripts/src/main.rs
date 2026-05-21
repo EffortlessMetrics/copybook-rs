@@ -355,7 +355,6 @@ enum TextRule {
 
 fn bitnet_crate_replacement(hit: &str) -> &str {
     match hit {
-        "bitnet-quantization" => "copybook-core",
         "bitnet-kernels" => "copybook-codec",
         "bitnet-inference" => "copybook-cli",
         "bitnet-wasm" => "copybook-gen",
@@ -466,6 +465,18 @@ const ADAPT_REVIEW_AGENT_RULES: &[TextRule] = &[
         "BitNet.rs neural network inference",
         "copybook-rs enterprise mainframe data processing",
     ),
+    TextRule::Regex(
+        r"cargo test --workspace --no-default-features --features \w+",
+        "cargo test --workspace",
+    ),
+    TextRule::Regex(
+        r"cargo build --release --no-default-features --features \w+",
+        "cargo build --workspace --release",
+    ),
+    TextRule::Regex(
+        r"tests: cargo test: (\d+)/(\d+) pass; CPU: (\d+)/(\d+), GPU: (\d+)/(\d+); quarantined: (\d+) \(linked\)",
+        "tests: nextest: $1/$2 pass; enterprise validation: $3/$4; quarantined: $7 (linked)",
+    ),
     TextRule::Literal("BitNet neural network", "copybook-rs enterprise mainframe"),
     TextRule::Literal("BitNet.rs", "copybook-rs"),
     TextRule::Literal("neural network", "COBOL parsing"),
@@ -514,18 +525,6 @@ const ADAPT_REVIEW_AGENT_RULES: &[TextRule] = &[
         "enterprise mainframe data processing",
     ),
     TextRule::BitnetCrate,
-    TextRule::Regex(
-        r"cargo test --workspace --no-default-features --features \w+",
-        "cargo test --workspace",
-    ),
-    TextRule::Regex(
-        r"cargo build --release --no-default-features --features \w+",
-        "cargo build --workspace --release",
-    ),
-    TextRule::Regex(
-        r"tests: cargo test: (\d+)/(\d+) pass; CPU: (\d+)/(\d+), GPU: (\d+)/(\d+); quarantined: (\d+) \(linked\)",
-        "tests: nextest: $1/$2 pass; enterprise validation: $3/$4; quarantined: $7 (linked)",
-    ),
 ];
 
 const FIX_AGENT_ISSUE_RULES: &[TextRule] = &[
@@ -593,6 +592,10 @@ const FINAL_CLEANUP_AGENT_RULES: &[TextRule] = &[
         "cargo bench --package copybook-bench",
     ),
     TextRule::Literal(
+        "cargo bench --workspace",
+        "cargo bench --package copybook-bench",
+    ),
+    TextRule::Literal(
         "cargo test --workspace --workspace",
         "cargo test --workspace",
     ),
@@ -638,4 +641,86 @@ fn final_cleanup_agents() -> Result<()> {
         "for final cleanup",
         FINAL_CLEANUP_AGENT_RULES,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        ADAPT_REVIEW_AGENT_RULES, FINAL_CLEANUP_AGENT_RULES, FIX_AGENT_ISSUE_RULES,
+        apply_text_rules, replace_bitnet_crate_names,
+    };
+
+    fn apply_rules(input: &str, rules: &[super::TextRule]) -> String {
+        match apply_text_rules(input.to_string(), rules) {
+            Ok(output) => output,
+            Err(error) => panic!("{error}"),
+        }
+    }
+
+    #[test]
+    fn bitnet_crate_mapper_handles_known_and_default_crates() {
+        let input =
+            "bitnet-kernels bitnet-inference bitnet-quantization bitnet-tokenizers bitnet-extra";
+
+        assert_eq!(
+            replace_bitnet_crate_names(input),
+            "copybook-codec copybook-cli copybook-core copybook-bench copybook-core"
+        );
+    }
+
+    #[test]
+    fn adapt_review_rules_rewrite_commands_and_evidence() {
+        let input = concat!(
+            "BitNet.rs neural network inference\n",
+            "cargo test --workspace --no-default-features --features gpu\n",
+            "tests: cargo test: 9/10 pass; CPU: 4/5, GPU: 6/7; quarantined: 1 (linked)\n",
+        );
+
+        let output = apply_rules(input, ADAPT_REVIEW_AGENT_RULES);
+
+        assert!(output.contains("copybook-rs enterprise mainframe data processing"));
+        assert!(output.contains("cargo test --workspace"));
+        assert!(output.contains(
+            "tests: nextest: 9/10 pass; enterprise validation: 4/5; quarantined: 1 (linked)"
+        ));
+    }
+
+    #[test]
+    fn fix_agent_issue_rules_repair_frontmatter_and_workspace_terms() {
+        let input = concat!(
+            "---\n",
+            "copybook: sonnet\n",
+            "---\n",
+            "cargo test --workspace --workspace\n",
+            "bitnet-* copybook.gguf BITNET_EBCDIC\n",
+        );
+
+        let output = apply_rules(input, FIX_AGENT_ISSUE_RULES);
+
+        assert!(output.contains("model: sonnet"));
+        assert!(output.contains("cargo test --workspace"));
+        assert!(output.contains("copybook-* copybook.cpy COPYBOOK_DATA"));
+    }
+
+    #[test]
+    fn final_cleanup_rules_rewrite_remaining_agent_terms() {
+        let input = concat!(
+            "Neural Network Validation uses COPYBOOK_DATA=\"fixtures/demo.cpy\"\n",
+            "attention computation and KV cache\n",
+            "cargo bench --workspace --workspace\n",
+            "cargo bench --workspace\n",
+        );
+
+        let output = apply_rules(input, FINAL_CLEANUP_AGENT_RULES);
+
+        assert!(output.contains("COBOL Parsing Validation"));
+        assert!(output.contains("COPYBOOK_TEST_DATA=\"examples/test.cpy\""));
+        assert!(output.contains("field processing and field cache"));
+        assert_eq!(
+            output
+                .matches("cargo bench --package copybook-bench")
+                .count(),
+            2
+        );
+    }
 }

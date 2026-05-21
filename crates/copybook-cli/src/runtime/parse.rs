@@ -12,9 +12,9 @@ pub(crate) enum ParseOutcome {
     Exit(ExitCode),
 }
 
-pub(crate) fn parse_cli() -> anyhow::Result<ParseOutcome> {
+pub(crate) fn parse_cli() -> ParseOutcome {
     match Cli::try_parse() {
-        Ok(cli) => Ok(ParseOutcome::Run(Box::new(cli))),
+        Ok(cli) => ParseOutcome::Run(Box::new(cli)),
         Err(err) => {
             let kind = err.kind();
             let _ = err.print();
@@ -36,7 +36,7 @@ pub(crate) fn parse_cli() -> anyhow::Result<ParseOutcome> {
                     0,
                 );
                 emit_exit_diagnostics_stage(&diagnostics, Stage::Finalize);
-                return Ok(ParseOutcome::Exit(ExitCode::Ok));
+                return ParseOutcome::Exit(ExitCode::Ok);
             }
             let exit_code = ExitCode::Encode;
             let message = err.to_string();
@@ -50,7 +50,7 @@ pub(crate) fn parse_cli() -> anyhow::Result<ParseOutcome> {
             )
             .with_error(Some(&err));
             emit_exit_diagnostics_stage(&diagnostics, Stage::Parse);
-            Ok(ParseOutcome::Exit(exit_code))
+            ParseOutcome::Exit(exit_code)
         }
     }
 }

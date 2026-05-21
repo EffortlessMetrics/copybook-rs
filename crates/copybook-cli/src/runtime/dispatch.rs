@@ -12,7 +12,21 @@ pub(crate) struct CommandExecution {
 }
 
 pub(crate) fn execute_command(command: Commands, strict_policy: bool) -> CommandExecution {
-    let (status, operation) = match command {
+    match command {
+        Commands::Parse { .. } | Commands::Inspect { .. } => execute_schema_command(command),
+        Commands::Decode { .. } | Commands::Encode { .. } => {
+            execute_codec_command(command, strict_policy)
+        }
+        #[cfg(feature = "audit")]
+        Commands::Audit { .. } => execute_support_command(command),
+        Commands::Verify { .. } | Commands::Support { .. } | Commands::Determinism { .. } => {
+            execute_support_command(command)
+        }
+    }
+}
+
+fn execute_schema_command(command: Commands) -> CommandExecution {
+    match command {
         Commands::Parse {
             copybook,
             output,
@@ -21,7 +35,7 @@ pub(crate) fn execute_command(command: Commands, strict_policy: bool) -> Command
             dialect,
         } => {
             let effective_dialect = effective_dialect(dialect);
-            (
+            command_execution(
                 crate::commands::parse::run(
                     &copybook,
                     output,
@@ -40,7 +54,7 @@ pub(crate) fn execute_command(command: Commands, strict_policy: bool) -> Command
             dialect,
         } => {
             let effective_dialect = effective_dialect(dialect);
-            (
+            command_execution(
                 crate::commands::inspect::run(
                     &copybook,
                     codepage,
@@ -51,6 +65,12 @@ pub(crate) fn execute_command(command: Commands, strict_policy: bool) -> Command
                 "inspect",
             )
         }
+        _ => command_routing_error("schema"),
+    }
+}
+
+fn execute_codec_command(command: Commands, strict_policy: bool) -> CommandExecution {
+    match command {
         Commands::Decode {
             copybook,
             input,
@@ -74,7 +94,7 @@ pub(crate) fn execute_command(command: Commands, strict_policy: bool) -> Command
             select,
         } => {
             let effective_dialect = effective_dialect(dialect);
-            (
+            command_execution(
                 crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
                     copybook: &copybook,
                     input: &input,
@@ -121,7 +141,7 @@ pub(crate) fn execute_command(command: Commands, strict_policy: bool) -> Command
             select,
         } => {
             let effective_dialect = effective_dialect(dialect);
-            (
+            command_execution(
                 crate::commands::encode::run(
                     &copybook,
                     &input,
@@ -146,6 +166,12 @@ pub(crate) fn execute_command(command: Commands, strict_policy: bool) -> Command
                 "encode",
             )
         }
+        _ => command_routing_error("codec"),
+    }
+}
+
+fn execute_support_command(command: Commands) -> CommandExecution {
+    match command {
         #[cfg(feature = "audit")]
         Commands::Audit { audit_command } => {
             let status = match tokio::runtime::Runtime::new() {
@@ -154,7 +180,7 @@ pub(crate) fn execute_command(command: Commands, strict_policy: bool) -> Command
                     .map_err(|err| anyhow!(err)),
                 Err(err) => Err(anyhow!(err)),
             };
-            (status, "audit")
+            command_execution(status, "audit")
         }
         Commands::Verify {
             copybook,
@@ -183,15 +209,30 @@ pub(crate) fn execute_command(command: Commands, strict_policy: bool) -> Command
                 };
                 crate::commands::verify::run(&copybook, &input, report, &opts)
             });
-            (status, "verify")
+            command_execution(status, "verify")
         }
-        Commands::Support { args } => (crate::commands::support::run(&args), "support"),
+        Commands::Support { args } => {
+            command_execution(crate::commands::support::run(&args), "support")
+        }
         Commands::Determinism { command } => {
-            (crate::commands::determinism::run(&command), "determinism")
+            command_execution(crate::commands::determinism::run(&command), "determinism")
         }
-    };
+        _ => command_routing_error("support"),
+    }
+}
 
+fn command_execution(
+    status: anyhow::Result<ExitCode>,
+    operation: &'static str,
+) -> CommandExecution {
     CommandExecution { status, operation }
+}
+
+fn command_routing_error(route: &'static str) -> CommandExecution {
+    command_execution(
+        Err(anyhow!("command routed to {route} dispatcher unexpectedly")),
+        "dispatch",
+    )
 }
 
 fn normalize_max_errors(max_errors: Option<u64>) -> anyhow::Result<u32> {

@@ -11,7 +11,7 @@ use crate::exit_codes::ExitCode;
 pub(crate) fn run() -> anyhow::Result<ExitCode> {
     trigger_test_panic_if_requested();
 
-    let cli = match parse::parse_cli()? {
+    let cli = match parse::parse_cli() {
         parse::ParseOutcome::Run(cli) => *cli,
         parse::ParseOutcome::Exit(exit_code) => return Ok(exit_code),
     };

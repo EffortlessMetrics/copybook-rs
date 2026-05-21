@@ -262,13 +262,19 @@ fn rust_item_header(lines: &[&str], function_line_index: usize) -> Vec<String> {
 fn missing_public_result_docs_for_source(
     path: &Path,
     source: &str,
-    signature_regex: &Regex,
+    function_start_regex: &Regex,
+    result_signature_regex: &Regex,
 ) -> Vec<PublicResultDocFinding> {
     let lines: Vec<&str> = source.lines().collect();
     let mut findings = Vec::new();
 
     for (index, line) in lines.iter().enumerate() {
-        if !signature_regex.is_match(line) {
+        if !function_start_regex.is_match(line) {
+            continue;
+        }
+
+        let signature = collect_function_signature(&lines, index);
+        if !result_signature_regex.is_match(&signature) {
             continue;
         }
 
@@ -312,8 +318,27 @@ fn missing_public_result_docs_for_source(
     findings
 }
 
+fn collect_function_signature(lines: &[&str], function_line_index: usize) -> String {
+    let mut signature = String::new();
+
+    for line in &lines[function_line_index..] {
+        if !signature.is_empty() {
+            signature.push(' ');
+        }
+        signature.push_str(line.trim());
+
+        if line.contains('{') || line.contains(';') {
+            break;
+        }
+    }
+
+    signature
+}
+
 fn collect_public_result_docs_findings(root: &Path) -> Result<Vec<PublicResultDocFinding>> {
-    let signature_regex = Regex::new(r"^\s*pub\s+fn\s+\w+.*->\s*Result<")?;
+    let function_start_regex = Regex::new(r"^\s*pub\s+fn\s+\w+")?;
+    let result_signature_regex =
+        Regex::new(r"^\s*pub\s+fn\s+\w+.*->\s*(?:[A-Za-z_]\w*::)*Result<")?;
     let scan_dirs = [
         root.join("crates").join("copybook-codec").join("src"),
         root.join("crates").join("copybook-core").join("src"),
@@ -331,7 +356,8 @@ fn collect_public_result_docs_findings(root: &Path) -> Result<Vec<PublicResultDo
             findings.extend(missing_public_result_docs_for_source(
                 &path,
                 &source,
-                &signature_regex,
+                &function_start_regex,
+                &result_signature_regex,
             ));
         }
     }
@@ -524,7 +550,14 @@ mod tests {
     use super::*;
 
     fn signature_regex() -> Regex {
-        match Regex::new(r"^\s*pub\s+fn\s+\w+.*->\s*Result<") {
+        match Regex::new(r"^\s*pub\s+fn\s+\w+.*->\s*(?:[A-Za-z_]\w*::)*Result<") {
+            Ok(regex) => regex,
+            Err(err) => panic!("test regex must compile: {err}"),
+        }
+    }
+
+    fn function_start_regex() -> Regex {
+        match Regex::new(r"^\s*pub\s+fn\s+\w+") {
             Ok(regex) => regex,
             Err(err) => panic!("test regex must compile: {err}"),
         }
@@ -548,6 +581,7 @@ pub fn decode_value() -> Result<()> {
         let findings = missing_public_result_docs_for_source(
             Path::new("src/lib.rs"),
             source,
+            &function_start_regex(),
             &signature_regex(),
         );
 
@@ -566,6 +600,7 @@ pub fn decode_value() -> Result<()> {
         let findings = missing_public_result_docs_for_source(
             Path::new("src/lib.rs"),
             source,
+            &function_start_regex(),
             &signature_regex(),
         );
         let checks: Vec<PublicResultDocCheck> =
@@ -579,5 +614,32 @@ pub fn decode_value() -> Result<()> {
                 PublicResultDocCheck::ErrorsDoc,
             ]
         );
+    }
+
+    #[test]
+    fn public_result_doc_check_reports_multiline_result_signatures() {
+        let source = r#"
+/// Encode a value.
+///
+/// # Errors
+/// Returns an encode error.
+#[inline]
+pub fn encode_value(
+    value: u32,
+    buffer: &mut [u8],
+) -> std::result::Result<(), Error> {
+    Ok(())
+}
+"#;
+
+        let findings = missing_public_result_docs_for_source(
+            Path::new("src/lib.rs"),
+            source,
+            &function_start_regex(),
+            &signature_regex(),
+        );
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].check, PublicResultDocCheck::MustUse);
     }
 }

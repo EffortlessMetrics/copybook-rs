@@ -293,6 +293,7 @@ impl NumericValue {
 /// Returns error if the input doesn't match the pattern
 #[inline]
 #[allow(clippy::too_many_lines)]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_edited_numeric(
     input: &str,
     pattern: &[PicToken],
@@ -640,6 +641,7 @@ fn parse_numeric_value(value: &str) -> Result<ParsedNumeric> {
 /// Returns error if the value cannot be encoded to the pattern
 #[inline]
 #[allow(clippy::too_many_lines)]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_edited_numeric(
     value: &str,
     pattern: &[PicToken],

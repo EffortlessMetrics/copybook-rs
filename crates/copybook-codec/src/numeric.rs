@@ -1326,6 +1326,7 @@ pub fn decode_zoned_decimal_sign_separate(
 /// # Errors
 /// Returns `CBKE530_SIGN_SEPARATE_ENCODE_ERROR` if the value cannot be encoded.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_zoned_decimal_sign_separate(
     value: &str,
     digits: u16,
@@ -4729,6 +4730,7 @@ pub fn encode_float_double_ibm_hex(value: f64, buffer: &mut [u8]) -> Result<()> 
 /// # Errors
 /// Returns format-specific encode errors.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_float_single_with_format(
     value: f32,
     buffer: &mut [u8],
@@ -4745,6 +4747,7 @@ pub fn encode_float_single_with_format(
 /// # Errors
 /// Returns format-specific encode errors.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_float_double_with_format(
     value: f64,
     buffer: &mut [u8],

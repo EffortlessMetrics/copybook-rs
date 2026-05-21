@@ -8,7 +8,17 @@ mod dispatch;
 mod finalize;
 mod startup_trace;
 
-use super::*;
+use super::{
+    BrokenPipeSafeStderr, ClapErrorKind, Cli, Commands, EnvFilter, ExitCode, ExitDiagnostics,
+    Feature, Level, Parser, Stage, effective_dialect, effective_strict_policy,
+    emit_exit_diagnostics_stage, initialize_feature_flags, invocation_id, list_all_features,
+};
+
+#[cfg(feature = "metrics")]
+use super::{
+    bump_error_if_pre_run, describe_metrics_once, metrics_grace_guard, metrics_records_total,
+    metrics_start_if_requested,
+};
 
 struct RuntimeContext {
     command: Commands,

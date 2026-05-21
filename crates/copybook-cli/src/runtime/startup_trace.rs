@@ -1,4 +1,4 @@
-use super::*;
+use super::{BrokenPipeSafeStderr, EnvFilter, invocation_id};
 
 pub(super) fn initialize(verbose: bool, strict_policy: bool) {
     let default_directive = if verbose { "debug" } else { "warn" };

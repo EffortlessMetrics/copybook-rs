@@ -14,7 +14,6 @@ use copybook_codec::{
 };
 use copybook_core::{Error as CoreError, Feature, FeatureCategory, FeatureFlags};
 use std::borrow::Cow;
-use std::convert::TryFrom;
 use std::error::Error as StdError;
 use std::io::{self, ErrorKind, Write};
 use std::panic::AssertUnwindSafe;

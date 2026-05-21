@@ -1,4 +1,4 @@
-use super::*;
+use super::{ExitCode, ExitDiagnostics, Level, Stage, dispatch, emit_exit_diagnostics_stage};
 
 pub(super) fn emit_command_exit(
     command_status: dispatch::CommandStatus,

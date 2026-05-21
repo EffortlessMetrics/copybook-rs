@@ -374,7 +374,7 @@ pub fn validate_explicit_binary_width(width_bytes: u8) -> Result<u16> {
 /// # See Also
 /// * [`decode_binary_int`] - General-purpose binary integer decoder
 /// * [`encode_binary_int`] - Binary integer encoder
-/// * [`format_binary_int_to_string_with_scratch`] - Formats the decoded value to a string
+/// * [`crate::numeric::format_binary_int_to_string_with_scratch`] - Formats the decoded value to a string
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i64> {

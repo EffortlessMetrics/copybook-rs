@@ -6,6 +6,7 @@ on:
   schedule:
     - cron: "0 4 * * 0"  # Weekly on Sunday at 04:00 UTC
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     paths:
       - "crates/copybook-codec/**"
       - "crates/copybook-core/**"
@@ -24,6 +25,10 @@ jobs:
     name: Memory Leak Detection (LSAN)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    if: >-
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'leak-check') ||
+      contains(github.event.pull_request.labels.*.name, 'full-ci')
     steps:
       - uses: actions/checkout@v6
 

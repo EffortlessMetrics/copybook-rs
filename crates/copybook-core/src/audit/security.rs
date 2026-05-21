@@ -421,8 +421,7 @@ impl SecurityMonitor {
         let priority = 16 * 8 + 4; // 132
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_secs());
         format!(
             "<{}>1 {} copybook-rs SecurityMonitor - {} - {}",
             priority, timestamp, violation.violation_id, violation.description

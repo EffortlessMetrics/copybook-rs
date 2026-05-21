@@ -9,7 +9,7 @@ use std::process::Command;
 use anyhow::{Context, Result, bail};
 use chrono::SecondsFormat;
 use clap::{Parser, Subcommand};
-use regex::{Captures, Regex};
+use regex::Regex;
 use serde_json::{Map, Value};
 
 #[derive(Debug, Parser)]
@@ -30,18 +30,9 @@ enum CommandKind {
         #[arg(value_name = "PATH")]
         file: PathBuf,
     },
-    AdaptReviewAgents {
-        #[arg(long, default_value = ".claude/agents4/review", value_name = "DIR")]
-        agents_dir: PathBuf,
-    },
-    FixAgentIssues {
-        #[arg(long, default_value = ".claude/agents4/review", value_name = "DIR")]
-        agents_dir: PathBuf,
-    },
-    FinalCleanupAgents {
-        #[arg(long, default_value = ".claude/agents4/review", value_name = "DIR")]
-        agents_dir: PathBuf,
-    },
+    AdaptReviewAgents,
+    FixAgentIssues,
+    FinalCleanupAgents,
 }
 
 fn main() -> Result<()> {
@@ -52,9 +43,9 @@ fn main() -> Result<()> {
         CommandKind::PerfAnnotateHost => perf_annotate_host(),
         CommandKind::SoakDispatch => soak_dispatch(),
         CommandKind::CleanMergeConflicts { file } => clean_merge_conflicts(file),
-        CommandKind::AdaptReviewAgents { agents_dir } => adapt_review_agents(agents_dir),
-        CommandKind::FixAgentIssues { agents_dir } => fix_agent_issues(agents_dir),
-        CommandKind::FinalCleanupAgents { agents_dir } => final_cleanup_agents(agents_dir),
+        CommandKind::AdaptReviewAgents => adapt_review_agents(),
+        CommandKind::FixAgentIssues => fix_agent_issues(),
+        CommandKind::FinalCleanupAgents => final_cleanup_agents(),
     }
 }
 
@@ -353,346 +344,383 @@ fn clean_merge_conflicts(file: PathBuf) -> Result<()> {
     Ok(())
 }
 
-#[derive(Debug, Clone, Copy)]
-enum AgentTransform {
-    Adapt,
-    Fix,
-    FinalCleanup,
+const AGENTS_REVIEW_DIR: &str = ".claude/agents4/review";
+
+#[derive(Clone, Copy)]
+enum TextRule {
+    Literal(&'static str, &'static str),
+    Regex(&'static str, &'static str),
+    BitnetCrate,
 }
 
-#[derive(Debug, Clone, Copy)]
-enum ReplacementKind {
-    Literal,
-    Regex,
+fn bitnet_crate_replacement(hit: &str) -> &str {
+    match hit {
+        "bitnet-kernels" => "copybook-codec",
+        "bitnet-inference" => "copybook-cli",
+        "bitnet-wasm" => "copybook-gen",
+        "bitnet-tokenizers" => "copybook-bench",
+        _ => "copybook-core",
+    }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct ReplacementRule {
-    kind: ReplacementKind,
-    from: &'static str,
-    to: &'static str,
-}
+fn replace_bitnet_crate_names(content: &str) -> String {
+    let mut output = String::with_capacity(content.len());
+    let mut cursor = 0usize;
 
-fn adapt_review_agents(agents_dir: PathBuf) -> Result<()> {
-    process_agent_files(agents_dir, AgentTransform::Adapt)
-}
+    while let Some(relative_start) = content[cursor..].find("bitnet-") {
+        let start = cursor + relative_start;
+        output.push_str(&content[cursor..start]);
 
-fn fix_agent_issues(agents_dir: PathBuf) -> Result<()> {
-    process_agent_files(agents_dir, AgentTransform::Fix)
-}
+        let mut end = start + "bitnet-".len();
+        for (offset, ch) in content[end..].char_indices() {
+            if !ch.is_ascii_alphabetic() {
+                break;
+            }
+            end = start + "bitnet-".len() + offset + ch.len_utf8();
+        }
 
-fn final_cleanup_agents(agents_dir: PathBuf) -> Result<()> {
-    process_agent_files(agents_dir, AgentTransform::FinalCleanup)
-}
-
-fn process_agent_files(agents_dir: PathBuf, transform: AgentTransform) -> Result<()> {
-    let root = workspace_root()?;
-    let dir = if agents_dir.is_absolute() {
-        agents_dir
-    } else {
-        root.join(agents_dir)
-    };
-
-    if !dir.exists() {
-        bail!("Error: Directory {} does not exist", dir.display());
+        output.push_str(bitnet_crate_replacement(&content[start..end]));
+        cursor = end;
     }
 
-    let mut agent_files = Vec::new();
-    for entry in fs::read_dir(&dir).with_context(|| format!("failed to read {}", dir.display()))? {
-        let entry = entry?;
-        let path = entry.path();
-        if entry.file_type()?.is_file()
-            && path.extension().and_then(|ext| ext.to_str()) == Some("md")
-        {
-            agent_files.push(path);
+    output.push_str(&content[cursor..]);
+    output
+}
+
+fn apply_text_rules(mut content: String, rules: &[TextRule]) -> Result<String> {
+    for rule in rules {
+        match rule {
+            TextRule::Literal(from, to) => {
+                content = content.replace(from, to);
+            }
+            TextRule::Regex(pattern, replacement) => {
+                let re = Regex::new(pattern)
+                    .with_context(|| format!("invalid cleanup regex: {pattern}"))?;
+                content = re.replace_all(&content, *replacement).into_owned();
+            }
+            TextRule::BitnetCrate => {
+                content = replace_bitnet_crate_names(&content);
+            }
         }
     }
-    agent_files.sort();
 
-    if agent_files.is_empty() {
-        bail!("No .md files found in {}", dir.display());
+    Ok(content)
+}
+
+fn agent_markdown_files(root: &Path) -> Result<Vec<PathBuf>> {
+    if !root.exists() {
+        bail!("Error: Directory {} does not exist", root.display());
     }
 
-    println!("Found {} agent files to process", agent_files.len());
+    let mut paths = Vec::new();
+    for item in fs::read_dir(root).with_context(|| format!("failed to read {}", root.display()))? {
+        let entry = item?;
+        let path = entry.path();
+        if entry.file_type()?.is_file() && path.extension().and_then(OsStr::to_str) == Some("md") {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+
+    if paths.is_empty() {
+        bail!("No .md files found in {}", root.display());
+    }
+
+    Ok(paths)
+}
+
+fn process_agent_files(action: &str, intro: &str, rules: &[TextRule]) -> Result<()> {
+    let root = workspace_root()?.join(AGENTS_REVIEW_DIR);
+    let agent_files = agent_markdown_files(&root)?;
+    println!("Found {} agent files {}", agent_files.len(), intro);
 
     let mut changed_count = 0usize;
-    for file in &agent_files {
-        if apply_agent_transform(file, transform)? {
-            changed_count += 1;
+    for path in agent_files {
+        let name = path
+            .file_name()
+            .and_then(OsStr::to_str)
+            .unwrap_or("<unknown>");
+        println!("{action} {name}...");
+
+        let original = fs::read_to_string(&path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        let updated = apply_text_rules(original.clone(), rules)?;
+
+        if updated == original {
+            println!("  - No changes needed for {name}");
+            continue;
         }
+
+        fs::write(&path, updated).with_context(|| format!("failed to write {}", path.display()))?;
+        changed_count += 1;
+        println!("  ✓ Updated {name}");
     }
 
-    let action = match transform {
-        AgentTransform::Adapt => "Updated",
-        AgentTransform::Fix => "Fixed",
-        AgentTransform::FinalCleanup => "Cleaned up",
-    };
-    println!(
-        "\nCompleted! {action} {changed_count} of {} agent files.",
-        agent_files.len()
-    );
+    println!("\nCompleted! Updated {changed_count} agent files.");
     Ok(())
 }
 
-fn apply_agent_transform(path: &Path, transform: AgentTransform) -> Result<bool> {
-    let name = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("<unknown>");
-    let verb = match transform {
-        AgentTransform::Adapt => "Processing",
-        AgentTransform::Fix => "Fixing",
-        AgentTransform::FinalCleanup => "Final cleanup of",
-    };
-    println!("{verb} {name}...");
-
-    let original =
-        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
-    let mut content = original.clone();
-
-    match transform {
-        AgentTransform::Adapt => apply_adapt_review_agent_rules(&mut content)?,
-        AgentTransform::Fix => apply_rules(&mut content, FIX_AGENT_RULES)?,
-        AgentTransform::FinalCleanup => apply_rules(&mut content, FINAL_CLEANUP_AGENT_RULES)?,
-    }
-
-    if content == original {
-        println!("  - No changes needed for {name}");
-        return Ok(false);
-    }
-
-    fs::write(path, content).with_context(|| format!("failed to write {}", path.display()))?;
-    let action = match transform {
-        AgentTransform::Adapt => "Updated",
-        AgentTransform::Fix => "Fixed",
-        AgentTransform::FinalCleanup => "Cleaned up",
-    };
-    println!("  ✓ {action} {name}");
-    Ok(true)
-}
-
-fn apply_adapt_review_agent_rules(content: &mut String) -> Result<()> {
-    apply_rules(content, ADAPT_AGENT_REGEX_RULES)?;
-    apply_rules(content, ADAPT_AGENT_LITERAL_RULES)?;
-
-    replace_regex_with(content, r"bitnet-[a-zA-Z]+", |captures: &Captures<'_>| {
-        let matched = captures.get(0).map(|m| m.as_str()).unwrap_or_default();
-        match matched {
-            "bitnet-quantization" => "copybook-core".to_string(),
-            "bitnet-kernels" => "copybook-codec".to_string(),
-            "bitnet-inference" => "copybook-cli".to_string(),
-            "bitnet-wasm" => "copybook-gen".to_string(),
-            "bitnet-tokenizers" => "copybook-bench".to_string(),
-            _ => "copybook-core".to_string(),
-        }
-    })?;
-
-    Ok(())
-}
-
-fn apply_rules(content: &mut String, rules: &[ReplacementRule]) -> Result<()> {
-    for rule in rules {
-        match rule.kind {
-            ReplacementKind::Literal => {
-                *content = content.replace(rule.from, rule.to);
-            }
-            ReplacementKind::Regex => {
-                let regex = Regex::new(rule.from)
-                    .with_context(|| format!("invalid regex replacement pattern: {}", rule.from))?;
-                *content = regex.replace_all(content, rule.to).into_owned();
-            }
-        }
-    }
-    Ok(())
-}
-
-fn replace_regex_with<F>(content: &mut String, pattern: &str, replacer: F) -> Result<()>
-where
-    F: Fn(&Captures<'_>) -> String,
-{
-    let regex = Regex::new(pattern)
-        .with_context(|| format!("invalid regex replacement pattern: {pattern}"))?;
-    *content = regex.replace_all(content, replacer).into_owned();
-    Ok(())
-}
-
-const fn literal(from: &'static str, to: &'static str) -> ReplacementRule {
-    ReplacementRule {
-        kind: ReplacementKind::Literal,
-        from,
-        to,
-    }
-}
-
-const fn regex_rule(from: &'static str, to: &'static str) -> ReplacementRule {
-    ReplacementRule {
-        kind: ReplacementKind::Regex,
-        from,
-        to,
-    }
-}
-
-const ADAPT_AGENT_LITERAL_RULES: &[ReplacementRule] = &[
-    literal(
+const ADAPT_REVIEW_AGENT_RULES: &[TextRule] = &[
+    TextRule::Literal(
         "BitNet.rs neural network inference",
         "copybook-rs enterprise mainframe data processing",
     ),
-    literal("BitNet neural network", "copybook-rs enterprise mainframe"),
-    literal("BitNet.rs", "copybook-rs"),
-    literal("neural network", "COBOL parsing"),
-    literal("quantization", "COBOL parsing"),
-    literal("inference", "data conversion"),
-    literal("GPU", "enterprise performance"),
-    literal("I2S, TL1, TL2", "DISPLAY, COMP, COMP-3"),
-    literal("quantization accuracy", "COBOL parsing accuracy"),
-    literal("cross-validation", "mainframe compatibility"),
-    literal("GGUF", "EBCDIC"),
-    literal("tensor", "field"),
-    literal("model", "copybook"),
-    literal("CUDA", "SIMD"),
-    literal(
-        ">99% accuracy",
-        "enterprise performance targets (DISPLAY ≥ 4.1 GiB/s, COMP-3 ≥ 560 MiB/s)",
-    ),
-    literal("99.8%", "4.1 GiB/s"),
-    literal("99.6%", "560 MiB/s"),
-    literal("bitnet-quantization", "copybook-core"),
-    literal("bitnet-kernels", "copybook-codec"),
-    literal("bitnet-inference", "copybook-cli"),
-    literal("bitnet-wasm", "copybook-gen"),
-    literal("bitnet-tokenizers", "copybook-bench"),
-    literal("--no-default-features --features cpu", "--workspace"),
-    literal(
-        "--no-default-features --features gpu",
-        "--workspace --release",
-    ),
-    literal("cargo run -p xtask -- crossval", "cargo xtask ci"),
-    literal(
-        "cargo run -p xtask -- benchmark",
-        "cargo bench --package copybook-bench",
-    ),
-    literal("./scripts/verify-tests.sh", "cargo xtask ci --quick"),
-    literal("CUDA unavailable", "xtask unavailable"),
-    literal("GPU memory", "parsing memory"),
-    literal("C++ reference", "mainframe compatibility"),
-    literal("CPU: ok, GPU: ok", "workspace release ok"),
-    literal("tokens/sec", "records/sec"),
-    literal("I2S: 99.X%", "DISPLAY: X.Y GiB/s"),
-    literal("quantization kernels", "COBOL parsing kernels"),
-    literal("inference pipeline", "data processing pipeline"),
-    literal(
-        "1-bit neural networks",
-        "enterprise mainframe data processing",
-    ),
-];
-
-const ADAPT_AGENT_REGEX_RULES: &[ReplacementRule] = &[
-    regex_rule(
+    TextRule::Regex(
         r"cargo test --workspace --no-default-features --features \w+",
         "cargo test --workspace",
     ),
-    regex_rule(
+    TextRule::Regex(
         r"cargo build --release --no-default-features --features \w+",
         "cargo build --workspace --release",
     ),
-    regex_rule(
+    TextRule::Regex(
         r"tests: cargo test: (\d+)/(\d+) pass; CPU: (\d+)/(\d+), GPU: (\d+)/(\d+); quarantined: (\d+) \(linked\)",
         "tests: nextest: $1/$2 pass; enterprise validation: $3/$4; quarantined: $7 (linked)",
     ),
+    TextRule::Literal("BitNet neural network", "copybook-rs enterprise mainframe"),
+    TextRule::Literal("BitNet.rs", "copybook-rs"),
+    TextRule::Literal("neural network", "COBOL parsing"),
+    TextRule::Literal("quantization", "COBOL parsing"),
+    TextRule::Literal("inference", "data conversion"),
+    TextRule::Literal("GPU", "enterprise performance"),
+    TextRule::Literal("I2S, TL1, TL2", "DISPLAY, COMP, COMP-3"),
+    TextRule::Literal("quantization accuracy", "COBOL parsing accuracy"),
+    TextRule::Literal("cross-validation", "mainframe compatibility"),
+    TextRule::Literal("GGUF", "EBCDIC"),
+    TextRule::Literal("tensor", "field"),
+    TextRule::Literal("model", "copybook"),
+    TextRule::Literal("CUDA", "SIMD"),
+    TextRule::Literal(
+        ">99% accuracy",
+        "enterprise performance targets (DISPLAY ≥ 4.1 GiB/s, COMP-3 ≥ 560 MiB/s)",
+    ),
+    TextRule::Literal("99.8%", "4.1 GiB/s"),
+    TextRule::Literal("99.6%", "560 MiB/s"),
+    TextRule::Literal("bitnet-quantization", "copybook-core"),
+    TextRule::Literal("bitnet-kernels", "copybook-codec"),
+    TextRule::Literal("bitnet-inference", "copybook-cli"),
+    TextRule::Literal("bitnet-wasm", "copybook-gen"),
+    TextRule::Literal("bitnet-tokenizers", "copybook-bench"),
+    TextRule::Literal("--no-default-features --features cpu", "--workspace"),
+    TextRule::Literal(
+        "--no-default-features --features gpu",
+        "--workspace --release",
+    ),
+    TextRule::Literal("cargo run -p xtask -- crossval", "cargo xtask ci"),
+    TextRule::Literal(
+        "cargo run -p xtask -- benchmark",
+        "cargo bench --package copybook-bench",
+    ),
+    TextRule::Literal("./scripts/verify-tests.sh", "cargo xtask ci --quick"),
+    TextRule::Literal("CUDA unavailable", "xtask unavailable"),
+    TextRule::Literal("GPU memory", "parsing memory"),
+    TextRule::Literal("C++ reference", "mainframe compatibility"),
+    TextRule::Literal("CPU: ok, GPU: ok", "workspace release ok"),
+    TextRule::Literal("tokens/sec", "records/sec"),
+    TextRule::Literal("I2S: 99.X%", "DISPLAY: X.Y GiB/s"),
+    TextRule::Literal("quantization kernels", "COBOL parsing kernels"),
+    TextRule::Literal("inference pipeline", "data processing pipeline"),
+    TextRule::Literal(
+        "1-bit neural networks",
+        "enterprise mainframe data processing",
+    ),
+    TextRule::BitnetCrate,
 ];
 
-const FIX_AGENT_RULES: &[ReplacementRule] = &[
-    regex_rule(r"(?m)^copybook: sonnet$", "model: sonnet"),
-    literal("--workspace --workspace", "--workspace"),
-    literal("--workspace --release --workspace", "--workspace --release"),
-    literal("copybook-core parsing", "copybook-core"),
-    literal("copybook-codec parsing", "copybook-codec"),
-    literal("deCOBOL parsing", "data conversion"),
-    literal(
+const FIX_AGENT_ISSUE_RULES: &[TextRule] = &[
+    TextRule::Regex(r"(?m)^copybook: sonnet$", "model: sonnet"),
+    TextRule::Literal("--workspace --workspace", "--workspace"),
+    TextRule::Literal("--workspace --release --workspace", "--workspace --release"),
+    TextRule::Literal("copybook-core parsing", "copybook-core"),
+    TextRule::Literal("copybook-codec parsing", "copybook-codec"),
+    TextRule::Literal("deCOBOL parsing", "data conversion"),
+    TextRule::Literal(
         "I2S: 4.1 GiB/s, TL1: 560 MiB/s, TL2: 99.7%",
         "DISPLAY: ≥4.1 GiB/s, COMP-3: ≥560 MiB/s",
     ),
-    literal("copybook.gguf", "copybook.cpy"),
-    literal("copybooks/bitnet/", "examples/"),
-    literal("weight deCOBOL parsing", "field layout computation"),
-    literal(
+    TextRule::Literal("copybook.gguf", "copybook.cpy"),
+    TextRule::Literal("copybooks/bitnet/", "examples/"),
+    TextRule::Literal("weight deCOBOL parsing", "field layout computation"),
+    TextRule::Literal(
         "COBOL parsing/deCOBOL parsing",
         "COBOL parsing/data conversion",
     ),
-    literal(
+    TextRule::Literal(
         "COBOL parsing kernels (DISPLAY, COMP, COMP-3)",
         "COBOL parsing engines (lexer, parser, AST)",
     ),
-    literal("records/sec", "GiB/s for DISPLAY, MiB/s for COMP-3"),
-    literal("BITNET_DETERMINISTIC=1", "deterministic parsing"),
-    literal("BITNET_EBCDIC", "COPYBOOK_DATA"),
-    regex_rule(r"bitnet-\*", "copybook-*"),
+    TextRule::Literal("records/sec", "GiB/s for DISPLAY, MiB/s for COMP-3"),
+    TextRule::Literal("BITNET_DETERMINISTIC=1", "deterministic parsing"),
+    TextRule::Literal("BITNET_EBCDIC", "COPYBOOK_DATA"),
+    TextRule::Regex(r"bitnet-\*", "copybook-*"),
 ];
 
-const FINAL_CLEANUP_AGENT_RULES: &[ReplacementRule] = &[
-    literal(
+const FINAL_CLEANUP_AGENT_RULES: &[TextRule] = &[
+    TextRule::Literal(
         "1-bit quantized COBOL parsings",
         "enterprise mainframe data processing",
     ),
-    literal(
+    TextRule::Literal(
         "Neural Network Security Testing (NNST)",
         "COBOL Parsing Security Testing",
     ),
-    literal("HuggingFace tokens", "mainframe authentication tokens"),
-    literal("copybook poisoning attacks", "malicious copybook attacks"),
-    literal(
+    TextRule::Literal("HuggingFace tokens", "mainframe authentication tokens"),
+    TextRule::Literal("copybook poisoning attacks", "malicious copybook attacks"),
+    TextRule::Literal(
         "copybook-rs workspace crates",
         "copybook-rs 5-crate workspace (core, codec, cli, gen, bench)",
     ),
-    literal(
+    TextRule::Literal(
         "cargo clippy --workspace --all-targets --workspace",
         "cargo clippy --workspace --all-targets",
     ),
-    literal(
+    TextRule::Literal(
         "--workspace -- -D warnings",
         "-- -D warnings -W clippy::pedantic",
     ),
-    literal("COBOL parsing COBOL parsing", "COBOL parsing"),
-    literal("enterprise performance/CPU", "high-performance"),
-    literal("enterprise performance memory", "memory"),
-    literal("SIMD enterprise performance", "SIMD CPU"),
-    literal("GiB/s for DISPLAY, MiB/s for COMP-3ond", "records/second"),
-    literal(
+    TextRule::Literal("COBOL parsing COBOL parsing", "COBOL parsing"),
+    TextRule::Literal("enterprise performance/CPU", "high-performance"),
+    TextRule::Literal("enterprise performance memory", "memory"),
+    TextRule::Literal("SIMD enterprise performance", "SIMD CPU"),
+    TextRule::Literal("GiB/s for DISPLAY, MiB/s for COMP-3ond", "records/second"),
+    TextRule::Literal(
         "GiB/s for DISPLAY, MiB/s for COMP-3",
         "GiB/s (DISPLAY), MiB/s (COMP-3)",
     ),
-    literal(
+    TextRule::Literal(
         "cargo bench --workspace --workspace",
         "cargo bench --package copybook-bench",
     ),
-    literal(
+    TextRule::Literal(
+        "cargo bench --workspace",
+        "cargo bench --package copybook-bench",
+    ),
+    TextRule::Literal(
         "cargo test --workspace --workspace",
         "cargo test --workspace",
     ),
-    literal(
+    TextRule::Literal(
         "I2S ≥4.1 GiB/s, TL1 ≥560 MiB/s, TL2 ≥99.7%",
         "DISPLAY ≥4.1 GiB/s, COMP-3 ≥560 MiB/s",
     ),
-    literal("I2S: 4.1 GiB/s", "DISPLAY: 4.1+ GiB/s"),
-    literal("TL1: 560 MiB/s", "COMP-3: 560+ MiB/s"),
-    literal("copybook weight handling", "copybook field handling"),
-    literal("weight data conversion", "field layout computation"),
-    literal("Tensor Core acceleration", "SIMD acceleration"),
-    literal("mixed precision", "high-precision"),
-    literal("--tokens 128", "--batch-size 128"),
-    literal(
+    TextRule::Literal("I2S: 4.1 GiB/s", "DISPLAY: 4.1+ GiB/s"),
+    TextRule::Literal("TL1: 560 MiB/s", "COMP-3: 560+ MiB/s"),
+    TextRule::Literal("copybook weight handling", "copybook field handling"),
+    TextRule::Literal("weight data conversion", "field layout computation"),
+    TextRule::Literal("Tensor Core acceleration", "SIMD acceleration"),
+    TextRule::Literal("mixed precision", "high-precision"),
+    TextRule::Literal("--tokens 128", "--batch-size 128"),
+    TextRule::Literal(
         "--copybook examples/copybook.cpy --tokens",
         "--input examples/data.bin --copybook examples/schema.cpy --records",
     ),
-    literal("Neural Network Validation", "COBOL Parsing Validation"),
-    literal("attention computation", "field processing"),
-    literal("KV cache", "field cache"),
-    regex_rule(
+    TextRule::Literal("Neural Network Validation", "COBOL Parsing Validation"),
+    TextRule::Literal("attention computation", "field processing"),
+    TextRule::Literal("KV cache", "field cache"),
+    TextRule::Regex(
         r"test_dequantize_cpu_and_gpu_paths",
         "enterprise_performance_validation",
     ),
-    regex_rule(
+    TextRule::Regex(
         r#"COPYBOOK_DATA="[^"]*""#,
         "COPYBOOK_TEST_DATA=\"examples/test.cpy\"",
     ),
 ];
+
+fn adapt_review_agents() -> Result<()> {
+    process_agent_files("Processing", "to process", ADAPT_REVIEW_AGENT_RULES)
+}
+
+fn fix_agent_issues() -> Result<()> {
+    process_agent_files("Fixing", "to fix", FIX_AGENT_ISSUE_RULES)
+}
+
+fn final_cleanup_agents() -> Result<()> {
+    process_agent_files(
+        "Final cleanup of",
+        "for final cleanup",
+        FINAL_CLEANUP_AGENT_RULES,
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        ADAPT_REVIEW_AGENT_RULES, FINAL_CLEANUP_AGENT_RULES, FIX_AGENT_ISSUE_RULES,
+        apply_text_rules, replace_bitnet_crate_names,
+    };
+
+    fn apply_rules(input: &str, rules: &[super::TextRule]) -> String {
+        match apply_text_rules(input.to_string(), rules) {
+            Ok(output) => output,
+            Err(error) => panic!("{error}"),
+        }
+    }
+
+    #[test]
+    fn bitnet_crate_mapper_handles_known_and_default_crates() {
+        let input =
+            "bitnet-kernels bitnet-inference bitnet-quantization bitnet-tokenizers bitnet-extra";
+
+        assert_eq!(
+            replace_bitnet_crate_names(input),
+            "copybook-codec copybook-cli copybook-core copybook-bench copybook-core"
+        );
+    }
+
+    #[test]
+    fn adapt_review_rules_rewrite_commands_and_evidence() {
+        let input = concat!(
+            "BitNet.rs neural network inference\n",
+            "cargo test --workspace --no-default-features --features gpu\n",
+            "tests: cargo test: 9/10 pass; CPU: 4/5, GPU: 6/7; quarantined: 1 (linked)\n",
+        );
+
+        let output = apply_rules(input, ADAPT_REVIEW_AGENT_RULES);
+
+        assert!(output.contains("copybook-rs enterprise mainframe data processing"));
+        assert!(output.contains("cargo test --workspace"));
+        assert!(output.contains(
+            "tests: nextest: 9/10 pass; enterprise validation: 4/5; quarantined: 1 (linked)"
+        ));
+    }
+
+    #[test]
+    fn fix_agent_issue_rules_repair_frontmatter_and_workspace_terms() {
+        let input = concat!(
+            "---\n",
+            "copybook: sonnet\n",
+            "---\n",
+            "cargo test --workspace --workspace\n",
+            "bitnet-* copybook.gguf BITNET_EBCDIC\n",
+        );
+
+        let output = apply_rules(input, FIX_AGENT_ISSUE_RULES);
+
+        assert!(output.contains("model: sonnet"));
+        assert!(output.contains("cargo test --workspace"));
+        assert!(output.contains("copybook-* copybook.cpy COPYBOOK_DATA"));
+    }
+
+    #[test]
+    fn final_cleanup_rules_rewrite_remaining_agent_terms() {
+        let input = concat!(
+            "Neural Network Validation uses COPYBOOK_DATA=\"fixtures/demo.cpy\"\n",
+            "attention computation and KV cache\n",
+            "cargo bench --workspace --workspace\n",
+            "cargo bench --workspace\n",
+        );
+
+        let output = apply_rules(input, FINAL_CLEANUP_AGENT_RULES);
+
+        assert!(output.contains("COBOL Parsing Validation"));
+        assert!(output.contains("COPYBOOK_TEST_DATA=\"examples/test.cpy\""));
+        assert!(output.contains("field processing and field cache"));
+        assert_eq!(
+            output
+                .matches("cargo bench --package copybook-bench")
+                .count(),
+            2
+        );
+    }
+}

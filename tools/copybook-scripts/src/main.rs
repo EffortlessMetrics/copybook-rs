@@ -32,6 +32,10 @@ enum CommandKind {
         #[arg(value_name = "RECEIPT_FILE", default_value = "scripts/bench/perf.json")]
         receipt_file: PathBuf,
     },
+    SealPerfReceipt {
+        #[arg(value_name = "RECEIPT_FILE", default_value = "scripts/bench/perf.json")]
+        receipt_file: PathBuf,
+    },
     AuditScriptMigrations,
     CleanMergeConflicts {
         #[arg(value_name = "PATH")]
@@ -52,6 +56,7 @@ fn main() -> Result<()> {
         CommandKind::SoakAggregate => soak_aggregate(),
         CommandKind::SoakDispatch => soak_dispatch(),
         CommandKind::ValidatePerfReceipt { receipt_file } => validate_perf_receipt(&receipt_file),
+        CommandKind::SealPerfReceipt { receipt_file } => seal_perf_receipt(&receipt_file),
         CommandKind::AuditScriptMigrations => audit_script_migrations(),
         CommandKind::CleanMergeConflicts { file } => clean_merge_conflicts(file),
         CommandKind::AdaptReviewAgents => adapt_review_agents(),
@@ -1294,8 +1299,7 @@ fn validate_receipt_integrity(receipt: &Value) -> Result<()> {
         .and_then(Value::as_str)
         .context("❌ Missing integrity SHA256 hash")?;
 
-    let canonical = canonical_json_without_integrity(receipt)?;
-    let actual_hash = format!("{:x}", Sha256::digest(canonical.as_bytes()));
+    let actual_hash = receipt_integrity_hash(receipt)?;
 
     if stored_hash != actual_hash {
         bail!(
@@ -1304,6 +1308,46 @@ fn validate_receipt_integrity(receipt: &Value) -> Result<()> {
     }
 
     println!("✅ Receipt integrity validation passed");
+    Ok(())
+}
+
+fn receipt_integrity_hash(receipt: &Value) -> Result<String> {
+    let canonical = canonical_json_without_integrity(receipt)?;
+    Ok(format!("{:x}", Sha256::digest(canonical.as_bytes())))
+}
+
+fn seal_receipt_integrity(receipt: &mut Value) -> Result<String> {
+    let hash = receipt_integrity_hash(receipt)?;
+    let Value::Object(map) = receipt else {
+        bail!("perf receipt root must be a JSON object");
+    };
+
+    let mut integrity = Map::new();
+    integrity.insert("sha256".to_string(), Value::String(hash.clone()));
+    map.insert("integrity".to_string(), Value::Object(integrity));
+    Ok(hash)
+}
+
+fn seal_perf_receipt(receipt_file: &Path) -> Result<()> {
+    if !receipt_file.is_file() {
+        bail!("❌ Receipt file not found: {}", receipt_file.display());
+    }
+
+    let mut receipt: Value = serde_json::from_str(
+        &fs::read_to_string(receipt_file)
+            .with_context(|| format!("failed to read {}", receipt_file.display()))?,
+    )
+    .context("❌ Invalid JSON format")?;
+    let hash = seal_receipt_integrity(&mut receipt)?;
+    let sealed = serde_json::to_string_pretty(&receipt)? + "\n";
+    fs::write(receipt_file, sealed)
+        .with_context(|| format!("failed to write {}", receipt_file.display()))?;
+
+    println!(
+        "✅ receipts: {} (integrity: {}...)",
+        receipt_file.display(),
+        &hash[..16]
+    );
     Ok(())
 }
 
@@ -1588,6 +1632,21 @@ pub fn encode_value(
         assert!(!canonical.contains("integrity"));
         assert!(canonical.starts_with("{\"benchmarks\":"));
         Ok(())
+    }
+
+    #[test]
+    fn seals_receipt_with_validator_hash() -> Result<()> {
+        let mut receipt = valid_receipt();
+        let hash = seal_receipt_integrity(&mut receipt)?;
+        assert_eq!(
+            receipt
+                .get("integrity")
+                .and_then(Value::as_object)
+                .and_then(|integrity| integrity.get("sha256"))
+                .and_then(Value::as_str),
+            Some(hash.as_str())
+        );
+        validate_receipt_integrity(&receipt)
     }
 
     #[test]

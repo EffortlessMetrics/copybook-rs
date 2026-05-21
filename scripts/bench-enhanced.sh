@@ -68,7 +68,6 @@ get_kernel_version() {
 
 python3 <<PY
 import datetime
-import hashlib
 import json
 import pathlib
 import subprocess
@@ -207,18 +206,10 @@ report = {
 output_dir = ROOT / "scripts" / "bench"
 output_dir.mkdir(parents=True, exist_ok=True)
 output_path = output_dir / "perf.json"
-
-canonical = json.dumps(report, sort_keys=True, separators=(",", ":"))
-report["integrity"] = {
-    "sha256": hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-}
-
 output_path.write_text(json.dumps(report, indent=2) + "\n")
-print(
-    f"✅ receipts: {output_path.relative_to(ROOT)} "
-    f"(integrity: {report['integrity']['sha256'][:16]}...)"
-)
 PY
+
+cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- seal-perf-receipt scripts/bench/perf.json
 
 # Receipt is complete and immutable - no post-write modifications
 # Note: Percentile aggregation is now done in the Python block above,

@@ -14,6 +14,7 @@ on:
       - 'tests/**'
       - 'Cargo.*'
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     branches: [ main, develop ]
     paths:
       - 'crates/**'
@@ -30,9 +31,13 @@ env:
 
 jobs:
   coverage:
-    name: Code Coverage
+    name: Tarpaulin Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    if: >-
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'coverage') ||
+      contains(github.event.pull_request.labels.*.name, 'full-ci')
 
     steps:
     - name: Checkout code

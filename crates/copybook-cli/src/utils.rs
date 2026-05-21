@@ -163,19 +163,25 @@ where
     })
 }
 
-/// Render and write a standard CLI processing summary.
-///
-/// Set `always_show_counts` for commands that historically print zero-valued error
-/// and warning counts. Encode omits those rows when the counts are zero.
+/// Controls issue-count rows in a standard CLI processing summary.
+#[derive(Clone, Copy)]
+pub struct ProcessingSummaryStyle {
+    /// Print warning and error rows even when the count is zero.
+    pub show_zero_counts: bool,
+    /// Repeat nonzero warning and error rows for compatibility with legacy output.
+    pub repeat_nonzero_counts: bool,
+}
+
+/// Render a standard CLI processing summary.
 ///
 /// # Errors
 ///
-/// Returns an error if formatting or writing to stdout fails.
-pub fn write_processing_summary(
+/// Returns an error if formatting the summary fails.
+pub fn render_processing_summary(
     title: &str,
     summary: &RunSummary,
-    always_show_counts: bool,
-) -> anyhow::Result<()> {
+    style: ProcessingSummaryStyle,
+) -> Result<String, std::fmt::Error> {
     let mut summary_output = String::new();
     writeln!(&mut summary_output, "=== {title} Summary ===")?;
     writeln!(
@@ -183,14 +189,14 @@ pub fn write_processing_summary(
         "Records processed: {}",
         summary.records_processed
     )?;
-    if always_show_counts || summary.records_with_errors > 0 {
+    if style.show_zero_counts || summary.records_with_errors > 0 {
         writeln!(
             &mut summary_output,
             "Records with errors: {}",
             summary.records_with_errors
         )?;
     }
-    if always_show_counts || summary.warnings > 0 {
+    if style.show_zero_counts || summary.warnings > 0 {
         writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
     }
     writeln!(
@@ -208,6 +214,32 @@ pub fn write_processing_summary(
         "Throughput: {:.2} MB/s",
         summary.throughput_mbps
     )?;
+    if style.repeat_nonzero_counts {
+        if summary.has_warnings() {
+            writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
+        }
+        if summary.has_errors() {
+            writeln!(
+                &mut summary_output,
+                "Records with errors: {}",
+                summary.records_with_errors
+            )?;
+        }
+    }
+    Ok(summary_output)
+}
+
+/// Render and write a standard CLI processing summary.
+///
+/// # Errors
+///
+/// Returns an error if formatting or writing to stdout fails.
+pub fn write_processing_summary(
+    title: &str,
+    summary: &RunSummary,
+    style: ProcessingSummaryStyle,
+) -> anyhow::Result<()> {
+    let summary_output = render_processing_summary(title, summary, style)?;
     crate::write_stdout_all(summary_output.as_bytes())?;
     Ok(())
 }
@@ -363,6 +395,93 @@ mod tests {
             determine_exit_code(true, true, ExitCode::Encode),
             ExitCode::Encode
         ); // Both warnings and errors adopt failure variant
+    }
+
+    #[test]
+    fn test_effective_error_options() {
+        assert_eq!(effective_error_options(false, None, false), (false, None));
+        assert_eq!(
+            effective_error_options(true, Some(10), false),
+            (true, Some(10))
+        );
+        assert_eq!(
+            effective_error_options(false, Some(10), true),
+            (true, Some(1))
+        );
+    }
+
+    #[test]
+    fn test_render_processing_summary_styles() -> Result<()> {
+        let summary = RunSummary {
+            records_processed: 3,
+            records_with_errors: 1,
+            warnings: 2,
+            processing_time_ms: 42,
+            bytes_processed: 2048,
+            throughput_mbps: 1.5,
+            ..RunSummary::default()
+        };
+
+        let encode = render_processing_summary(
+            "Encode",
+            &summary,
+            ProcessingSummaryStyle {
+                show_zero_counts: false,
+                repeat_nonzero_counts: false,
+            },
+        )?;
+        assert!(encode.contains("=== Encode Summary ==="));
+        assert_eq!(encode.matches("Warnings: 2").count(), 1);
+        assert_eq!(encode.matches("Records with errors: 1").count(), 1);
+
+        let decode = render_processing_summary(
+            "Decode",
+            &summary,
+            ProcessingSummaryStyle {
+                show_zero_counts: true,
+                repeat_nonzero_counts: true,
+            },
+        )?;
+        assert!(decode.contains("=== Decode Summary ==="));
+        assert_eq!(decode.matches("Warnings: 2").count(), 2);
+        assert_eq!(decode.matches("Records with errors: 1").count(), 2);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_render_processing_summary_zero_counts() -> Result<()> {
+        let summary = RunSummary {
+            records_processed: 3,
+            processing_time_ms: 42,
+            bytes_processed: 2048,
+            throughput_mbps: 1.5,
+            ..RunSummary::default()
+        };
+
+        let encode = render_processing_summary(
+            "Encode",
+            &summary,
+            ProcessingSummaryStyle {
+                show_zero_counts: false,
+                repeat_nonzero_counts: false,
+            },
+        )?;
+        assert!(!encode.contains("Warnings: 0"));
+        assert!(!encode.contains("Records with errors: 0"));
+
+        let decode = render_processing_summary(
+            "Decode",
+            &summary,
+            ProcessingSummaryStyle {
+                show_zero_counts: true,
+                repeat_nonzero_counts: true,
+            },
+        )?;
+        assert_eq!(decode.matches("Warnings: 0").count(), 1);
+        assert_eq!(decode.matches("Records with errors: 0").count(), 1);
+
+        Ok(())
     }
 
     #[test]

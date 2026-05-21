@@ -3,8 +3,8 @@
 
 use crate::exit_codes::ExitCode;
 use crate::utils::{
-    ParseOptionsConfig, determine_exit_code, effective_error_options, parse_projected_schema,
-    process_input_to_output, write_processing_summary,
+    ParseOptionsConfig, ProcessingSummaryStyle, determine_exit_code, effective_error_options,
+    parse_projected_schema, process_input_to_output, write_processing_summary,
 };
 use crate::write_stderr_all;
 use anyhow::bail;
@@ -84,7 +84,14 @@ pub fn run(
     })?;
 
     if !write_to_stdout {
-        write_processing_summary("Encode", &summary, false)?;
+        write_processing_summary(
+            "Encode",
+            &summary,
+            ProcessingSummaryStyle {
+                show_zero_counts: false,
+                repeat_nonzero_counts: false,
+            },
+        )?;
     }
 
     // Provide detailed feedback about encode status

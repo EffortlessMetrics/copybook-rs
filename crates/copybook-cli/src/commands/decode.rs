@@ -4,8 +4,8 @@
 use crate::exit_codes::ExitCode;
 use crate::subcode;
 use crate::utils::{
-    ParseOptionsConfig, determine_exit_code, effective_error_options, parse_projected_schema,
-    process_input_to_output, write_processing_summary,
+    ParseOptionsConfig, ProcessingSummaryStyle, determine_exit_code, effective_error_options,
+    parse_projected_schema, process_input_to_output, write_processing_summary,
 };
 use crate::{ExitDiagnostics, Stage, emit_exit_diagnostics_stage};
 use copybook_codec::{
@@ -123,7 +123,14 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
     })?;
 
     if !write_to_stdout {
-        write_processing_summary("Decode", &summary, true)?;
+        write_processing_summary(
+            "Decode",
+            &summary,
+            ProcessingSummaryStyle {
+                show_zero_counts: true,
+                repeat_nonzero_counts: true,
+            },
+        )?;
     }
 
     info!("Decode completed successfully");

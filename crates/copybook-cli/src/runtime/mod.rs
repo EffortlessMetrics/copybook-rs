@@ -50,11 +50,8 @@ pub(crate) fn run() -> anyhow::Result<ExitCode> {
 }
 
 fn trigger_test_panic_if_requested() {
-    #[allow(clippy::panic)]
-    if std::env::var("COPYBOOK_TEST_PANIC")
-        .map(|v| v == "1")
-        .unwrap_or(false)
-    {
-        panic!("COPYBOOK_TEST_PANIC triggered");
-    }
+    assert!(
+        !std::env::var("COPYBOOK_TEST_PANIC").is_ok_and(|v| v == "1"),
+        "COPYBOOK_TEST_PANIC triggered"
+    );
 }

@@ -21,7 +21,10 @@ fn main() -> Result<()> {
         ["docs", "verify-tests"] => verify(),
         ["docs", "verify-support-matrix"] => verify_support_matrix(),
         ["docs-sync", "--check"] => docs_sync_check(),
-        ["check-file-policy"] => check_file_policy(),
+        ["check-file-policy"] => {
+            check_file_policy();
+            Ok(())
+        }
         ["perf"] => perf::run(false, None),
         ["perf", "--enforce"] => perf::run(true, None),
         ["perf", "--out-dir", out_dir] => perf::run(false, Some(out_dir)),
@@ -204,18 +207,18 @@ fn perf_summarize_last() -> Result<()> {
     Ok(())
 }
 
-fn check_file_policy() -> Result<()> {
+fn check_file_policy() {
     if Path::new("policy/non-rust-allowlist.toml").exists() {
         println!("✓ non-Rust file policy present");
     } else {
         println!("✓ no non-Rust file policy configured for this repository");
     }
-    Ok(())
 }
 
 fn pr_gate() -> Result<()> {
     docs_sync_check()?;
     verify_support_matrix()?;
+    check_file_policy();
     println!("✓ PR xtask checks passed");
     Ok(())
 }

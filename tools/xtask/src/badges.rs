@@ -55,8 +55,7 @@ fn workspace_root_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(Path::parent)
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| PathBuf::from("."))
+        .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
 }
 
 pub fn test_efficiency_report() -> Result<()> {

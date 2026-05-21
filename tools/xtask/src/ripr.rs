@@ -109,8 +109,7 @@ fn workspace_root_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(Path::parent)
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| PathBuf::from("."))
+        .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
 }
 
 fn ripr_bin() -> String {
@@ -128,8 +127,7 @@ fn base_ref(workspace_root: &Path) -> String {
         .arg("origin/main")
         .current_dir(workspace_root)
         .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false);
+        .is_ok_and(|output| output.status.success());
 
     if origin_main_exists {
         "origin/main".to_string()

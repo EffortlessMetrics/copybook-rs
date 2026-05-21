@@ -14,7 +14,6 @@ use copybook_codec::{
 };
 use copybook_core::{Error as CoreError, Feature, FeatureCategory, FeatureFlags};
 use std::borrow::Cow;
-use std::convert::TryFrom;
 use std::error::Error as StdError;
 use std::io::{self, ErrorKind, Write};
 use std::panic::AssertUnwindSafe;
@@ -565,7 +564,7 @@ fn run() -> anyhow::Result<ExitCode> {
         cli_runtime::InitOutcome::Exit(exit_code) => return Ok(exit_code),
     };
     let command_dispatch::CommandRun { status, op } =
-        command_dispatch::execute(runtime.command, runtime.strict_policy)?;
+        command_dispatch::execute(runtime.command, runtime.strict_policy);
 
     #[cfg(feature = "metrics")]
     if let (Err(err), Some((handle, _))) = (&status, &runtime.metrics_server) {
@@ -573,11 +572,20 @@ fn run() -> anyhow::Result<ExitCode> {
         bump_error_if_pre_run(err, records_processed);
     }
 
-    exit_reporting::finish(status?, op)
+    Ok(exit_reporting::finish(status?, op))
 }
 
 mod cli_runtime {
-    use super::*;
+    use super::{
+        BrokenPipeSafeStderr, ClapErrorKind, Cli, Commands, EnvFilter, ExitCode, ExitDiagnostics,
+        Feature, Level, Parser, Stage, effective_strict_policy, emit_exit_diagnostics_stage,
+        initialize_feature_flags, invocation_id, list_all_features,
+    };
+
+    #[cfg(feature = "metrics")]
+    use super::{
+        MetricsGraceGuard, describe_metrics_once, metrics_grace_guard, metrics_start_if_requested,
+    };
 
     pub(super) enum CliParseOutcome {
         Run(Box<Cli>),
@@ -611,7 +619,7 @@ mod cli_runtime {
     pub(super) fn parse_cli_or_exit() -> CliParseOutcome {
         match Cli::try_parse() {
             Ok(cli) => CliParseOutcome::Run(Box::new(cli)),
-            Err(err) => handle_parse_error(err),
+            Err(err) => handle_parse_error(&err),
         }
     }
 
@@ -652,7 +660,7 @@ mod cli_runtime {
         }))
     }
 
-    fn handle_parse_error(err: clap::Error) -> CliParseOutcome {
+    fn handle_parse_error(err: &clap::Error) -> CliParseOutcome {
         let kind = err.kind();
         let _ = err.print();
         if matches!(
@@ -686,7 +694,7 @@ mod cli_runtime {
             Level::ERROR,
             exit_code.as_i32(),
         )
-        .with_error(Some(&err));
+        .with_error(Some(err));
         emit_exit_diagnostics_stage(&diagnostics, Stage::Parse);
         CliParseOutcome::Exit(exit_code)
     }
@@ -721,29 +729,76 @@ mod cli_runtime {
 }
 
 mod command_dispatch {
-    use super::*;
+    use anyhow::anyhow;
+    use std::convert::TryFrom;
+
+    use super::{Commands, ExitCode, effective_dialect};
 
     pub(super) struct CommandRun {
         pub(super) status: anyhow::Result<ExitCode>,
         pub(super) op: &'static str,
     }
 
-    pub(super) fn execute(command: Commands, strict_policy: bool) -> anyhow::Result<CommandRun> {
-        let (status, op) = match command {
+    pub(super) fn execute(command: Commands, strict_policy: bool) -> CommandRun {
+        match command {
+            Commands::Parse { .. } | Commands::Inspect { .. } => execute_schema_command(command),
+            Commands::Decode { .. } | Commands::Encode { .. } => {
+                execute_codec_command(command, strict_policy)
+            }
+            #[cfg(feature = "audit")]
+            Commands::Audit { .. } => execute_support_command(command),
+            Commands::Verify { .. } | Commands::Support { .. } | Commands::Determinism { .. } => {
+                execute_support_command(command)
+            }
+        }
+    }
+
+    fn execute_schema_command(command: Commands) -> CommandRun {
+        match command {
             Commands::Parse {
                 copybook,
                 output,
                 strict,
                 strict_comments,
                 dialect,
-            } => run_parse(copybook, output, strict, strict_comments, dialect),
+            } => {
+                let effective_dialect = effective_dialect(dialect);
+                command_run(
+                    crate::commands::parse::run(
+                        &copybook,
+                        output,
+                        strict,
+                        strict_comments,
+                        effective_dialect,
+                    ),
+                    "parse",
+                )
+            }
             Commands::Inspect {
                 copybook,
                 codepage,
                 strict,
                 strict_comments,
                 dialect,
-            } => run_inspect(copybook, codepage, strict, strict_comments, dialect),
+            } => {
+                let effective_dialect = effective_dialect(dialect);
+                command_run(
+                    crate::commands::inspect::run(
+                        &copybook,
+                        codepage,
+                        strict,
+                        strict_comments,
+                        effective_dialect,
+                    ),
+                    "inspect",
+                )
+            }
+            _ => command_routing_error("schema"),
+        }
+    }
+
+    fn execute_codec_command(command: Commands, strict_policy: bool) -> CommandRun {
+        match command {
             Commands::Decode {
                 copybook,
                 input,
@@ -765,29 +820,35 @@ mod command_dispatch {
                 float_format,
                 dialect,
                 select,
-            } => run_decode(DecodeDispatchArgs {
-                copybook,
-                input,
-                output,
-                format,
-                codepage,
-                json_number,
-                strict,
-                max_errors,
-                fail_fast,
-                emit_filler,
-                emit_meta,
-                emit_raw,
-                on_decode_unmappable,
-                threads,
-                strict_comments,
-                preserve_zoned_encoding,
-                preferred_zoned_encoding_cli,
-                float_format,
-                dialect,
-                select,
-                strict_policy,
-            }),
+            } => {
+                let effective_dialect = effective_dialect(dialect);
+                command_run(
+                    crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
+                        copybook: &copybook,
+                        input: &input,
+                        output: &output,
+                        format,
+                        codepage,
+                        json_number,
+                        strict,
+                        max_errors,
+                        fail_fast,
+                        emit_filler,
+                        emit_meta,
+                        emit_raw,
+                        on_decode_unmappable,
+                        threads,
+                        strict_comments,
+                        preserve_zoned_encoding,
+                        preferred_zoned_encoding: preferred_zoned_encoding_cli.into(),
+                        float_format,
+                        strict_policy,
+                        dialect: effective_dialect.into(),
+                        select: &select,
+                    }),
+                    "decode",
+                )
+            }
             Commands::Encode {
                 copybook,
                 input,
@@ -806,27 +867,49 @@ mod command_dispatch {
                 float_format,
                 dialect,
                 select,
-            } => run_encode(EncodeDispatchArgs {
-                copybook,
-                input,
-                output,
-                format,
-                codepage,
-                use_raw,
-                bwz_encode,
-                strict,
-                max_errors,
-                fail_fast,
-                threads,
-                coerce_numbers,
-                strict_comments,
-                zoned_encoding_override,
-                float_format,
-                dialect,
-                select,
-            }),
+            } => {
+                let effective_dialect = effective_dialect(dialect);
+                command_run(
+                    crate::commands::encode::run(
+                        &copybook,
+                        &input,
+                        &output,
+                        &crate::commands::encode::EncodeCliOptions {
+                            format,
+                            codepage,
+                            use_raw,
+                            bwz_encode,
+                            strict,
+                            max_errors,
+                            fail_fast,
+                            threads,
+                            coerce_numbers,
+                            strict_comments,
+                            zoned_encoding_override,
+                            float_format,
+                            dialect: effective_dialect.into(),
+                            select: &select,
+                        },
+                    ),
+                    "encode",
+                )
+            }
+            _ => command_routing_error("codec"),
+        }
+    }
+
+    fn execute_support_command(command: Commands) -> CommandRun {
+        match command {
             #[cfg(feature = "audit")]
-            Commands::Audit { audit_command } => run_audit(audit_command)?,
+            Commands::Audit { audit_command } => {
+                let status = match tokio::runtime::Runtime::new() {
+                    Ok(runtime) => runtime
+                        .block_on(crate::commands::audit::run(audit_command))
+                        .map_err(|err| anyhow!(err)),
+                    Err(err) => Err(anyhow!(err)),
+                };
+                command_run(status, "audit")
+            }
             Commands::Verify {
                 copybook,
                 input,
@@ -839,230 +922,60 @@ mod command_dispatch {
                 strict_comments,
                 dialect,
                 select,
-            } => run_verify(VerifyDispatchArgs {
-                copybook,
-                input,
-                report,
-                format,
-                codepage,
-                strict,
-                max_errors,
-                sample,
-                strict_comments,
-                dialect,
-                select,
-            })?,
-            Commands::Support { args } => (crate::commands::support::run(&args), "support"),
-            Commands::Determinism { command } => {
-                (crate::commands::determinism::run(&command), "determinism")
+            } => {
+                let effective_dialect = effective_dialect(dialect);
+                let status = (|| {
+                    let normalized_max_errors = normalize_max_errors(max_errors)?;
+                    let opts = crate::commands::verify::VerifyOptions {
+                        format,
+                        codepage,
+                        strict,
+                        max_errors: normalized_max_errors,
+                        sample: sample.unwrap_or(5),
+                        strict_comments,
+                        dialect: effective_dialect.into(),
+                        select: &select,
+                    };
+                    crate::commands::verify::run(&copybook, &input, report, &opts)
+                })();
+                command_run(status, "verify")
             }
-        };
-
-        Ok(CommandRun { status, op })
+            Commands::Support { args } => {
+                command_run(crate::commands::support::run(&args), "support")
+            }
+            Commands::Determinism { command } => {
+                command_run(crate::commands::determinism::run(&command), "determinism")
+            }
+            _ => command_routing_error("support"),
+        }
     }
 
-    fn run_parse(
-        copybook: PathBuf,
-        output: Option<PathBuf>,
-        strict: bool,
-        strict_comments: bool,
-        dialect: Option<DialectPreference>,
-    ) -> (anyhow::Result<ExitCode>, &'static str) {
-        let effective_dialect = effective_dialect(dialect);
-        (
-            crate::commands::parse::run(
-                &copybook,
-                output,
-                strict,
-                strict_comments,
-                effective_dialect,
-            ),
-            "parse",
+    fn command_run(status: anyhow::Result<ExitCode>, op: &'static str) -> CommandRun {
+        CommandRun { status, op }
+    }
+
+    fn command_routing_error(route: &'static str) -> CommandRun {
+        command_run(
+            Err(anyhow!("command routed to {route} dispatcher unexpectedly")),
+            "dispatch",
         )
     }
 
-    fn run_inspect(
-        copybook: PathBuf,
-        codepage: Codepage,
-        strict: bool,
-        strict_comments: bool,
-        dialect: Option<DialectPreference>,
-    ) -> (anyhow::Result<ExitCode>, &'static str) {
-        let effective_dialect = effective_dialect(dialect);
-        (
-            crate::commands::inspect::run(
-                &copybook,
-                codepage,
-                strict,
-                strict_comments,
-                effective_dialect,
-            ),
-            "inspect",
-        )
-    }
-
-    struct DecodeDispatchArgs {
-        copybook: PathBuf,
-        input: PathBuf,
-        output: PathBuf,
-        format: RecordFormat,
-        codepage: Codepage,
-        json_number: JsonNumberMode,
-        strict: bool,
-        max_errors: Option<u64>,
-        fail_fast: bool,
-        emit_filler: bool,
-        emit_meta: bool,
-        emit_raw: RawMode,
-        on_decode_unmappable: UnmappablePolicy,
-        threads: usize,
-        strict_comments: bool,
-        preserve_zoned_encoding: bool,
-        preferred_zoned_encoding_cli: ZonedEncodingPreference,
-        float_format: FloatFormat,
-        dialect: Option<DialectPreference>,
-        select: Vec<String>,
-        strict_policy: bool,
-    }
-
-    fn run_decode(args: DecodeDispatchArgs) -> (anyhow::Result<ExitCode>, &'static str) {
-        let effective_dialect = effective_dialect(args.dialect);
-        (
-            crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
-                copybook: &args.copybook,
-                input: &args.input,
-                output: &args.output,
-                format: args.format,
-                codepage: args.codepage,
-                json_number: args.json_number,
-                strict: args.strict,
-                max_errors: args.max_errors,
-                fail_fast: args.fail_fast,
-                emit_filler: args.emit_filler,
-                emit_meta: args.emit_meta,
-                emit_raw: args.emit_raw,
-                on_decode_unmappable: args.on_decode_unmappable,
-                threads: args.threads,
-                strict_comments: args.strict_comments,
-                preserve_zoned_encoding: args.preserve_zoned_encoding,
-                preferred_zoned_encoding: args.preferred_zoned_encoding_cli.into(),
-                float_format: args.float_format,
-                strict_policy: args.strict_policy,
-                dialect: effective_dialect.into(),
-                select: &args.select,
-            }),
-            "decode",
-        )
-    }
-
-    struct EncodeDispatchArgs {
-        copybook: PathBuf,
-        input: PathBuf,
-        output: PathBuf,
-        format: RecordFormat,
-        codepage: Codepage,
-        use_raw: bool,
-        bwz_encode: bool,
-        strict: bool,
-        max_errors: Option<u64>,
-        fail_fast: bool,
-        threads: usize,
-        coerce_numbers: bool,
-        strict_comments: bool,
-        zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
-        float_format: FloatFormat,
-        dialect: Option<DialectPreference>,
-        select: Vec<String>,
-    }
-
-    fn run_encode(args: EncodeDispatchArgs) -> (anyhow::Result<ExitCode>, &'static str) {
-        let effective_dialect = effective_dialect(args.dialect);
-        (
-            crate::commands::encode::run(
-                &args.copybook,
-                &args.input,
-                &args.output,
-                &crate::commands::encode::EncodeCliOptions {
-                    format: args.format,
-                    codepage: args.codepage,
-                    use_raw: args.use_raw,
-                    bwz_encode: args.bwz_encode,
-                    strict: args.strict,
-                    max_errors: args.max_errors,
-                    fail_fast: args.fail_fast,
-                    threads: args.threads,
-                    coerce_numbers: args.coerce_numbers,
-                    strict_comments: args.strict_comments,
-                    zoned_encoding_override: args.zoned_encoding_override,
-                    float_format: args.float_format,
-                    dialect: effective_dialect.into(),
-                    select: &args.select,
-                },
-            ),
-            "encode",
-        )
-    }
-
-    #[cfg(feature = "audit")]
-    fn run_audit(
-        audit_command: crate::commands::audit::AuditCommand,
-    ) -> anyhow::Result<(anyhow::Result<ExitCode>, &'static str)> {
-        let runtime = tokio::runtime::Runtime::new()?;
-        Ok((
-            runtime
-                .block_on(crate::commands::audit::run(audit_command))
-                .map_err(|err| anyhow!(err)),
-            "audit",
-        ))
-    }
-
-    struct VerifyDispatchArgs {
-        copybook: PathBuf,
-        input: PathBuf,
-        report: Option<PathBuf>,
-        format: RecordFormat,
-        codepage: Codepage,
-        strict: bool,
-        max_errors: Option<u64>,
-        sample: Option<u32>,
-        strict_comments: bool,
-        dialect: Option<DialectPreference>,
-        select: Vec<String>,
-    }
-
-    fn run_verify(
-        args: VerifyDispatchArgs,
-    ) -> anyhow::Result<(anyhow::Result<ExitCode>, &'static str)> {
-        let effective_dialect = effective_dialect(args.dialect);
-        let value = args.max_errors.unwrap_or(10);
-        let normalized_max_errors = u32::try_from(value).map_err(|_| {
+    fn normalize_max_errors(max_errors: Option<u64>) -> anyhow::Result<u32> {
+        let value = max_errors.unwrap_or(10);
+        u32::try_from(value).map_err(|_| {
             anyhow!(
                 "--max-errors must be between 0 and {} (received {value})",
                 u32::MAX
             )
-        })?;
-
-        let opts = crate::commands::verify::VerifyOptions {
-            format: args.format,
-            codepage: args.codepage,
-            strict: args.strict,
-            max_errors: normalized_max_errors,
-            sample: args.sample.unwrap_or(5),
-            strict_comments: args.strict_comments,
-            dialect: effective_dialect.into(),
-            select: &args.select,
-        };
-        Ok((
-            crate::commands::verify::run(&args.copybook, &args.input, args.report, &opts),
-            "verify",
-        ))
+        })
     }
 }
 
 mod exit_reporting {
-    use super::*;
+    use super::{ExitCode, ExitDiagnostics, Level, Stage, emit_exit_diagnostics_stage};
 
-    pub(super) fn finish(status: ExitCode, op: &'static str) -> anyhow::Result<ExitCode> {
+    pub(super) fn finish(status: ExitCode, op: &'static str) -> ExitCode {
         let diagnostics = if status == ExitCode::Ok {
             ExitDiagnostics::new(
                 ExitCode::Ok,
@@ -1090,7 +1003,7 @@ mod exit_reporting {
         };
         emit_exit_diagnostics_stage(&diagnostics, stage);
 
-        Ok(status)
+        status
     }
 }
 

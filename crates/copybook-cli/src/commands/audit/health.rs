@@ -21,11 +21,11 @@ struct RawHealthEvent {
 #[derive(Serialize, Deserialize)]
 pub(super) struct HealthEventRecord {
     event_id: String,
-    timestamp: String,
+    pub(super) timestamp: String,
     source: String,
     event_type: String,
-    integrity_hash: String,
-    previous_hash: Option<String>,
+    pub(super) integrity_hash: String,
+    pub(super) previous_hash: Option<String>,
 }
 
 pub(super) fn parse_health_events(

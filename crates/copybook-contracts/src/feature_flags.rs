@@ -530,8 +530,7 @@ impl FeatureFlagsHandle {
     pub fn is_enabled(&self, feature: Feature) -> bool {
         self.flags
             .read()
-            .map(|flags| flags.is_enabled(feature))
-            .unwrap_or(false)
+            .is_ok_and(|flags| flags.is_enabled(feature))
     }
 
     /// Enable a feature flag through the handle.

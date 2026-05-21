@@ -172,6 +172,7 @@ where
 }
 
 /// Controls how issue counts are printed in a processing summary.
+#[derive(Clone, Copy)]
 pub struct SummaryIssueCountStyle {
     pub show_zero_counts: bool,
     pub repeat_nonzero_counts: bool,

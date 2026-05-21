@@ -70,17 +70,16 @@ pub fn safe_parse_u16(s: &str, context: &str) -> Result<u16> {
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_string_char_at(s: &str, index: usize, context: &str) -> Result<char> {
-    match s.chars().nth(index) {
-        Some(ch) => Ok(ch),
-        None => {
-            let char_len = s.chars().count();
-            Err(Error::new(
-                ErrorCode::CBKP001_SYNTAX,
-                format!(
-                    "String character access out of bounds in {context}: index {index} >= character length {char_len}"
-                ),
-            ))
-        }
+    if let Some(ch) = s.chars().nth(index) {
+        Ok(ch)
+    } else {
+        let char_len = s.chars().count();
+        Err(Error::new(
+            ErrorCode::CBKP001_SYNTAX,
+            format!(
+                "String character access out of bounds in {context}: index {index} >= character length {char_len}"
+            ),
+        ))
     }
 }
 

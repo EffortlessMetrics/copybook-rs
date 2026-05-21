@@ -72,12 +72,9 @@ fn prepare_runtime_context(cli: Cli) -> anyhow::Result<Option<RuntimeContext>> {
     }))
 }
 
-#[allow(clippy::panic)]
 fn assert_test_panic_requested() {
-    if std::env::var("COPYBOOK_TEST_PANIC")
-        .map(|value| value == "1")
-        .unwrap_or(false)
-    {
-        panic!("COPYBOOK_TEST_PANIC triggered");
-    }
+    assert!(
+        !std::env::var("COPYBOOK_TEST_PANIC").is_ok_and(|value| value == "1"),
+        "COPYBOOK_TEST_PANIC triggered"
+    );
 }

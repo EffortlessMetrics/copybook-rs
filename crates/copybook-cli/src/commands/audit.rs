@@ -2701,12 +2701,11 @@ fn run_audit_health_check_impl(
         );
     }
 
-    let overall_health_score = if checks_executed == 0 {
-        0
-    } else {
-        let failed_penalty = (checks_failed * 100) / checks_executed;
-        (100u32.saturating_sub(failed_penalty)).min(100)
-    };
+    let overall_health_score = (checks_failed * 100)
+        .checked_div(checks_executed)
+        .map_or(0, |failed_penalty| {
+            (100u32.saturating_sub(failed_penalty)).min(100)
+        });
 
     let status_code = if checks_failed > 0 || !parse_issues.is_empty() {
         ExitCode::Data

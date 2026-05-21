@@ -554,13 +554,10 @@ fn main() -> ProcessExitCode {
 
 #[allow(clippy::too_many_lines)]
 fn run() -> anyhow::Result<ExitCode> {
-    #[allow(clippy::panic)]
-    if std::env::var("COPYBOOK_TEST_PANIC")
-        .map(|v| v == "1")
-        .unwrap_or(false)
-    {
-        panic!("COPYBOOK_TEST_PANIC triggered");
-    }
+    assert!(
+        !std::env::var("COPYBOOK_TEST_PANIC").is_ok_and(|v| v == "1"),
+        "COPYBOOK_TEST_PANIC triggered"
+    );
 
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,

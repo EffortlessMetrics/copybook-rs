@@ -34,7 +34,7 @@ fn main() -> Result<()> {
     {
         ["docs", "sync-tests"] => sync(),
         ["docs", "verify-tests"] => verify(),
-        ["docs", "verify-support-matrix"] => verify_support_matrix(),
+        ["docs", "verify-support-matrix"] | ["docs-sync", "--check"] => verify_support_matrix(),
         ["perf"] => perf::run(false, None),
         ["perf", "--enforce"] => perf::run(true, None),
         ["perf", "--out-dir", out_dir] => perf::run(false, Some(out_dir)),
@@ -47,7 +47,6 @@ fn main() -> Result<()> {
         ["ripr-pr", "--check"] => ripr_pr(true),
         ["ripr-review-comments"] => ripr_review_comments(false),
         ["ripr-review-comments", "--check"] => ripr_review_comments(true),
-        ["docs-sync", "--check"] => verify_support_matrix(),
         ["check-file-policy"] => check_file_policy(),
         ["pr"] => pr_gate(),
         _ => {

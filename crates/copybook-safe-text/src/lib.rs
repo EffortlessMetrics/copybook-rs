@@ -59,6 +59,10 @@ pub fn safe_parse_u16(s: &str, context: &str) -> Result<u16> {
 
 /// Safely access a string character with bounds checking.
 ///
+/// The `index` is a Unicode scalar value (Rust `char`) position, not a UTF-8
+/// byte offset. Error messages report the same character length so diagnostics
+/// stay consistent for multibyte text.
+///
 /// # Errors
 ///
 /// Returns `CBKP001_SYNTAX` if `index` is out of bounds.

@@ -2585,8 +2585,7 @@ fn run_audit_health_check_impl(
             if let Some(window) = retention_limit {
                 let old_records = health_events.iter().filter(|record| {
                     DateTime::parse_from_rfc3339(&record.timestamp)
-                        .map(|timestamp| timestamp.with_timezone(&chrono::Utc) < window)
-                        .unwrap_or(false)
+                        .is_ok_and(|timestamp| timestamp.with_timezone(&chrono::Utc) < window)
                 });
                 if old_records.clone().count() > 0 {
                     retention_compliant = false;
@@ -2701,12 +2700,12 @@ fn run_audit_health_check_impl(
         );
     }
 
-    let overall_health_score = if checks_executed == 0 {
-        0
-    } else {
-        let failed_penalty = (checks_failed * 100) / checks_executed;
-        (100u32.saturating_sub(failed_penalty)).min(100)
-    };
+    let overall_health_score = checks_failed
+        .saturating_mul(100)
+        .checked_div(checks_executed)
+        .map_or(0, |failed_penalty| {
+            (100u32.saturating_sub(failed_penalty)).min(100)
+        });
 
     let status_code = if checks_failed > 0 || !parse_issues.is_empty() {
         ExitCode::Data

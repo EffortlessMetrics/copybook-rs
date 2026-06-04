@@ -1,17 +1,31 @@
-# Codecov configuration for copybook-rs
-# Prevents codecov/patch status checks from blocking PRs due to narrow
-# threshold misses (e.g., 77.27% vs 77.53% target).
 coverage:
+  precision: 2
+  round: down
+  range: "50...85"
+
   status:
     project:
       default:
-        informational: true
+        target: auto
+        threshold: 3%
+        informational: false
+        flags:
+          - rust-core
+
     patch:
       default:
+        target: 60%
+        threshold: 20%
         informational: true
+        flags:
+          - rust-core
+
+comment: false
+
+github_checks:
+  annotations: false
 
 ignore:
-  - "tools/**"
-  - "tests/**"
-  - "fuzz/**"
-  - "examples/**"
+  - "target/**"
+  - "tools/copybook-bench/**"
+  - "examples/kafka_pipeline/**"

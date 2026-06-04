@@ -693,6 +693,8 @@ impl<W: Write> RDWRecordWriter<W> {
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn write_record(&mut self, record: &RDWRecord) -> Result<()> {
+        self.validate_record(record)?;
+
         self.output.write_all(&record.header).map_err(|e| {
             Error::new(
                 ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
@@ -727,6 +729,46 @@ impl<W: Write> RDWRecordWriter<W> {
             self.record_count,
             record.payload.len()
         );
+        Ok(())
+    }
+
+    #[inline]
+    fn validate_record(&self, record: &RDWRecord) -> Result<()> {
+        let header_len = usize::from(record.length());
+        let payload_len = record.payload.len();
+
+        if payload_len > RDW_MAX_PAYLOAD_LEN {
+            return Err(Error::new(
+                ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+                format!(
+                    "RDW payload too large: {payload_len} bytes exceeds maximum of {RDW_MAX_PAYLOAD_LEN}"
+                ),
+            )
+            .with_context(ErrorContext {
+                record_index: Some(self.record_count + 1),
+                field_path: None,
+                byte_offset: None,
+                line_number: None,
+                details: Some("RDW length field is 16-bit".to_string()),
+            }));
+        }
+
+        if header_len != payload_len {
+            return Err(Error::new(
+                ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+                format!(
+                    "RDW header length mismatch: header declares {header_len} bytes, payload has {payload_len} bytes"
+                ),
+            )
+            .with_context(ErrorContext {
+                record_index: Some(self.record_count + 1),
+                field_path: None,
+                byte_offset: Some(0),
+                line_number: None,
+                details: Some("RDW header length must match payload length before writing".to_string()),
+            }));
+        }
+
         Ok(())
     }
 
@@ -885,6 +927,57 @@ mod tests {
         writer.write_record(&record).unwrap();
         assert_eq!(writer.record_count(), 1);
         assert_eq!(output, vec![0, 4, 0, 0, b't', b'e', b's', b't']);
+    }
+
+    #[test]
+    fn rdw_writer_rejects_header_shorter_than_payload() {
+        let mut output = Vec::new();
+        let mut writer = RDWRecordWriter::new(&mut output);
+        let record = RDWRecord {
+            header: [0, 2, 0, 0],
+            payload: b"toolong".to_vec(),
+        };
+
+        let error = writer.write_record(&record).unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+        assert!(error.message.contains("header declares 2 bytes"));
+        assert_eq!(writer.record_count(), 0);
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn rdw_writer_rejects_header_longer_than_payload() {
+        let mut output = Vec::new();
+        let mut writer = RDWRecordWriter::new(&mut output);
+        let record = RDWRecord {
+            header: [0, 4, 0, 0],
+            payload: b"hi".to_vec(),
+        };
+
+        let error = writer.write_record(&record).unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+        assert!(error.message.contains("payload has 2 bytes"));
+        assert_eq!(writer.record_count(), 0);
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn rdw_writer_rejects_manual_oversize_record() {
+        let mut output = Vec::new();
+        let mut writer = RDWRecordWriter::new(&mut output);
+        let record = RDWRecord {
+            header: [0xFF, 0xFF, 0, 0],
+            payload: vec![0u8; RDW_MAX_PAYLOAD_LEN + 1],
+        };
+
+        let error = writer.write_record(&record).unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+        assert!(error.message.contains("exceeds maximum"));
+        assert_eq!(writer.record_count(), 0);
+        assert!(output.is_empty());
     }
 
     #[test]

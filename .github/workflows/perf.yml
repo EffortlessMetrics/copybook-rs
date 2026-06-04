@@ -346,7 +346,7 @@ jobs:
 
       - name: Post PR comment
         if: github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           BASELINE_FOUND: ${{ steps.baseline.outputs.baseline_found }}
           BASE_DISPLAY: ${{ steps.compare.outputs.base_display }}
@@ -509,7 +509,7 @@ jobs:
 
       - name: Publish Throughput badge (neutral on fail)
         id: throughput
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           DISPLAY_MIB: ${{ steps.slo.outputs.display }}
           COMP3_MIB: ${{ steps.slo.outputs.comp3 }}
@@ -557,7 +557,7 @@ jobs:
 
       - name: Label perf success
         if: ${{ success() && steps.throughput.outputs.ok == 'true' && github.event.pull_request.number }}
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const label = 'ready:perf-ok';

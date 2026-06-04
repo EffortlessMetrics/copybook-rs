@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-rs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Search alias for the canonical copybook crate."
+documentation = "https://docs.rs/copybook-rs"
+readme = "README.md"
+keywords = ["copybook", "cobol", "mainframe", "ebcdic", "fixed-width"]
+categories = ["parsing", "encoding", "data-structures"]
+
+# Redirect package only; do not ship unrelated workspace material.
+include = ["src/**", "Cargo.toml", "README.md"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+copybook.workspace = true
+
+[lints]
+workspace = true

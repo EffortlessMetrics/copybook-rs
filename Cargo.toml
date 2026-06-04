@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 [workspace]
 members = [
+    "crates/copybook",
+    "crates/copybook-rs",
     "crates/copybook-error",
     "crates/copybook-error-reporter",
     "crates/copybook-utils",
@@ -64,6 +66,7 @@ categories = ["parsing", "encoding", "command-line-utilities"]
 
 [workspace.dependencies]
 # Internal workspace crates (pin exact versions for publish)
+copybook = { version = "=0.4.3", path = "crates/copybook" }
 copybook-error = { version = "=0.4.3", path = "crates/copybook-error" }
 copybook-error-reporter = { version = "=0.4.3", path = "crates/copybook-error-reporter" }
 copybook-utils = { version = "=0.4.3", path = "crates/copybook-utils" }
@@ -103,24 +106,24 @@ copybook-support-matrix = { version = "=0.4.3", path = "crates/copybook-support-
 
 # Core dependencies
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = { version = "1.0.149", features = ["preserve_order"] }
+serde_json = { version = "1.0.150", features = ["preserve_order"] }
 serde_plain = "1.0.2"
 thiserror = "2.0.18"
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 
 # Memory management dependencies
 smallvec = "1.15.1"
 crossbeam-channel = "0.5.15"
-indexmap = { version = "2.13.0", features = ["serde"] }
+indexmap = { version = "2.14.0", features = ["serde"] }
 
 # CLI dependencies
-clap = { version = "4.5.60", features = ["derive"] }
+clap = { version = "4.6.1", features = ["derive"] }
 tokio = { version = "1.50.0", features = ["full"] }
-tempfile = "3.26.0"
+tempfile = "3.27.0"
 
 # Telemetry dependencies
-metrics = "0.24.3"
+metrics = "0.24.6"
 
 # Parsing dependencies
 logos = "0.16.1"
@@ -129,13 +132,13 @@ regex = "1.12.3"
 # Crypto dependencies
 sha2 = "0.10.9"
 base64 = "0.22.1"
-blake3 = "1.8.3"
+blake3 = "1.8.5"
 
 # Testing dependencies
-proptest = "1.10.0"
+proptest = "1.11.0"
 criterion = { version = "0.8.2", features = ["html_reports"] }
 hex = "0.4.3"
-assert_cmd = "2.1.2"
+assert_cmd = "2.2.2"
 predicates = "3.1.4"
 num_cpus = "1.17.0"
 roxmltree = "0.21.1"
@@ -149,11 +152,11 @@ anyhow = "1.0.102"
 
 # Random number generation dependencies
 rand = "0.10.0"
-rand_core = "0.10.0"
+rand_core = "0.10.1"
 
 # Enterprise audit dependencies
 async-trait = "0.1.89"
-chrono = { version = "0.4.44", features = ["serde"] }
+chrono = { version = "0.4.45", features = ["serde"] }
 
 # TOML parsing
 toml = "0.9.8"

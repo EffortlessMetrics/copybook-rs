@@ -114,6 +114,34 @@ fn char_at_emoji() {
     assert!(safe_string_char_at(s, 2, "ctx").is_err());
 }
 
+#[test]
+fn char_at_out_of_bounds_reports_character_length_for_multibyte_text() {
+    let err = safe_string_char_at("🦀🐍", 2, "emoji-ctx").unwrap_err();
+
+    assert_eq!(err.code, ErrorCode::CBKP001_SYNTAX);
+    assert!(
+        err.message.contains("emoji-ctx"),
+        "message should include context: {}",
+        err.message
+    );
+    assert!(
+        err.message.contains("index 2 >= length 2"),
+        "message should report character length, not UTF-8 byte length: {}",
+        err.message
+    );
+}
+
+#[test]
+fn char_at_out_of_bounds_reports_character_length_for_mixed_width_text() {
+    let err = safe_string_char_at("Aé日", 3, "mixed-width").unwrap_err();
+
+    assert!(
+        err.message.contains("index 3 >= length 3"),
+        "message should report logical character count: {}",
+        err.message
+    );
+}
+
 // ── safe_write ──────────────────────────────────────────────────────
 
 #[test]

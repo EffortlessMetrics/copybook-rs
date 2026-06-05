@@ -14,9 +14,9 @@
 //! 9. Determinism: same input → same output
 //! 10. Dialect: zero-tolerant ODO behavior
 //!
-//! Note: `lib_api::encode_record` does not dispatch on `field.occurs`, so
-//! OCCURS arrays are silently skipped during encoding. Encode tests here are
-//! limited to ODO validation which fires before field-level encoding.
+//! Direct `lib_api::encode_record` dispatches on `field.occurs`; encode tests
+//! here focus on ODO validation, with byte-level array encode coverage in the
+//! dedicated ODO and property-test suites.
 
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat, decode_record,

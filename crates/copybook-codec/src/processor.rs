@@ -1124,12 +1124,11 @@ impl EncodeProcessor {
                 json_value
             };
 
-            if let Some(array) = json_lookup_array(fields_object, &tail_odo.array_path) {
-                let array_field =
-                    crate::odo_redefines::find_field_by_path_or_unique_name(
-                        schema,
-                        &tail_odo.array_path,
-                    )
+            let array_field =
+                crate::odo_redefines::find_field_by_path_or_unique_name(
+                    schema,
+                    &tail_odo.array_path,
+                )
                     .ok_or_else(|| {
                     Error::new(
                         ErrorCode::CBKS121_COUNTER_NOT_FOUND,
@@ -1148,11 +1147,11 @@ impl EncodeProcessor {
                     )
                     })?;
 
-                let counter_field =
-                    crate::odo_redefines::find_field_by_path_or_unique_name(
-                        schema,
-                        &tail_odo.counter_path,
-                    )
+            let counter_field =
+                crate::odo_redefines::find_field_by_path_or_unique_name(
+                    schema,
+                    &tail_odo.counter_path,
+                )
                     .ok_or_else(|| {
                         crate::odo_redefines::handle_missing_counter_field(
                             &tail_odo.counter_path,
@@ -1163,10 +1162,16 @@ impl EncodeProcessor {
                         )
                     })?;
 
-                if json_lookup_value(fields_object, &tail_odo.counter_path).is_none() {
+            if let Some(array) = json_lookup_array(fields_object, &array_field.path)
+                .or_else(|| json_lookup_array(fields_object, &tail_odo.array_path))
+            {
+                if json_lookup_value(fields_object, &counter_field.path)
+                    .or_else(|| json_lookup_value(fields_object, &tail_odo.counter_path))
+                    .is_none()
+                {
                     return Err(crate::odo_redefines::handle_missing_counter_field(
-                        &tail_odo.counter_path,
-                        &tail_odo.array_path,
+                        &counter_field.path,
+                        &array_field.path,
                         schema,
                         record_index,
                         counter_field.offset as u64,
@@ -1174,8 +1179,8 @@ impl EncodeProcessor {
                 }
 
                 let validation_context = crate::odo_redefines::OdoValidationContext {
-                    field_path: tail_odo.array_path.clone(),
-                    counter_path: tail_odo.counter_path.clone(),
+                    field_path: array_field.path.clone(),
+                    counter_path: counter_field.path.clone(),
                     record_index,
                     byte_offset: array_field.offset as u64,
                 };
@@ -1192,9 +1197,19 @@ impl EncodeProcessor {
         }
 
         Ok(())
-    }
+}
 
 fn json_lookup_value(value: &serde_json::Value, field_path: &str) -> Option<&serde_json::Value> {
+    json_lookup_exact_value(value, field_path).or_else(|| {
+        let (_, path_without_root) = field_path.split_once('.')?;
+        json_lookup_exact_value(value, path_without_root)
+    })
+}
+
+fn json_lookup_exact_value(
+    value: &serde_json::Value,
+    field_path: &str,
+) -> Option<&serde_json::Value> {
     let mut current = value;
     for segment in field_path.split('.') {
         current = current.as_object()?.get(segment)?;

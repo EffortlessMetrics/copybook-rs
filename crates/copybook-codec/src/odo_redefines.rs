@@ -660,6 +660,59 @@ mod tests {
         schema
     }
 
+    fn alphanum_field(path: &str, name: &str, offset: u32) -> Field {
+        Field {
+            path: path.to_string(),
+            name: name.to_string(),
+            level: 5,
+            kind: FieldKind::Alphanum { len: 1 },
+            offset,
+            len: 1,
+            redefines_of: None,
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            resolved_renames: None,
+            children: vec![],
+        }
+    }
+
+    #[test]
+    fn test_find_field_by_path_or_unique_name_prefers_exact_path() {
+        let mut schema = Schema::new();
+        schema.fields = vec![
+            alphanum_field("ROOT.LEFT.ITEM", "ITEM", 0),
+            alphanum_field("ROOT.RIGHT.ITEM", "ITEM", 1),
+        ];
+
+        let field = find_field_by_path_or_unique_name(&schema, "ROOT.RIGHT.ITEM")
+            .expect("exact path should resolve even when leaf names are duplicated");
+
+        assert_eq!(field.path, "ROOT.RIGHT.ITEM");
+    }
+
+    #[test]
+    fn test_find_field_by_path_or_unique_name_resolves_unique_leaf() {
+        let schema = create_test_schema_with_odo();
+
+        let field = find_field_by_path_or_unique_name(&schema, "ARRAY")
+            .expect("unique short ODO array name should resolve");
+
+        assert_eq!(field.path, "ROOT.ARRAY");
+    }
+
+    #[test]
+    fn test_find_field_by_path_or_unique_name_rejects_ambiguous_leaf() {
+        let mut schema = Schema::new();
+        schema.fields = vec![
+            alphanum_field("ROOT.LEFT.ITEM", "ITEM", 0),
+            alphanum_field("ROOT.RIGHT.ITEM", "ITEM", 1),
+        ];
+
+        assert!(find_field_by_path_or_unique_name(&schema, "ITEM").is_none());
+    }
+
     #[test]
     fn test_odo_validation_within_bounds() -> TestResult {
         let result = validate_odo_counter(3, 0, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false)?;

@@ -125,6 +125,43 @@ fn test_valid_odo_configuration() {
 }
 
 #[test]
+fn test_nested_tail_odo_encode_uses_schema_path_resolution() {
+    let copybook = r#"
+01 RECORD-LAYOUT.
+   05 HEADER.
+      10 ITEM-COUNT PIC 9(2).
+   05 DETAIL.
+      10 ITEMS OCCURS 1 TO 5 TIMES DEPENDING ON ITEM-COUNT.
+         15 ITEM-CODE PIC X(2).
+"#;
+
+    let schema = parse_copybook(copybook).unwrap();
+    let payload = json!({
+        "HEADER": { "ITEM-COUNT": "02" },
+        "DETAIL": {
+            "ITEMS": [
+                { "ITEM-CODE": "A1" },
+                { "ITEM-CODE": "B2" }
+            ]
+        }
+    });
+
+    let options = EncodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII);
+
+    let encoded = copybook_codec::encode_record(&schema, &payload, &options)
+        .expect("nested ODO encode should resolve schema paths from tail metadata");
+
+    assert_eq!(&encoded[..2], b"02");
+    assert_eq!(&encoded[2..6], b"A1B2");
+    assert_eq!(
+        encoded.len(),
+        usize::try_from(schema.lrecl_fixed.unwrap()).unwrap()
+    );
+}
+
+#[test]
 fn test_odo_strict_mode_clamp_fatal() {
     let copybook = r#"
 01 RECORD-LAYOUT.
@@ -191,13 +228,10 @@ fn test_odo_lenient_mode_clamp_with_warning() {
     // Counter value exceeds maximum (005 > 3)
     let test_data = b"005ITEM1     ITEM2     ITEM3     ";
     // Lenient mode should clamp and continue with a warning
-    let result = copybook_codec::decode_record(&schema, test_data, &options);
-    assert!(result.is_ok());
-
-    match result {
-        Err(error) => assert_eq!(error.code, ErrorCode::CBKS301_ODO_CLIPPED),
-        Ok(_) => panic!("expected error"),
-    }
+    let decoded =
+        copybook_codec::decode_record(&schema, test_data, &options).expect("lenient decode ok");
+    let items = decoded["ITEMS"].as_array().expect("ITEMS array");
+    assert_eq!(items.len(), 3);
 }
 
 #[test]
@@ -229,13 +263,10 @@ fn test_odo_lenient_mode_raise_to_minimum() {
     // Counter value below minimum (001 < 2)
     let test_data = b"001ITEM1     ITEM2     ";
     // Lenient mode should clamp and continue with a warning
-    let result = copybook_codec::decode_record(&schema, test_data, &options);
-    assert!(result.is_ok());
-
-    match result {
-        Err(error) => assert_eq!(error.code, ErrorCode::CBKS302_ODO_RAISED),
-        Ok(_) => panic!("expected error"),
-    }
+    let decoded =
+        copybook_codec::decode_record(&schema, test_data, &options).expect("lenient decode ok");
+    let items = decoded["ITEMS"].as_array().expect("ITEMS array");
+    assert_eq!(items.len(), 2);
 }
 
 #[test]

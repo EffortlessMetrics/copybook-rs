@@ -5,22 +5,28 @@
 //! This binary provides a user-friendly CLI for parsing copybooks and
 //! converting mainframe data files.
 
+use crate::cli_config::{
+    DialectPreference, FeatureFlagOpts, ZonedEncodingPreference, initialize_feature_flags,
+    list_all_features,
+};
 use crate::exit_codes::ExitCode;
-use anyhow::{Error as AnyhowError, anyhow};
+use anyhow::Error as AnyhowError;
+#[cfg(feature = "metrics")]
+use anyhow::anyhow;
+#[cfg(feature = "metrics")]
+use clap::Args;
 use clap::error::ErrorKind as ClapErrorKind;
-use clap::{Args, ColorChoice, Parser, Subcommand, ValueEnum};
+use clap::{ColorChoice, Parser, Subcommand};
 use copybook_codec::{
     Codepage, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
-use copybook_core::{Error as CoreError, Feature, FeatureCategory, FeatureFlags};
+use copybook_core::{Error as CoreError, Feature};
 use std::borrow::Cow;
-use std::convert::TryFrom;
 use std::error::Error as StdError;
 use std::io::{self, ErrorKind, Write};
 use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode as ProcessExitCode;
-use std::str::FromStr;
 use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::Level;
@@ -126,123 +132,6 @@ pub struct MetricsOpts {
     /// Optional delay after run completion so scrapes can observe final metrics
     #[arg(long, default_value_t = 0)]
     pub metrics_grace_ms: u64,
-}
-
-/// Feature flag options for the CLI
-///
-/// These options allow runtime control over experimental features,
-/// enterprise features, performance optimizations, debug capabilities,
-/// and testing hooks.
-#[derive(Args, Debug, Clone)]
-pub struct FeatureFlagOpts {
-    /// Enable specific feature flags (comma-separated)
-    ///
-    /// Available flags:
-    /// - Experimental: `sign_separate`, `renames_r4_r6`, `comp_1`, `comp_2`
-    /// - Enterprise: `audit_system`, `sox_compliance`, `hipaa_compliance`, `gdpr_compliance`, `pci_dss_compliance`, `security_monitoring`
-    /// - Performance: `advanced_optimization`, `lru_cache`, `parallel_decode`, `zero_copy`
-    /// - Debug: `verbose_logging`, `diagnostic_output`, `profiling`, `memory_tracking`
-    /// - Testing: `mutation_testing`, `fuzzing_integration`, `coverage_instrumentation`, `property_based_testing`
-    ///
-    /// Example: --enable-features `sign_separate,verbose_logging`
-    #[arg(long, value_delimiter = ',', value_name = "FEATURE")]
-    pub enable_features: Vec<String>,
-
-    /// Disable specific feature flags (comma-separated)
-    ///
-    /// This takes precedence over --enable-features and environment variables.
-    ///
-    /// Example: --disable-features `lru_cache`
-    #[arg(long, value_delimiter = ',', value_name = "FEATURE")]
-    pub disable_features: Vec<String>,
-
-    /// Enable all features in a category
-    ///
-    /// Available categories: `experimental`, `enterprise`, `performance`, `debug`, `testing`
-    ///
-    /// Example: --enable-category `debug`
-    #[arg(long, value_name = "CATEGORY")]
-    pub enable_category: Vec<String>,
-
-    /// Disable all features in a category
-    ///
-    /// Example: --disable-category `experimental`
-    #[arg(long, value_name = "CATEGORY")]
-    pub disable_category: Vec<String>,
-
-    /// Load feature flags from a configuration file
-    ///
-    /// The file can be in TOML or JSON format.
-    /// TOML format:
-    /// ```toml
-    /// [feature_flags]
-    /// enabled = ["sign_separate", "verbose_logging"]
-    /// disabled = ["lru_cache"]
-    /// ```
-    ///
-    /// JSON format:
-    /// ```json
-    /// {
-    ///   "feature_flags": {
-    ///     "enabled": ["sign_separate", "verbose_logging"],
-    ///     "disabled": ["lru_cache"]
-    ///   }
-    /// }
-    /// ```
-    #[arg(long, value_name = "PATH")]
-    pub feature_flags_config: Option<PathBuf>,
-
-    /// List all available feature flags and their status
-    #[arg(long)]
-    pub list_features: bool,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
-enum DialectPreference {
-    /// Normative dialect - `min_count` is strictly enforced
-    #[value(name = "n")]
-    N,
-    /// Zero-tolerant dialect - `min_count` is ignored
-    #[value(name = "0")]
-    Zero,
-    /// One-tolerant dialect - `min_count` is clamped to 1
-    #[value(name = "1")]
-    One,
-}
-
-impl From<DialectPreference> for copybook_core::dialect::Dialect {
-    #[inline]
-    fn from(value: DialectPreference) -> Self {
-        match value {
-            DialectPreference::N => Self::Normative,
-            DialectPreference::Zero => Self::ZeroTolerant,
-            DialectPreference::One => Self::OneTolerant,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
-enum ZonedEncodingPreference {
-    /// Prefer default zero policy based on target code page.
-    #[value(alias = "preferred-zero")]
-    Preferred,
-    /// Force ASCII zoned encoding format.
-    Ascii,
-    /// Force EBCDIC zoned encoding format.
-    Ebcdic,
-    /// Defer to automatic detection when metadata supplies a format.
-    Auto,
-}
-
-impl From<ZonedEncodingPreference> for copybook_codec::ZonedEncodingFormat {
-    #[inline]
-    fn from(value: ZonedEncodingPreference) -> Self {
-        match value {
-            ZonedEncodingPreference::Preferred | ZonedEncodingPreference::Auto => Self::Auto,
-            ZonedEncodingPreference::Ascii => Self::Ascii,
-            ZonedEncodingPreference::Ebcdic => Self::Ebcdic,
-        }
-    }
 }
 
 #[derive(Subcommand)]
@@ -654,193 +543,7 @@ fn run() -> anyhow::Result<ExitCode> {
         );
     }
 
-    let (exit_status, exit_op): (anyhow::Result<ExitCode>, &'static str) = match command {
-        Commands::Parse {
-            copybook,
-            output,
-            strict,
-            strict_comments,
-            dialect,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            (
-                crate::commands::parse::run(
-                    &copybook,
-                    output,
-                    strict,
-                    strict_comments,
-                    effective_dialect,
-                ),
-                "parse",
-            )
-        }
-        Commands::Inspect {
-            copybook,
-            codepage,
-            strict,
-            strict_comments,
-            dialect,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            (
-                crate::commands::inspect::run(
-                    &copybook,
-                    codepage,
-                    strict,
-                    strict_comments,
-                    effective_dialect,
-                ),
-                "inspect",
-            )
-        }
-        Commands::Decode {
-            copybook,
-            input,
-            output,
-            format,
-            codepage,
-            json_number,
-            strict,
-            max_errors,
-            fail_fast,
-            emit_filler,
-            emit_meta,
-            emit_raw,
-            on_decode_unmappable,
-            threads,
-            strict_comments,
-            preserve_zoned_encoding,
-            preferred_zoned_encoding: preferred_zoned_encoding_cli,
-            float_format,
-            dialect,
-            select,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            (
-                crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
-                    copybook: &copybook,
-                    input: &input,
-                    output: &output,
-                    format,
-                    codepage,
-                    json_number,
-                    strict,
-                    max_errors,
-                    fail_fast,
-                    emit_filler,
-                    emit_meta,
-                    emit_raw,
-                    on_decode_unmappable,
-                    threads,
-                    strict_comments,
-                    preserve_zoned_encoding,
-                    preferred_zoned_encoding: preferred_zoned_encoding_cli.into(),
-                    float_format,
-                    strict_policy,
-                    dialect: effective_dialect.into(),
-                    select: &select,
-                }),
-                "decode",
-            )
-        }
-        Commands::Encode {
-            copybook,
-            input,
-            output,
-            format,
-            codepage,
-            use_raw,
-            bwz_encode,
-            strict,
-            max_errors,
-            fail_fast,
-            threads,
-            coerce_numbers,
-            strict_comments,
-            zoned_encoding_override,
-            float_format,
-            dialect,
-            select,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            (
-                crate::commands::encode::run(
-                    &copybook,
-                    &input,
-                    &output,
-                    &crate::commands::encode::EncodeCliOptions {
-                        format,
-                        codepage,
-                        use_raw,
-                        bwz_encode,
-                        strict,
-                        max_errors,
-                        fail_fast,
-                        threads,
-                        coerce_numbers,
-                        strict_comments,
-                        zoned_encoding_override,
-                        float_format,
-                        dialect: effective_dialect.into(),
-                        select: &select,
-                    },
-                ),
-                "encode",
-            )
-        }
-        #[cfg(feature = "audit")]
-        Commands::Audit { audit_command } => {
-            // Run audit command asynchronously
-            let runtime = tokio::runtime::Runtime::new()?;
-            (
-                runtime
-                    .block_on(crate::commands::audit::run(audit_command))
-                    .map_err(|err| anyhow!(err)),
-                "audit",
-            )
-        }
-        Commands::Verify {
-            copybook,
-            input,
-            report,
-            format,
-            codepage,
-            strict,
-            max_errors,
-            sample,
-            strict_comments,
-            dialect,
-            select,
-        } => {
-            let effective_dialect = effective_dialect(dialect);
-            let value = max_errors.unwrap_or(10);
-            let normalized_max_errors = u32::try_from(value).map_err(|_| {
-                anyhow!(
-                    "--max-errors must be between 0 and {} (received {value})",
-                    u32::MAX
-                )
-            })?;
-
-            let opts = crate::commands::verify::VerifyOptions {
-                format,
-                codepage,
-                strict,
-                max_errors: normalized_max_errors,
-                sample: sample.unwrap_or(5),
-                strict_comments,
-                dialect: effective_dialect.into(),
-                select: &select,
-            };
-            (
-                crate::commands::verify::run(&copybook, &input, report, &opts),
-                "verify",
-            )
-        }
-        Commands::Support { args } => (crate::commands::support::run(&args), "support"),
-        Commands::Determinism { command } => {
-            (crate::commands::determinism::run(&command), "determinism")
-        }
-    };
+    let (exit_status, exit_op) = command_dispatch::run_command(command, strict_policy);
 
     #[cfg(feature = "metrics")]
     if let (Err(err), Some((handle, _))) = (&exit_status, &metrics_server) {
@@ -1047,177 +750,6 @@ fn bump_error_if_pre_run(err: &AnyhowError, records_processed: Option<f64>) {
         };
         metrics::counter!("copybook_decode_errors_total", "family" => family).increment(1);
     }
-}
-
-/// Initialize feature flags from CLI options and environment variables
-#[allow(clippy::too_many_lines)]
-fn initialize_feature_flags(opts: &FeatureFlagOpts) -> anyhow::Result<FeatureFlags> {
-    use std::fs;
-    use std::io::Read;
-
-    // Start with defaults from environment
-    let mut flags = FeatureFlags::from_env();
-
-    // Load from config file if specified
-    if let Some(config_path) = &opts.feature_flags_config {
-        let mut content = String::new();
-        let mut file = fs::File::open(config_path)
-            .map_err(|e| anyhow!("Failed to open feature flags config: {e}"))?;
-        file.read_to_string(&mut content)
-            .map_err(|e| anyhow!("Failed to read feature flags config: {e}"))?;
-
-        // Try JSON format first
-        if let Ok(json_config) = serde_json::from_str::<serde_json::Value>(&content) {
-            if let Some(feature_flags) = json_config.get("feature_flags") {
-                if let Some(enabled) = feature_flags.get("enabled").and_then(|v| v.as_array()) {
-                    for feature_name in enabled {
-                        if let Some(name) = feature_name.as_str()
-                            && let Ok(feature) = Feature::from_str(name)
-                        {
-                            flags.enable(feature);
-                        }
-                    }
-                }
-                if let Some(disabled) = feature_flags.get("disabled").and_then(|v| v.as_array()) {
-                    for feature_name in disabled {
-                        if let Some(name) = feature_name.as_str()
-                            && let Ok(feature) = Feature::from_str(name)
-                        {
-                            flags.disable(feature);
-                        }
-                    }
-                }
-            }
-        } else if let Ok(toml_str) = content.parse::<toml::Value>() {
-            // Try TOML format
-            if let Some(feature_flags) = toml_str.get("feature_flags") {
-                if let Some(enabled) = feature_flags.get("enabled").and_then(|v| v.as_array()) {
-                    for feature_name in enabled {
-                        if let Some(name) = feature_name.as_str()
-                            && let Ok(feature) = Feature::from_str(name)
-                        {
-                            flags.enable(feature);
-                        }
-                    }
-                }
-                if let Some(disabled) = feature_flags.get("disabled").and_then(|v| v.as_array()) {
-                    for feature_name in disabled {
-                        if let Some(name) = feature_name.as_str()
-                            && let Ok(feature) = Feature::from_str(name)
-                        {
-                            flags.disable(feature);
-                        }
-                    }
-                }
-            }
-        } else {
-            return Err(anyhow!(
-                "Failed to parse feature flags config: expected JSON or TOML format"
-            ));
-        }
-    }
-
-    // Process --enable-category flags
-    for category_name in &opts.enable_category {
-        let category = match category_name.to_lowercase().as_str() {
-            "experimental" => FeatureCategory::Experimental,
-            "enterprise" => FeatureCategory::Enterprise,
-            "performance" => FeatureCategory::Performance,
-            "debug" => FeatureCategory::Debug,
-            "testing" => FeatureCategory::Testing,
-            _ => {
-                return Err(anyhow!(
-                    "Invalid feature category '{category_name}'. Valid categories: experimental, enterprise, performance, debug, testing"
-                ));
-            }
-        };
-        for feature in FeatureFlags::features_in_category(category) {
-            flags.enable(feature);
-        }
-    }
-
-    // Process --disable-category flags
-    for category_name in &opts.disable_category {
-        let category = match category_name.to_lowercase().as_str() {
-            "experimental" => FeatureCategory::Experimental,
-            "enterprise" => FeatureCategory::Enterprise,
-            "performance" => FeatureCategory::Performance,
-            "debug" => FeatureCategory::Debug,
-            "testing" => FeatureCategory::Testing,
-            _ => {
-                return Err(anyhow!(
-                    "Invalid feature category '{category_name}'. Valid categories: experimental, enterprise, performance, debug, testing"
-                ));
-            }
-        };
-        for feature in FeatureFlags::features_in_category(category) {
-            flags.disable(feature);
-        }
-    }
-
-    // Process --enable-features flags
-    for feature_name in &opts.enable_features {
-        if let Ok(feature) = Feature::from_str(feature_name) {
-            flags.enable(feature);
-        } else {
-            return Err(anyhow!("Invalid feature flag '{feature_name}'"));
-        }
-    }
-
-    // Process --disable-features flags (takes precedence)
-    for feature_name in &opts.disable_features {
-        if let Ok(feature) = Feature::from_str(feature_name) {
-            flags.disable(feature);
-        } else {
-            return Err(anyhow!("Invalid feature flag '{feature_name}'"));
-        }
-    }
-
-    Ok(flags)
-}
-
-/// List all available feature flags and their status
-#[allow(clippy::unwrap_used)]
-fn list_all_features(flags: &FeatureFlags) {
-    use std::io::Write;
-
-    let stdout = std::io::stdout();
-    let mut stdout = stdout.lock();
-
-    writeln!(stdout, "Available Feature Flags:").unwrap();
-    writeln!(stdout).unwrap();
-
-    for category in [
-        FeatureCategory::Experimental,
-        FeatureCategory::Enterprise,
-        FeatureCategory::Performance,
-        FeatureCategory::Debug,
-        FeatureCategory::Testing,
-    ] {
-        writeln!(stdout, "{}:", category.to_string().to_uppercase()).unwrap();
-        for feature in FeatureFlags::features_in_category(category) {
-            let status = if flags.is_enabled(feature) {
-                "enabled"
-            } else {
-                "disabled"
-            };
-            writeln!(
-                stdout,
-                "  {:20} ({:8}) - {}",
-                feature.to_string(),
-                status,
-                feature.description()
-            )
-            .unwrap();
-        }
-        writeln!(stdout).unwrap();
-    }
-
-    writeln!(
-        stdout,
-        "Environment variables: COPYBOOK_FF_<FEATURE_NAME>=1 to enable"
-    )
-    .unwrap();
 }
 
 fn map_error_to_exit_code(err: &AnyhowError) -> ExitCode {
@@ -1445,24 +977,6 @@ fn effective_strict_policy(cli: &Cli) -> bool {
     }
 }
 
-/// Get effective dialect from CLI flag or environment variable
-///
-/// Precedence: CLI flag > `COPYBOOK_DIALECT` env var > default (Normative)
-fn effective_dialect(cli_dialect: Option<DialectPreference>) -> DialectPreference {
-    if let Some(dialect) = cli_dialect {
-        return dialect;
-    }
-    if let Ok(env_val) = std::env::var("COPYBOOK_DIALECT") {
-        match env_val.trim().to_ascii_lowercase().as_str() {
-            "0" => DialectPreference::Zero,
-            "1" => DialectPreference::One,
-            _ => DialectPreference::N, // Default to normative on invalid value
-        }
-    } else {
-        DialectPreference::N // Default to normative
-    }
-}
-
 fn env_flag(name: &str) -> bool {
     std::env::var(name).ok().is_some_and(|value| {
         matches!(
@@ -1547,6 +1061,9 @@ fn is_consumer_closed(err: &io::Error) -> bool {
         || err.raw_os_error() == Some(109)
         || err.raw_os_error() == Some(232)
 }
+
+mod cli_config;
+mod command_dispatch;
 
 mod commands {
     #[cfg(feature = "audit")]

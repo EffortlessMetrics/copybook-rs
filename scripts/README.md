@@ -5,6 +5,7 @@ Automation and utility scripts for copybook-rs development and CI/CD.
 
 ## Performance Scripts
 - **bench.sh** / **bench.bat** - Cross-platform benchmark execution
+- **soak-aggregate.sh** - Thin compatibility wrapper for the native `copybook-scripts soak-aggregate` Rust implementation
 - **performance_test.rs** - Performance regression testing
 
 ## Repository Checks
@@ -45,7 +46,7 @@ python scripts/fix-agent-issues.py
 ```
 
 ## Platform Support
-- Shell scripts (.sh) for Unix-like systems
+- Shell scripts (.sh) for Unix-like systems; new logic should prefer native Rust commands in `tools/copybook-scripts` with shell wrappers only for compatibility
 - Batch files (.bat) for Windows
 - Native Rust utilities in `tools/copybook-scripts` for repository automation
 - Python scripts (.py) are compatibility wrappers for existing automation

@@ -25,6 +25,7 @@ enum CommandKind {
     CheckNoUnwrapExpect,
     GuardHotpaths,
     PerfAnnotateHost,
+    SoakAggregate,
     SoakDispatch,
     CleanMergeConflicts {
         #[arg(value_name = "PATH")]
@@ -42,6 +43,7 @@ fn main() -> Result<()> {
         CommandKind::CheckNoUnwrapExpect => scan_disallowed_panic_calls(),
         CommandKind::GuardHotpaths => guard_hotpaths(),
         CommandKind::PerfAnnotateHost => perf_annotate_host(),
+        CommandKind::SoakAggregate => soak_aggregate(),
         CommandKind::SoakDispatch => soak_dispatch(),
         CommandKind::CleanMergeConflicts { file } => clean_merge_conflicts(file),
         CommandKind::AdaptReviewAgents => adapt_review_agents(),
@@ -487,6 +489,182 @@ fn perf_annotate_host() -> Result<()> {
         perf_path.display(),
         if wsl2 { "true" } else { "false" }
     );
+    Ok(())
+}
+
+fn value_as_f64(value: &Value) -> Option<f64> {
+    value.as_f64().filter(|number| number.is_finite())
+}
+
+fn percentile(sorted_samples: &[f64], numerator: usize, denominator: usize) -> Option<f64> {
+    if sorted_samples.is_empty() || denominator == 0 {
+        return None;
+    }
+
+    let count = sorted_samples.len();
+    let rank = count.saturating_mul(numerator) / denominator;
+    let rank = rank.clamp(1, count);
+    sorted_samples.get(rank - 1).copied()
+}
+
+fn soak_aggregate() -> Result<()> {
+    let root = workspace_root()?;
+    let perf_path = root.join("scripts").join("bench").join("perf.json");
+
+    if !perf_path.is_file() {
+        println!(
+            "No perf receipts found at {}; skipping aggregate.",
+            perf_path
+                .strip_prefix(&root)
+                .unwrap_or(&perf_path)
+                .display()
+        );
+        return Ok(());
+    }
+
+    let mut perf = read_json_file(&perf_path)?;
+
+    let Some(benchmarks) = perf.get("benchmarks").and_then(Value::as_array) else {
+        println!("No benchmarks found in perf.json; skipping aggregate.");
+        return Ok(());
+    };
+
+    if benchmarks.is_empty() {
+        println!("No benchmarks found in perf.json; skipping aggregate.");
+        return Ok(());
+    }
+
+    let mut samples = collect_soak_samples(&root, benchmarks)?;
+
+    if samples.is_empty() {
+        println!("No samples found; skipping aggregate.");
+        return Ok(());
+    }
+
+    samples.sort_by(f64::total_cmp);
+    let p50 = percentile(&samples, 50, 100).context("failed to calculate p50")?;
+    let p90 = percentile(&samples, 90, 100).context("failed to calculate p90")?;
+    let p99 = percentile(&samples, 99, 100).context("failed to calculate p99")?;
+
+    update_perf_summary(&mut perf, p50, p90, p99)?;
+    write_json_file(&perf_path, &perf)?;
+
+    println!(
+        "Added percentiles to {}: p50={p50:.2} p90={p90:.2} p99={p99:.2}",
+        perf_path
+            .strip_prefix(&root)
+            .unwrap_or(&perf_path)
+            .display()
+    );
+    Ok(())
+}
+
+fn read_json_file(path: &Path) -> Result<Value> {
+    let content =
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+    serde_json::from_str(&content).with_context(|| format!("failed to parse {}", path.display()))
+}
+
+fn write_json_file(path: &Path, value: &Value) -> Result<()> {
+    let serialized = serde_json::to_string_pretty(value).context("failed to serialize JSON")?;
+    fs::write(path, format!("{serialized}\n"))
+        .with_context(|| format!("failed to write {}", path.display()))
+}
+
+fn collect_soak_samples(root: &Path, benchmarks: &[Value]) -> Result<Vec<f64>> {
+    let mut samples = Vec::new();
+
+    for benchmark in benchmarks {
+        let Some(name) = benchmark.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+
+        collect_benchmark_samples(root, name, &mut samples)?;
+    }
+
+    Ok(samples)
+}
+
+fn collect_benchmark_samples(root: &Path, name: &str, samples: &mut Vec<f64>) -> Result<()> {
+    let bench_root = root.join("target").join("criterion").join(name).join("new");
+    let sample_path = bench_root.join("sample.json");
+    let benchmark_path = bench_root.join("benchmark.json");
+
+    if !sample_path.is_file() || !benchmark_path.is_file() {
+        return Ok(());
+    }
+
+    let Some(sample) = read_criterion_json(&sample_path, name)? else {
+        return Ok(());
+    };
+    let Some(benchmark) = read_criterion_json(&benchmark_path, name)? else {
+        return Ok(());
+    };
+
+    let Some(throughput_bytes) = benchmark
+        .get("throughput")
+        .and_then(|throughput| throughput.get("Bytes"))
+        .and_then(value_as_f64)
+    else {
+        return Ok(());
+    };
+
+    append_mib_per_second_samples(&sample, throughput_bytes, samples);
+    Ok(())
+}
+
+fn read_criterion_json(path: &Path, benchmark: &str) -> Result<Option<Value>> {
+    let content =
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+
+    match serde_json::from_str(&content) {
+        Ok(value) => Ok(Some(value)),
+        Err(err) => {
+            eprintln!("Failed to parse criterion output for {benchmark}: {err}");
+            Ok(None)
+        }
+    }
+}
+
+fn append_mib_per_second_samples(sample: &Value, throughput_bytes: f64, samples: &mut Vec<f64>) {
+    let Some(iters) = sample.get("iters").and_then(Value::as_array) else {
+        return;
+    };
+    let Some(times) = sample.get("times").and_then(Value::as_array) else {
+        return;
+    };
+
+    for (iterations, elapsed_ns) in iters.iter().zip(times) {
+        let Some(iterations) = value_as_f64(iterations) else {
+            continue;
+        };
+        let Some(elapsed_ns) = value_as_f64(elapsed_ns) else {
+            continue;
+        };
+
+        if iterations <= 0.0 || elapsed_ns <= 0.0 {
+            continue;
+        }
+
+        let seconds = elapsed_ns / 1_000_000_000.0;
+        let total_bytes = throughput_bytes * iterations;
+        samples.push(total_bytes / seconds / 1_048_576.0);
+    }
+}
+
+fn update_perf_summary(perf: &mut Value, p50: f64, p90: f64, p99: f64) -> Result<()> {
+    let summary = perf
+        .as_object_mut()
+        .context("perf receipt root must be a JSON object")?
+        .entry("summary")
+        .or_insert_with(|| Value::Object(Map::new()));
+
+    let summary = summary
+        .as_object_mut()
+        .context("perf receipt summary must be a JSON object")?;
+    summary.insert("p50_mibps".into(), p50.into());
+    summary.insert("p90_mibps".into(), p90.into());
+    summary.insert("p99_mibps".into(), p99.into());
     Ok(())
 }
 
@@ -1020,5 +1198,24 @@ pub fn encode_value(
                 .count(),
             2
         );
+    }
+
+    #[test]
+    fn percentile_matches_legacy_rank_selection() {
+        let samples = [10.0, 20.0, 30.0, 40.0, 50.0];
+
+        assert_eq!(percentile(&samples, 50, 100), Some(20.0));
+        assert_eq!(percentile(&samples, 90, 100), Some(40.0));
+        assert_eq!(percentile(&samples, 99, 100), Some(40.0));
+    }
+
+    #[test]
+    fn percentile_clamps_rank_to_sample_bounds() {
+        let samples = [42.0];
+
+        assert_eq!(percentile(&samples, 0, 100), Some(42.0));
+        assert_eq!(percentile(&samples, 2, 1), Some(42.0));
+        assert_eq!(percentile(&[], 50, 100), None);
+        assert_eq!(percentile(&samples, 1, 0), None);
     }
 }

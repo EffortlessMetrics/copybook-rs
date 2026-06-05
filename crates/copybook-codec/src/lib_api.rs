@@ -2398,7 +2398,6 @@ fn validate_occurs_array_len(
             ),
         )
         .with_field(field.path.clone())),
-        copybook_core::Occurs::Fixed { .. } => Ok(()),
         copybook_core::Occurs::ODO { max, .. } if actual_len > *max as usize => Err(Error::new(
             ErrorCode::CBKE521_ARRAY_LEN_OOB,
             format!(
@@ -2407,7 +2406,7 @@ fn validate_occurs_array_len(
             ),
         )
         .with_field(field.path.clone())),
-        copybook_core::Occurs::ODO { .. } => Ok(()),
+        copybook_core::Occurs::Fixed { .. } | copybook_core::Occurs::ODO { .. } => Ok(()),
     }
 }
 

@@ -6,9 +6,23 @@
 //! be delegated to arithmetic-focused crates.
 
 use copybook_error::{Error, ErrorCode};
+use std::str::FromStr;
 
 /// Result type alias using `copybook-error`.
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[inline]
+fn parse_numeric<T>(s: &str, context: &str, value_kind: &str) -> Result<T>
+where
+    T: FromStr,
+{
+    s.parse().map_err(|_| {
+        Error::new(
+            ErrorCode::CBKP001_SYNTAX,
+            format!("Invalid {value_kind} value '{s}' in {context}"),
+        )
+    })
+}
 
 /// Safely convert a string to `usize`, returning an error on failure.
 ///
@@ -18,12 +32,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn parse_usize(s: &str, context: &str) -> Result<usize> {
-    s.parse().map_err(|_| {
-        Error::new(
-            ErrorCode::CBKP001_SYNTAX,
-            format!("Invalid numeric value '{s}' in {context}"),
-        )
-    })
+    parse_numeric(s, context, "numeric")
 }
 
 /// Safely convert a string to `isize`, returning an error on failure.
@@ -34,12 +43,7 @@ pub fn parse_usize(s: &str, context: &str) -> Result<usize> {
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn parse_isize(s: &str, context: &str) -> Result<isize> {
-    s.parse().map_err(|_| {
-        Error::new(
-            ErrorCode::CBKP001_SYNTAX,
-            format!("Invalid signed numeric value '{s}' in {context}"),
-        )
-    })
+    parse_numeric(s, context, "signed numeric")
 }
 
 /// Safely convert `u16` with parse error handling.
@@ -50,15 +54,14 @@ pub fn parse_isize(s: &str, context: &str) -> Result<isize> {
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_parse_u16(s: &str, context: &str) -> Result<u16> {
-    s.parse().map_err(|_| {
-        Error::new(
-            ErrorCode::CBKP001_SYNTAX,
-            format!("Invalid u16 value '{s}' in {context}"),
-        )
-    })
+    parse_numeric(s, context, "u16")
 }
 
 /// Safely access a string character with bounds checking.
+///
+/// The `index` is a Unicode scalar value (Rust `char`) position, not a UTF-8
+/// byte offset. Error messages report the same character length so diagnostics
+/// stay consistent for multibyte text.
 ///
 /// # Errors
 ///
@@ -67,11 +70,11 @@ pub fn safe_parse_u16(s: &str, context: &str) -> Result<u16> {
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_string_char_at(s: &str, index: usize, context: &str) -> Result<char> {
     s.chars().nth(index).ok_or_else(|| {
+        let char_len = s.chars().count();
         Error::new(
             ErrorCode::CBKP001_SYNTAX,
             format!(
-                "String character access out of bounds in {context}: index {index} >= length {}",
-                s.len()
+                "String character access out of bounds in {context}: index {index} >= length {char_len}"
             ),
         )
     })

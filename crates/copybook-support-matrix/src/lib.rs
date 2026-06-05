@@ -167,9 +167,9 @@ pub fn find_feature_by_id(id: FeatureId) -> Option<&'static FeatureSupport> {
 #[inline]
 #[must_use]
 pub fn find_feature(id: &str) -> Option<&'static FeatureSupport> {
-    all_features()
-        .iter()
-        .find(|f| serde_plain::to_string(&f.id).ok().as_deref() == Some(id))
+    serde_plain::from_str::<FeatureId>(id)
+        .ok()
+        .and_then(find_feature_by_id)
 }
 
 #[cfg(test)]
@@ -195,6 +195,12 @@ mod tests {
     #[test]
     fn test_find_feature_unknown() {
         let feature = find_feature("no-such-feature");
+        assert!(feature.is_none());
+    }
+
+    #[test]
+    fn test_find_feature_rejects_non_kebab_variant_name() {
+        let feature = find_feature("Level88Conditions");
         assert!(feature.is_none());
     }
 

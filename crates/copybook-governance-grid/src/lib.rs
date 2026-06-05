@@ -22,7 +22,7 @@ pub use feature_flags::{
     FeatureLifecycle,
 };
 pub use governance_grid::{
-    GovernanceSummary, GovernedFeatureBinding, feature_flags_for_support_id, governance_bindings,
-    summarize_governance,
+    GovernanceAudit, GovernanceSummary, GovernedFeatureBinding, audit_governance,
+    feature_flags_for_support_id, governance_bindings, summarize_governance,
 };
 pub use support_matrix::{FeatureId, FeatureSupport, SupportStatus};

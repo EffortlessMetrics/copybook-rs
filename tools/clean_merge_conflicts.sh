@@ -13,11 +13,12 @@ bootstrap_rustup() {
 
 run_cargo() {
   bootstrap_rustup
+  local toolchain="${COPYBOOK_RUST_TOOLCHAIN:-stable}"
 
-  if command -v rustup >/dev/null 2>&1 && rustup toolchain list | grep -q '^stable'; then
-    rustup run stable cargo "$@"
-  elif command -v rustup.exe >/dev/null 2>&1 && rustup.exe toolchain list | grep -q '^stable'; then
-    rustup.exe run stable cargo "$@"
+  if command -v rustup >/dev/null 2>&1 && rustup toolchain list | grep -q "^${toolchain}"; then
+    rustup run "$toolchain" cargo "$@"
+  elif command -v rustup.exe >/dev/null 2>&1 && rustup.exe toolchain list | grep -q "^${toolchain}"; then
+    rustup.exe run "$toolchain" cargo "$@"
   else
     cargo "$@"
   fi

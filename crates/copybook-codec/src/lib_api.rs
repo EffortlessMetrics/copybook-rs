@@ -9,393 +9,34 @@
 //! | [`encode_jsonl_to_file`] | JSONL → Binary | Whole file |
 #![allow(clippy::missing_inline_in_public_items)]
 
-use crate::JSON_SCHEMA_VERSION;
 use crate::options::{DecodeOptions, EncodeOptions, RecordFormat, ZonedEncodingFormat};
 use crate::zoned_overpunch::ZeroSignPolicy;
 use base64::Engine;
 use copybook_core::{Error, ErrorCode, Result, Schema};
 use serde_json::Value;
-use std::cell::RefCell;
 use std::convert::TryFrom;
-use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
 use tracing::info;
 
-/// Recursively flatten hierarchical fields into a target map so that leaf
-/// field names are accessible at the root level for backward compatibility.
-fn flatten_fields_into(
-    source: &serde_json::Map<String, Value>,
-    target: &mut serde_json::Map<String, Value>,
-) {
-    for (key, value) in source {
-        if let Value::Object(nested) = value {
-            // Recurse into group objects to flatten their children
-            flatten_fields_into(nested, target);
-        } else {
-            target.insert(key.clone(), value.clone());
-        }
-    }
-}
+mod envelope;
+mod run_summary;
+mod telemetry;
+mod warnings;
 
-/// Build a standard JSON envelope for a decoded COBOL record.
+use envelope::build_json_envelope;
+pub use run_summary::RunSummary;
+pub use warnings::increment_warning_counter;
+use warnings::{reset_warning_counter, warning_count};
+
+/// Decode one fixed-size COBOL record into the public JSON envelope.
 ///
-/// Wraps the decoded fields with metadata like schema version, record index,
-/// and codepage. Optionally includes extended metadata if `options.emit_meta` is true.
-fn build_json_envelope(
-    fields: serde_json::Map<String, Value>,
-    schema: &Schema,
-    options: &DecodeOptions,
-    record_index: u64,
-    record_length: usize,
-    raw_b64: Option<String>,
-    encoding_metadata: Vec<(String, ZonedEncodingFormat)>,
-) -> Value {
-    let mut root = serde_json::Map::new();
-
-    root.insert(
-        String::from("schema"),
-        Value::String(JSON_SCHEMA_VERSION.into()),
-    );
-    root.insert(
-        String::from("record_index"),
-        Value::Number(serde_json::Number::from(record_index)),
-    );
-
-    let codepage = options.codepage.to_string();
-    root.insert(String::from("codepage"), Value::String(codepage));
-
-    flatten_fields_into(&fields, &mut root);
-    root.insert(String::from("fields"), Value::Object(fields));
-
-    if options.emit_meta {
-        if !schema.fingerprint.is_empty() {
-            root.insert(
-                String::from("schema_fingerprint"),
-                Value::String(schema.fingerprint.clone()),
-            );
-            root.insert(
-                String::from("__schema_id"),
-                Value::String(schema.fingerprint.clone()),
-            );
-        }
-        root.insert(
-            String::from("length"),
-            Value::Number(serde_json::Number::from(record_length)),
-        );
-        root.insert(
-            String::from("__record_index"),
-            Value::Number(serde_json::Number::from(record_index)),
-        );
-        root.insert(
-            String::from("__length"),
-            Value::Number(serde_json::Number::from(record_length)),
-        );
-    }
-
-    if let Some(raw) = raw_b64 {
-        root.insert(String::from("raw_b64"), Value::String(raw.clone()));
-        root.insert(String::from("__raw_b64"), Value::String(raw));
-    }
-
-    if options.preserve_zoned_encoding && !encoding_metadata.is_empty() {
-        let mut meta_map = serde_json::Map::new();
-        for (field_name, format) in encoding_metadata {
-            let format_text = format.to_string();
-            meta_map.insert(field_name, Value::String(format_text));
-        }
-        root.insert(String::from("_encoding_metadata"), Value::Object(meta_map));
-    }
-
-    Value::Object(root)
-}
-
-thread_local! {
-    static WARNING_COUNTER: RefCell<u64> = const { RefCell::new(0) };
-}
-
-#[cfg(feature = "metrics")]
-mod telemetry {
-    use crate::options::{Codepage, DecodeOptions, RecordFormat, ZonedEncodingFormat};
-    use metrics::{counter, gauge, histogram};
-
-    #[inline]
-    pub fn record_read(bytes: usize, options: &DecodeOptions) {
-        let format_label = format_label(options.format);
-        let codepage_label = codepage_label(options.codepage);
-        let zero_policy_label = zero_policy_label(options);
-
-        counter!(
-            "copybook_records_total",
-            "format" => format_label,
-            "codepage" => codepage_label,
-            "zero_policy" => zero_policy_label
-        )
-        .increment(1);
-        counter!(
-            "copybook_bytes_total",
-            "format" => format_label,
-            "codepage" => codepage_label,
-            "zero_policy" => zero_policy_label
-        )
-        .increment(bytes as u64);
-    }
-
-    #[inline]
-    pub fn record_error(family: &'static str) {
-        counter!("copybook_decode_errors_total", "family" => family).increment(1);
-    }
-
-    #[inline]
-    pub fn record_completion(
-        duration_seconds: f64,
-        throughput_mibps: f64,
-        options: &DecodeOptions,
-    ) {
-        let format_label = format_label(options.format);
-        let codepage_label = codepage_label(options.codepage);
-
-        if duration_seconds.is_finite() && duration_seconds >= 0.0 {
-            histogram!(
-                "copybook_decode_seconds",
-                "format" => format_label,
-                "codepage" => codepage_label
-            )
-            .record(duration_seconds);
-        }
-
-        if throughput_mibps.is_finite() {
-            gauge!(
-                "copybook_throughput_mibps",
-                "format" => format_label,
-                "codepage" => codepage_label
-            )
-            .set(throughput_mibps);
-        }
-    }
-
-    #[inline]
-    fn zero_policy_label(options: &DecodeOptions) -> &'static str {
-        if options.preserve_zoned_encoding {
-            "preserved"
-        } else if options.preferred_zoned_encoding != ZonedEncodingFormat::Auto {
-            "override"
-        } else {
-            "preferred"
-        }
-    }
-
-    #[inline]
-    fn format_label(format: RecordFormat) -> &'static str {
-        match format {
-            RecordFormat::Fixed => "fixed",
-            RecordFormat::RDW => "rdw",
-        }
-    }
-
-    #[inline]
-    fn codepage_label(codepage: Codepage) -> &'static str {
-        match codepage {
-            Codepage::ASCII => "ascii",
-            Codepage::CP037 => "cp037",
-            Codepage::CP273 => "cp273",
-            Codepage::CP500 => "cp500",
-            Codepage::CP1047 => "cp1047",
-            Codepage::CP1140 => "cp1140",
-        }
-    }
-}
-
-#[cfg(not(feature = "metrics"))]
-mod telemetry {
-    use crate::options::DecodeOptions;
-
-    #[inline]
-    pub fn record_read(_bytes: usize, _options: &DecodeOptions) {}
-
-    #[inline]
-    pub fn record_error(_family: &'static str) {}
-
-    #[inline]
-    pub fn record_completion(
-        _duration_seconds: f64,
-        _throughput_mibps: f64,
-        _options: &DecodeOptions,
-    ) {
-    }
-}
-
-/// Summary of a processing run with comprehensive statistics.
-///
-/// Captures record counts, error rates, throughput, and resource usage
-/// for a complete decode or encode operation.
-#[derive(Debug, Default, Clone, PartialEq)]
-pub struct RunSummary {
-    /// Total number of records decoded or encoded successfully.
-    pub records_processed: u64,
-    /// Number of records that encountered errors during processing.
-    pub records_with_errors: u64,
-    /// Number of non-fatal warnings generated during processing.
-    pub warnings: u64,
-    /// Wall-clock processing time in milliseconds.
-    pub processing_time_ms: u64,
-    /// Total bytes read from input.
-    pub bytes_processed: u64,
-    /// SHA-256 fingerprint of the schema used for processing.
-    pub schema_fingerprint: String,
-    /// Processing throughput in MiB/s.
-    pub throughput_mbps: f64,
-    /// Peak memory usage in bytes, if available from the runtime.
-    pub peak_memory_bytes: Option<u64>,
-    /// Number of worker threads used for parallel processing.
-    pub threads_used: usize,
-}
-
-impl RunSummary {
-    /// Create a new run summary with default values
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Create a new run summary with specified thread count
-    #[must_use]
-    pub fn with_threads(threads: usize) -> Self {
-        Self {
-            threads_used: threads,
-            ..Self::default()
-        }
-    }
-
-    /// Calculate throughput based on bytes and time
-    #[allow(clippy::cast_precision_loss)]
-    pub fn calculate_throughput(&mut self) {
-        if self.processing_time_ms > 0 {
-            let seconds = self.processing_time_ms as f64 / 1000.0;
-            let megabytes = self.bytes_processed as f64 / (1024.0 * 1024.0);
-            self.throughput_mbps = megabytes / seconds;
-        }
-    }
-
-    /// Check if processing had any errors
-    #[must_use]
-    pub const fn has_errors(&self) -> bool {
-        self.records_with_errors > 0
-    }
-
-    /// Check if processing had any warnings
-    #[must_use]
-    pub const fn has_warnings(&self) -> bool {
-        self.warnings > 0
-    }
-
-    /// Check if processing was successful (no errors)
-    #[must_use]
-    pub const fn is_successful(&self) -> bool {
-        !self.has_errors()
-    }
-
-    /// Get the total number of records attempted (processed + errors)
-    #[must_use]
-    pub const fn total_records(&self) -> u64 {
-        self.records_processed + self.records_with_errors
-    }
-
-    /// Get the success rate as a percentage (0.0 to 100.0)
-    #[must_use]
-    #[allow(clippy::cast_precision_loss)]
-    pub fn success_rate(&self) -> f64 {
-        let total = self.total_records();
-        if total == 0 {
-            100.0
-        } else {
-            (self.records_processed as f64 / total as f64) * 100.0
-        }
-    }
-
-    /// Get the error rate as a percentage (0.0 to 100.0)
-    #[must_use]
-    pub fn error_rate(&self) -> f64 {
-        100.0 - self.success_rate()
-    }
-
-    /// Get processing time in seconds
-    #[must_use]
-    #[allow(clippy::cast_precision_loss)]
-    pub fn processing_time_seconds(&self) -> f64 {
-        self.processing_time_ms as f64 / 1000.0
-    }
-
-    /// Get bytes processed in megabytes
-    #[must_use]
-    #[allow(clippy::cast_precision_loss)]
-    pub fn bytes_processed_mb(&self) -> f64 {
-        self.bytes_processed as f64 / (1024.0 * 1024.0)
-    }
-
-    /// Set the schema fingerprint
-    pub fn set_schema_fingerprint(&mut self, fingerprint: String) {
-        self.schema_fingerprint = fingerprint;
-    }
-
-    /// Set the peak memory usage
-    pub fn set_peak_memory_bytes(&mut self, bytes: u64) {
-        self.peak_memory_bytes = Some(bytes);
-    }
-}
-
-impl fmt::Display for RunSummary {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Processing Summary:")?;
-        writeln!(f, "  Records processed: {}", self.records_processed)?;
-        writeln!(f, "  Records with errors: {}", self.records_with_errors)?;
-        writeln!(f, "  Warnings: {}", self.warnings)?;
-        writeln!(f, "  Success rate: {:.1}%", self.success_rate())?;
-        writeln!(
-            f,
-            "  Processing time: {:.2}s",
-            self.processing_time_seconds()
-        )?;
-        writeln!(f, "  Bytes processed: {:.2} MB", self.bytes_processed_mb())?;
-        writeln!(f, "  Throughput: {:.2} MB/s", self.throughput_mbps)?;
-        writeln!(f, "  Threads used: {}", self.threads_used)?;
-        if let Some(peak_memory) = self.peak_memory_bytes {
-            #[allow(clippy::cast_precision_loss)]
-            let peak_mb = peak_memory as f64 / (1024.0 * 1024.0);
-            writeln!(f, "  Peak memory: {peak_mb:.2} MB")?;
-        }
-        if !self.schema_fingerprint.is_empty() {
-            writeln!(f, "  Schema fingerprint: {}", self.schema_fingerprint)?;
-        }
-        Ok(())
-    }
-}
-
-/// Decode a single record from binary data to JSON
-///
-/// # Arguments
-///
-/// * `schema` - The parsed copybook schema
-/// * `data` - The binary record data
-/// * `options` - Decoding options
-///
-/// # Examples
-///
-/// ```
-/// use copybook_core::parse_copybook;
-/// use copybook_codec::{decode_record, DecodeOptions};
-/// use copybook_codec::options::{Codepage, RecordFormat};
-///
-/// let schema = parse_copybook("01 FLD PIC X(5).").unwrap();
-/// let data = b"HELLO";
-/// let options = DecodeOptions::new()
-///     .with_codepage(Codepage::ASCII)
-///     .with_format(RecordFormat::Fixed);
-/// let json = decode_record(&schema, data, &options).unwrap();
-/// assert_eq!(json["fields"]["FLD"], "HELLO");
-/// ```
+/// This uses the supplied schema and decode options, returning the same
+/// envelope shape as the streaming decode APIs for a single record.
 ///
 /// # Errors
-/// Returns an error if the data cannot be decoded according to the schema.
+/// Returns an error if `data` cannot be decoded according to `schema` and
+/// `options`, including field conversion errors, invalid record lengths, or
+/// unsupported encoding combinations.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<Value> {
@@ -2759,9 +2400,7 @@ pub fn decode_file_to_jsonl(
     let mut summary = RunSummary::new();
     summary.set_schema_fingerprint(schema.fingerprint.clone());
 
-    WARNING_COUNTER.with(|counter| {
-        *counter.borrow_mut() = 0;
-    });
+    reset_warning_counter();
 
     match options.format {
         RecordFormat::Fixed => {
@@ -2775,7 +2414,7 @@ pub fn decode_file_to_jsonl(
     let elapsed_ms = start_time.elapsed().as_millis();
     summary.processing_time_ms = u64::try_from(elapsed_ms).unwrap_or(u64::MAX);
     summary.calculate_throughput();
-    summary.warnings = WARNING_COUNTER.with(|counter| *counter.borrow());
+    summary.warnings = warning_count();
     telemetry::record_completion(
         summary.processing_time_seconds(),
         summary.throughput_mbps,
@@ -2939,16 +2578,6 @@ fn write_json_record<W: Write>(output: &mut W, value: &Value) -> Result<()> {
     }
 
     Ok(())
-}
-
-/// Increment the thread-local warning counter.
-///
-/// Called internally when non-fatal issues (e.g., BWZ blanks, ODO clamping)
-/// are encountered during decode. The count is aggregated into [`RunSummary::warnings`].
-pub fn increment_warning_counter() {
-    WARNING_COUNTER.with(|counter| {
-        *counter.borrow_mut() += 1;
-    });
 }
 
 /// Encode JSONL to binary file

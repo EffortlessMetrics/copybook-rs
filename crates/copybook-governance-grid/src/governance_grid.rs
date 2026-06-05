@@ -88,6 +88,28 @@ pub struct GovernanceSummary {
     pub total_linked_feature_flags: usize,
 }
 
+/// Detailed consistency diagnostics for governance-grid mappings.
+#[derive(Debug, Default)]
+pub struct GovernanceAudit {
+    /// Support-matrix IDs that currently have no governance binding row.
+    pub missing_support_ids: Vec<FeatureId>,
+    /// Governance rows whose `support_id` is no longer in the support matrix.
+    pub orphaned_binding_ids: Vec<FeatureId>,
+    /// Support IDs that appear multiple times in governance bindings.
+    pub duplicate_binding_ids: Vec<FeatureId>,
+}
+
+impl GovernanceAudit {
+    /// Returns `true` when no mapping consistency issues were detected.
+    #[inline]
+    #[must_use]
+    pub fn is_clean(&self) -> bool {
+        self.missing_support_ids.is_empty()
+            && self.orphaned_binding_ids.is_empty()
+            && self.duplicate_binding_ids.is_empty()
+    }
+}
+
 impl GovernanceSummary {
     /// Whether every support feature has at least one governance row.
     #[inline]
@@ -129,6 +151,55 @@ pub fn summarize_governance() -> GovernanceSummary {
         crate::support_matrix::all_features().iter().map(|f| f.id),
         &GOVERNANCE_BINDINGS,
     )
+}
+
+/// Run consistency diagnostics for the governance grid against support-matrix features.
+///
+/// This is intended for BDD/integration checks where callers need exact issue classes
+/// instead of aggregate counts.
+#[inline]
+#[must_use]
+pub fn audit_governance() -> GovernanceAudit {
+    audit_governance_from_bindings(
+        crate::support_matrix::all_features().iter().map(|f| f.id),
+        &GOVERNANCE_BINDINGS,
+    )
+}
+
+fn audit_governance_from_bindings(
+    support_ids: impl Iterator<Item = FeatureId>,
+    bindings: &[GovernedFeatureBinding],
+) -> GovernanceAudit {
+    let support_ids = support_ids.collect::<Vec<_>>();
+    let support_id_set = support_ids.iter().copied().collect::<HashSet<_>>();
+
+    let mut seen_binding_ids = HashSet::with_capacity(bindings.len());
+    let mut duplicate_id_set = HashSet::new();
+    let mut bound_support_ids = HashSet::with_capacity(bindings.len());
+    let mut duplicate_binding_ids = Vec::new();
+    let mut orphaned_binding_ids = Vec::new();
+
+    for binding in bindings {
+        let support_id = binding.support_id;
+        if !support_id_set.contains(&support_id) {
+            orphaned_binding_ids.push(support_id);
+        }
+        if !seen_binding_ids.insert(support_id) && duplicate_id_set.insert(support_id) {
+            duplicate_binding_ids.push(support_id);
+        }
+        bound_support_ids.insert(support_id);
+    }
+
+    let missing_support_ids = support_ids
+        .into_iter()
+        .filter(|id| !bound_support_ids.contains(id))
+        .collect();
+
+    GovernanceAudit {
+        missing_support_ids,
+        orphaned_binding_ids,
+        duplicate_binding_ids,
+    }
 }
 
 #[cfg(test)]
@@ -315,5 +386,48 @@ mod tests {
         assert_eq!(summary.mapped_support_features, 0);
         assert!(!summary.all_features_known());
         assert_eq!(summary.explicit_bindings(), 1);
+    }
+
+    #[test]
+    fn test_audit_governance_is_clean_for_current_grid() {
+        let audit = audit_governance();
+        assert!(audit.is_clean());
+        assert!(audit.missing_support_ids.is_empty());
+        assert!(audit.orphaned_binding_ids.is_empty());
+        assert!(audit.duplicate_binding_ids.is_empty());
+    }
+
+    #[test]
+    fn test_audit_governance_reports_missing_orphaned_and_duplicate_ids() {
+        let bindings = [
+            GovernedFeatureBinding {
+                support_id: FeatureId::Level88Conditions,
+                feature_flags: &[],
+                rationale: "first known binding",
+            },
+            GovernedFeatureBinding {
+                support_id: FeatureId::Level88Conditions,
+                feature_flags: &[],
+                rationale: "duplicate known binding",
+            },
+            GovernedFeatureBinding {
+                support_id: FeatureId::SignSeparate,
+                feature_flags: &SIGN_SEPARATE_MAPPING,
+                rationale: "stale for this support subset",
+            },
+        ];
+
+        let audit = audit_governance_from_bindings(
+            [FeatureId::Level88Conditions, FeatureId::Level66Renames].into_iter(),
+            &bindings,
+        );
+
+        assert!(!audit.is_clean());
+        assert_eq!(audit.missing_support_ids, vec![FeatureId::Level66Renames]);
+        assert_eq!(audit.orphaned_binding_ids, vec![FeatureId::SignSeparate]);
+        assert_eq!(
+            audit.duplicate_binding_ids,
+            vec![FeatureId::Level88Conditions]
+        );
     }
 }

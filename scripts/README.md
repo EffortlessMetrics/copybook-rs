@@ -8,9 +8,10 @@ Automation and utility scripts for copybook-rs development and CI/CD.
 - **performance_test.rs** - Performance regression testing
 
 ## Development Automation
-- **adapt-review-agents.py** - Agent configuration adaptation utility
-- **final-cleanup-agents.py** - Agent cleanup and finalization
-- **fix-agent-issues.py** - Agent configuration repair tool
+- **copybook-scripts adapt-review-agents** - Native Rust agent configuration adaptation utility
+- **copybook-scripts final-cleanup-agents** - Native Rust agent cleanup and finalization
+- **copybook-scripts fix-agent-issues** - Native Rust agent configuration repair tool
+- **adapt-review-agents.py**, **final-cleanup-agents.py**, and **fix-agent-issues.py** - Compatibility wrappers that delegate to the Rust tool
 
 ## Usage
 
@@ -28,16 +29,21 @@ Scripts are typically run as part of development workflows:
 ### Agent Management
 ```bash
 # Adapt agent configurations
-python scripts/adapt-review-agents.py
+cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- adapt-review-agents
 
 # Fix agent configuration issues
+cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- fix-agent-issues
+
+# Compatibility wrappers remain available for existing automation
+python scripts/adapt-review-agents.py
 python scripts/fix-agent-issues.py
 ```
 
 ## Platform Support
 - Shell scripts (.sh) for Unix-like systems
 - Batch files (.bat) for Windows
-- Python scripts (.py) for cross-platform automation
+- Native Rust utilities in `tools/copybook-scripts` for repository automation
+- Python scripts (.py) are compatibility wrappers for existing automation
 
 These scripts complement the main build system and are used for specialized development tasks.
 ## License

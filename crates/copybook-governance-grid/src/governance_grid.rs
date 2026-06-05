@@ -316,5 +316,4 @@ mod tests {
         assert!(!summary.all_features_known());
         assert_eq!(summary.explicit_bindings(), 1);
     }
-
 }

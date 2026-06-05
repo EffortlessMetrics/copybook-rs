@@ -4,17 +4,14 @@
 use crate::exit_codes::ExitCode;
 use crate::subcode;
 use crate::utils::{
-    ParseOptionsConfig, apply_field_projection, atomic_write, build_parse_options,
-    determine_exit_code, read_file_or_stdin,
+    ParseOptionsConfig, SummaryIssueCountStyle, append_processing_summary, determine_exit_code,
+    effective_error_policy, log_strict_comments, parse_projected_schema, run_with_output,
 };
 use crate::{ExitDiagnostics, Stage, emit_exit_diagnostics_stage, write_stdout_all};
 use copybook_codec::{
     Codepage, DecodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
-use copybook_core::parse_copybook_with_options;
-use std::fmt::Write as _;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tracing::{Level, info};
 
 #[allow(clippy::struct_excessive_bools)]
@@ -46,9 +43,7 @@ pub struct DecodeArgs<'a> {
 pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
     info!("Decoding data file: {:?}", args.input);
 
-    if args.strict_comments {
-        info!("Inline comments (*>) disabled (COBOL-85 compatibility)");
-    }
+    log_strict_comments(args.strict_comments);
 
     if args.preferred_zoned_encoding != copybook_codec::ZonedEncodingFormat::Auto
         && !args.preserve_zoned_encoding
@@ -89,29 +84,20 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
         );
     }
 
-    // Read copybook file or stdin
-    let copybook_text = read_file_or_stdin(args.copybook)?;
+    let codepage = args.codepage.to_string();
+    let working_schema = parse_projected_schema(
+        args.copybook,
+        &ParseOptionsConfig {
+            strict: args.strict,
+            strict_comments: args.strict_comments,
+            codepage: &codepage,
+            emit_filler: args.emit_filler,
+            dialect: args.dialect,
+        },
+        args.select,
+    )?;
 
-    // Parse copybook with options
-    let parse_options = build_parse_options(&ParseOptionsConfig {
-        strict: args.strict,
-        strict_comments: args.strict_comments,
-        codepage: &args.codepage.to_string(),
-        emit_filler: args.emit_filler,
-        dialect: args.dialect,
-    });
-    let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
-
-    // Apply field projection if --select is provided
-    let working_schema = apply_field_projection(schema, args.select)?;
-
-    // Configure decode options - use strict mode when fail_fast is enabled
-    let effective_strict_mode = args.strict || args.fail_fast;
-    let effective_max_errors = if args.fail_fast {
-        Some(1)
-    } else {
-        args.max_errors
-    };
+    let error_policy = effective_error_policy(args.strict, args.fail_fast, args.max_errors);
 
     let options = DecodeOptions::new()
         .with_format(args.format)
@@ -120,88 +106,36 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
         .with_emit_filler(args.emit_filler)
         .with_emit_meta(args.emit_meta)
         .with_emit_raw(args.emit_raw)
-        .with_strict_mode(effective_strict_mode)
-        .with_max_errors(effective_max_errors)
+        .with_strict_mode(error_policy.strict_mode)
+        .with_max_errors(error_policy.max_errors)
         .with_unmappable_policy(args.on_decode_unmappable)
         .with_threads(args.threads)
         .with_preserve_zoned_encoding(args.preserve_zoned_encoding)
         .with_preferred_zoned_encoding(args.preferred_zoned_encoding)
         .with_float_format(args.float_format);
 
-    // Check if output is stdout
-    let write_to_stdout = args.output.as_path() == Path::new("-");
-
-    // Decode file
-    let summary = if write_to_stdout {
-        // Write directly to stdout (no atomic write, no summary)
-        let input_file = fs::File::open(args.input)?;
-        let mut stdout = std::io::stdout().lock();
-        copybook_codec::decode_file_to_jsonl(&working_schema, input_file, &mut stdout, &options)?
-    } else {
-        // Use atomic write for file output
-        let mut result_summary = None;
-        atomic_write(args.output, |output_writer| {
-            let input_file = fs::File::open(args.input).map_err(std::io::Error::other)?;
-            let summary = copybook_codec::decode_file_to_jsonl(
+    let (summary, write_to_stdout) =
+        run_with_output(args.input, args.output, |input_file, output_writer| {
+            Ok(copybook_codec::decode_file_to_jsonl(
                 &working_schema,
                 input_file,
                 output_writer,
                 &options,
-            )
-            .map_err(std::io::Error::other)?;
-            result_summary = Some(summary);
-            Ok(())
+            )?)
         })?;
-        result_summary.ok_or_else(|| {
-            std::io::Error::other(
-                "Internal error: summary not populated after successful processing",
-            )
-        })?
-    };
 
     // Print comprehensive summary (only when not writing to stdout)
     if !write_to_stdout {
         let mut summary_output = String::new();
-        writeln!(&mut summary_output, "=== Decode Summary ===")?;
-        writeln!(
+        append_processing_summary(
             &mut summary_output,
-            "Records processed: {}",
-            summary.records_processed
+            "Decode",
+            &summary,
+            SummaryIssueCountStyle {
+                show_zero_counts: true,
+                repeat_nonzero_counts: true,
+            },
         )?;
-        writeln!(
-            &mut summary_output,
-            "Records with errors: {}",
-            summary.records_with_errors
-        )?;
-        writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
-        writeln!(
-            &mut summary_output,
-            "Processing time: {}ms",
-            summary.processing_time_ms
-        )?;
-        writeln!(
-            &mut summary_output,
-            "Bytes processed: {}",
-            summary.bytes_processed
-        )?;
-        writeln!(
-            &mut summary_output,
-            "Throughput: {:.2} MB/s",
-            summary.throughput_mbps
-        )?;
-
-        if summary.has_warnings() {
-            writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
-        }
-
-        // Print error summary if available
-        if summary.has_errors() {
-            writeln!(
-                &mut summary_output,
-                "Records with errors: {}",
-                summary.records_with_errors
-            )?;
-        }
 
         write_stdout_all(summary_output.as_bytes())?;
     }

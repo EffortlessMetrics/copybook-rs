@@ -2440,38 +2440,35 @@ fn encode_occurs_element(
     let mut element_field = field.clone();
     element_field.occurs = None;
 
-    match &field.kind {
-        FieldKind::Group => {
-            let element_obj = element.as_object().ok_or_else(|| {
-                Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("Expected object element for OCCURS group '{}'", field.path),
-                )
-                .with_field(field.path.clone())
-            })?;
-            encode_fields_recursive(
-                &element_field.children,
-                element_obj,
-                encoding_metadata,
-                field_path,
-                buffer,
-                element_offset,
-                options,
-            )?;
-        }
-        _ => {
-            let mut element_obj = serde_json::Map::new();
-            element_obj.insert(field.name.clone(), element.clone());
-            encode_single_field(
-                &element_field,
-                field_path,
-                &element_obj,
-                encoding_metadata,
-                buffer,
-                element_offset,
-                options,
-            )?;
-        }
+    if let FieldKind::Group = &field.kind {
+        let element_obj = element.as_object().ok_or_else(|| {
+            Error::new(
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                format!("Expected object element for OCCURS group '{}'", field.path),
+            )
+            .with_field(field.path.clone())
+        })?;
+        encode_fields_recursive(
+            &element_field.children,
+            element_obj,
+            encoding_metadata,
+            field_path,
+            buffer,
+            element_offset,
+            options,
+        )?;
+    } else {
+        let mut element_obj = serde_json::Map::new();
+        element_obj.insert(field.name.clone(), element.clone());
+        encode_single_field(
+            &element_field,
+            field_path,
+            &element_obj,
+            encoding_metadata,
+            buffer,
+            element_offset,
+            options,
+        )?;
     }
 
     Ok(())

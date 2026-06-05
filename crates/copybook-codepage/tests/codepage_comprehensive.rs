@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Comprehensive tests for copybook-codepage: all variants, Display, FromStr,
-//! description, code_page_number, space_byte, zoned sign tables, serde, and
-//! UnmappablePolicy semantics.
+//! Comprehensive tests for copybook-codepage: all variants, `Display`, `FromStr`,
+//! description, `code_page_number`, `space_byte`, zoned sign tables, serde, and
+//! `UnmappablePolicy` semantics.
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use copybook_codepage::{Codepage, UnmappablePolicy, get_zoned_sign_table, space_byte};

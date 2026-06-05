@@ -152,7 +152,7 @@ jobs:
 
       - name: Post PR comment
         if: github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           AUDIT_OVERHEAD: ${{ steps.overhead.outputs.audit_overhead }}
           COMPLIANCE_OVERHEAD: ${{ steps.overhead.outputs.compliance_overhead }}
@@ -235,7 +235,7 @@ jobs:
 
       - name: Publish enterprise overhead check
         id: check
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           AUDIT_OVERHEAD: ${{ steps.overhead.outputs.audit_overhead }}
           COMPLIANCE_OVERHEAD: ${{ steps.overhead.outputs.compliance_overhead }}

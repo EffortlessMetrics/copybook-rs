@@ -1946,37 +1946,48 @@ fn validate_lib_api_odo_encoding(
         return Ok(());
     }
 
-    if let Some(array) = json_lookup_array(fields_value, &tail_odo.array_path) {
-        let array_field = schema.find_field(&tail_odo.array_path).ok_or_else(|| {
-            Error::new(
-                ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                format!(
-                    "ODO array field '{}' not found in schema",
-                    tail_odo.array_path
-                ),
-            )
-            .with_context(crate::odo_redefines::create_comprehensive_error_context(
-                0,
-                &tail_odo.array_path,
-                0,
-                None,
-            ))
-        })?;
+    let array_field =
+        crate::odo_redefines::find_field_by_path_or_unique_name(schema, &tail_odo.array_path)
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                    format!(
+                        "ODO array field '{}' not found in schema",
+                        tail_odo.array_path
+                    ),
+                )
+                .with_context(
+                    crate::odo_redefines::create_comprehensive_error_context(
+                        0,
+                        &tail_odo.array_path,
+                        0,
+                        None,
+                    ),
+                )
+            })?;
 
-        let counter_field = schema.find_field(&tail_odo.counter_path).ok_or_else(|| {
-            crate::odo_redefines::handle_missing_counter_field(
-                &tail_odo.counter_path,
-                &tail_odo.array_path,
-                schema,
-                0,
-                0,
-            )
-        })?;
+    let counter_field =
+        crate::odo_redefines::find_field_by_path_or_unique_name(schema, &tail_odo.counter_path)
+            .ok_or_else(|| {
+                crate::odo_redefines::handle_missing_counter_field(
+                    &tail_odo.counter_path,
+                    &tail_odo.array_path,
+                    schema,
+                    0,
+                    0,
+                )
+            })?;
 
-        if json_lookup_value(fields_value, &tail_odo.counter_path).is_none() {
+    if let Some(array) = json_lookup_array(fields_value, &array_field.path)
+        .or_else(|| json_lookup_array(fields_value, &tail_odo.array_path))
+    {
+        if json_lookup_value(fields_value, &counter_field.path)
+            .or_else(|| json_lookup_value(fields_value, &tail_odo.counter_path))
+            .is_none()
+        {
             return Err(crate::odo_redefines::handle_missing_counter_field(
-                &tail_odo.counter_path,
-                &tail_odo.array_path,
+                &counter_field.path,
+                &array_field.path,
                 schema,
                 0,
                 u64::from(counter_field.offset),
@@ -1984,8 +1995,8 @@ fn validate_lib_api_odo_encoding(
         }
 
         let context = crate::odo_redefines::OdoValidationContext {
-            field_path: tail_odo.array_path.clone(),
-            counter_path: tail_odo.counter_path.clone(),
+            field_path: array_field.path.clone(),
+            counter_path: counter_field.path.clone(),
             record_index: 0,
             byte_offset: u64::from(array_field.offset),
         };
@@ -2003,6 +2014,13 @@ fn validate_lib_api_odo_encoding(
 }
 
 fn json_lookup_value<'a>(value: &'a Value, field_path: &str) -> Option<&'a Value> {
+    json_lookup_exact_value(value, field_path).or_else(|| {
+        let (_, path_without_root) = field_path.split_once('.')?;
+        json_lookup_exact_value(value, path_without_root)
+    })
+}
+
+fn json_lookup_exact_value<'a>(value: &'a Value, field_path: &str) -> Option<&'a Value> {
     let mut current = value;
     for segment in field_path.split('.') {
         current = current.as_object()?.get(segment)?;
@@ -2104,6 +2122,19 @@ fn encode_single_field(
     options: &EncodeOptions,
 ) -> Result<usize> {
     use copybook_core::FieldKind;
+
+    if let Some(occurs) = &field.occurs {
+        return encode_occurs_field(
+            field,
+            occurs,
+            field_path,
+            json_obj,
+            encoding_metadata,
+            buffer,
+            current_offset,
+            options,
+        );
+    }
 
     match &field.kind {
         FieldKind::Group => encode_group_field(
@@ -2305,6 +2336,126 @@ fn encode_single_field(
             Ok(current_offset + field_len)
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn encode_occurs_field(
+    field: &copybook_core::Field,
+    occurs: &copybook_core::Occurs,
+    field_path: &str,
+    json_obj: &serde_json::Map<String, Value>,
+    encoding_metadata: Option<&serde_json::Map<String, Value>>,
+    buffer: &mut [u8],
+    current_offset: usize,
+    options: &EncodeOptions,
+) -> Result<usize> {
+    let max_count = occurs_max_count(occurs);
+    let element_len = field.len as usize;
+    let allocation_len = element_len
+        .checked_mul(max_count as usize)
+        .ok_or_else(|| Error::new(ErrorCode::CBKS141_RECORD_TOO_LARGE, "OCCURS size overflow"))?;
+
+    let Some(array) = json_obj.get(&field.name).and_then(Value::as_array) else {
+        return Ok(current_offset + allocation_len);
+    };
+
+    validate_occurs_array_len(array.len(), occurs, field)?;
+
+    for (index, element) in array.iter().enumerate() {
+        let element_offset = current_offset + index * element_len;
+        encode_occurs_element(
+            field,
+            field_path,
+            element,
+            encoding_metadata,
+            buffer,
+            element_offset,
+            options,
+        )?;
+    }
+
+    Ok(current_offset + allocation_len)
+}
+
+fn occurs_max_count(occurs: &copybook_core::Occurs) -> u32 {
+    match occurs {
+        copybook_core::Occurs::Fixed { count } => *count,
+        copybook_core::Occurs::ODO { max, .. } => *max,
+    }
+}
+
+fn validate_occurs_array_len(
+    actual_len: usize,
+    occurs: &copybook_core::Occurs,
+    field: &copybook_core::Field,
+) -> Result<()> {
+    match occurs {
+        copybook_core::Occurs::Fixed { count } if actual_len != *count as usize => Err(Error::new(
+            ErrorCode::CBKE521_ARRAY_LEN_OOB,
+            format!(
+                "Array length {} doesn't match fixed OCCURS count {} for field '{}'",
+                actual_len, count, field.path
+            ),
+        )
+        .with_field(field.path.clone())),
+        copybook_core::Occurs::ODO { max, .. } if actual_len > *max as usize => Err(Error::new(
+            ErrorCode::CBKE521_ARRAY_LEN_OOB,
+            format!(
+                "Array length {} exceeds ODO max {} for field '{}'",
+                actual_len, max, field.path
+            ),
+        )
+        .with_field(field.path.clone())),
+        copybook_core::Occurs::Fixed { .. } | copybook_core::Occurs::ODO { .. } => Ok(()),
+    }
+}
+
+fn encode_occurs_element(
+    field: &copybook_core::Field,
+    field_path: &str,
+    element: &Value,
+    encoding_metadata: Option<&serde_json::Map<String, Value>>,
+    buffer: &mut [u8],
+    element_offset: usize,
+    options: &EncodeOptions,
+) -> Result<()> {
+    use copybook_core::FieldKind;
+
+    let mut element_field = field.clone();
+    element_field.occurs = None;
+
+    if let FieldKind::Group = &field.kind {
+        let element_obj = element.as_object().ok_or_else(|| {
+            Error::new(
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                format!("Expected object element for OCCURS group '{}'", field.path),
+            )
+            .with_field(field.path.clone())
+        })?;
+        encode_fields_recursive(
+            &element_field.children,
+            element_obj,
+            encoding_metadata,
+            field_path,
+            buffer,
+            element_offset,
+            options,
+        )?;
+    } else {
+        let mut element_obj = serde_json::Map::new();
+        element_obj.insert(field.name.clone(), element.clone());
+        encode_single_field(
+            &element_field,
+            field_path,
+            &element_obj,
+            encoding_metadata,
+            buffer,
+            element_offset,
+            options,
+        )?;
+    }
+
+    Ok(())
 }
 
 /// Recursively encode a group field and its children.

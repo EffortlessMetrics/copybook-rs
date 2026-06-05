@@ -13,6 +13,35 @@ use serde_json::Value;
 use std::collections::HashMap;
 use tracing::{debug, warn};
 
+/// Resolve a schema field by exact path first, then by unique field name.
+///
+/// Tail-ODO metadata may store short names (for example `ARRAY`) while other
+/// subsystems require canonical schema paths (for example `RECORD.ARRAY`).
+/// This helper keeps lookup strict by allowing the name fallback only when it
+/// resolves to exactly one field in the schema.
+#[must_use]
+pub fn find_field_by_path_or_unique_name<'a>(
+    schema: &'a Schema,
+    path_or_name: &str,
+) -> Option<&'a Field> {
+    if let Some(field) = schema.find_field(path_or_name) {
+        return Some(field);
+    }
+
+    let target_name = path_or_name.rsplit('.').next().unwrap_or(path_or_name);
+    let mut matches = schema
+        .all_fields()
+        .into_iter()
+        .filter(|field| field.name.eq_ignore_ascii_case(target_name));
+
+    let first_match = matches.next()?;
+    if matches.next().is_some() {
+        return None;
+    }
+
+    Some(first_match)
+}
+
 /// ODO validation result
 #[derive(Debug, Clone)]
 pub struct OdoValidationResult {
@@ -629,6 +658,59 @@ mod tests {
 
         schema.fields = vec![counter, array_field];
         schema
+    }
+
+    fn alphanum_field(path: &str, name: &str, offset: u32) -> Field {
+        Field {
+            path: path.to_string(),
+            name: name.to_string(),
+            level: 5,
+            kind: FieldKind::Alphanum { len: 1 },
+            offset,
+            len: 1,
+            redefines_of: None,
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            resolved_renames: None,
+            children: vec![],
+        }
+    }
+
+    #[test]
+    fn test_find_field_by_path_or_unique_name_prefers_exact_path() {
+        let mut schema = Schema::new();
+        schema.fields = vec![
+            alphanum_field("ROOT.LEFT.ITEM", "ITEM", 0),
+            alphanum_field("ROOT.RIGHT.ITEM", "ITEM", 1),
+        ];
+
+        let field = find_field_by_path_or_unique_name(&schema, "ROOT.RIGHT.ITEM")
+            .expect("exact path should resolve even when leaf names are duplicated");
+
+        assert_eq!(field.path, "ROOT.RIGHT.ITEM");
+    }
+
+    #[test]
+    fn test_find_field_by_path_or_unique_name_resolves_unique_leaf() {
+        let schema = create_test_schema_with_odo();
+
+        let field = find_field_by_path_or_unique_name(&schema, "ARRAY")
+            .expect("unique short ODO array name should resolve");
+
+        assert_eq!(field.path, "ROOT.ARRAY");
+    }
+
+    #[test]
+    fn test_find_field_by_path_or_unique_name_rejects_ambiguous_leaf() {
+        let mut schema = Schema::new();
+        schema.fields = vec![
+            alphanum_field("ROOT.LEFT.ITEM", "ITEM", 0),
+            alphanum_field("ROOT.RIGHT.ITEM", "ITEM", 1),
+        ];
+
+        assert!(find_field_by_path_or_unique_name(&schema, "ITEM").is_none());
     }
 
     #[test]

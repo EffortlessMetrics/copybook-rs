@@ -71,8 +71,7 @@ impl CiIntegrator {
                     .throughput_changes
                     .iter()
                     .find(|c| c.metric_name.contains("display"))
-                    .map(|c| c.change_percent)
-                    .unwrap_or(0.0);
+                    .map_or(0.0, |c| c.change_percent);
                 (change, gate.threshold.max_regression_percent)
             }
             GateMetricType::Comp3Throughput => {
@@ -81,8 +80,7 @@ impl CiIntegrator {
                     .throughput_changes
                     .iter()
                     .find(|c| c.metric_name.contains("comp3"))
-                    .map(|c| c.change_percent)
-                    .unwrap_or(0.0);
+                    .map_or(0.0, |c| c.change_percent);
                 (change, gate.threshold.max_regression_percent)
             }
             _ => (0.0, gate.threshold.max_regression_percent), // Simplified

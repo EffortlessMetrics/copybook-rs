@@ -182,7 +182,7 @@ impl PerformanceRegressionDetector {
         Ok(std::env::var("GIT_COMMIT").ok())
     }
 
-    fn determine_regression_status(
+    pub(crate) fn determine_regression_status(
         &self,
         comparison: &MetricsComparison,
         tests: &StatisticalTestResults,
@@ -195,10 +195,24 @@ impl PerformanceRegressionDetector {
             .filter(|change| matches!(change.change_direction, ChangeDirection::Degradation))
             .map(|change| change.change_percent)
             .fold(0.0f64, f64::max);
+        let max_improvement = comparison
+            .throughput_changes
+            .iter()
+            .chain(comparison.memory_changes.iter())
+            .chain(comparison.latency_changes.iter())
+            .filter(|change| matches!(change.change_direction, ChangeDirection::Improvement))
+            .map(|change| change.change_percent)
+            .fold(0.0f64, f64::max);
 
         let is_significant = tests.t_test_result.significant;
 
-        if max_degradation < 2.0 || !is_significant {
+        if !is_significant {
+            Ok(RegressionStatus::NoRegression)
+        } else if max_improvement >= 2.0 && max_degradation < 2.0 {
+            Ok(RegressionStatus::Improvement {
+                magnitude: max_improvement,
+            })
+        } else if max_degradation < 2.0 {
             Ok(RegressionStatus::NoRegression)
         } else if max_degradation < 5.0 {
             Ok(RegressionStatus::MinorRegression {
@@ -406,8 +420,6 @@ mod num_cpus {
 #[cfg(not(test))]
 mod num_cpus {
     pub fn get() -> usize {
-        std::thread::available_parallelism()
-            .map(|n| n.get())
-            .unwrap_or(4)
+        std::thread::available_parallelism().map_or(4, |n| n.get())
     }
 }

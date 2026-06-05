@@ -173,6 +173,136 @@ fn test_statistical_analyzer() {
     assert!(statistical_tests.t_test_result.degrees_of_freedom > 0);
 }
 
+fn statistical_test_results(significant: bool) -> StatisticalTestResults {
+    StatisticalTestResults {
+        t_test_result: TTestResult {
+            statistic: if significant { 4.0 } else { 0.5 },
+            p_value: if significant { 0.01 } else { 0.50 },
+            degrees_of_freedom: 98,
+            significant,
+        },
+        mann_whitney_u_result: MannWhitneyResult {
+            u_statistic: 1200.0,
+            p_value: if significant { 0.03 } else { 0.50 },
+            significant,
+        },
+        effect_size: EffectSize {
+            cohens_d: if significant { 0.8 } else { 0.1 },
+            glass_delta: if significant { 0.8 } else { 0.1 },
+            hedges_g: if significant { 0.79 } else { 0.1 },
+            interpretation: if significant {
+                EffectSizeInterpretation::Large
+            } else {
+                EffectSizeInterpretation::Negligible
+            },
+        },
+        power_analysis: PowerAnalysisResult {
+            power: 0.9,
+            required_sample_size: 64,
+            adequate_power: true,
+        },
+    }
+}
+
+#[test]
+fn test_determine_regression_status_detects_improvement() {
+    let detector = PerformanceRegressionDetector::new();
+    let comparison = MetricsComparison {
+        throughput_changes: vec![MetricChange {
+            metric_name: "display_throughput_mean".to_string(),
+            baseline_value: 100.0,
+            current_value: 110.0,
+            change_percent: 10.0,
+            change_direction: ChangeDirection::Improvement,
+            statistical_significance: true,
+        }],
+        memory_changes: vec![MetricChange {
+            metric_name: "peak_memory_mb".to_string(),
+            baseline_value: 100.0,
+            current_value: 98.5,
+            change_percent: 1.5,
+            change_direction: ChangeDirection::Neutral,
+            statistical_significance: false,
+        }],
+        latency_changes: vec![MetricChange {
+            metric_name: "p95_latency_ms".to_string(),
+            baseline_value: 10.0,
+            current_value: 9.8,
+            change_percent: 2.0,
+            change_direction: ChangeDirection::Neutral,
+            statistical_significance: false,
+        }],
+        overall_change_percent: 4.5,
+    };
+    let tests = statistical_test_results(true);
+
+    let status = detector
+        .determine_regression_status(&comparison, &tests)
+        .unwrap();
+    match status {
+        RegressionStatus::Improvement { magnitude } => {
+            assert_eq!(magnitude, 10.0);
+        }
+        _ => panic!("Expected improvement status"),
+    }
+}
+
+#[test]
+fn test_determine_regression_status_ignores_non_significant_improvement() {
+    let detector = PerformanceRegressionDetector::new();
+    let comparison = MetricsComparison {
+        throughput_changes: vec![MetricChange {
+            metric_name: "display_throughput_mean".to_string(),
+            baseline_value: 100.0,
+            current_value: 110.0,
+            change_percent: 10.0,
+            change_direction: ChangeDirection::Improvement,
+            statistical_significance: false,
+        }],
+        memory_changes: vec![],
+        latency_changes: vec![],
+        overall_change_percent: 10.0,
+    };
+    let tests = statistical_test_results(false);
+
+    let status = detector
+        .determine_regression_status(&comparison, &tests)
+        .unwrap();
+
+    assert!(matches!(status, RegressionStatus::NoRegression));
+}
+
+#[test]
+fn test_determine_regression_status_prefers_regression_when_present() {
+    let detector = PerformanceRegressionDetector::new();
+    let comparison = MetricsComparison {
+        throughput_changes: vec![MetricChange {
+            metric_name: "display_throughput_mean".to_string(),
+            baseline_value: 100.0,
+            current_value: 95.0,
+            change_percent: 5.0,
+            change_direction: ChangeDirection::Degradation,
+            statistical_significance: true,
+        }],
+        memory_changes: vec![MetricChange {
+            metric_name: "peak_memory_mb".to_string(),
+            baseline_value: 100.0,
+            current_value: 90.0,
+            change_percent: 10.0,
+            change_direction: ChangeDirection::Improvement,
+            statistical_significance: true,
+        }],
+        latency_changes: vec![],
+        overall_change_percent: 7.5,
+    };
+    let tests = statistical_test_results(true);
+
+    let status = detector
+        .determine_regression_status(&comparison, &tests)
+        .unwrap();
+    assert!(matches!(status, RegressionStatus::MajorRegression { .. }));
+}
+
 #[test]
 fn test_ci_integrator() {
     let ci = CiIntegrator::new();

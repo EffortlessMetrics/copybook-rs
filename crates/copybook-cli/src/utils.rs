@@ -432,6 +432,44 @@ mod tests {
     }
 
     #[test]
+    fn test_append_processing_summary_zero_counts() -> Result<()> {
+        let summary = RunSummary {
+            records_processed: 3,
+            processing_time_ms: 42,
+            bytes_processed: 2048,
+            throughput_mbps: 1.5,
+            ..RunSummary::default()
+        };
+
+        let mut encode_summary = String::new();
+        append_processing_summary(
+            &mut encode_summary,
+            "Encode",
+            &summary,
+            SummaryIssueCountStyle {
+                show_zero_counts: false,
+                repeat_nonzero_counts: false,
+            },
+        )?;
+        assert!(!encode_summary.contains("Warnings: 0"));
+        assert!(!encode_summary.contains("Records with errors: 0"));
+
+        let mut decode_summary = String::new();
+        append_processing_summary(
+            &mut decode_summary,
+            "Decode",
+            &summary,
+            SummaryIssueCountStyle {
+                show_zero_counts: true,
+                repeat_nonzero_counts: true,
+            },
+        )?;
+        assert_eq!(decode_summary.matches("Warnings: 0").count(), 1);
+        assert_eq!(decode_summary.matches("Records with errors: 0").count(), 1);
+        Ok(())
+    }
+
+    #[test]
     fn test_temp_path_for() {
         let target = Path::new("/path/to/output.jsonl");
         let temp = temp_path_for(target);

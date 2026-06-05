@@ -2359,14 +2359,7 @@ fn encode_occurs_field(
         return Ok(current_offset + allocation_len);
     };
 
-    validate_occurs_array_len(
-        array.len(),
-        occurs,
-        field,
-        field_path,
-        current_offset,
-        options,
-    )?;
+    validate_occurs_array_len(array.len(), occurs, field)?;
 
     for (index, element) in array.iter().enumerate() {
         let element_offset = current_offset + index * element_len;
@@ -2395,9 +2388,6 @@ fn validate_occurs_array_len(
     actual_len: usize,
     occurs: &copybook_core::Occurs,
     field: &copybook_core::Field,
-    field_path: &str,
-    current_offset: usize,
-    options: &EncodeOptions,
 ) -> Result<()> {
     match occurs {
         copybook_core::Occurs::Fixed { count } if actual_len != *count as usize => Err(Error::new(
@@ -2409,20 +2399,15 @@ fn validate_occurs_array_len(
         )
         .with_field(field.path.clone())),
         copybook_core::Occurs::Fixed { .. } => Ok(()),
-        copybook_core::Occurs::ODO {
-            min,
-            max,
-            counter_path,
-        } => {
-            let context = crate::odo_redefines::OdoValidationContext {
-                field_path: field_path.to_string(),
-                counter_path: counter_path.clone(),
-                record_index: 0,
-                byte_offset: current_offset as u64,
-            };
-            crate::odo_redefines::validate_odo_encode(actual_len, *min, *max, &context, options)
-                .map(|_| ())
-        }
+        copybook_core::Occurs::ODO { max, .. } if actual_len > *max as usize => Err(Error::new(
+            ErrorCode::CBKE521_ARRAY_LEN_OOB,
+            format!(
+                "Array length {} exceeds ODO max {} for field '{}'",
+                actual_len, max, field.path
+            ),
+        )
+        .with_field(field.path.clone())),
+        copybook_core::Occurs::ODO { .. } => Ok(()),
     }
 }
 

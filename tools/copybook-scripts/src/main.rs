@@ -1,5 +1,5 @@
 //! SPDX-License-Identifier: AGPL-3.0-or-later
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
@@ -45,6 +45,12 @@ enum CommandKind {
     FixAgentIssues,
     FinalCleanupAgents,
     CheckPublicResultDocs,
+    ShadowDiff {
+        #[arg(value_name = "OLD_JSONL")]
+        old: PathBuf,
+        #[arg(value_name = "NEW_JSONL")]
+        new: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
@@ -63,6 +69,7 @@ fn main() -> Result<()> {
         CommandKind::FixAgentIssues => fix_agent_issues(),
         CommandKind::FinalCleanupAgents => final_cleanup_agents(),
         CommandKind::CheckPublicResultDocs => check_public_result_docs(),
+        CommandKind::ShadowDiff { old, new } => shadow_diff(&old, &new),
     }
 }
 
@@ -739,6 +746,108 @@ fn clean_merge_conflicts(file: PathBuf) -> Result<()> {
     }
 
     fs::write(&target, out).with_context(|| format!("failed to write {}", target.display()))?;
+    Ok(())
+}
+
+fn canonical_json(value: Value) -> Value {
+    match value {
+        Value::Array(items) => Value::Array(items.into_iter().map(canonical_json).collect()),
+        Value::Object(map) => {
+            let ordered: BTreeMap<String, Value> = map
+                .into_iter()
+                .map(|(key, value)| (key, canonical_json(value)))
+                .collect();
+            let mut sorted = Map::new();
+            for (key, value) in ordered {
+                sorted.insert(key, value);
+            }
+            Value::Object(sorted)
+        }
+        other => other,
+    }
+}
+
+fn normalized_shadow_json(path: &Path) -> Result<String> {
+    let content =
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+    let stream = serde_json::Deserializer::from_str(&content).into_iter::<Value>();
+    let mut output = String::new();
+
+    for value in stream {
+        let mut value =
+            value.with_context(|| format!("failed to parse JSON in {}", path.display()))?;
+        if let Value::Object(obj) = &mut value {
+            obj.shift_remove("schema");
+            obj.shift_remove("record_index");
+        }
+        let canonical = canonical_json(value);
+        output.push_str(&serde_json::to_string_pretty(&canonical)?);
+        output.push('\n');
+    }
+
+    Ok(output)
+}
+
+fn temp_shadow_path(label: &str) -> PathBuf {
+    env::temp_dir().join(format!(
+        "copybook-shadow-diff-{label}-{}-{}.json",
+        std::process::id(),
+        chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()
+    ))
+}
+
+fn first_lines(text: &str, limit: usize) -> String {
+    let mut out = String::new();
+    for (index, line) in text.lines().enumerate() {
+        if index >= limit {
+            break;
+        }
+        out.push_str(line);
+        out.push('\n');
+    }
+    out
+}
+
+fn shadow_diff(old: &Path, new: &Path) -> Result<()> {
+    let old_norm = normalized_shadow_json(old)?;
+    let new_norm = normalized_shadow_json(new)?;
+    let old_tmp = temp_shadow_path("old");
+    let new_tmp = temp_shadow_path("new");
+
+    fs::write(&old_tmp, old_norm)
+        .with_context(|| format!("failed to write {}", old_tmp.display()))?;
+    fs::write(&new_tmp, new_norm)
+        .with_context(|| format!("failed to write {}", new_tmp.display()))?;
+
+    let diff = Command::new("diff")
+        .arg("-u")
+        .arg(&old_tmp)
+        .arg(&new_tmp)
+        .output()
+        .context("failed to run diff -u")?;
+
+    let _ = fs::remove_file(&old_tmp);
+    let _ = fs::remove_file(&new_tmp);
+
+    let mut diff_output = String::from_utf8_lossy(&diff.stdout).into_owned();
+    diff_output.push_str(&String::from_utf8_lossy(&diff.stderr));
+    let head_lines = first_lines(&diff_output, 200);
+
+    println!("## Diff (first 200 lines):");
+    print!("{head_lines}");
+
+    if let Ok(summary_path) = env::var("GITHUB_STEP_SUMMARY") {
+        let summary = format!("### Shadow Diff (first 200 lines)\n```diff\n{head_lines}```\n");
+        let mut existing = fs::read_to_string(&summary_path).unwrap_or_default();
+        existing.push_str(&summary);
+        fs::write(&summary_path, existing)
+            .with_context(|| format!("failed to write {summary_path}"))?;
+    }
+
+    if diff.status.code().is_some_and(|code| code > 1) {
+        bail!("diff -u failed with status {}", diff.status);
+    }
+
     Ok(())
 }
 
@@ -1506,6 +1615,32 @@ pub fn encode_value(
 
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].check, PublicResultDocCheck::MustUse);
+    }
+
+    #[test]
+    fn shadow_normalization_removes_metadata_and_sorts_keys() -> Result<()> {
+        let path = temp_shadow_path("test-normalize");
+        fs::write(
+            &path,
+            r#"{"record_index":7,"fields":{"B":1,"A":2},"schema":"v1","a":1}"#,
+        )?;
+
+        let normalized = normalized_shadow_json(&path)?;
+        let _ = fs::remove_file(&path);
+
+        assert_eq!(
+            normalized,
+            "{\n  \"a\": 1,\n  \"fields\": {\n    \"A\": 2,\n    \"B\": 1\n  }\n}\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn first_lines_limits_output() {
+        let text = "one\ntwo\nthree\n";
+
+        assert_eq!(first_lines(text, 2), "one\ntwo\n");
+        assert_eq!(first_lines(text, 0), "");
     }
 
     #[test]

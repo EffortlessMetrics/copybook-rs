@@ -2,28 +2,26 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 set -euo pipefail
 
-OLD="${1:?old jsonl}"  # current system output
-NEW="${2:?new jsonl}"  # copybook jsonl
+ROOT_DIR="$(git rev-parse --show-toplevel)"
 
-tmp_old="$(mktemp)"
-tmp_new="$(mktemp)"
-cleanup() {
-  rm -f "$tmp_old" "$tmp_new"
+bootstrap_rustup() {
+  if [ -n "${HOME:-}" ] && [ -f "$HOME/.cargo/env" ]; then
+    # Non-login bash shells may not populate Rust's shims on PATH.
+    . "$HOME/.cargo/env"
+  fi
 }
-trap cleanup EXIT
 
-jq -S 'del(.schema, .record_index)' "$OLD" > "$tmp_old"
-jq -S 'del(.schema, .record_index)' "$NEW" > "$tmp_new"
-diff_output="$(diff -u "$tmp_old" "$tmp_new" || true)"
-head_lines="$(printf '%s\n' "$diff_output" | head -200)"
-echo "## Diff (first 200 lines):"
-printf '%s\n' "$head_lines"
+run_cargo() {
+  bootstrap_rustup
+  local toolchain="${COPYBOOK_RUST_TOOLCHAIN:-stable}"
 
-if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
-  {
-    echo "### Shadow Diff (first 200 lines)"
-    echo '```diff'
-    printf '%s\n' "$head_lines"
-    echo '```'
-  } >> "${GITHUB_STEP_SUMMARY}"
-fi
+  if command -v rustup >/dev/null 2>&1 && rustup toolchain list | grep -q "^${toolchain}"; then
+    rustup run "$toolchain" cargo "$@"
+  elif command -v rustup.exe >/dev/null 2>&1 && rustup.exe toolchain list | grep -q "^${toolchain}"; then
+    rustup.exe run "$toolchain" cargo "$@"
+  else
+    cargo "$@"
+  fi
+}
+
+run_cargo run --quiet --manifest-path "$ROOT_DIR/tools/copybook-scripts/Cargo.toml" -- shadow-diff "$@"

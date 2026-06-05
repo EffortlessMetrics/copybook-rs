@@ -39,6 +39,7 @@
 //! - [`should_encode_as_blank_when_zero`](crate::numeric::should_encode_as_blank_when_zero) - Check BLANK WHEN ZERO policy
 //!
 //! ### Internal Single-Responsibility Modules
+//! - `branch` owns internal branch-prediction hints for numeric hot paths.
 //! - `decimal` owns [`SmallDecimal`](crate::numeric::SmallDecimal), decimal formatting helpers,
 //!   and zoned encoding detection metadata.
 //! - `float` owns COMP-1/COMP-2 IEEE and IBM hexadecimal floating-point codecs.
@@ -123,9 +124,11 @@ use copybook_core::{Error, ErrorCode, Result, SignPlacement, SignSeparateInfo};
 use std::convert::TryFrom;
 use tracing::warn;
 
+mod branch;
 mod decimal;
 mod float;
 
+use branch::{likely, unlikely};
 pub use decimal::{SmallDecimal, ZonedEncodingInfo};
 use decimal::{create_normalized_decimal, digit_from_value, scale_abs_to_u32};
 pub use float::*;
@@ -133,95 +136,6 @@ pub use float::*;
 /// Nibble zones for ASCII/EBCDIC digits (high bits in zoned bytes).
 const ASCII_DIGIT_ZONE: u8 = 0x3; // ASCII '0'..'9' => 0x30..0x39
 const EBCDIC_DIGIT_ZONE: u8 = 0xF; // EBCDIC '0'..'9' => 0xF0..0xF9
-
-/// Branch prediction hint for likely-true conditions
-///
-/// Provides a manual branch prediction hint to the compiler that the condition
-/// is likely to be true. This optimization helps keep hot paths efficient by
-/// marking the false case as cold.
-///
-/// # Arguments
-/// * `b` - Boolean condition to evaluate
-///
-/// # Returns
-/// The input boolean value unchanged
-///
-/// # Performance
-/// This function is critical for COBOL data decoding hot paths where valid
-/// data is the common case and errors are exceptional.
-///
-/// # Examples
-/// ```text
-/// use copybook_codec::numeric::likely;
-///
-/// let valid_data = true;
-/// if likely(valid_data) {
-///     // Hot path - optimized for this case
-/// }
-/// ```
-#[inline]
-pub(crate) fn likely(b: bool) -> bool {
-    // CRITICAL PERFORMANCE OPTIMIZATION: Manual branch prediction optimization
-    // The true case is expected to be taken most of the time (likely path)
-    // Mark the false case as cold to optimize for the common true case
-    if b {
-        true
-    } else {
-        cold_branch_hint();
-        false
-    }
-}
-
-/// Branch prediction hint for unlikely-true conditions
-///
-/// Provides a manual branch prediction hint to the compiler that the condition
-/// is unlikely to be true. This optimization keeps error paths cold and hot
-/// paths optimized.
-///
-/// # Arguments
-/// * `b` - Boolean condition to evaluate
-///
-/// # Returns
-/// The input boolean value unchanged
-///
-/// # Performance
-/// Critical for error handling in COBOL numeric decoding where validation
-/// failures are exceptional cases.
-///
-/// # Examples
-/// ```text
-/// use copybook_codec::numeric::unlikely;
-///
-/// let error_condition = false;
-/// if unlikely(error_condition) {
-///     // Cold path - marked as unlikely
-/// }
-/// ```
-#[inline]
-pub(crate) fn unlikely(b: bool) -> bool {
-    // CRITICAL PERFORMANCE OPTIMIZATION: Manual branch prediction optimization
-    // Use explicit cold annotation to hint that error paths are unlikely
-    // This provides significant speedup by keeping hot paths optimized
-    if b {
-        // Cold path: mark as unlikely taken
-        cold_branch_hint();
-        true
-    } else {
-        false
-    }
-}
-
-/// Manual branch prediction hint for cold paths
-///
-/// This function serves as a branch prediction hint that the calling path is cold/unlikely.
-/// The `#[cold]` attribute tells the compiler this is an unlikely execution path, and
-/// `#[inline(never)]` ensures the cold path doesn't bloat the hot path.
-#[cold]
-#[inline(never)]
-fn cold_branch_hint() {
-    // This function serves as a branch prediction hint that the calling path is cold/unlikely
-    // The #[cold] attribute tells the compiler this is an unlikely execution path
-}
 
 /// Decode a zoned decimal using the configured code page with detailed error context.
 ///

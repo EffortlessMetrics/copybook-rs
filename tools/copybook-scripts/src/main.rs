@@ -33,6 +33,7 @@ enum CommandKind {
     AdaptReviewAgents,
     FixAgentIssues,
     FinalCleanupAgents,
+    CheckPublicResultDocs,
 }
 
 fn main() -> Result<()> {
@@ -46,6 +47,7 @@ fn main() -> Result<()> {
         CommandKind::AdaptReviewAgents => adapt_review_agents(),
         CommandKind::FixAgentIssues => fix_agent_issues(),
         CommandKind::FinalCleanupAgents => final_cleanup_agents(),
+        CommandKind::CheckPublicResultDocs => check_public_result_docs(),
     }
 }
 
@@ -211,6 +213,211 @@ fn guard_hotpaths() -> Result<()> {
     }
 
     println!("✅ Hot-path allocation guard clean");
+    Ok(())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PublicResultDocCheck {
+    Inline,
+    MustUse,
+    ErrorsDoc,
+}
+
+impl PublicResultDocCheck {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Inline => "missing #[inline]",
+            Self::MustUse => "missing #[must_use]",
+            Self::ErrorsDoc => "missing doc '# Errors'",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PublicResultDocFinding {
+    check: PublicResultDocCheck,
+    path: PathBuf,
+    line: usize,
+}
+
+fn rust_item_header(lines: &[&str], function_line_index: usize) -> Vec<String> {
+    let mut header = Vec::new();
+    let mut cursor = function_line_index;
+
+    while cursor > 0 {
+        cursor -= 1;
+        let line = lines[cursor];
+        let trimmed = line.trim_start();
+
+        if trimmed.starts_with("///")
+            || trimmed.starts_with("#[")
+            || trimmed.is_empty()
+            || trimmed.starts_with("//")
+        {
+            header.push(line.to_string());
+            continue;
+        }
+
+        break;
+    }
+
+    header.reverse();
+    header
+}
+
+fn missing_public_result_docs_for_source(
+    path: &Path,
+    source: &str,
+    function_start_regex: &Regex,
+    result_signature_regex: &Regex,
+) -> Vec<PublicResultDocFinding> {
+    let lines: Vec<&str> = source.lines().collect();
+    let mut findings = Vec::new();
+
+    for (index, line) in lines.iter().enumerate() {
+        if !function_start_regex.is_match(line) {
+            continue;
+        }
+
+        let signature = collect_function_signature(&lines, index);
+        if !result_signature_regex.is_match(&signature) {
+            continue;
+        }
+
+        let header = rust_item_header(&lines, index);
+        let line_number = index + 1;
+
+        if !header.iter().any(|line| {
+            let trimmed = line.trim_start();
+            trimmed.starts_with("#[inline]") || trimmed.starts_with("#[inline(")
+        }) {
+            findings.push(PublicResultDocFinding {
+                check: PublicResultDocCheck::Inline,
+                path: path.to_path_buf(),
+                line: line_number,
+            });
+        }
+
+        if !header.iter().any(|line| {
+            let trimmed = line.trim_start();
+            trimmed.starts_with("#[must_use")
+        }) {
+            findings.push(PublicResultDocFinding {
+                check: PublicResultDocCheck::MustUse,
+                path: path.to_path_buf(),
+                line: line_number,
+            });
+        }
+
+        if !header
+            .iter()
+            .any(|line| line.trim_start().starts_with("/// # Errors"))
+        {
+            findings.push(PublicResultDocFinding {
+                check: PublicResultDocCheck::ErrorsDoc,
+                path: path.to_path_buf(),
+                line: line_number,
+            });
+        }
+    }
+
+    findings
+}
+
+fn collect_function_signature(lines: &[&str], function_line_index: usize) -> String {
+    let mut signature = String::new();
+
+    for line in &lines[function_line_index..] {
+        if !signature.is_empty() {
+            signature.push(' ');
+        }
+        signature.push_str(line.trim());
+
+        if line.contains('{') || line.contains(';') {
+            break;
+        }
+    }
+
+    signature
+}
+
+fn collect_public_result_docs_findings(root: &Path) -> Result<Vec<PublicResultDocFinding>> {
+    let function_start_regex = Regex::new(r"^\s*pub\s+fn\s+\w+")?;
+    let result_signature_regex =
+        Regex::new(r"^\s*pub\s+fn\s+\w+.*->\s*(?:[A-Za-z_]\w*::)*Result<")?;
+    let scan_dirs = [
+        root.join("crates").join("copybook-codec").join("src"),
+        root.join("crates").join("copybook-core").join("src"),
+    ];
+    let mut findings = Vec::new();
+
+    for scan_dir in scan_dirs {
+        let mut paths = Vec::new();
+        collect_rs_files(&scan_dir, &mut paths)?;
+        paths.sort();
+
+        for path in paths {
+            let source = fs::read_to_string(&path)
+                .with_context(|| format!("failed to read {}", path.display()))?;
+            findings.extend(missing_public_result_docs_for_source(
+                &path,
+                &source,
+                &function_start_regex,
+                &result_signature_regex,
+            ));
+        }
+    }
+
+    Ok(findings)
+}
+
+fn collect_rs_files(root: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+    let mut entries = vec![root.to_path_buf()];
+
+    while let Some(path) = entries.pop() {
+        for item in fs::read_dir(&path)? {
+            let entry = item?;
+            let file_type = entry.file_type()?;
+            let entry_path = entry.path();
+
+            if file_type.is_dir() {
+                entries.push(entry_path);
+                continue;
+            }
+
+            if file_type.is_file()
+                && entry_path.extension().and_then(|ext| ext.to_str()) == Some("rs")
+            {
+                out.push(entry_path);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn check_public_result_docs() -> Result<()> {
+    let root = workspace_root()?;
+    let findings = collect_public_result_docs_findings(&root)?;
+
+    for finding in &findings {
+        let rel = finding.path.strip_prefix(&root).unwrap_or(&finding.path);
+        println!(
+            "{:<23} @ {}:{}",
+            finding.check.label(),
+            rel.display(),
+            finding.line
+        );
+    }
+
+    if !findings.is_empty() {
+        bail!(
+            "public Result function documentation check found {} issue(s)",
+            findings.len()
+        );
+    }
+
+    println!("✅ Public Result function documentation clean");
     Ok(())
 }
 
@@ -645,16 +852,107 @@ fn final_cleanup_agents() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        ADAPT_REVIEW_AGENT_RULES, FINAL_CLEANUP_AGENT_RULES, FIX_AGENT_ISSUE_RULES,
-        apply_text_rules, replace_bitnet_crate_names,
-    };
+    use super::*;
 
     fn apply_rules(input: &str, rules: &[super::TextRule]) -> String {
         match apply_text_rules(input.to_string(), rules) {
             Ok(output) => output,
             Err(error) => panic!("{error}"),
         }
+    }
+
+    fn signature_regex() -> Regex {
+        match Regex::new(r"^\s*pub\s+fn\s+\w+.*->\s*(?:[A-Za-z_]\w*::)*Result<") {
+            Ok(regex) => regex,
+            Err(err) => panic!("test regex must compile: {err}"),
+        }
+    }
+
+    fn function_start_regex() -> Regex {
+        match Regex::new(r"^\s*pub\s+fn\s+\w+") {
+            Ok(regex) => regex,
+            Err(err) => panic!("test regex must compile: {err}"),
+        }
+    }
+
+    #[test]
+    fn public_result_doc_check_accepts_full_rust_item_header() {
+        let source = r#"
+/// Decode a value.
+///
+/// # Errors
+/// Returns a decode error.
+#[inline]
+#[allow(clippy::too_many_lines)]
+#[must_use = "Handle the Result or propagate the error"]
+pub fn decode_value() -> Result<()> {
+    Ok(())
+}
+"#;
+
+        let findings = missing_public_result_docs_for_source(
+            Path::new("src/lib.rs"),
+            source,
+            &function_start_regex(),
+            &signature_regex(),
+        );
+
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn public_result_doc_check_reports_missing_contract_items() {
+        let source = r#"
+/// Decode a value.
+pub fn decode_value() -> Result<()> {
+    Ok(())
+}
+"#;
+
+        let findings = missing_public_result_docs_for_source(
+            Path::new("src/lib.rs"),
+            source,
+            &function_start_regex(),
+            &signature_regex(),
+        );
+        let checks: Vec<PublicResultDocCheck> =
+            findings.iter().map(|finding| finding.check).collect();
+
+        assert_eq!(
+            checks,
+            vec![
+                PublicResultDocCheck::Inline,
+                PublicResultDocCheck::MustUse,
+                PublicResultDocCheck::ErrorsDoc,
+            ]
+        );
+    }
+
+    #[test]
+    fn public_result_doc_check_reports_multiline_result_signatures() {
+        let source = r#"
+/// Encode a value.
+///
+/// # Errors
+/// Returns an encode error.
+#[inline]
+pub fn encode_value(
+    value: u32,
+    buffer: &mut [u8],
+) -> std::result::Result<(), Error> {
+    Ok(())
+}
+"#;
+
+        let findings = missing_public_result_docs_for_source(
+            Path::new("src/lib.rs"),
+            source,
+            &function_start_regex(),
+            &signature_regex(),
+        );
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].check, PublicResultDocCheck::MustUse);
     }
 
     #[test]

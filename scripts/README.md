@@ -7,6 +7,11 @@ Automation and utility scripts for copybook-rs development and CI/CD.
 - **bench.sh** / **bench.bat** - Cross-platform benchmark execution
 - **performance_test.rs** - Performance regression testing
 
+## Repository Checks
+- **check-public-result-docs.sh** - Rust-backed public `Result` API documentation and attribute guard
+- **check_no_unwrap_expect.sh** - Rust-backed panic-call guard
+- **guard-hotpaths.sh** - Rust-backed hot-path allocation guard
+
 ## Development Automation
 - **copybook-scripts adapt-review-agents** - Native Rust agent configuration adaptation utility
 - **copybook-scripts final-cleanup-agents** - Native Rust agent cleanup and finalization
@@ -45,7 +50,8 @@ python scripts/fix-agent-issues.py
 - Native Rust utilities in `tools/copybook-scripts` for repository automation
 - Python scripts (.py) are compatibility wrappers for existing automation
 
-These scripts complement the main build system and are used for specialized development tasks.
+These scripts complement the main build system and are used for specialized development tasks. Shell entrypoints are thin compatibility wrappers where a Rust implementation exists under `tools/copybook-scripts`.
+
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

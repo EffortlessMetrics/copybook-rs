@@ -26,6 +26,8 @@ fn serialize_json(value: &serde_json::Value, context: &str) -> Result<Vec<u8>> {
 /// # Errors
 ///
 /// Returns an error if decoding or JSON serialization fails.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn check_decode_determinism(
     schema: &Schema,
     data: &[u8],
@@ -45,6 +47,8 @@ pub fn check_decode_determinism(
 /// # Errors
 ///
 /// Returns an error if encoding fails.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn check_encode_determinism(
     schema: &Schema,
     json_data: &serde_json::Value,
@@ -65,6 +69,8 @@ pub fn check_encode_determinism(
 /// # Errors
 ///
 /// Returns an error if any decode/encode or JSON serialization step fails.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn check_round_trip_determinism(
     schema: &Schema,
     data: &[u8],

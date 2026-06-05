@@ -521,7 +521,7 @@ fn zoned_encoding_format_detect_invalid_zones() {
 #[test]
 fn decode_options_debug_output() {
     let opts = DecodeOptions::default();
-    let dbg = format!("{:?}", opts);
+    let dbg = format!("{opts:?}");
     assert!(dbg.contains("DecodeOptions"));
     assert!(dbg.contains("format"));
 }
@@ -531,7 +531,7 @@ fn decode_options_debug_output() {
 #[test]
 fn encode_options_debug_output() {
     let opts = EncodeOptions::default();
-    let dbg = format!("{:?}", opts);
+    let dbg = format!("{opts:?}");
     assert!(dbg.contains("EncodeOptions"));
     assert!(dbg.contains("format"));
 }

@@ -1776,6 +1776,37 @@ mod tests {
         assert!(statistical_tests.t_test_result.degrees_of_freedom > 0);
     }
 
+    fn statistical_test_results(significant: bool) -> StatisticalTestResults {
+        StatisticalTestResults {
+            t_test_result: TTestResult {
+                statistic: if significant { 4.0 } else { 0.5 },
+                p_value: if significant { 0.01 } else { 0.50 },
+                degrees_of_freedom: 98,
+                significant,
+            },
+            mann_whitney_u_result: MannWhitneyResult {
+                u_statistic: 1200.0,
+                p_value: if significant { 0.03 } else { 0.50 },
+                significant,
+            },
+            effect_size: EffectSize {
+                cohens_d: if significant { 0.8 } else { 0.1 },
+                glass_delta: if significant { 0.8 } else { 0.1 },
+                hedges_g: if significant { 0.79 } else { 0.1 },
+                interpretation: if significant {
+                    EffectSizeInterpretation::Large
+                } else {
+                    EffectSizeInterpretation::Negligible
+                },
+            },
+            power_analysis: PowerAnalysisResult {
+                power: 0.9,
+                required_sample_size: 64,
+                adequate_power: true,
+            },
+        }
+    }
+
     #[test]
     fn test_determine_regression_status_detects_improvement() {
         let detector = PerformanceRegressionDetector::new();
@@ -1806,30 +1837,7 @@ mod tests {
             }],
             overall_change_percent: 4.5,
         };
-        let tests = StatisticalTestResults {
-            t_test_result: TTestResult {
-                statistic: 4.0,
-                p_value: 0.01,
-                degrees_of_freedom: 98,
-                significant: true,
-            },
-            mann_whitney_u_result: MannWhitneyResult {
-                u_statistic: 1200.0,
-                p_value: 0.03,
-                significant: true,
-            },
-            effect_size: EffectSize {
-                cohens_d: 0.8,
-                glass_delta: 0.8,
-                hedges_g: 0.79,
-                interpretation: EffectSizeInterpretation::Large,
-            },
-            power_analysis: PowerAnalysisResult {
-                power: 0.9,
-                required_sample_size: 64,
-                adequate_power: true,
-            },
-        };
+        let tests = statistical_test_results(true);
 
         let status = detector
             .determine_regression_status(&comparison, &tests)
@@ -1840,6 +1848,31 @@ mod tests {
             }
             _ => panic!("Expected improvement status"),
         }
+    }
+
+    #[test]
+    fn test_determine_regression_status_ignores_non_significant_improvement() {
+        let detector = PerformanceRegressionDetector::new();
+        let comparison = MetricsComparison {
+            throughput_changes: vec![MetricChange {
+                metric_name: "display_throughput_mean".to_string(),
+                baseline_value: 100.0,
+                current_value: 110.0,
+                change_percent: 10.0,
+                change_direction: ChangeDirection::Improvement,
+                statistical_significance: false,
+            }],
+            memory_changes: vec![],
+            latency_changes: vec![],
+            overall_change_percent: 10.0,
+        };
+        let tests = statistical_test_results(false);
+
+        let status = detector
+            .determine_regression_status(&comparison, &tests)
+            .unwrap();
+
+        assert!(matches!(status, RegressionStatus::NoRegression));
     }
 
     #[test]
@@ -1865,30 +1898,7 @@ mod tests {
             latency_changes: vec![],
             overall_change_percent: 7.5,
         };
-        let tests = StatisticalTestResults {
-            t_test_result: TTestResult {
-                statistic: 3.0,
-                p_value: 0.01,
-                degrees_of_freedom: 98,
-                significant: true,
-            },
-            mann_whitney_u_result: MannWhitneyResult {
-                u_statistic: 1200.0,
-                p_value: 0.03,
-                significant: true,
-            },
-            effect_size: EffectSize {
-                cohens_d: 0.7,
-                glass_delta: 0.7,
-                hedges_g: 0.69,
-                interpretation: EffectSizeInterpretation::Medium,
-            },
-            power_analysis: PowerAnalysisResult {
-                power: 0.9,
-                required_sample_size: 64,
-                adequate_power: true,
-            },
-        };
+        let tests = statistical_test_results(true);
 
         let status = detector
             .determine_regression_status(&comparison, &tests)

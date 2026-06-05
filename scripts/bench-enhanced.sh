@@ -206,21 +206,10 @@ report = {
 output_dir = ROOT / "scripts" / "bench"
 output_dir.mkdir(parents=True, exist_ok=True)
 output_path = output_dir / "perf.json"
-
-# Write receipt WITHOUT integrity field first
-# We'll compute hash using jq to match the validator exactly
-temp_json = json.dumps(report, indent=2) + "\n"
-output_path.write_text(temp_json)
+output_path.write_text(json.dumps(report, indent=2) + "\n")
 PY
 
-# Compute integrity hash using jq - EXACTLY matches validator logic
-TEMP_HASH=$(jq -cS '.' scripts/bench/perf.json | sha256sum | cut -d' ' -f1)
-
-# Add integrity field using jq and rewrite
-jq --arg hash "$TEMP_HASH" '. + {integrity: {sha256: $hash}}' scripts/bench/perf.json > scripts/bench/perf.json.tmp
-mv scripts/bench/perf.json.tmp scripts/bench/perf.json
-
-echo "✅ receipts: scripts/bench/perf.json (integrity: ${TEMP_HASH:0:16}...)"
+cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- seal-perf-receipt scripts/bench/perf.json
 
 # Receipt is complete and immutable - no post-write modifications
 # Note: Percentile aggregation is now done in the Python block above,

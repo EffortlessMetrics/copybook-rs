@@ -11,6 +11,7 @@ use chrono::SecondsFormat;
 use clap::{Parser, Subcommand};
 use regex::Regex;
 use serde_json::{Map, Value};
+use sha2::{Digest, Sha256};
 
 #[derive(Debug, Parser)]
 #[command(name = "copybook-scripts")]
@@ -27,6 +28,15 @@ enum CommandKind {
     PerfAnnotateHost,
     SoakAggregate,
     SoakDispatch,
+    ValidatePerfReceipt {
+        #[arg(value_name = "RECEIPT_FILE", default_value = "scripts/bench/perf.json")]
+        receipt_file: PathBuf,
+    },
+    SealPerfReceipt {
+        #[arg(value_name = "RECEIPT_FILE", default_value = "scripts/bench/perf.json")]
+        receipt_file: PathBuf,
+    },
+    AuditScriptMigrations,
     CleanMergeConflicts {
         #[arg(value_name = "PATH")]
         file: PathBuf,
@@ -45,6 +55,9 @@ fn main() -> Result<()> {
         CommandKind::PerfAnnotateHost => perf_annotate_host(),
         CommandKind::SoakAggregate => soak_aggregate(),
         CommandKind::SoakDispatch => soak_dispatch(),
+        CommandKind::ValidatePerfReceipt { receipt_file } => validate_perf_receipt(&receipt_file),
+        CommandKind::SealPerfReceipt { receipt_file } => seal_perf_receipt(&receipt_file),
+        CommandKind::AuditScriptMigrations => audit_script_migrations(),
         CommandKind::CleanMergeConflicts { file } => clean_merge_conflicts(file),
         CommandKind::AdaptReviewAgents => adapt_review_agents(),
         CommandKind::FixAgentIssues => fix_agent_issues(),
@@ -1028,9 +1041,371 @@ fn final_cleanup_agents() -> Result<()> {
     )
 }
 
+fn required_object<'a>(value: &'a Value, name: &str) -> Result<&'a Map<String, Value>> {
+    value
+        .get(name)
+        .and_then(Value::as_object)
+        .with_context(|| format!("missing required object field: {name}"))
+}
+
+fn required_array<'a>(value: &'a Value, name: &str) -> Result<&'a Vec<Value>> {
+    value
+        .get(name)
+        .and_then(Value::as_array)
+        .with_context(|| format!("missing required array field: {name}"))
+}
+
+fn required_number(value: &Value, name: &str) -> Result<f64> {
+    value
+        .get(name)
+        .and_then(Value::as_f64)
+        .with_context(|| format!("missing required numeric field: {name}"))
+}
+
+fn required_string<'a>(value: &'a Value, name: &str) -> Result<&'a str> {
+    value
+        .get(name)
+        .and_then(Value::as_str)
+        .with_context(|| format!("missing required string field: {name}"))
+}
+
+fn has_semver_shape(value: &str) -> bool {
+    let mut pieces = value.split('.');
+    let Some(major) = pieces.next() else {
+        return false;
+    };
+    let Some(minor) = pieces.next() else {
+        return false;
+    };
+    let Some(patch) = pieces.next() else {
+        return false;
+    };
+    pieces.next().is_none()
+        && [major, minor, patch]
+            .iter()
+            .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
+}
+
+fn has_utc_timestamp_shape(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 20
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes[10] == b'T'
+        && bytes[13] == b':'
+        && bytes[16] == b':'
+        && bytes[19] == b'Z'
+        && bytes
+            .iter()
+            .enumerate()
+            .filter(|(idx, _)| !matches!(idx, 4 | 7 | 10 | 13 | 16 | 19))
+            .all(|(_, byte)| byte.is_ascii_digit())
+}
+
+fn has_commit_hash_shape(value: &str) -> bool {
+    (7..=40).contains(&value.len())
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn write_canonical_json(value: &Value, out: &mut String) -> Result<()> {
+    match value {
+        Value::Null => out.push_str("null"),
+        Value::Bool(value) => out.push_str(if *value { "true" } else { "false" }),
+        Value::Number(number) => out.push_str(&number.to_string()),
+        Value::String(value) => out.push_str(&serde_json::to_string(value)?),
+        Value::Array(values) => {
+            out.push('[');
+            for (idx, item) in values.iter().enumerate() {
+                if idx > 0 {
+                    out.push(',');
+                }
+                write_canonical_json(item, out)?;
+            }
+            out.push(']');
+        }
+        Value::Object(map) => {
+            out.push('{');
+            let mut keys: Vec<_> = map.keys().collect();
+            keys.sort();
+            for (idx, key) in keys.iter().enumerate() {
+                if idx > 0 {
+                    out.push(',');
+                }
+                out.push_str(&serde_json::to_string(key)?);
+                out.push(':');
+                let Some(item) = map.get(*key) else {
+                    bail!("canonical JSON key vanished while serializing: {key}");
+                };
+                write_canonical_json(item, out)?;
+            }
+            out.push('}');
+        }
+    }
+    Ok(())
+}
+
+fn canonical_json_without_integrity(receipt: &Value) -> Result<String> {
+    let mut canonical = receipt.clone();
+    if let Value::Object(map) = &mut canonical {
+        map.remove("integrity");
+    } else {
+        bail!("perf receipt root must be a JSON object");
+    }
+
+    let mut out = String::new();
+    write_canonical_json(&canonical, &mut out)?;
+    Ok(out)
+}
+
+fn validate_perf_receipt(receipt_file: &Path) -> Result<()> {
+    println!(
+        "🔍 Validating performance receipt: {}",
+        receipt_file.display()
+    );
+
+    if !receipt_file.is_file() {
+        bail!("❌ Receipt file not found: {}", receipt_file.display());
+    }
+
+    let receipt: Value = serde_json::from_str(
+        &fs::read_to_string(receipt_file)
+            .with_context(|| format!("failed to read {}", receipt_file.display()))?,
+    )
+    .context("❌ Invalid JSON format")?;
+
+    validate_receipt_structure(&receipt)?;
+    validate_format_version_value(&receipt)?;
+    validate_timestamp_value(&receipt)?;
+    validate_commit_hash_value(&receipt)?;
+    validate_performance_values(&receipt)?;
+    validate_receipt_integrity(&receipt)?;
+
+    println!("✅ All receipt validations passed");
+    Ok(())
+}
+
+fn validate_receipt_structure(receipt: &Value) -> Result<()> {
+    for field in [
+        "format_version",
+        "timestamp",
+        "commit",
+        "build_profile",
+        "target_cpu",
+        "environment",
+        "benchmarks",
+        "summary",
+    ] {
+        if receipt.get(field).is_none() {
+            bail!("❌ Missing required field: {field}");
+        }
+    }
+
+    let environment = required_object(receipt, "environment")?;
+    for field in ["os", "kernel", "cpu_model", "cpu_cores", "wsl2_detected"] {
+        if !environment.contains_key(field) {
+            bail!("❌ Missing required environment field: {field}");
+        }
+    }
+
+    let benchmarks = required_array(receipt, "benchmarks")?;
+    if benchmarks.is_empty() {
+        bail!("❌ Benchmarks missing required fields");
+    }
+    for benchmark in benchmarks {
+        let Some(benchmark) = benchmark.as_object() else {
+            bail!("❌ Benchmarks missing required fields");
+        };
+        for field in ["name", "mean_ns", "bytes_processed", "mean_mibps"] {
+            if !benchmark.contains_key(field) {
+                bail!("❌ Benchmarks missing required fields");
+            }
+        }
+    }
+
+    let summary = required_object(receipt, "summary")?;
+    for field in ["display_mibps", "comp3_mibps", "max_rss_mib"] {
+        if !summary.contains_key(field) {
+            bail!("❌ Missing required summary field: {field}");
+        }
+    }
+
+    let integrity = required_object(receipt, "integrity")?;
+    if !integrity.contains_key("sha256") {
+        bail!("❌ Missing integrity SHA256 hash");
+    }
+
+    println!("✅ Receipt structure validation passed");
+    Ok(())
+}
+
+fn validate_format_version_value(receipt: &Value) -> Result<()> {
+    let format_version = required_string(receipt, "format_version")?;
+    if !has_semver_shape(format_version) {
+        bail!("❌ Invalid format version: {format_version}");
+    }
+    println!("✅ Format version validation passed: {format_version}");
+    Ok(())
+}
+
+fn validate_timestamp_value(receipt: &Value) -> Result<()> {
+    let timestamp = required_string(receipt, "timestamp")?;
+    if !has_utc_timestamp_shape(timestamp) {
+        bail!("❌ Invalid timestamp format: {timestamp}");
+    }
+    println!("✅ Timestamp format validation passed: {timestamp}");
+    Ok(())
+}
+
+fn validate_commit_hash_value(receipt: &Value) -> Result<()> {
+    let commit = required_string(receipt, "commit")?;
+    if !has_commit_hash_shape(commit) {
+        bail!("❌ Invalid commit hash format: {commit}");
+    }
+    println!("✅ Commit hash validation passed: {commit}");
+    Ok(())
+}
+
+fn validate_performance_values(receipt: &Value) -> Result<()> {
+    let summary = receipt
+        .get("summary")
+        .context("missing required object field: summary")?;
+    let display_mibps = required_number(summary, "display_mibps")?;
+    let comp3_mibps = required_number(summary, "comp3_mibps")?;
+
+    if display_mibps < 0.0 {
+        bail!("❌ Invalid DISPLAY throughput: {display_mibps} MiB/s (must be >= 0)");
+    }
+    if comp3_mibps < 0.0 {
+        bail!("❌ Invalid COMP-3 throughput: {comp3_mibps} MiB/s (must be >= 0)");
+    }
+    if display_mibps > 100_000.0 {
+        eprintln!("⚠️  DISPLAY throughput seems unusually high: {display_mibps} MiB/s");
+    }
+    if comp3_mibps > 10_000.0 {
+        eprintln!("⚠️  COMP-3 throughput seems unusually high: {comp3_mibps} MiB/s");
+    }
+
+    println!("✅ Performance values validation passed");
+    Ok(())
+}
+
+fn validate_receipt_integrity(receipt: &Value) -> Result<()> {
+    let stored_hash = receipt
+        .get("integrity")
+        .and_then(Value::as_object)
+        .and_then(|integrity| integrity.get("sha256"))
+        .and_then(Value::as_str)
+        .context("❌ Missing integrity SHA256 hash")?;
+
+    let actual_hash = receipt_integrity_hash(receipt)?;
+
+    if stored_hash != actual_hash {
+        bail!(
+            "❌ Receipt integrity validation failed\n  Stored hash: {stored_hash}\n  Actual hash: {actual_hash}\n  Hint: Receipt may have been modified after hashing"
+        );
+    }
+
+    println!("✅ Receipt integrity validation passed");
+    Ok(())
+}
+
+fn receipt_integrity_hash(receipt: &Value) -> Result<String> {
+    let canonical = canonical_json_without_integrity(receipt)?;
+    Ok(format!("{:x}", Sha256::digest(canonical.as_bytes())))
+}
+
+fn seal_receipt_integrity(receipt: &mut Value) -> Result<String> {
+    let hash = receipt_integrity_hash(receipt)?;
+    let Value::Object(map) = receipt else {
+        bail!("perf receipt root must be a JSON object");
+    };
+
+    let mut integrity = Map::new();
+    integrity.insert("sha256".to_string(), Value::String(hash.clone()));
+    map.insert("integrity".to_string(), Value::Object(integrity));
+    Ok(hash)
+}
+
+fn seal_perf_receipt(receipt_file: &Path) -> Result<()> {
+    if !receipt_file.is_file() {
+        bail!("❌ Receipt file not found: {}", receipt_file.display());
+    }
+
+    let mut receipt: Value = serde_json::from_str(
+        &fs::read_to_string(receipt_file)
+            .with_context(|| format!("failed to read {}", receipt_file.display()))?,
+    )
+    .context("❌ Invalid JSON format")?;
+    let hash = seal_receipt_integrity(&mut receipt)?;
+    let sealed = serde_json::to_string_pretty(&receipt)? + "\n";
+    fs::write(receipt_file, sealed)
+        .with_context(|| format!("failed to write {}", receipt_file.display()))?;
+
+    println!(
+        "✅ receipts: {} (integrity: {}...)",
+        receipt_file.display(),
+        &hash[..16]
+    );
+    Ok(())
+}
+
+fn audit_script_migrations() -> Result<()> {
+    let root = workspace_root()?;
+    let mut script_paths = Vec::new();
+    for dir in ["scripts", "tools", "deploy/kubernetes"] {
+        collect_script_paths(&root.join(dir), &mut script_paths)?;
+    }
+    script_paths.sort();
+
+    println!("Rust migration candidates for repository scripts:\n");
+    for path in script_paths {
+        let rel = path.strip_prefix(&root).unwrap_or(&path);
+        let source = fs::read_to_string(&path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        let status = if source.contains("tools/copybook-scripts/Cargo.toml") {
+            "migrated-wrapper"
+        } else if rel.extension().and_then(|ext| ext.to_str()) == Some("py") {
+            "candidate-python"
+        } else {
+            "candidate-shell"
+        };
+        println!("{status:16} {}", rel.display());
+    }
+
+    Ok(())
+}
+
+fn collect_script_paths(root: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+    if !root.exists() {
+        return Ok(());
+    }
+    let mut entries = vec![root.to_path_buf()];
+    while let Some(path) = entries.pop() {
+        for item in fs::read_dir(path)? {
+            let entry = item?;
+            let file_type = entry.file_type()?;
+            let path = entry.path();
+            if file_type.is_dir() {
+                entries.push(path);
+            } else if file_type.is_file()
+                && matches!(
+                    path.extension().and_then(|ext| ext.to_str()),
+                    Some("sh" | "py")
+                )
+            {
+                out.push(path);
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     fn apply_rules(input: &str, rules: &[super::TextRule]) -> String {
         match apply_text_rules(input.to_string(), rules) {
@@ -1217,5 +1592,76 @@ pub fn encode_value(
         assert_eq!(percentile(&samples, 2, 1), Some(42.0));
         assert_eq!(percentile(&[], 50, 100), None);
         assert_eq!(percentile(&samples, 1, 0), None);
+    }
+
+    fn valid_receipt() -> Value {
+        json!({
+            "format_version": "1.0.0",
+            "timestamp": "2026-05-16T00:00:00Z",
+            "commit": "abcdef1",
+            "build_profile": "release",
+            "target_cpu": "native",
+            "environment": {
+                "os": "linux",
+                "kernel": "test",
+                "cpu_model": "test",
+                "cpu_cores": 8,
+                "wsl2_detected": false
+            },
+            "benchmarks": [{
+                "name": "decode/display",
+                "mean_ns": 1.0,
+                "bytes_processed": 1024,
+                "mean_mibps": 128.0
+            }],
+            "summary": {
+                "display_mibps": 128.0,
+                "comp3_mibps": 64.0,
+                "max_rss_mib": 32.0
+            },
+            "integrity": {
+                "sha256": "placeholder"
+            }
+        })
+    }
+
+    #[test]
+    fn canonical_json_sorts_keys_and_removes_integrity() -> Result<()> {
+        let receipt = valid_receipt();
+        let canonical = canonical_json_without_integrity(&receipt)?;
+        assert!(!canonical.contains("integrity"));
+        assert!(canonical.starts_with("{\"benchmarks\":"));
+        Ok(())
+    }
+
+    #[test]
+    fn seals_receipt_with_validator_hash() -> Result<()> {
+        let mut receipt = valid_receipt();
+        let hash = seal_receipt_integrity(&mut receipt)?;
+        assert_eq!(
+            receipt
+                .get("integrity")
+                .and_then(Value::as_object)
+                .and_then(|integrity| integrity.get("sha256"))
+                .and_then(Value::as_str),
+            Some(hash.as_str())
+        );
+        validate_receipt_integrity(&receipt)
+    }
+
+    #[test]
+    fn validates_semver_timestamp_and_commit_shapes() {
+        assert!(has_semver_shape("1.2.3"));
+        assert!(!has_semver_shape("1.2"));
+        assert!(has_utc_timestamp_shape("2026-05-16T00:00:00Z"));
+        assert!(!has_utc_timestamp_shape("2026-05-16 00:00:00"));
+        assert!(has_commit_hash_shape("abcdef1"));
+        assert!(!has_commit_hash_shape("ABCDEF1"));
+    }
+
+    #[test]
+    fn validates_required_receipt_structure() -> Result<()> {
+        let receipt = valid_receipt();
+        validate_receipt_structure(&receipt)
     }
 }

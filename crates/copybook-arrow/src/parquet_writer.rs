@@ -58,7 +58,7 @@ pub fn write_parquet<P: AsRef<Path>>(
 
     let props = WriterProperties::builder()
         .set_compression(compression)
-        .set_max_row_group_size(options.row_group_size)
+        .set_max_row_group_row_count(Some(options.row_group_size))
         .build();
 
     let mut writer =

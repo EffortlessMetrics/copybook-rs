@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **ci**: Add blocking performance regression gate (`perf-gate.yml`) enforcing absolute floors (DISPLAY ≥80, COMP-3 ≥8 MiB/s) and >5% relative regression vs committed baseline; ships `bench-report gate` subcommand, `scripts/bench/baseline.json`, and canonical SLO constants in `copybook-bench::slo`. COMP-3 floor is CI-grounded (12–14 MiB/s observed on `ubuntu-latest`; throughput decreases with larger payloads, so 8 MiB/s gives ~35% headroom).
+- **docs**: Add iterator reference (`docs/reference/iterators.md`) and streaming-decode how-to; fix fabricated `RecordDecoder` type in `LIBRARY_API.md`/`MIGRATION_GUIDE.md` and a file-open error-code bug in `iter_records_from_file`
 - **audit**: Implement `Display` for `AuditEventType` and `AuditSeverity` enums
 - **audit**: Add additional Clippy lint enforcement to audit module
 - **feature-flags**: Promote COMP-1/COMP-2 and SIGN SEPARATE features to stable

@@ -231,7 +231,7 @@ copybook decode customer.cpy data.bin \
 **After (copybook-rs Rust API):**
 ```rust
 use copybook_core::parse_copybook;
-use copybook_codec::{RecordDecoder, DecodeOptions, Codepage};
+use copybook_codec::{iter_records_from_file, DecodeOptions, Codepage};
 
 let copybook_text = std::fs::read_to_string("customer.cpy")?;
 let schema = parse_copybook(&copybook_text)?;
@@ -242,8 +242,8 @@ let opts = DecodeOptions {
     ..Default::default()
 };
 
-let mut decoder = RecordDecoder::new(&schema, &opts)?;
-for record_result in decoder.decode_file("data.bin")? {
+let iterator = iter_records_from_file("data.bin", &schema, &opts)?;
+for record_result in iterator {
     let json = record_result?;
     println!("{}", serde_json::to_string(&json)?);
 }
@@ -469,21 +469,20 @@ copybook encode customer.cpy transformed.jsonl \
 
 ```rust
 // Rust streaming integration
-use copybook_codec::RecordDecoder;
+use copybook_codec::decode_record;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut decoder = RecordDecoder::new(&schema, &opts)?;
     let file = tokio::fs::File::open("data.bin").await?;
     let reader = BufReader::new(file);
-    
+
     let mut lines = reader.lines();
     while let Some(line) = lines.next_line().await? {
-        let json = decoder.decode_record(line.as_bytes())?;
+        let json = decode_record(&schema, line.as_bytes(), &opts)?;
         // Process record
     }
-    
+
     Ok(())
 }
 ```

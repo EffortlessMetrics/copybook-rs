@@ -162,6 +162,10 @@ pub enum ErrorCode {
     // =============================================================================
     // Record Errors (CBKR*) - Record format and RDW processing
     // =============================================================================
+    /// CBKR101: Fixed-length record framing error
+    CBKR101_FIXED_RECORD_ERROR,
+    /// CBKR201: Error reading an RDW (Record Descriptor Word) header or payload
+    CBKR201_RDW_READ_ERROR,
     /// CBKR211: RDW reserved bytes contain non-zero values
     CBKR211_RDW_RESERVED_NONZERO,
 
@@ -294,6 +298,8 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKS701_PROJECTION_INVALID_ODO => "CBKS701_PROJECTION_INVALID_ODO",
             ErrorCode::CBKS702_PROJECTION_UNRESOLVED_ALIAS => "CBKS702_PROJECTION_UNRESOLVED_ALIAS",
             ErrorCode::CBKS703_PROJECTION_FIELD_NOT_FOUND => "CBKS703_PROJECTION_FIELD_NOT_FOUND",
+            ErrorCode::CBKR101_FIXED_RECORD_ERROR => "CBKR101_FIXED_RECORD_ERROR",
+            ErrorCode::CBKR201_RDW_READ_ERROR => "CBKR201_RDW_READ_ERROR",
             ErrorCode::CBKR211_RDW_RESERVED_NONZERO => "CBKR211_RDW_RESERVED_NONZERO",
             ErrorCode::CBKC201_JSON_WRITE_ERROR => "CBKC201_JSON_WRITE_ERROR",
             ErrorCode::CBKC301_INVALID_EBCDIC_BYTE => "CBKC301_INVALID_EBCDIC_BYTE",
@@ -366,7 +372,9 @@ impl ErrorCode {
             | Self::CBKS701_PROJECTION_INVALID_ODO
             | Self::CBKS702_PROJECTION_UNRESOLVED_ALIAS
             | Self::CBKS703_PROJECTION_FIELD_NOT_FOUND => "CBKS",
-            Self::CBKR211_RDW_RESERVED_NONZERO => "CBKR",
+            Self::CBKR101_FIXED_RECORD_ERROR
+            | Self::CBKR201_RDW_READ_ERROR
+            | Self::CBKR211_RDW_RESERVED_NONZERO => "CBKR",
             Self::CBKC201_JSON_WRITE_ERROR | Self::CBKC301_INVALID_EBCDIC_BYTE => "CBKC",
             Self::CBKD101_INVALID_FIELD_TYPE
             | Self::CBKD301_RECORD_TOO_SHORT

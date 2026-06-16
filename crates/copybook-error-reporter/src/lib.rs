@@ -358,6 +358,9 @@ impl ErrorReporter {
             | ErrorCode::CBKE515_STRING_LENGTH_VIOLATION
             // JSON write errors are typically fatal
             | ErrorCode::CBKC201_JSON_WRITE_ERROR
+            // Record framing/read errors are fatal (unrecoverable I/O)
+            | ErrorCode::CBKR101_FIXED_RECORD_ERROR
+            | ErrorCode::CBKR201_RDW_READ_ERROR
             // Iterator/internal state errors are fatal
             | ErrorCode::CBKI001_INVALID_STATE => ErrorSeverity::Fatal,
 

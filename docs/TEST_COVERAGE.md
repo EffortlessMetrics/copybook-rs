@@ -49,9 +49,7 @@ Coverage is tracked using **cargo-tarpaulin** and reported to Codecov.
 | record.rs | 88% | High | Record processing |
 | iterator.rs | 85% | Medium | Record iteration |
 | json.rs | 80% | Medium | JSON encoding/decoding |
-| memory.rs | 75% | Medium | Memory management |
 | options.rs | 90% | High | Configuration options |
-| processor.rs | 82% | Medium | Record processor |
 
 #### copybook-cli
 

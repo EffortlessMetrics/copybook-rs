@@ -85,7 +85,7 @@ fn test_display_heavy_throughput() -> Result<f64, Box<dyn std::error::Error>> {
     
     let start = Instant::now();
     
-    // Simulate processing (in real implementation, this would use DecodeProcessor)
+    // Simulate processing (in real implementation, this would use decode_file_to_jsonl)
     let mut processed_bytes = 0;
     for chunk in test_data.chunks(500) {
         // Simulate record processing overhead

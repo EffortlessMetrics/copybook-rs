@@ -560,38 +560,97 @@ let summary = encode_jsonl_to_file(
 
 ### Record-Level Processing
 
+For decoding individual records or streaming through a file, `copybook-codec`
+exposes two complementary APIs. See
+[Record Iterators](iterators.md) for full iterator documentation.
+
+**Single-record decode** (`decode_record`, crate root):
+
 ```rust
-pub struct RecordDecoder {
-    // Internal fields
-}
+/// Decode one record's bytes into a JSON value.
+pub fn decode_record(
+    schema: &Schema,
+    data: &[u8],
+    options: &DecodeOptions,
+) -> Result<serde_json::Value>;
+```
 
-impl RecordDecoder {
-    pub fn new(schema: &Schema, opts: &DecodeOptions) -> Result<Self, Error>;
-    
-    pub fn decode_record(&mut self, data: &[u8]) -> Result<serde_json::Value, Error>;
-    
-    pub fn decode_file<P: AsRef<Path>>(&mut self, path: P) -> Result<RecordIterator, Error>;
-}
+```rust
+use copybook_codec::{decode_record, DecodeOptions};
+use copybook_core::parse_copybook;
 
-// Enhanced RecordIterator with truncated record detection
-pub struct RecordIterator<R: Read> {
-    // Internal fields
-}
+let schema = parse_copybook(copybook_src)?;
+let json = decode_record(&schema, &record_bytes, &DecodeOptions::default())?;
+```
+
+**Bulk file decode** (`decode_file_to_jsonl`, crate root):
+
+```rust
+/// Decode an entire input stream to JSONL written to `output`.
+/// Multi-threaded via `options.with_threads(n)`.
+pub fn decode_file_to_jsonl(
+    schema: &Schema,
+    input: impl Read,
+    output: impl Write,
+    options: &DecodeOptions,
+) -> Result<RunSummary>;
+```
+
+**Streaming record iterator** (`RecordIterator`, crate root):
+
+```rust
+pub struct RecordIterator<R: Read> { /* private fields */ }
 
 impl<R: Read> RecordIterator<R> {
-    /// Create new RecordIterator with enhanced validation
-    /// 
-    /// For fixed-format processing, requires schema.lrecl_fixed to be set
-    /// for proper truncated record detection.
+    /// Construct a new iterator. Validation of `schema.lrecl_fixed` is
+    /// *deferred* to the first read, not performed here — `new` is
+    /// infallible with respect to format/schema configuration.
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self>;
+
+    pub fn current_record_index(&self) -> u64;
+    pub fn is_eof(&self) -> bool;
+    pub fn schema(&self) -> &Schema;
+    pub fn options(&self) -> &DecodeOptions;
+
+    /// Read raw record bytes without JSON decoding.
+    pub fn read_raw_record(&mut self) -> Result<Option<Vec<u8>>>;
 }
 
 impl<R: Read> Iterator for RecordIterator<R> {
-    type Item = Result<serde_json::Value, Error>;
-    
+    type Item = Result<serde_json::Value>;
     fn next(&mut self) -> Option<Self::Item>;
 }
+
+/// Convenience constructors (crate root):
+pub fn iter_records<R: Read>(
+    reader: R, schema: &Schema, options: &DecodeOptions,
+) -> Result<RecordIterator<R>>;
+
+pub fn iter_records_from_file<P: AsRef<Path>>(
+    file_path: P, schema: &Schema, options: &DecodeOptions,
+) -> Result<RecordIterator<std::fs::File>>;
 ```
+
+```rust
+use copybook_codec::{iter_records, DecodeOptions};
+use copybook_core::parse_copybook;
+use std::io::Cursor;
+
+let schema = parse_copybook(copybook_src)?;
+let iter = iter_records(Cursor::new(data), &schema, &DecodeOptions::default())?;
+
+for result in iter {
+    match result {
+        Ok(json) => println!("{json}"),
+        Err(e) => eprintln!("record error: {e}"), // iteration continues
+    }
+}
+```
+
+> **Error recovery:** decode errors yield `Some(Err(...))` and the iterator
+> *continues* to the next record — no need to restart. A truncated trailing
+> record at EOF is a clean stop (`Ok(None)`), not an error. Missing
+> `lrecl_fixed` with `Fixed` format yields `Err(CBKI001)` on the first read.
 
 ### JSON Writer with Schema Access
 
@@ -603,7 +662,7 @@ pub struct JsonWriter<W: Write> {
 impl<W: Write> JsonWriter<W> {
     /// Create a new JSON writer with schema access for field path resolution
     pub fn new(writer: W, schema: Schema, options: DecodeOptions) -> Self;
-    
+
     /// Write a single record as JSON line with schema-based field processing
     pub fn write_record(
         &mut self,
@@ -611,7 +670,7 @@ impl<W: Write> JsonWriter<W> {
         record_index: u64,
         byte_offset: u64,
     ) -> Result<()>;
-    
+
     /// Write a record using optimized streaming approach with direct schema access
     pub fn write_record_streaming(
         &mut self,
@@ -619,7 +678,7 @@ impl<W: Write> JsonWriter<W> {
         record_index: u64,
         byte_offset: u64,
     ) -> Result<()>;
-    
+
     /// Finish writing and return the inner writer
     pub fn finish(self) -> Result<W>;
 }
@@ -631,10 +690,6 @@ impl<W: Write> JsonWriter<W> {
 - **ODO Processing**: Improved counter field lookup using schema-based field path resolution
 - **Metadata Integration**: Automatic schema fingerprint inclusion in JSON output
 - **Streaming Performance**: Optimized JSON generation with schema-aware field ordering
-- **LRECL Requirement**: Fixed-format processing requires `schema.lrecl_fixed` for truncation detection
-- **Fail-Fast Validation**: Constructor validates LRECL availability early
-- **Enhanced Error Messages**: CBKD301_RECORD_TOO_SHORT with precise byte counts
-- **Performance Optimized**: 4-23% performance improvements with validation
 
 **Example:**
 ```rust
@@ -656,29 +711,6 @@ json_writer.write_record_streaming(record_data, 1, record_size as u64)?;
 // Finish and retrieve output
 let cursor = json_writer.finish()?;
 let json_output = cursor.into_inner();
-```
-
-```rust
-let mut decoder = RecordDecoder::new(&schema, &opts)?;
-
-// Decode single record
-let record_data = &[0x01, 0x02, 0x03, /* ... */];
-let json_value = decoder.decode_record(record_data)?;
-
-// Enhanced iterator with truncation detection
-let file = std::fs::File::open("data.bin")?;
-let mut iter = RecordIterator::new(file, &schema, &opts)?;
-
-for record_result in iter {
-    match record_result {
-        Ok(json_value) => println!("{}", serde_json::to_string(&json_value)?),
-        Err(e) => {
-            // Enhanced error messages for truncated records:
-            // "Record 15 too short: expected 120 bytes, got 85 bytes"
-            eprintln!("Record error: {}", e);
-        }
-    }
-}
 ```
 
 ```rust
@@ -1063,8 +1095,10 @@ let handles: Vec<_> = (0..num_threads).map(|i| {
     let opts = Arc::clone(&opts);
     
     thread::spawn(move || {
-        let mut decoder = RecordDecoder::new(&schema, &opts)?;
-        // Process chunk of data
+        // Use decode_record_with_scratch for per-thread decode with reused buffers
+        let mut scratch = copybook_codec::memory::ScratchBuffers::new();
+        // Process chunk of data: decode_record_with_scratch(&schema, data, &opts, &mut scratch)
+        let _ = (schema, opts, scratch);
         Ok(())
     })
 }).collect();
@@ -1147,10 +1181,10 @@ fn streaming_decode(
     let (output_tx, output_rx) = bounded(100);
     
     thread::spawn(move || {
-        let mut decoder = RecordDecoder::new(&schema, &opts).unwrap();
-        
+        use copybook_codec::decode_record;
+
         while let Ok(data) = input_rx.recv() {
-            match decoder.decode_record(&data) {
+            match decode_record(&schema, &data, &opts) {
                 Ok(json) => output_tx.send(json).unwrap(),
                 Err(e) => eprintln!("Decode error: {}", e),
             }
@@ -1166,15 +1200,13 @@ fn streaming_decode(
 ### Memory Management
 
 ```rust
-// Reuse buffers for better performance
-let mut buffer = Vec::with_capacity(1024);
-let mut decoder = RecordDecoder::new(&schema, &opts)?;
+// Reuse scratch buffers for better performance across many records
+use copybook_codec::{decode_record_with_scratch, memory::ScratchBuffers};
 
-for record_data in record_iterator {
-    buffer.clear();
-    buffer.extend_from_slice(record_data);
-    
-    let json_value = decoder.decode_record(&buffer)?;
+let mut scratch = ScratchBuffers::new();
+
+for record_data in record_chunks {
+    let json_value = decode_record_with_scratch(&schema, &record_data, &opts, &mut scratch)?;
     // Process json_value
 }
 ```
@@ -1182,13 +1214,15 @@ for record_data in record_iterator {
 ### Batch Processing
 
 ```rust
-// Process records in batches
+// Process records in batches via the iterator
+use copybook_codec::{iter_records_from_file, DecodeOptions};
+
 const BATCH_SIZE: usize = 1000;
 let mut batch = Vec::with_capacity(BATCH_SIZE);
 
-for record_result in decoder.decode_file("data.bin")? {
+for record_result in iter_records_from_file("data.bin", &schema, &opts)? {
     batch.push(record_result?);
-    
+
     if batch.len() >= BATCH_SIZE {
         process_batch(&batch)?;
         batch.clear();
@@ -1219,10 +1253,9 @@ mod tests {
         
         let schema = parse_copybook(copybook).unwrap();
         let opts = DecodeOptions::default().with_emit_meta(true);
-        let mut decoder = RecordDecoder::new(&schema, &opts).unwrap();
 
         let data = b"1234JOHN      ";
-        let json = decoder.decode_record(data).unwrap();
+        let json = decode_record(&schema, data, &opts).unwrap();
 
         assert_eq!(json["ID"], "1234");
         assert_eq!(json["NAME"], "JOHN      ");
@@ -1459,7 +1492,8 @@ let opts = DecodeOptions {
     strict: true,
     ..Default::default()
 };
-let decoder = RecordDecoder::new(&schema, &opts)?;
+// Decode records via decode_record / decode_file_to_jsonl / the iterator API
+// — see "Record-Level Processing" above.
 ```
 
 ## API Stability

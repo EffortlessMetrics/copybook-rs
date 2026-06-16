@@ -13,6 +13,8 @@ Use these documents when you need to solve a specific problem or perform an expl
   Tune decode/encode paths, scratch buffers, and throughput diagnostics.
 - **[Configure Security Scanning](configure-security-scanning.md)**  
   Set up CI scanning controls for dependencies and container images.
+- **[Stream Records with the Iterator API](streaming-decode.md)**  
+  Decode records one at a time with bounded memory, error recovery, and raw-byte access.
 
 ## Typical Use Cases
 

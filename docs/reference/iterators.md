@@ -94,7 +94,7 @@ The iterator **never panics**. Errors surface as `Result` values:
 
 - **RDW underflow** (corrupt/truncated RDW header) → `Err(CBKF221_RDW_UNDERFLOW)`.
 
-- **File-open failure** (`iter_records_from_file`) → `Err(CBKI001_INVALID_STATE)`
+- **File-open failure** (`iter_records_from_file`) → `Err(CBKR201_RDW_READ_ERROR)`
   with a message like `"failed to open input file: ..."`.
 
 > **Lazy validation note:** `RecordIterator::new` does **not** validate

@@ -576,12 +576,10 @@ pub fn iter_records_from_file<P: AsRef<std::path::Path>>(
     options: &DecodeOptions,
 ) -> Result<RecordIterator<std::fs::File>> {
     let file = std::fs::File::open(file_path).map_err(|e| {
-        // TODO(error-taxonomy): once CBKR201_RDW_READ_ERROR is added to the
-        // ErrorCode enum (it is documented but missing - see processor.rs
-        // drift), use it here. CBKI001 is the only infrastructure-level code
-        // currently available; CBKF104 (RDW suspect ASCII) was semantically
-        // wrong for a file-open I/O failure.
-        Error::new(ErrorCode::CBKI001_INVALID_STATE, format!("failed to open input file: {e}"))
+        Error::new(
+            ErrorCode::CBKR201_RDW_READ_ERROR,
+            format!("failed to open input file: {e}"),
+        )
     })?;
 
     RecordIterator::new(file, schema, options)

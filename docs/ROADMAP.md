@@ -32,7 +32,7 @@ These items must ship before v1.0.0 can be tagged.
 | Item | Est. Effort | Why it blocks |
 |------|-------------|---------------|
 | Enterprise audit/compliance | 8-12 weeks | SOX, HIPAA, GDPR, PCI DSS stubs are experimental; need production-grade outputs |
-| Performance regression gates | 2-4 weeks | Currently advisory-only; must become blocking CI gates |
+| Performance regression gates (COMP-3 floor) | 1-2 weeks | DISPLAY floor + relative regression are now blocking (`perf-gate.yml`); COMP-3 absolute floor deferred until its 600KB SLO fixture is enlarged (per-call overhead artifact currently caps it at ~12 MiB/s) |
 | Iterator module examples | 1-2 weeks | Public API lacks usage docs, slows onboarding |
 | Enterprise deployment guide | 1-2 weeks | No production operations documentation |
 | API freeze window | 4 weeks | Only doc/bench/test changes; stabilizes public surface |
@@ -56,7 +56,7 @@ These items must ship before v1.0.0 can be tagged.
 ## What Blocks Wider Adoption
 
 1. Enterprise audit system outputs are experimental stubs, not compliance evidence.
-2. Performance regression gates are advisory-only; no blocking CI enforcement yet.
+2. Performance regression gates: DISPLAY floor (≥80 MiB/s) and relative regression (>5% vs baseline, both metrics) are now enforced by a blocking CI gate (`perf-gate.yml`); COMP-3 absolute floor deferred pending SLO fixture fix.
 3. Iterator and deployment documentation gaps reduce onboarding velocity.
 
 ## Performance Baseline
@@ -64,9 +64,16 @@ These items must ship before v1.0.0 can be tagged.
 | Workload | Floor (CI) | Baseline (ref hardware) | Commit |
 |----------|-----------|------------------------|--------|
 | DISPLAY-heavy | 80 MiB/s | 205 MiB/s | 1fa63633 |
-| COMP-3-heavy | 40 MiB/s | 58 MiB/s | 1fa63633 |
+| COMP-3-heavy | 40 MiB/s* | 58 MiB/s | 1fa63633 |
+
+\* COMP-3 floor is advisory only; the blocking `perf-gate.yml` enforces COMP-3
+via relative regression (>5% vs committed baseline) rather than the absolute
+floor, because the current 600KB SLO fixture measures ~12 MiB/s on CI runners.
 
 Baseline measured 2025-09-30 on WSL2 / AMD Ryzen 9 9950X3D.
+The committed regression-gate baseline (`scripts/bench/baseline.json`) reflects
+canonical `ubuntu-latest` CI measurements; see
+[PERFORMANCE_GOVERNANCE.md](PERFORMANCE_GOVERNANCE.md).
 See [BASELINE_METHODOLOGY.md](../tools/copybook-bench/BASELINE_METHODOLOGY.md) for procedures.
 
 ## History

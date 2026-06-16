@@ -2,7 +2,7 @@
 # claude.md
 
 ## Scope
-- Enterprise audit submodules for `copybook-core`: compliance, context, events, lineage, logging, performance, reporting, security.
+- Enterprise audit submodules for `copybook-core`: compliance, context, event, lineage, logger, performance, report, security.
 
 ## Navigation
 - Core crate root: `../../claude.md`

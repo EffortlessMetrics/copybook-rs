@@ -2,7 +2,7 @@
 # claude.md
 
 ## Scope
-- CLI subcommand implementations for `copybook-cli`: `parse`, `decode`, `encode`, `verify`, `inspect`, `support`, `determinism`, `audit`.
+- CLI subcommand implementations for `copybook-cli`: `parse`, `decode`, `encode`, `verify`, `verify_report`, `inspect`, `support`, `determinism`, `audit`.
 
 ## Navigation
 - CLI crate root: `../../claude.md`

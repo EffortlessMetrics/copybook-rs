@@ -1,0 +1,10 @@
+{
+  "branch": "main",
+  "commit": "078767f",
+  "timestamp": "2026-03-07T02:42:48Z",
+  "display_mibps": 1579.31,
+  "comp3_mibps": 12.33,
+  "source_receipt": "scripts/bench/perf.json",
+  "runner": "ubuntu-latest (canonical CI runner)",
+  "note": "Committed regression-gate baseline. Measured on the canonical GitHub-hosted Linux runner. COMP-3 reflects the current 600KB SLO fixture where per-call decode_file_to_jsonl overhead dominates; the COMP-3 absolute floor (40 MiB/s) is therefore deferred and only the relative regression gate is enforced for COMP-3. Update this file via a PR after intentional algorithmic or dependency-driven performance changes, or quarterly per docs/BASELINE_METHODOLOGY.md re-baseline triggers."
+}

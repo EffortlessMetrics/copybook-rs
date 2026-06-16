@@ -90,6 +90,26 @@ jq -r '.commit' scripts/bench/perf.json
 3. **Reference Validation**: Ensure all performance references point to actual receipts
 4. **Historical Quarantine**: Flag any historical target references as errors
 
+### Blocking Performance Gate (`perf-gate.yml`)
+
+A blocking CI workflow enforces performance regressions on PRs touching perf-
+sensitive paths (`crates/copybook-codec/**`, `tools/copybook-bench/**`, bench
+scripts):
+
+- **DISPLAY absolute floor**: ≥ 80 MiB/s (fails the build on breach).
+- **Relative regression gate**: > 5% slowdown versus the committed baseline at
+  [`scripts/bench/baseline.json`](../scripts/bench/baseline.json), applied to
+  both DISPLAY and COMP-3.
+- **COMP-3 absolute floor**: *deferred*. The current 600 KB SLO fixture is
+  dominated by per-call overhead and measures ~12 MiB/s on CI runners, so only
+  the relative gate protects COMP-3 until the fixture is enlarged.
+
+The gate runs `bench-report gate` (see `tools/copybook-bench/src/slo.rs` for
+the canonical floor/threshold constants). To update the baseline after an
+intentional algorithmic or dependency-driven change, edit
+`scripts/bench/baseline.json` via a PR. Re-baseline triggers follow
+[`BASELINE_METHODOLOGY.md`](../tools/copybook-bench/BASELINE_METHODOLOGY.md).
+
 ### Manual Review Process
 1. **Receipt Verification**: Check SHA-256 hash matches content
 2. **Reference Tracing**: Verify all performance numbers trace to receipts

@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Perf Gate
+# Blocking performance regression gate. Fails PRs that regress DISPLAY
+# throughput below 80 MiB/s or that regress either metric more than 5% versus
+# the committed baseline at scripts/bench/baseline.json.
+#
+# This is the *blocking* companion to the advisory perf.yml workflow. It runs
+# the canonical SLO benchmarks on ubuntu-latest and enforces floors/regression
+# via `bench-report gate` (non-zero exit on breach). Docs-only and non-perf PRs
+# are skipped via the path filter (mirrors perf.yml).
+on:
+  pull_request:
+    paths:
+      - "tools/copybook-bench/**"
+      - "crates/copybook-codec/**"
+      - "scripts/bench.sh"
+      - "scripts/bench.bat"
+      - "Cargo.lock"
+      - "Cargo.toml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Performance gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Run benches (canonical SLO workloads)
+        run: bash scripts/bench.sh
+        # Produces scripts/bench/perf.json on the canonical ubuntu-latest runner.
+
+      - name: Build gate tool
+        run: cargo build --release -p copybook-bench
+
+      - name: Enforce perf gate (blocking)
+        run: |
+          ./target/release/bench-report gate scripts/bench/perf.json \
+            --baseline scripts/bench/baseline.json \
+            --regression-threshold 5.0
+        # Exits non-zero on DISPLAY floor breach or >5% regression vs baseline.

@@ -5,27 +5,31 @@
 //! reporting without requiring full CI/CD infrastructure.
 
 use anyhow::{Context, Result};
-use copybook_bench::{baseline::BaselineStore, reporting::PerformanceReport};
+use copybook_bench::{
+    GateMetric,
+    baseline::BaselineStore,
+    evaluate_metric,
+    reporting::PerformanceReport,
+    slo::{COMP3_FLOOR_MIBPS, DISPLAY_FLOOR_MIBPS, REGRESSION_THRESHOLD_PCT},
+};
 use serde_json::Value;
 use std::env;
 use std::path::PathBuf;
+use std::process::ExitCode;
 
-const DISPLAY_FLOOR_MIBPS: f64 = 80.0;
-const COMP3_FLOOR_MIBPS: f64 = 40.0;
-const DISPLAY_FLOOR_GIBPS: f64 = DISPLAY_FLOOR_MIBPS / 1024.0;
-
-fn main() -> Result<()> {
+fn main() -> Result<ExitCode> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
         print_usage(&args[0]);
-        return Ok(());
+        return Ok(ExitCode::SUCCESS);
     }
 
     match args[1].as_str() {
         "validate" => validate_report(&args)?,
         "baseline" => manage_baseline(&args)?,
         "compare" => compare_performance(&args)?,
+        "gate" => return run_gate(&args),
         "summary" => show_summary(&args),
         "help" | "--help" => print_usage(&args[0]),
         _ => {
@@ -34,7 +38,7 @@ fn main() -> Result<()> {
         }
     }
 
-    Ok(())
+    Ok(ExitCode::SUCCESS)
 }
 
 fn print_usage(program: &str) {
@@ -48,6 +52,7 @@ fn print_usage(program: &str) {
     println!("    baseline promote <perf.json>   Promote report to main baseline");
     println!("    baseline show                  Show current baseline");
     println!("    compare <perf.json>            Compare against baseline");
+    println!("    gate <perf.json> [opts]        Enforce perf gates (non-zero exit on failure)");
     println!("    summary                        Show baseline and SLO status");
     println!("    help                          Show this help message");
     println!();
@@ -55,6 +60,7 @@ fn print_usage(program: &str) {
     println!("    {program} validate perf.json");
     println!("    {program} baseline promote perf.json");
     println!("    {program} compare perf.json");
+    println!("    {program} gate perf.json --baseline baseline.json");
 }
 
 fn validate_report(args: &[String]) -> Result<()> {
@@ -74,7 +80,7 @@ fn validate_report(args: &[String]) -> Result<()> {
         parse_report_from_value(report_path, &value).context("parsing performance report")?;
 
     // Validate against SLOs
-    report.validate_slos(DISPLAY_FLOOR_GIBPS, COMP3_FLOOR_MIBPS);
+    report.validate_slos(DISPLAY_FLOOR_MIBPS / 1024.0, COMP3_FLOOR_MIBPS);
 
     println!("✅ Valid performance report");
     println!("   Status: {}", report.status);
@@ -250,6 +256,171 @@ fn show_summary(args: &[String]) {
         println!("📈 Performance History: 0 entries");
         println!("   Baseline file: {} (not found)", baseline_path.display());
     }
+}
+
+/// Extract a throughput value in MiB/s from a JSON object, looking in common
+/// locations across the receipt (`display_mibps`, `.summary.display_mibps`)
+/// and baseline (`display_mibps`) shapes. Returns `None` if absent.
+fn mibps_from(value: &Value, key: &str) -> Option<f64> {
+    value.get(key).and_then(Value::as_f64).or_else(|| {
+        value
+            .get("summary")
+            .and_then(|s| s.get(key))
+            .and_then(Value::as_f64)
+    })
+}
+
+/// `gate` subcommand: enforce perf floors + relative regression.
+///
+/// Exits non-zero when the DISPLAY absolute floor is breached or when either
+/// metric regresses beyond `--regression-threshold` percent versus the baseline.
+fn run_gate(args: &[String]) -> Result<ExitCode> {
+    if args.len() < 3 {
+        eprintln!(
+            "Usage: {} gate <perf.json> [--baseline <baseline.json>] [--regression-threshold <pct>]",
+            args[0]
+        );
+        return Ok(ExitCode::from(2));
+    }
+
+    let receipt_path = &args[2];
+    let mut baseline_path: Option<String> = None;
+    let mut threshold = REGRESSION_THRESHOLD_PCT;
+    let mut i = 3;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--baseline" => {
+                i += 1;
+                baseline_path = args.get(i).map(String::as_str).map(str::to_owned);
+            }
+            "--regression-threshold" => {
+                i += 1;
+                if let Some(v) = args.get(i) {
+                    threshold = v
+                        .parse::<f64>()
+                        .with_context(|| format!("invalid --regression-threshold value: {v}"))?;
+                }
+            }
+            other => {
+                eprintln!("gate: unknown option '{other}'");
+                return Ok(ExitCode::from(2));
+            }
+        }
+        i += 1;
+    }
+    if threshold < 0.0 {
+        eprintln!("gate: --regression-threshold must be non-negative");
+        return Ok(ExitCode::from(2));
+    }
+
+    // Parse receipt (raw MiB/s — avoids the lossy /1024 GiB/s conversion).
+    let receipt_value: Value = serde_json::from_str(
+        &std::fs::read_to_string(receipt_path)
+            .with_context(|| format!("Failed to read receipt {receipt_path}"))?,
+    )
+    .with_context(|| format!("Failed to parse {receipt_path} as JSON"))?;
+    let receipt_display = mibps_from(&receipt_value, "display_mibps");
+    let receipt_comp3 = mibps_from(&receipt_value, "comp3_mibps");
+
+    let (display_current, comp3_current) = match (receipt_display, receipt_comp3) {
+        (Some(d), Some(c)) => (d, c),
+        (None, _) => {
+            eprintln!("gate: receipt {receipt_path} is missing display_mibps");
+            return Ok(ExitCode::FAILURE);
+        }
+        (_, None) => {
+            eprintln!("gate: receipt {receipt_path} is missing comp3_mibps");
+            return Ok(ExitCode::FAILURE);
+        }
+    };
+
+    // Parse optional baseline.
+    let mut baseline_display = None;
+    let mut baseline_comp3 = None;
+    if let Some(path) = &baseline_path {
+        let base_value: Value = serde_json::from_str(
+            &std::fs::read_to_string(path)
+                .with_context(|| format!("Failed to read baseline {path}"))?,
+        )
+        .with_context(|| format!("Failed to parse baseline {path} as JSON"))?;
+        baseline_display = mibps_from(&base_value, "display_mibps");
+        baseline_comp3 = mibps_from(&base_value, "comp3_mibps");
+    }
+
+    let display = GateMetric {
+        label: "DISPLAY",
+        current: display_current,
+        baseline: baseline_display,
+    };
+    let comp3 = GateMetric {
+        label: "COMP-3",
+        current: comp3_current,
+        baseline: baseline_comp3,
+    };
+
+    // DISPLAY enforces the absolute floor; COMP-3 does not (see slo.rs).
+    let outcomes = [
+        evaluate_metric(&display, true, DISPLAY_FLOOR_MIBPS, threshold),
+        evaluate_metric(&comp3, false, COMP3_FLOOR_MIBPS, threshold),
+    ];
+
+    let any_failed = print_gate_table(&outcomes);
+
+    let summary = if baseline_path.is_some() {
+        format!(
+            "Perf gate: {} (DISPLAY floor ≥{:.0} MiB/s, regression threshold -{:.0}% vs baseline)",
+            if any_failed { "FAILED" } else { "passed" },
+            DISPLAY_FLOOR_MIBPS,
+            threshold
+        )
+    } else {
+        format!(
+            "Perf gate: {} (DISPLAY floor ≥{:.0} MiB/s; no baseline — relative gate skipped)",
+            if any_failed { "FAILED" } else { "passed" },
+            DISPLAY_FLOOR_MIBPS,
+        )
+    };
+    println!("{summary}");
+    if let Ok(s) = env::var("GITHUB_STEP_SUMMARY")
+        && !s.is_empty()
+    {
+        std::fs::write(s, format!("### {summary}\n"))?;
+    }
+
+    if any_failed {
+        Ok(ExitCode::FAILURE)
+    } else {
+        Ok(ExitCode::SUCCESS)
+    }
+}
+
+/// Print the per-metric gate results as a markdown table, emit GitHub Actions
+/// `::error::` annotations for failures, and return whether any metric failed.
+fn print_gate_table(outcomes: &[copybook_bench::GateOutcome]) -> bool {
+    println!();
+    println!("| Metric | Current | Floor | Baseline | Delta | Status |");
+    println!("|--------|---------|-------|----------|-------|--------|");
+    let mut any_failed = false;
+    for o in outcomes {
+        if o.failed {
+            any_failed = true;
+        }
+        let floor = o
+            .floor_enforced
+            .map_or("—".to_string(), |f| format!("{f:.0}"));
+        let base = o.baseline.map_or("—".to_string(), |b| format!("{b:.1}"));
+        let delta = o.delta_pct.map_or("—".to_string(), |d| format!("{d:.2}%"));
+        let status = if o.failed { "❌ FAIL" } else { "✅ pass" };
+        println!(
+            "| {} | {:.1} MiB/s | {} | {} MiB/s | {} | {} |",
+            o.label, o.current, floor, base, delta, status
+        );
+        for reason in &o.reasons {
+            eprintln!("::error::{reason}");
+        }
+    }
+    println!();
+    any_failed
 }
 
 fn parse_report_from_value(report_path: &str, value: &Value) -> Result<PerformanceReport> {

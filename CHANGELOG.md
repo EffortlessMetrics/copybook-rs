@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ci**: Add blocking performance regression gate (`perf-gate.yml`) enforcing DISPLAY ≥80 MiB/s and >5% relative regression vs committed baseline; ships `bench-report gate` subcommand, `scripts/bench/baseline.json`, and canonical SLO constants in `copybook-bench::slo`
 - **audit**: Implement `Display` for `AuditEventType` and `AuditSeverity` enums
 - **audit**: Add additional Clippy lint enforcement to audit module
 - **feature-flags**: Promote COMP-1/COMP-2 and SIGN SEPARATE features to stable

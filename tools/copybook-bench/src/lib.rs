@@ -12,10 +12,16 @@ pub mod health;
 pub mod memory;
 pub mod regression;
 pub mod reporting;
+pub mod slo;
 
 // Re-export key types for Issue #52 machine-readable reporting
 pub use baseline::{BaselineStore, PerformanceBaseline};
 pub use reporting::PerformanceReport;
+// Re-export canonical SLO thresholds (single source of truth for gates)
+pub use slo::{
+    COMP3_FLOOR_MIBPS, DISPLAY_FLOOR_MIBPS, GateMetric, GateOutcome, REGRESSION_THRESHOLD_PCT,
+    evaluate_metric,
+};
 
 // Re-export legacy types for performance regression detection
 pub use regression::{

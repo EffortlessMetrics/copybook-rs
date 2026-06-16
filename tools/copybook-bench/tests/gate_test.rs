@@ -10,7 +10,8 @@
 use copybook_bench::GateMetric;
 use copybook_bench::evaluate_metric;
 use copybook_bench::slo::{
-    COMP3_FLOOR_MIBPS, DISPLAY_FLOOR_MIBPS, REGRESSION_THRESHOLD_PCT, evaluate_metric as eval,
+    COMP3_CI_FLOOR_MIBPS, COMP3_FLOOR_MIBPS, DISPLAY_FLOOR_MIBPS, REGRESSION_THRESHOLD_PCT,
+    evaluate_metric as eval,
 };
 
 const THRESHOLD: f64 = REGRESSION_THRESHOLD_PCT;
@@ -33,7 +34,7 @@ fn gate_passes_when_above_floor_and_within_regression_tolerance() {
     };
 
     let d = evaluate_metric(&display, true, DISPLAY_FLOOR_MIBPS, THRESHOLD);
-    let c = evaluate_metric(&comp3, false, COMP3_FLOOR_MIBPS, THRESHOLD);
+    let c = evaluate_metric(&comp3, true, COMP3_CI_FLOOR_MIBPS, THRESHOLD);
 
     assert!(!d.failed, "DISPLAY should pass: {}", d.reasons.join("; "));
     assert!(!c.failed, "COMP-3 should pass: {}", c.reasons.join("; "));
@@ -57,7 +58,6 @@ fn display_floor_breach_fails_without_baseline() {
 
     assert!(d.failed);
     assert!(d.reasons.iter().any(|r| r.contains("below absolute floor")));
-    // Floor is only enforced for DISPLAY.
     assert_eq!(d.floor_enforced, Some(DISPLAY_FLOOR_MIBPS));
 }
 
@@ -98,49 +98,66 @@ fn display_regression_within_threshold_passes() {
 }
 
 // ---------------------------------------------------------------------------
-// (d) COMP-3 regression > threshold vs baseline (relative gate still applies)
+// (d) COMP-3 absolute floor breach (CI-grounded floor of 8 MiB/s is enforced)
 // ---------------------------------------------------------------------------
 
 #[test]
-fn comp3_regression_beyond_threshold_fails_even_though_below_floor() {
-    // Current 10 MiB/s is below the (un-enforced) COMP-3 floor of 40, but that
-    // floor is not enforced for COMP-3. The relative gate still catches a
-    // 50% regression from baseline 20 -> current 10.
-    let comp3 = GateMetric {
-        label: "COMP-3",
-        current: 10.0,
-        baseline: Some(20.0),
-    };
-    let c = evaluate_metric(&comp3, false, COMP3_FLOOR_MIBPS, THRESHOLD);
-
-    assert!(c.failed);
-    assert!(c.reasons.iter().any(|r| r.contains("regression")));
-    assert!(
-        !c.reasons.iter().any(|r| r.contains("absolute floor")),
-        "COMP-3 must not enforce absolute floor"
-    );
-    assert_eq!(c.floor_enforced, None, "COMP-3 floor not enforced");
-}
-
-// ---------------------------------------------------------------------------
-// (e) Missing baseline: relative gate skipped, never fails on absence
-// ---------------------------------------------------------------------------
-
-#[test]
-fn missing_baseline_does_not_fail_relative_gate() {
-    // DISPLAY below floor still fails the absolute check, but the *relative*
-    // gate contributes no reason. COMP-3 with no baseline and below-floor
-    // value passes entirely (floor unenforced, no baseline to compare).
+fn comp3_floor_breach_fails_without_baseline() {
+    // 5 MiB/s is below the CI floor of 8. No baseline needed to fail.
     let comp3 = GateMetric {
         label: "COMP-3",
         current: 5.0,
         baseline: None,
     };
-    let c = evaluate_metric(&comp3, false, COMP3_FLOOR_MIBPS, THRESHOLD);
+    let c = evaluate_metric(&comp3, true, COMP3_CI_FLOOR_MIBPS, THRESHOLD);
+
+    assert!(c.failed);
+    assert!(c.reasons.iter().any(|r| r.contains("below absolute floor")));
+    assert_eq!(c.floor_enforced, Some(COMP3_CI_FLOOR_MIBPS));
+}
+
+// ---------------------------------------------------------------------------
+// (e) COMP-3 regression > threshold vs baseline (floor enforced too)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn comp3_regression_beyond_threshold_fails() {
+    // Current 10 vs baseline 20 = -50% regression (fails relative gate).
+    // 10 is above the 8 floor, so the floor does not fire; only regression.
+    let comp3 = GateMetric {
+        label: "COMP-3",
+        current: 10.0,
+        baseline: Some(20.0),
+    };
+    let c = evaluate_metric(&comp3, true, COMP3_CI_FLOOR_MIBPS, THRESHOLD);
+
+    assert!(c.failed);
+    assert!(c.reasons.iter().any(|r| r.contains("regression")));
+    assert!(
+        !c.reasons.iter().any(|r| r.contains("absolute floor")),
+        "above-floor COMP-3 should not trip the absolute check"
+    );
+    assert_eq!(c.floor_enforced, Some(COMP3_CI_FLOOR_MIBPS));
+}
+
+// ---------------------------------------------------------------------------
+// (f) Missing baseline: relative gate skipped, but absolute floor still holds
+// ---------------------------------------------------------------------------
+
+#[test]
+fn missing_baseline_does_not_fail_when_above_floor() {
+    // COMP-3 with no baseline and an above-floor value passes entirely
+    // (floor satisfied, no baseline to compare for regression).
+    let comp3 = GateMetric {
+        label: "COMP-3",
+        current: 15.0,
+        baseline: None,
+    };
+    let c = evaluate_metric(&comp3, true, COMP3_CI_FLOOR_MIBPS, THRESHOLD);
 
     assert!(
         !c.failed,
-        "COMP-3 with no baseline must pass: {}",
+        "COMP-3 above floor with no baseline must pass: {}",
         c.reasons.join("; ")
     );
     assert!(c.reasons.is_empty());
@@ -148,14 +165,28 @@ fn missing_baseline_does_not_fail_relative_gate() {
 }
 
 #[test]
-fn zero_baseline_is_treated_as_missing() {
-    // A zero/missing baseline value is skipped (graceful), not a failure.
+fn missing_baseline_still_fails_on_floor_breach() {
+    // No baseline, but below floor -> absolute gate still fires.
     let comp3 = GateMetric {
         label: "COMP-3",
-        current: 5.0,
+        current: 3.0,
+        baseline: None,
+    };
+    let c = evaluate_metric(&comp3, true, COMP3_CI_FLOOR_MIBPS, THRESHOLD);
+    assert!(c.failed);
+    assert_eq!(c.delta_pct, None, "no baseline => no delta");
+}
+
+#[test]
+fn zero_baseline_is_treated_as_missing() {
+    // A zero/missing baseline value is skipped (graceful), not a failure —
+    // provided the absolute floor is satisfied.
+    let comp3 = GateMetric {
+        label: "COMP-3",
+        current: 15.0,
         baseline: Some(0.0),
     };
-    let c = evaluate_metric(&comp3, false, COMP3_FLOOR_MIBPS, THRESHOLD);
+    let c = evaluate_metric(&comp3, true, COMP3_CI_FLOOR_MIBPS, THRESHOLD);
     assert!(!c.failed);
 }
 
@@ -203,7 +234,10 @@ fn improvement_does_not_fail() {
 #[test]
 fn slo_constants_match_documented_values() {
     assert_eq!(DISPLAY_FLOOR_MIBPS, 80.0);
+    // Reference-hardware value, retained for documentation (not enforced).
     assert_eq!(COMP3_FLOOR_MIBPS, 40.0);
+    // CI-grounded enforced floor.
+    assert_eq!(COMP3_CI_FLOOR_MIBPS, 8.0);
     assert_eq!(REGRESSION_THRESHOLD_PCT, 5.0);
 }
 

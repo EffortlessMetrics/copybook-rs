@@ -22,6 +22,7 @@
 | Panic elimination | Zero production panics on main (PR #182) |
 | Quality gates (#97-100) | All four issues closed |
 | SIGN SEPARATE, COMP-1/COMP-2 | Promoted to stable and default-enabled in v0.4.3 |
+| Blocking perf regression gate (#512) | `perf-gate.yml` fails PRs on DISPLAY ≥80 / COMP-3 ≥8 MiB/s floors + >5% relative regression vs committed baseline |
 
 **Test status**: 10,250+ passing (15 ignored), zero unsafe, clippy pedantic compliant.
 
@@ -32,7 +33,6 @@ These items must ship before v1.0.0 can be tagged.
 | Item | Est. Effort | Why it blocks |
 |------|-------------|---------------|
 | Enterprise audit/compliance | 8-12 weeks | SOX, HIPAA, GDPR, PCI DSS stubs are experimental; need production-grade outputs |
-| Performance regression gates (COMP-3 floor) | 1-2 weeks | DISPLAY floor + relative regression are now blocking (`perf-gate.yml`); COMP-3 absolute floor deferred until its 600KB SLO fixture is enlarged (per-call overhead artifact currently caps it at ~12 MiB/s) |
 | Iterator module examples | 1-2 weeks | Public API lacks usage docs, slows onboarding |
 | Enterprise deployment guide | 1-2 weeks | No production operations documentation |
 | API freeze window | 4 weeks | Only doc/bench/test changes; stabilizes public surface |
@@ -56,19 +56,20 @@ These items must ship before v1.0.0 can be tagged.
 ## What Blocks Wider Adoption
 
 1. Enterprise audit system outputs are experimental stubs, not compliance evidence.
-2. Performance regression gates: DISPLAY floor (≥80 MiB/s) and relative regression (>5% vs baseline, both metrics) are now enforced by a blocking CI gate (`perf-gate.yml`); COMP-3 absolute floor deferred pending SLO fixture fix.
-3. Iterator and deployment documentation gaps reduce onboarding velocity.
+2. Iterator and deployment documentation gaps reduce onboarding velocity.
 
 ## Performance Baseline
 
 | Workload | Floor (CI) | Baseline (ref hardware) | Commit |
 |----------|-----------|------------------------|--------|
 | DISPLAY-heavy | 80 MiB/s | 205 MiB/s | 1fa63633 |
-| COMP-3-heavy | 40 MiB/s* | 58 MiB/s | 1fa63633 |
+| COMP-3-heavy | 8 MiB/s† | 58 MiB/s | 1fa63633 |
 
-\* COMP-3 floor is advisory only; the blocking `perf-gate.yml` enforces COMP-3
-via relative regression (>5% vs committed baseline) rather than the absolute
-floor, because the current 600KB SLO fixture measures ~12 MiB/s on CI runners.
+† The COMP-3 floor is CI-grounded, not reference-hardware. COMP-3 packed-decimal
+decode is throughput-bound at far lower rates than DISPLAY (12–14 MiB/s on
+`ubuntu-latest`), and the per-record cost is fundamental — throughput *decreases*
+with larger payloads. The 8 MiB/s floor sits ~35% below the worst observed CI
+measurement, absorbing runner variance while still catching a real regression.
 
 Baseline measured 2025-09-30 on WSL2 / AMD Ryzen 9 9950X3D.
 The committed regression-gate baseline (`scripts/bench/baseline.json`) reflects

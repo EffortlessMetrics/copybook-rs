@@ -19,8 +19,8 @@ pub use baseline::{BaselineStore, PerformanceBaseline};
 pub use reporting::PerformanceReport;
 // Re-export canonical SLO thresholds (single source of truth for gates)
 pub use slo::{
-    COMP3_FLOOR_MIBPS, DISPLAY_FLOOR_MIBPS, GateMetric, GateOutcome, REGRESSION_THRESHOLD_PCT,
-    evaluate_metric,
+    COMP3_CI_FLOOR_MIBPS, COMP3_FLOOR_MIBPS, DISPLAY_FLOOR_MIBPS, GateMetric, GateOutcome,
+    REGRESSION_THRESHOLD_PCT, evaluate_metric,
 };
 
 // Re-export legacy types for performance regression detection

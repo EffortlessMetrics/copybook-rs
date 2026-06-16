@@ -13,13 +13,22 @@
 /// subcommand fails the build when a receipt reports below this value.
 pub const DISPLAY_FLOOR_MIBPS: f64 = 80.0;
 
-/// Minimum COMP-3-heavy decode throughput (MiB/s).
+/// Minimum COMP-3-heavy decode throughput enforced by the absolute floor gate
+/// on CI.
 ///
-/// **Not enforced** as an absolute floor by the gate today: the current SLO
-/// fixture processes only 600 KB, where per-call `decode_file_to_jsonl` overhead
-/// dominates and CI measures ~12 MiB/s. COMP-3 is still protected by the
-/// *relative* regression gate against the committed baseline. Making this an
-/// absolute floor requires enlarging the SLO fixture first (tracked follow-up).
+/// Measured in MiB/s. COMP-3 packed-decimal decode is throughput-bound at far
+/// lower rates than DISPLAY: the SLO bench measures 12–14 MiB/s on
+/// `ubuntu-latest` (and the per-record cost is fundamental, not a fixture-size
+/// artifact — throughput *decreases* with larger payloads). This CI-grounded
+/// floor is set ~35% below the worst observed CI measurement to absorb runner
+/// variance while still catching a real (halving) regression.
+pub const COMP3_CI_FLOOR_MIBPS: f64 = 8.0;
+
+/// Reference-hardware COMP-3 baseline (58 MiB/s on WSL2 / Ryzen 9 9950X3D).
+///
+/// **Not enforced** as a gate. Retained for documentation and the
+/// baseline/budget table in `ROADMAP.md`. The enforced floor is
+/// [`COMP3_CI_FLOOR_MIBPS`], which reflects the canonical CI environment.
 pub const COMP3_FLOOR_MIBPS: f64 = 40.0;
 
 /// Maximum acceptable slowdown (percent) versus the committed baseline before
@@ -50,7 +59,7 @@ pub struct GateOutcome {
     pub label: &'static str,
     /// Measured throughput (MiB/s).
     pub current: f64,
-    /// Absolute floor enforced, if any (DISPLAY only today).
+    /// Absolute floor enforced, if any (both metrics enforce one today).
     pub floor_enforced: Option<f64>,
     /// Baseline throughput compared against, if any.
     pub baseline: Option<f64>,
@@ -65,8 +74,8 @@ pub struct GateOutcome {
 /// Evaluate one metric against an (optional) absolute floor and an (optional)
 /// committed baseline.
 ///
-/// - When `enforce_floor` is `true`, `current < floor` fails the gate. Today
-///   only DISPLAY enforces the floor; COMP-3 defers (see `COMP3_FLOOR_MIBPS`).
+/// - When `enforce_floor` is `true`, `current < floor` fails the gate. Both
+///   DISPLAY and COMP-3 enforce their respective floors today.
 /// - When a baseline value is present and positive, a regression worse than
 ///   `threshold` percent fails the gate. A missing/zero baseline is skipped
 ///   (graceful for first runs) and never fails on its own.
@@ -87,7 +96,7 @@ pub fn evaluate_metric(
         reasons: Vec::new(),
     };
 
-    // Absolute floor (DISPLAY only).
+    // Absolute floor.
     if enforce_floor && metric.current < floor {
         outcome.failed = true;
         outcome.reasons.push(format!(

@@ -97,12 +97,14 @@ sensitive paths (`crates/copybook-codec/**`, `tools/copybook-bench/**`, bench
 scripts):
 
 - **DISPLAY absolute floor**: ≥ 80 MiB/s (fails the build on breach).
+- **COMP-3 absolute floor**: ≥ 8 MiB/s. This is CI-grounded, not reference-
+  hardware: COMP-3 packed-decimal decode is throughput-bound at far lower rates
+  than DISPLAY (12–14 MiB/s on `ubuntu-latest`), and the per-record cost is
+  fundamental — throughput *decreases* with larger payloads. The 8 MiB/s floor
+  sits ~35% below the worst observed CI measurement to absorb runner variance.
 - **Relative regression gate**: > 5% slowdown versus the committed baseline at
   [`scripts/bench/baseline.json`](../scripts/bench/baseline.json), applied to
   both DISPLAY and COMP-3.
-- **COMP-3 absolute floor**: *deferred*. The current 600 KB SLO fixture is
-  dominated by per-call overhead and measures ~12 MiB/s on CI runners, so only
-  the relative gate protects COMP-3 until the fixture is enlarged.
 
 The gate runs `bench-report gate` (see `tools/copybook-bench/src/slo.rs` for
 the canonical floor/threshold constants). To update the baseline after an

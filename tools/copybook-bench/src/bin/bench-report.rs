@@ -10,7 +10,7 @@ use copybook_bench::{
     baseline::BaselineStore,
     evaluate_metric,
     reporting::PerformanceReport,
-    slo::{COMP3_FLOOR_MIBPS, DISPLAY_FLOOR_MIBPS, REGRESSION_THRESHOLD_PCT},
+    slo::{COMP3_CI_FLOOR_MIBPS, COMP3_FLOOR_MIBPS, DISPLAY_FLOOR_MIBPS, REGRESSION_THRESHOLD_PCT},
 };
 use serde_json::Value;
 use std::env;
@@ -242,7 +242,7 @@ fn show_summary(args: &[String]) {
         println!();
         println!("🎯 SLO Targets:");
         println!("   DISPLAY: ≥{DISPLAY_FLOOR_MIBPS:.0} MiB/s");
-        println!("   COMP-3:  ≥{COMP3_FLOOR_MIBPS:.0} MiB/s");
+        println!("   COMP-3:  ≥{COMP3_CI_FLOOR_MIBPS:.0} MiB/s (CI)");
         println!();
         println!("📈 Performance History: {} entries", store.history.len());
         println!("   Baseline file: {}", baseline_path.display());
@@ -251,7 +251,7 @@ fn show_summary(args: &[String]) {
         println!();
         println!("🎯 SLO Targets:");
         println!("   DISPLAY: ≥{DISPLAY_FLOOR_MIBPS:.0} MiB/s");
-        println!("   COMP-3:  ≥{COMP3_FLOOR_MIBPS:.0} MiB/s");
+        println!("   COMP-3:  ≥{COMP3_CI_FLOOR_MIBPS:.0} MiB/s (CI)");
         println!();
         println!("📈 Performance History: 0 entries");
         println!("   Baseline file: {} (not found)", baseline_path.display());
@@ -272,8 +272,10 @@ fn mibps_from(value: &Value, key: &str) -> Option<f64> {
 
 /// `gate` subcommand: enforce perf floors + relative regression.
 ///
-/// Exits non-zero when the DISPLAY absolute floor is breached or when either
-/// metric regresses beyond `--regression-threshold` percent versus the baseline.
+/// Exits non-zero when an absolute floor is breached (DISPLAY ≥80 MiB/s,
+/// COMP-3 ≥8 MiB/s) or when either metric regresses beyond
+/// `--regression-threshold` percent versus the baseline.
+#[allow(clippy::too_many_lines)]
 fn run_gate(args: &[String]) -> Result<ExitCode> {
     if args.len() < 3 {
         eprintln!(
@@ -358,26 +360,28 @@ fn run_gate(args: &[String]) -> Result<ExitCode> {
         baseline: baseline_comp3,
     };
 
-    // DISPLAY enforces the absolute floor; COMP-3 does not (see slo.rs).
+    // Both metrics enforce their absolute floor plus the relative regression gate.
     let outcomes = [
         evaluate_metric(&display, true, DISPLAY_FLOOR_MIBPS, threshold),
-        evaluate_metric(&comp3, false, COMP3_FLOOR_MIBPS, threshold),
+        evaluate_metric(&comp3, true, COMP3_CI_FLOOR_MIBPS, threshold),
     ];
 
     let any_failed = print_gate_table(&outcomes);
 
     let summary = if baseline_path.is_some() {
         format!(
-            "Perf gate: {} (DISPLAY floor ≥{:.0} MiB/s, regression threshold -{:.0}% vs baseline)",
+            "Perf gate: {} (DISPLAY floor ≥{:.0} MiB/s, COMP-3 floor ≥{:.0} MiB/s, regression threshold -{:.0}% vs baseline)",
             if any_failed { "FAILED" } else { "passed" },
             DISPLAY_FLOOR_MIBPS,
+            COMP3_CI_FLOOR_MIBPS,
             threshold
         )
     } else {
         format!(
-            "Perf gate: {} (DISPLAY floor ≥{:.0} MiB/s; no baseline — relative gate skipped)",
+            "Perf gate: {} (DISPLAY floor ≥{:.0} MiB/s, COMP-3 floor ≥{:.0} MiB/s; no baseline — relative gate skipped)",
             if any_failed { "FAILED" } else { "passed" },
             DISPLAY_FLOOR_MIBPS,
+            COMP3_CI_FLOOR_MIBPS,
         )
     };
     println!("{summary}");

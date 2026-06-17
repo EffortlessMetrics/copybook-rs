@@ -5,7 +5,7 @@
 
 **Status**: ⚠️ **Engineering Preview (v0.4.3)** - See
 [ROADMAP.md](ROADMAP.md) for adoption guidance
-**Last Updated**: 2026-03-05
+**Last Updated**: 2026-06-16
 
 **Readiness**: Cautious Adoption Recommended - See
 [Readiness Assessment](#readiness-assessment) below
@@ -22,12 +22,14 @@ conversion with a strong emphasis on correctness, observability, and memory
 safety. The workspace builds cleanly and the release gate
 (fmt/clippy/build/nextest) is green. Performance receipts are tracked in
 `scripts/bench/perf.json` and summarized in
-`docs/PERFORMANCE_GOVERNANCE.md`; numbers vary by environment and floors are
-advisory targets in v0.4.3 (Engineering Preview).
+`docs/PERFORMANCE_GOVERNANCE.md`; numbers vary by environment. Floors are
+enforced by a blocking CI gate (`perf-gate.yml`) as of post-v0.4.3: DISPLAY ≥ 80
+MiB/s, COMP-3 ≥ 8 MiB/s, plus a >5% relative-regression gate against the
+committed baseline (`scripts/bench/baseline.json`).
 
 ## Overview
 
-The `copybook-rs` workspace combines 36 publishable Rust crates and 3 dev-only
+The `copybook-rs` workspace combines 38 publishable Rust crates and 3 dev-only
 tools (generator, benchmarks, and xtask) to provide
 deterministic COBOL→JSON processing. The
 focus is on transparent validation rather than performance bravado: adopters
@@ -87,12 +89,15 @@ Performance is tracked via machine-readable receipts:
   `bash scripts/bench.sh`)
 - **Narrative summary**: `docs/PERFORMANCE_GOVERNANCE.md`
 
-**v0.4.3 policy (Engineering Preview)**:
+**Performance policy** (post-v0.4.3):
 
-- Floors are **advisory targets** (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s).
+- Floors are **enforced by a blocking CI gate** (`perf-gate.yml`): DISPLAY ≥
+  80 MiB/s, COMP-3 ≥ 8 MiB/s, plus a >5% relative-regression gate against the
+  committed baseline (`scripts/bench/baseline.json`).
 - Receipts are environment-specific; validate on your target hardware before
   production use.
-- COMP-3 decoding performance limited by packed decimal conversion complexity
+- COMP-3 decoding performance is limited by packed-decimal conversion; the
+  8 MiB/s floor is CI-grounded (12–14 MiB/s observed on `ubuntu-latest`).
 
 ## COBOL Feature Support
 
@@ -136,7 +141,7 @@ Comprehensive support for mainframe data formats:
 - ~~22 numeric functions in `copybook-codec/src/numeric.rs` missing documentation~~ ✅ All 47 public functions documented
 - ~~Memory module (`ScratchBuffers`, `SequenceRing`, `WorkerPool`) needs API
   documentation~~ ✅ Module fully documented
-- Iterator module public functions need usage examples
+- ~~Iterator module public functions need usage examples~~ ✅ Iterator reference + streaming-decode how-to added (#514)
 
 **Test Coverage Gaps** (Tracked for Future Work):
 
@@ -187,7 +192,7 @@ parse, codec, and structural validation. See
 - **Zero production `panic!()` on main** (test-only panics remain acceptable)
 - **Zero unsafe code** in public API paths (compiler-enforced via
   `#![deny(clippy::unwrap_used, clippy::expect_used)]`)
-- **61 structured error codes** with stable taxonomy (CBKP, CBKS, CBKD, CBKE,
+- **63 structured error codes** with stable taxonomy (CBKP, CBKS, CBKD, CBKE,
   CBKR, CBKC, CBKF, CBKI, CBKA, CBKW — 10 families)
 - **69 workspace-inherited dependencies** for consistent versioning
 - **CLI code consolidation**: Shared utilities for parse options, field
@@ -257,9 +262,10 @@ Performance reporting is receipt-based (JSON) rather than single-number claims.
 - **Receipts**: `scripts/bench/perf.json` (via `bash scripts/bench.sh`)
 - **Summary**: `docs/PERFORMANCE_GOVERNANCE.md`
 
-In v0.4.3, performance floors are tracked as **advisory targets** (DISPLAY ≥ 80
-MiB/s; COMP-3 ≥ 40 MiB/s). Results are environment-specific; validate on your
-target hardware before production use.
+In post-v0.4.3, performance floors are **enforced by a blocking CI gate**
+(`perf-gate.yml`): DISPLAY ≥ 80 MiB/s, COMP-3 ≥ 8 MiB/s, plus a >5%
+relative-regression gate against the committed baseline. Results are
+environment-specific; validate on your target hardware before production use.
 
 ## Readiness Assessment
 
@@ -278,11 +284,12 @@ remaining limitations are addressed.
 - ✅ **Test Health**: `cargo test --workspace` reports 10,250+ tests passing (15
   ignored)
 - ✅ **Memory Safety**: Zero `unsafe` in public APIs; pedantic linting enforced
-- ⚠️ **Performance Variance**: Receipts are environment-specific; validate on
-  your target hardware (see `scripts/bench/perf.json` +
-  `docs/PERFORMANCE_GOVERNANCE.md`)
-- ⚠️ **Performance Policy**: Floors are advisory-only targets in v0.4.3
-  (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s)
+- ✅ **Performance Gate**: A blocking CI gate (`perf-gate.yml`) enforces floors
+  (DISPLAY ≥ 80, COMP-3 ≥ 8 MiB/s) and >5% relative regression; see
+  `scripts/bench/perf.json` + `docs/PERFORMANCE_GOVERNANCE.md`
+- ✅ **Performance Policy**: Floors are enforced by a blocking CI gate
+  (`perf-gate.yml`): DISPLAY ≥ 80 MiB/s, COMP-3 ≥ 8 MiB/s, plus >5%
+  relative-regression vs committed baseline
 - ✅ **COBOL Completeness**: COMP-1/COMP-2 and SIGN SEPARATE are fully supported
   (promoted to stable in v0.4.3); edited PIC clauses are fully implemented
   with current E1-E3 feature coverage; nested ODO arrays remain unsupported;

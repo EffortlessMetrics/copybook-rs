@@ -30,7 +30,7 @@ jobs:
       contains(github.event.pull_request.labels.*.name, 'leak-check') ||
       contains(github.event.pull_request.labels.*.name, 'full-ci')
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@nightly
         with:

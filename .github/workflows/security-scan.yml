@@ -19,7 +19,7 @@ jobs:
       issues: write  # For automated issue creation
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

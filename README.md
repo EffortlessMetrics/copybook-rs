@@ -63,7 +63,7 @@ See [COBOL_SUPPORT_MATRIX.md](docs/reference/COBOL_SUPPORT_MATRIX.md) for the fu
 | [Documentation Start](docs/START_HERE.md) | Hand-maintained documentation entry point |
 | [CLI Reference](docs/CLI_REFERENCE.md) | Command-line interface documentation |
 | [Library API](docs/reference/LIBRARY_API.md) | Rust library API reference |
-| [Error Codes](docs/reference/ERROR_CODES.md) | Error taxonomy (10 families, 61 codes) |
+| [Error Codes](docs/reference/ERROR_CODES.md) | Error taxonomy (10 families, 63 codes) |
 | [Support Matrix](docs/reference/COBOL_SUPPORT_MATRIX.md) | COBOL feature coverage |
 | [Engineering Report](docs/REPORT.md) | Readiness and current engineering status |
 | [Design Docs](docs/design/) | Feature and design contracts |

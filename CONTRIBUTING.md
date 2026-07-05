@@ -148,7 +148,7 @@ Use [feature_request.yml](.github/ISSUE_TEMPLATE/feature_request.yml) template. 
 
 ## Architecture Overview
 
-copybook-rs is a Cargo workspace with 25 publishable crates under `crates/` and 3 dev-only crates under `tools/`. Key crates include:
+copybook-rs is a Cargo workspace with 38 publishable crates under `crates/` and 4 dev-only crates under `tools/`. Key crates include:
 
 - **copybook-core**: COBOL copybook parsing (lexer, parser, AST, layout resolution)
 - **copybook-codec**: Data encoding/decoding, character conversion, record framing

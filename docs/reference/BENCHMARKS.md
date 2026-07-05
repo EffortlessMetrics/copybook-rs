@@ -184,15 +184,15 @@ Performance can vary based on:
 - **System load**: Background processes can impact measurements
 - **Variance**: Expect ~5% (DISPLAY) to ~8% (COMP-3) run-to-run variance
 
-See [copybook-bench/BASELINE_METHODOLOGY.md](../../copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures.
+See [copybook-bench/BASELINE_METHODOLOGY.md](../../tools/copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures.
 
 ## Related Documentation
 
 - **[CLAUDE.md](../../CLAUDE.md)**: Performance targets, baseline methodology, known limitations
 - **[ROADMAP.md](../ROADMAP.md)**: Performance improvement plans and v1.0 stability goals
 - **[REPORT.md](../REPORT.md)**: Detailed readiness assessment and performance analysis
-- **[copybook-bench/BASELINE_METHODOLOGY.md](../../copybook-bench/BASELINE_METHODOLOGY.md)**: Baseline establishment procedures
-- **[copybook-bench/HARDWARE_SPECS.md](../../copybook-bench/HARDWARE_SPECS.md)**: Reference hardware specifications
+- **[copybook-bench/BASELINE_METHODOLOGY.md](../../tools/copybook-bench/BASELINE_METHODOLOGY.md)**: Baseline establishment procedures
+- **[copybook-bench/HARDWARE_SPECS.md](../../tools/copybook-bench/HARDWARE_SPECS.md)**: Reference hardware specifications
 
 ## Future Enhancements
 

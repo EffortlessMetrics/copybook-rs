@@ -470,8 +470,8 @@ docker build --pull --no-cache -t copybook-rs-bench .
 
 ## References
 
-- [Baseline Methodology](../../copybook-bench/BASELINE_METHODOLOGY.md) - How baselines are established
-- [Hardware Specifications](../../copybook-bench/HARDWARE_SPECS.md) - Reference hardware details
+- [Baseline Methodology](../../tools/copybook-bench/BASELINE_METHODOLOGY.md) - How baselines are established
+- [Hardware Specifications](../../tools/copybook-bench/HARDWARE_SPECS.md) - Reference hardware details
 - [Performance Report](../REPORT.md) - Comprehensive performance analysis
 - [GitHub Workflow](.github/workflows/perf-container.yml) - Automated CI integration
 

@@ -16,8 +16,8 @@ This directory contains comprehensive test fixtures for the copybook-rs Enterpri
 
 ### Performance Test Data
 
-- ✅ **DISPLAY Processing**: Test data designed for throughput validation (baseline: 205 MiB/s per [BASELINE_METHODOLOGY.md](../../../copybook-bench/BASELINE_METHODOLOGY.md))
-- ✅ **COMP-3 Processing**: Test data designed for throughput validation (baseline: 58 MiB/s per [BASELINE_METHODOLOGY.md](../../../copybook-bench/BASELINE_METHODOLOGY.md))
+- ✅ **DISPLAY Processing**: Test data designed for throughput validation (baseline: 205 MiB/s per [BASELINE_METHODOLOGY.md](../../../tools/copybook-bench/BASELINE_METHODOLOGY.md))
+- ✅ **COMP-3 Processing**: Test data designed for throughput validation (baseline: 58 MiB/s per [BASELINE_METHODOLOGY.md](../../../tools/copybook-bench/BASELINE_METHODOLOGY.md))
 - ✅ **Memory Usage**: <256 MiB steady-state test scenarios
 - ✅ **Audit Overhead**: <5% performance impact validation data
 

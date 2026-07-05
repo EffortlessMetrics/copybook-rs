@@ -8,7 +8,7 @@ Maintainer and operator guidance for Claude Code working in this repository.
 - Rust workspace, Edition 2024, MSRV 1.92
 - COBOL copybook parsing and data conversion (EBCDIC/ASCII to JSON and back)
 - Engineering Preview v0.4.3
-- 36 publishable crates under `crates/`, 3 dev-only under `tools/`, 3 test suites under `tests/`
+- 38 publishable crates under `crates/` (36 core + 2 facade), 4 dev-only under `tools/`, 3 test suites under `tests/`
 
 ## Canonical Sources
 
@@ -36,7 +36,7 @@ Do not restate feature behavior in this file. Read the canonical source instead.
 ## Workspace Layout
 
 ```
-crates/                           # 36 publishable crates
+crates/                           # 38 publishable crates (36 core + 2 facade)
   Parser:     copybook-core, copybook-lexer
   Codec:      copybook-codec, copybook-codec-memory, copybook-codepage,
               copybook-charset, copybook-overpunch, copybook-zoned-format
@@ -53,8 +53,9 @@ crates/                           # 36 publishable crates
   Quality:    copybook-corruption, copybook-corruption-detectors,
               copybook-corruption-predicates, copybook-corruption-rdw
   Other:      copybook-arrow, copybook-sequence-ring
-tools/                            # 3 dev-only (publish = false)
-  copybook-bench, copybook-gen, xtask
+  Facade:     copybook, copybook-rs
+tools/                            # 4 dev-only (publish = false)
+  copybook-bench, copybook-gen, copybook-scripts, xtask
 tests/                            # Test-only workspace members
   bdd, e2e, proptest
 ```

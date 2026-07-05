@@ -24,6 +24,7 @@
 | SIGN SEPARATE, COMP-1/COMP-2 | Promoted to stable and default-enabled in v0.4.3 |
 | Blocking perf regression gate (#512) | `perf-gate.yml` fails PRs on DISPLAY ≥80 / COMP-3 ≥8 MiB/s floors + >5% relative regression vs committed baseline |
 | Iterator module examples (#514) | Reference + how-to docs for the streaming iterator API; fixed fabricated `RecordDecoder` in LIBRARY_API.md/MIGRATION_GUIDE.md and a file-open error-code bug |
+| Enterprise deployment docs | [ENTERPRISE_DEPLOYMENT.md](ENTERPRISE_DEPLOYMENT.md) (production operations, Kubernetes, monitoring) and [enterprise-compliance-guide.md](enterprise-compliance-guide.md) shipped |
 
 **Test status**: 10,250+ passing (15 ignored), zero unsafe, clippy pedantic compliant.
 
@@ -34,14 +35,13 @@ These items must ship before v1.0.0 can be tagged.
 | Item | Est. Effort | Why it blocks |
 |------|-------------|---------------|
 | Enterprise audit/compliance | 8-12 weeks | SOX, HIPAA, GDPR, PCI DSS stubs are experimental; need production-grade outputs |
-| Enterprise deployment guide | 1-2 weeks | No production operations documentation |
 | API freeze window | 4 weeks | Only doc/bench/test changes; stabilizes public surface |
 
 **Estimated path**: Enterprise features (Mar-May 2026) -> docs & polish (Jun 2026) -> API freeze & release (Jun-Jul 2026).
 
 ## Later (Post-v1.0)
 
-- **Ecosystem adapters** -- copybook-arrow stabilization (currently experimental), Kafka example pipeline
+- **Ecosystem adapters** -- copybook-arrow stabilization (currently experimental); stabilize the existing Kafka example pipeline (`examples/kafka_pipeline/`)
 - **Native Linux benchmark baseline** -- replace WSL2 reference measurements with bare-metal numbers
 - **RENAMES R4-R6** -- advanced REDEFINES/OCCURS interactions (if demand warrants)
 - **Support policy** -- 6-month minor support window; security patches anytime
@@ -56,7 +56,7 @@ These items must ship before v1.0.0 can be tagged.
 ## What Blocks Wider Adoption
 
 1. Enterprise audit system outputs are experimental stubs, not compliance evidence.
-2. Iterator and deployment documentation gaps reduce onboarding velocity.
+2. copybook-arrow (Arrow/Parquet) integration remains experimental, limiting analytics pipeline adoption.
 
 ## Performance Baseline
 

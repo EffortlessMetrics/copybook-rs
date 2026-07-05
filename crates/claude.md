@@ -2,7 +2,7 @@
 # claude.md
 
 ## Scope
-- Holds the 36 publishable crates of the copybook-rs workspace (plus 2 facade/alias crates).
+- Holds the 38 publishable crates of the copybook-rs workspace (36 core + 2 facade/alias crates).
 - Organized by layer; see the "Workspace Layout" table in `../CLAUDE.md`.
 
 ## Layers at a glance

@@ -707,67 +707,6 @@ for result in iter {
 > record at EOF is a clean stop (`Ok(None)`), not an error. Missing
 > `lrecl_fixed` with `Fixed` format yields `Err(CBKI001)` on the first read.
 
-### JSON Writer with Schema Access
-
-```rust
-pub struct JsonWriter<W: Write> {
-    // Internal fields
-}
-
-impl<W: Write> JsonWriter<W> {
-    /// Create a new JSON writer with schema access for field path resolution
-    pub fn new(writer: W, schema: Schema, options: DecodeOptions) -> Self;
-
-    /// Write a single record as JSON line with schema-based field processing
-    pub fn write_record(
-        &mut self,
-        record_data: &[u8],
-        record_index: u64,
-        byte_offset: u64,
-    ) -> Result<()>;
-
-    /// Write a record using optimized streaming approach with direct schema access
-    pub fn write_record_streaming(
-        &mut self,
-        record_data: &[u8],
-        record_index: u64,
-        byte_offset: u64,
-    ) -> Result<()>;
-
-    /// Finish writing and return the inner writer
-    pub fn finish(self) -> Result<W>;
-}
-```
-
-**Key Features:**
-- **Schema Integration**: Direct access to schema structure for field path resolution
-- **REDEFINES Handling**: Enhanced cluster processing with proper size calculation using schema field lookup
-- **ODO Processing**: Improved counter field lookup using schema-based field path resolution
-- **Metadata Integration**: Automatic schema fingerprint inclusion in JSON output
-- **Streaming Performance**: Optimized JSON generation with schema-aware field ordering
-
-**Example:**
-```rust
-use copybook_codec::{JsonWriter, DecodeOptions};
-use std::io::Cursor;
-
-// Create JsonWriter with schema access
-let output_buffer = Vec::new();
-let cursor = Cursor::new(output_buffer);
-let mut json_writer = JsonWriter::new(cursor, schema.clone(), opts);
-
-// Write records with automatic schema-based field processing
-let record_data = &[0x01, 0x02, 0x03, /* ... */];
-json_writer.write_record(record_data, 0, 0)?;
-
-// Alternative streaming approach for better performance
-json_writer.write_record_streaming(record_data, 1, record_size as u64)?;
-
-// Finish and retrieve output
-let cursor = json_writer.finish()?;
-let json_output = cursor.into_inner();
-```
-
 **Single-record encode** (`encode_record`, crate root):
 
 ```rust
@@ -965,9 +904,9 @@ pub struct RunSummary {
 
 ## Advanced Usage
 
-### Enhanced REDEFINES Cluster Handling
+### REDEFINES Cluster Inspection
 
-The JsonWriter now provides enhanced REDEFINES processing with proper cluster size calculation using direct schema access:
+`Schema::find_redefining_fields` returns every field that redefines a given target path, letting callers reason about a REDEFINES cluster (e.g. to pick the widest field for size calculations, or to inspect which alternate views are defined):
 
 ```rust
 // Example schema with REDEFINES cluster
@@ -978,51 +917,34 @@ let copybook = r#"
    05 FIELD-B         REDEFINES DATA-FIELD PIC 9(8) COMP-3.
    05 FIELD-C         REDEFINES DATA-FIELD PIC X(15).
 "#;
+let schema = parse_copybook(copybook)?;
 
-// Schema-based cluster size calculation
-impl JsonEncoder {
-    /// Calculate cluster size accounting for all redefining fields
-    fn calculate_redefines_cluster_size(&self, field: &Field) -> Result<usize> {
-        let cluster_path = self.get_redefines_cluster_path(field);
-        let mut max_size = field.len as usize;
-        
-        // Find all fields in the REDEFINES cluster using schema lookup
-        for check_field in &self.schema.fields {
-            if let Some(ref check_redefines) = check_field.redefines_of {
-                if *check_redefines == cluster_path || check_field.path == cluster_path {
-                    max_size = max_size.max(check_field.len as usize);
-                }
-            } else if check_field.path == cluster_path {
-                max_size = max_size.max(check_field.len as usize);
-            }
-        }
-        
-        Ok(max_size)
-    }
-}
-
-// Enhanced view resolution using schema.find_redefining_fields()
-let redefining_fields = self.schema.find_redefining_fields(&primary_field.path);
-for redefining_field in redefining_fields {
-    // Process each redefining field with proper type checking
-    if let Some(value) = json_obj.get(&redefining_field.name) {
-        cluster_views.push((redefining_field, value));
-    }
-}
+// Find every field that redefines DATA-FIELD
+// (find_redefining_fields matches the bare name written after REDEFINES;
+// find_field matches the fully-qualified dotted path)
+let redefining_fields = schema.find_redefining_fields("DATA-FIELD");
+let max_size = redefining_fields
+    .iter()
+    .map(|f| f.len)
+    .chain(std::iter::once(
+        schema.find_field("RECORD.DATA-FIELD").unwrap().len,
+    ))
+    .max()
+    .unwrap();
 ```
 
-**Key Improvements:**
-- **Accurate Cluster Sizing**: Uses schema traversal to find maximum size across all redefining fields
+**Key Points:**
+- **Accurate Cluster Sizing**: Traverse `find_redefining_fields()` results to find the maximum size across all redefining fields
 - **Complete Field Discovery**: `find_redefining_fields()` method finds all fields that redefine a target
 - **Type-Safe Processing**: Schema access ensures proper field type and offset information
 - **Memory Safety**: Bounds checking uses actual calculated cluster size, not field-specific sizes
 
-### Improved ODO Counter Processing with Schema-Based Field Lookup
+### ODO (OCCURS DEPENDING ON) Schema Inspection
 
-The JsonWriter provides enhanced ODO (OCCURS DEPENDING ON) processing using direct schema field lookup:
+ODO counter resolution, encoding, and bounds validation happen automatically inside `decode_record`/`encode_record` — callers don't drive this directly. To *inspect* an ODO array's schema (e.g. to report its counter field or bounds), match on `Occurs::ODO`:
 
 ```rust
-// Example schema with ODO arrays
+// Example schema with an ODO array
 let copybook = r#"
 01 RECORD.
    05 ITEM-COUNT     PIC 9(3) COMP-3.
@@ -1030,92 +952,17 @@ let copybook = r#"
       10 ITEM-ID     PIC 9(8).
       10 ITEM-NAME   PIC X(20).
 "#;
+let schema = parse_copybook(copybook)?;
 
-// Schema-based ODO counter field lookup
-impl JsonEncoder {
-    /// Update ODO counter using schema field lookup
-    fn update_odo_counter(
-        &self,
-        counter_path: &str,
-        count: u32,
-        _json_obj: &Map<String, Value>,
-        record_data: &mut [u8],
-    ) -> Result<()> {
-        // Find counter field using schema.find_field() method
-        let counter_field = self
-            .schema
-            .find_field(counter_path)
-            .ok_or_else(|| {
-                Error::new(
-                    ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                    format!("Field not found: {}", counter_path),
-                )
-            })?;
-            
-        // Encode count value with proper type handling
-        match &counter_field.kind {
-            FieldKind::ZonedDecimal { digits, scale, signed } => {
-                let encoded = crate::numeric::encode_zoned_decimal(
-                    &count_str, *digits, *scale, *signed, self.options.codepage
-                )?;
-                // Write to counter field at correct offset
-                let end_offset = (counter_field.offset + counter_field.len) as usize;
-                record_data[counter_field.offset as usize..end_offset]
-                    .copy_from_slice(&encoded);
-            }
-            FieldKind::PackedDecimal { digits, scale, signed } => {
-                let encoded = crate::numeric::encode_packed_decimal(
-                    &count_str, *digits, *scale, *signed
-                )?;
-                // Write with proper offset and bounds checking
-            }
-            FieldKind::BinaryInt { bits, signed } => {
-                let encoded = crate::numeric::encode_binary_int(
-                    i64::from(count), *bits, *signed
-                )?;
-                // Write with schema-provided offset information
-            }
-            _ => {
-                return Err(Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("Invalid counter field type for ODO")
-                ));
-            }
-        }
-        
-        Ok(())
-    }
+let items_field = schema.find_field("RECORD.ITEMS").unwrap();
+if let Some(Occurs::ODO { min, max, counter_path }) = &items_field.occurs {
+    println!("ITEMS occurs {min}..={max} times, counted by {counter_path}");
 }
 ```
 
-**Key Improvements:**
-- **Schema Field Lookup**: Uses `schema.find_field(counter_path)` for reliable counter field resolution
-- **Type-Safe Counter Encoding**: Proper handling of zoned decimal, packed decimal, and binary integer counters
-- **Accurate Offset Calculation**: Uses schema-provided field offset and length information
-- **Comprehensive Error Handling**: Clear error messages for missing or invalid counter fields
-- **Memory Safety**: Proper bounds checking using schema field dimensions
-
-**ODO Array Processing:**
-```rust
-// Enhanced array count resolution
-fn get_actual_array_count(&self, occurs: &Occurs, record_data: &[u8]) -> Result<u32> {
-    match occurs {
-        Occurs::Fixed { count } => Ok(*count),
-        Occurs::ODO { min, max, counter_path } => {
-            // Schema-based counter field lookup (when fully implemented)
-            let counter_field = self.schema.find_field(counter_path)?;
-            let counter_value = self.read_counter_value(counter_field, record_data)?;
-            
-            // Validate against ODO bounds
-            if counter_value < *min || counter_value > *max {
-                return Err(/* ODO bounds error */);
-            }
-            
-            Ok(counter_value)
-        }
-    }
-}
-```
+**Key Points:**
+- **Automatic Resolution**: `decode_record`/`encode_record` read and write the counter field and validate `min`/`max` bounds internally; no manual counter handling is required.
+- **Schema-Only Inspection**: `Occurs::ODO { min, max, counter_path }` is available for callers who want to report on or validate schema structure without decoding data.
 
 ### Custom Field Processing
 

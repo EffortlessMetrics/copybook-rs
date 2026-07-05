@@ -236,18 +236,18 @@ fn decode_raw_mode_field() {
     let opts = ascii_decode_opts().with_emit_raw(RawMode::Field);
     let json = decode_record(&schema, data, &opts).unwrap();
 
-    // Field-level raw capture: each field should have {FIELD}_raw_b64
+    // Field-level raw capture: each field should have {FIELD}__raw_b64
     assert!(
-        json.get("FLD1_raw_b64").is_some(),
-        "RawMode::Field should emit FLD1_raw_b64, got keys: {:?}",
+        json.get("FLD1__raw_b64").is_some(),
+        "RawMode::Field should emit FLD1__raw_b64, got keys: {:?}",
         json.as_object().map(|o| o.keys().collect::<Vec<_>>())
     );
     assert!(
-        json.get("FLD2_raw_b64").is_some(),
-        "RawMode::Field should emit FLD2_raw_b64"
+        json.get("FLD2__raw_b64").is_some(),
+        "RawMode::Field should emit FLD2__raw_b64"
     );
     // Verify the raw bytes decode correctly
-    let raw1 = json["FLD1_raw_b64"].as_str().unwrap();
+    let raw1 = json["FLD1__raw_b64"].as_str().unwrap();
     let decoded1 = base64::engine::general_purpose::STANDARD
         .decode(raw1)
         .unwrap();
@@ -264,7 +264,7 @@ fn decode_raw_mode_field_no_record_level_raw() {
     let json = decode_record(&schema, data, &opts).unwrap();
 
     assert!(
-        json.get("FLD_raw_b64").is_some(),
+        json.get("FLD__raw_b64").is_some(),
         "RawMode::Field should emit field-level raw"
     );
 }

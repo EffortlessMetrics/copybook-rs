@@ -20,7 +20,7 @@ copybook-rs is currently at **Engineering Preview v0.4.3** with significant arch
 **Strengths**:
 - Well-organized 36-crate workspace (plus 3 dev tools)
 - Clean separation of parsing, encoding/decoding, and CLI interfaces
-- Comprehensive error taxonomy with 61 error codes across 10 families
+- Comprehensive error taxonomy with 63 error codes across 10 families
 - Memory-safe implementation with pedantic linting enforcement
 
 **Technical Debt Assessment**:

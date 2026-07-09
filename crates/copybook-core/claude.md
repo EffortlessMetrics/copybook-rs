@@ -9,7 +9,8 @@
 
 ## Navigation
 - Crates index + layer map: `../claude.md`
-- Repository root + invariants: `../../CLAUDE.md`
+- Repository contract: `../../AGENTS.md`
+- Core-specific contract: `AGENTS.md`
 
 ## Build
 - `cargo build -p copybook-core`

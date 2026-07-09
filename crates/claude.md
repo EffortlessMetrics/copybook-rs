@@ -2,8 +2,9 @@
 # claude.md
 
 ## Scope
-- Holds the 36 publishable crates of the copybook-rs workspace (plus 2 facade/alias crates).
-- Organized by layer; see the "Workspace Layout" table in `../CLAUDE.md`.
+- Maps the publishable crates in the copybook-rs workspace.
+- Organized by layer in the table below; verify current membership in the root
+  `Cargo.toml`.
 
 ## Layers at a glance
 | Layer | Crates |
@@ -20,7 +21,8 @@
 | Other | `copybook-arrow`, `copybook-sequence-ring` |
 
 ## Navigation
-- Repository root + invariants: `../CLAUDE.md`
+- Repository contract: `../AGENTS.md`
+- Scoped crate contract: `AGENTS.md`
 - Per-crate guidance: each `<crate>/claude.md`
 - Canonical feature/error docs: `../docs/`
 

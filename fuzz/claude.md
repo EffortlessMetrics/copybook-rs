@@ -6,7 +6,8 @@
 - Standalone; not a workspace member.
 
 ## Navigation
-- Repository root + invariants: `../CLAUDE.md`
+- Repository contract: `../AGENTS.md`
+- Fuzz-specific contract: `AGENTS.md`
 - Fuzz targets: `fuzz_targets/`
 
 ## Run

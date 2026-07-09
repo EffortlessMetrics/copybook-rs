@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous Tasks
 
+- **docs**: Add a tool-neutral `AGENTS.md` hierarchy and align Claude, Gemini, Copilot, and contributor entry points
 - Update GitHub Actions to use latest action versions
 - **docs**: Update CLAUDE.md workspace structure (36 crates, 69 deps)
 - **docs**: Update README test count (10,000+ passed, 15 ignored)

@@ -49,7 +49,7 @@
 <!-- Mark completed items with an 'x' -->
 
 - [ ] Tests added/updated (or N/A for docs-only changes)
-- [ ] Documentation updated (CLAUDE.md, docs/, or inline comments if needed)
+- [ ] Documentation updated (AGENTS.md, tool adapters, docs/, or inline comments if needed)
 - [ ] CHANGELOG.md updated (if user-facing change)
 - [ ] `cargo fmt --all` passes
 - [ ] `cargo clippy --workspace -- -D warnings -W clippy::pedantic` passes

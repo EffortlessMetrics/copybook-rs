@@ -5,11 +5,13 @@
 - Deterministic COBOL copybook codec for EBCDIC/ASCII fixed and RDW records. Schema -> encode/decode binary <-> JSON.
 - Layer: **Codec**.
 - Workspace package `copybook-codec` (see `Cargo.toml`).
-- Raw data capture (`__raw_b64`) convention: see root `CLAUDE.md`
+- Raw data capture conventions: see `AGENTS.md` and the canonical library API,
+  CLI reference, and JSONL schema
 
 ## Navigation
 - Crates index + layer map: `../claude.md`
-- Repository root + invariants: `../../CLAUDE.md`
+- Repository contract: `../../AGENTS.md`
+- Codec-specific contract: `AGENTS.md`
 
 ## Build
 - `cargo build -p copybook-codec`

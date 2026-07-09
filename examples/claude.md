@@ -14,7 +14,8 @@
 | `kafka_pipeline` | Streaming pipeline (standalone crate, not a workspace member) |
 
 ## Navigation
-- Repository root + invariants: `../CLAUDE.md`
+- Repository contract: `../AGENTS.md`
+- Example-specific contract: `AGENTS.md`
 - Library API reference: `../docs/reference/LIBRARY_API.md`
 
 ## Run

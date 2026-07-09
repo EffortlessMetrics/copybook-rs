@@ -223,8 +223,8 @@ fn roundtrip_decode_then_encode_ebcdic_c_and_d_zones() {
 
 #[test]
 fn roundtrip_decode_then_encode_ascii_overpunch_chars() {
-    let positive_chars = [b'{', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I'];
-    let negative_chars = [b'}', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R'];
+    let positive_chars = *b"{ABCDEFGHI";
+    let negative_chars = *b"}JKLMNOPQR";
 
     for &byte in positive_chars.iter().chain(negative_chars.iter()) {
         let (d, is_neg) = decode_overpunch_byte(byte, Codepage::ASCII).unwrap();

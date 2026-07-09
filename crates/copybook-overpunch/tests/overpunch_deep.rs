@@ -106,7 +106,7 @@ fn ebcdic_decode_unsigned_zone_f_for_each_digit() {
 
 #[test]
 fn ascii_encode_positive_each_digit() {
-    let expected: [u8; 10] = [b'{', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I'];
+    let expected: [u8; 10] = *b"{ABCDEFGHI";
     for digit in 0u8..=9 {
         let enc =
             encode_overpunch_byte(digit, false, Codepage::ASCII, ZeroSignPolicy::Positive).unwrap();
@@ -116,7 +116,7 @@ fn ascii_encode_positive_each_digit() {
 
 #[test]
 fn ascii_encode_negative_each_digit() {
-    let expected: [u8; 10] = [b'}', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R'];
+    let expected: [u8; 10] = *b"}JKLMNOPQR";
     for digit in 0u8..=9 {
         let enc =
             encode_overpunch_byte(digit, true, Codepage::ASCII, ZeroSignPolicy::Positive).unwrap();

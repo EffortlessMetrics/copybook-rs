@@ -61,7 +61,7 @@ fn second_byte_non_digit_not_suspect() {
 fn reserved_bytes_do_not_influence_detection() {
     // Detection is only based on bytes 0 and 1
     assert!(rdw_is_suspect_ascii_corruption([b'1', b'2', 0xFF, 0xFF]));
-    assert!(rdw_is_suspect_ascii_corruption([b'1', b'2', b'A', b'B']));
+    assert!(rdw_is_suspect_ascii_corruption(*b"12AB"));
     assert!(rdw_is_suspect_ascii_corruption([b'1', b'2', 0x00, 0x00]));
 }
 
@@ -119,7 +119,7 @@ fn slice_agrees_with_array_variant() {
         [b'1', b'2', 0x00, 0x00],
         [0x00, 0x50, 0x00, 0x00],
         [b'0', b'0', 0xFF, 0xFF],
-        [b'9', b'9', b'A', b'B'],
+        *b"99AB",
         [b'A', b'0', 0x00, 0x00],
         [0xFF, 0xFF, 0xFF, 0xFF],
     ];

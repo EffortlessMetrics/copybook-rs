@@ -95,7 +95,7 @@ fn decode_ascii_negative_j_through_r() {
 
 #[test]
 fn encode_ascii_positive_all_digits() {
-    let expected_bytes = [b'{', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I'];
+    let expected_bytes = *b"{ABCDEFGHI";
     for digit in 0u8..=9 {
         let byte =
             encode_overpunch_byte(digit, false, Codepage::ASCII, ZeroSignPolicy::Positive).unwrap();
@@ -122,7 +122,7 @@ fn encode_ebcdic_positive_all_digits_all_codepages() {
 
 #[test]
 fn encode_ascii_negative_all_digits() {
-    let expected_bytes = [b'}', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R'];
+    let expected_bytes = *b"}JKLMNOPQR";
     for digit in 0u8..=9 {
         let byte =
             encode_overpunch_byte(digit, true, Codepage::ASCII, ZeroSignPolicy::Positive).unwrap();
@@ -299,7 +299,7 @@ fn full_roundtrip_all_digits_signs_codepages() {
 
 #[test]
 fn is_valid_overpunch_ascii_positive_chars() {
-    for byte in [b'{', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I'] {
+    for byte in *b"{ABCDEFGHI" {
         assert!(
             is_valid_overpunch(byte, Codepage::ASCII),
             "byte 0x{byte:02X}"
@@ -309,7 +309,7 @@ fn is_valid_overpunch_ascii_positive_chars() {
 
 #[test]
 fn is_valid_overpunch_ascii_negative_chars() {
-    for byte in [b'}', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R'] {
+    for byte in *b"}JKLMNOPQR" {
         assert!(
             is_valid_overpunch(byte, Codepage::ASCII),
             "byte 0x{byte:02X}"

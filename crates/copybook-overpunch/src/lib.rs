@@ -603,7 +603,7 @@ mod tests {
 
     #[test]
     fn test_ascii_encode_each_digit_positive() {
-        let expected_bytes: [u8; 10] = [b'{', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I'];
+        let expected_bytes: [u8; 10] = *b"{ABCDEFGHI";
         for digit in 0u8..=9 {
             let enc =
                 encode_overpunch_byte(digit, false, Codepage::ASCII, ZeroSignPolicy::Positive)
@@ -617,7 +617,7 @@ mod tests {
 
     #[test]
     fn test_ascii_encode_each_digit_negative() {
-        let expected_bytes: [u8; 10] = [b'}', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R'];
+        let expected_bytes: [u8; 10] = *b"}JKLMNOPQR";
         for digit in 0u8..=9 {
             let enc = encode_overpunch_byte(digit, true, Codepage::ASCII, ZeroSignPolicy::Positive)
                 .unwrap();

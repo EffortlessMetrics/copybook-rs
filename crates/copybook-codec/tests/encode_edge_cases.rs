@@ -491,7 +491,7 @@ fn test_sign_separate_buffer_too_small() {
 #[test]
 fn test_overpunch_ascii_positive_digits() {
     // +0={, +1=A, ..., +9=I
-    let expected = [b'{', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I'];
+    let expected = *b"{ABCDEFGHI";
     for digit in 0..=9 {
         let result =
             encode_overpunch_byte(digit, false, Codepage::ASCII, ZeroSignPolicy::Positive).unwrap();
@@ -505,7 +505,7 @@ fn test_overpunch_ascii_positive_digits() {
 #[test]
 fn test_overpunch_ascii_negative_digits() {
     // -0=}, -1=J, ..., -9=R
-    let expected = [b'}', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R'];
+    let expected = *b"}JKLMNOPQR";
     for digit in 0..=9 {
         let result =
             encode_overpunch_byte(digit, true, Codepage::ASCII, ZeroSignPolicy::Positive).unwrap();

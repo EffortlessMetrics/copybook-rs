@@ -191,7 +191,7 @@ fn rdw_try_peek_len_two_bytes_returns_some() {
 fn ascii_corruption_detected_for_digit_bytes() {
     assert!(rdw_is_suspect_ascii_corruption([b'1', b'2', 0, 0]));
     assert!(rdw_is_suspect_ascii_corruption([b'0', b'0', 0, 0]));
-    assert!(rdw_is_suspect_ascii_corruption([b'9', b'9', b'3', b'4']));
+    assert!(rdw_is_suspect_ascii_corruption(*b"9934"));
 }
 
 #[test]

@@ -98,7 +98,7 @@ mod tests {
     fn reserved_bytes_do_not_affect_detection() {
         // Detection only looks at first two bytes
         assert!(rdw_is_suspect_ascii_corruption([b'0', b'0', 0xFF, 0xFF]));
-        assert!(rdw_is_suspect_ascii_corruption([b'9', b'9', b'A', b'B']));
+        assert!(rdw_is_suspect_ascii_corruption(*b"99AB"));
     }
 
     #[test]

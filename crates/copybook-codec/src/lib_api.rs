@@ -166,8 +166,8 @@ pub fn decode_record_with_raw_data(
 
     let mut record_raw = None;
     match options.emit_raw {
-        RawMode::Off => {}
-        RawMode::Record | RawMode::Field => {
+        RawMode::Off | RawMode::Field => {}
+        RawMode::Record => {
             let raw_b64 = base64::engine::general_purpose::STANDARD.encode(data);
             record_raw = Some(raw_b64);
         }

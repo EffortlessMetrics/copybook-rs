@@ -3,8 +3,6 @@
 //!
 //! Implements comprehensive validation ensuring lossless data preservation
 //! across encode/decode cycles with cryptographic integrity verification.
-#![allow(dead_code)]
-
 use crate::{DecodeOptions, EncodeOptions, decode_record, encode_record, memory::ScratchBuffers};
 use copybook_core::{Field, FieldKind, Schema};
 use serde_json::Value as JsonValue;

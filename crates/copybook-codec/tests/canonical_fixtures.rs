@@ -49,7 +49,6 @@ fn binary_to_hex(data: &[u8]) -> String {
 }
 
 /// Convert hex string back to binary data
-#[allow(dead_code)]
 fn hex_to_binary(hex: &str) -> Result<Vec<u8>, hex::FromHexError> {
     hex::decode(hex)
 }

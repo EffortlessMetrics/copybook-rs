@@ -1,136 +1,176 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Release Runbook
 
-**Purpose**: Repeatable release process for publishing the copybook-rs crates to crates.io.
+**Purpose**: Repeatable release process for publishing `copybook-rs` crates to crates.io.
 
 **Canonical status**: `docs/ROADMAP.md`
 
 ---
 
-## 1) Choose the Tag Commit
+## Scope and invariants
 
-- Land on `main` (no local-only commits).
-- Ensure a clean working tree: `git status`.
+This runbook is for release execution only. It documents a resumable, ambiguity-safe process that
+prefers inspection, checkpoints, and fix-forward recovery. It intentionally does not treat yank as the
+default rollback mechanism.
+
+Non-goals:
+
+- publishing directly from a dirty worktree
+- publishing from non-`main` branches
+- blind recovery by re-running everything
+- normal cleanup by yank
 
 ---
 
-## 2) Prove the Commit (Required)
+## 1) Choose the exact release commit
 
-Run the same gates CI expects on the exact commit you intend to tag:
+1. Ensure you are on a clean `main` branch:
 
 ```bash
-# Lint → clippy → build → nextest → doctests
-bash scripts/ci/quick.sh
+git fetch --all --tags
+git checkout main
+git pull
+git status
+```
 
-# Security sweep (deny always; audit only on Cargo.lock diffs)
-BASE_SHA=origin/main HEAD_SHA=HEAD bash scripts/ci/security.sh
+2. Confirm the commit you will tag is exactly what passed the required gates:
 
-# Docs-truth
+```bash
+git rev-parse HEAD
+```
+
+3. Verify the commit is not dirty:
+
+```bash
+test -z "$(git status --porcelain)"
+```
+
+---
+
+## 2) Run required gates on the exact commit
+
+```bash
+just ci
+```
+
+and at minimum:
+
+```bash
 cargo run -p xtask -- docs verify-support-matrix
+cargo run -p xtask -- publish plan --check
+cargo run -p xtask -- publish plan
+cargo run -p xtask -- publish plan --format json
 ```
 
-If any of these fail on the tag commit, do not ship.
+If any step fails, do not proceed.
 
----
+## 3) Capture release plan and evidence
 
-## 3) Preflight crates.io Packaging (Required)
-
-On the tag commit:
+The runbook now uses the xtask-generated publish plan as the single publishable crate source of truth.
 
 ```bash
-cargo publish -p copybook-core --dry-run
+RELEASE_TAG="vX.Y.Z" # no leading whitespace
+mkdir -p "release-state/${RELEASE_TAG}"
+cargo run -p xtask -- publish plan --format json > "release-state/${RELEASE_TAG}/publish-plan.json"
+wc -l "release-state/${RELEASE_TAG}/publish-plan.json"
 ```
 
-**Note (workspace dependency ordering)**: `copybook-codec` depends on `copybook-core`, and `copybook-cli` depends on both. `cargo publish --dry-run` for downstream crates requires their dependencies to exist on crates.io, so run these dry-runs **just-in-time** during the publish sequence:
+Store the following next to the plan:
 
-1. Publish `copybook-core`
-2. Wait for crates.io index propagation
-3. Dry-run (then publish) `copybook-codec`
-4. Wait for crates.io index propagation
-5. Dry-run (then publish) `copybook-arrow`
-6. Wait for crates.io index propagation
-7. Dry-run (then publish) `copybook-cli`
+- `git rev-parse HEAD`
+- gate command output
+- `git log --oneline -1 HEAD`
+- a link to the release ticket or tag notes draft
 
-The repository publish workflow (`.github/workflows/publish.yml`) follows this order.
+These artifacts are the recovery point source for resumable publishes.
 
-**Note (dry-run limitations for workspace crates)**: `cargo publish --dry-run` for `copybook-codec` and `copybook-cli` may fail prior to publishing their dependencies because verification builds crates in isolation. This is expected behavior for workspace crates. To inspect tarball contents without verification, use:
+## 4) Tag and publish controls
+
+1. Create and push the tag only after evidence capture is complete.
 
 ```bash
-cargo package -p copybook-codec --no-verify
-cargo package -p copybook-cli --no-verify
+git tag -a "${RELEASE_TAG}" -m "copybook-rs ${RELEASE_TAG}"
+git push origin "${RELEASE_TAG}"
 ```
 
-The `--no-verify` flag skips the build verification step and allows inspection of the packaged tarball. This is useful for reviewing `package.include` settings and verifying that the correct files will be included in the published crate.
-
----
-
-## 4) Tag + Publish
-
-- Ensure `CHANGELOG.md` matches the tag date (or keep it `Unreleased` until you tag).
-- Create the tag:
-  ```bash
-  git tag -a v0.4.0 -m "v0.4.0"
-  git push origin main --tags
-  ```
-- Publish in order:
-  1. `copybook-core`
-  2. `copybook-codec`
-  3. `copybook-arrow`
-  4. `copybook-cli`
-
----
-
-## 5) Post-Release Verification
-
-- docs.rs builds complete for:
-  - `copybook-core`
-  - `copybook-codec`
-  - `copybook-arrow`
-  - `copybook-cli`
-- Install works on a clean machine:
-  ```bash
-  cargo install copybook-cli@0.4.0
-  ```
-
----
-
-## Distribution Truth
-
-**crates.io publish makes the crate public.** Once published:
-- The published crate tarball (packaged sources) is public
-- Download statistics are public
-- Crate metadata (dependencies, features) is indexed
-
-**Private distribution options:**
-- Git tags on private repositories
-- Private cargo registries (Cloudsmith, Artifactory, etc.)
-- Vendored dependencies via `cargo vendor`
-
-**SBOM generation** (for enterprise compliance):
-```bash
-# Generate CycloneDX SBOM locally
-cargo cyclonedx --manifest-path copybook-cli/Cargo.toml --format json
-mv copybook-cli/copybook-cli.cdx.json sbom.cdx.json
-
-# Or trigger the workflow (workflow_dispatch)
-# Artifact: sbom-cyclonedx/sbom.cdx.json
-```
-
----
-
-## Rollback (If Needed)
-
-If you published a bad release:
+2. Publish via workflow dispatch to the protected `release` environment:
 
 ```bash
-# Yank in reverse dependency order
-cargo yank copybook-cli@0.4.0
-cargo yank copybook-arrow@0.4.0
-cargo yank copybook-codec@0.4.0
-cargo yank copybook-core@0.4.0
+gh workflow run publish.yml -f tag="${RELEASE_TAG}"
 ```
 
-Then cut a patch release with fixes and re-run this runbook.
+`publish.yml` uses `tools/xtask` plan output for publish order and count. Keep approval required by the
+GitHub environment guardrails before publishing starts.
+
+---
+
+## 5) Recovery model (resume + fix-forward)
+
+Treat each publish step as potentially ambiguous unless a post-step verification proves success.
+
+### On timeout or interruption
+
+1. Pause and classify the failure as **ambiguous** until checked.
+2. Inspect workflow logs and capture the last checkpoint crate index.
+3. Record the checkpoint under `release-state/${RELEASE_TAG}/` locally before continuing.
+4. For every crate before the failed checkpoint, verify it is visible on crates.io:
+
+```bash
+CRATE_NAME="copybook-core"
+VERSION="X.Y.Z"
+curl -sf "https://crates.io/api/v1/crates/${CRATE_NAME}/${VERSION}" | jq -r '.version.num'
+```
+
+5. Resume publishing from the first unchecked crate in `publish-plan.json`.
+
+### On partial visibility
+
+If a crate is present on crates.io at the target version but later crates failed, resume from the next
+missing crate; do not republish prior crates.
+
+### If crates.io state is unclear
+
+If index lookups or API checks remain inconclusive:
+
+- stop automated retries
+- open an incident note on the release ticket
+- do not yank as the first recovery action
+
+---
+
+## 6) Required post-release checks
+
+Run clean-room verification for stable installation and docs references:
+
+```bash
+VERSION="X.Y.Z"
+cargo install copybook-cli@${VERSION} --locked
+cargo install copybook-cli@${VERSION} --locked --features arrow
+```
+
+Validate public visibility from `publish-plan.json` (all crates listed there, including `copybook` and
+`copybook-rs`) on both crates.io and docs.rs.
+
+---
+
+## 7) Rollback guidance
+
+Normal recovery is resumable and fix-forward, not yank.
+
+- Avoid yanking as a routine release recovery path.
+- Use yank only when required by legal/security policy.
+- For non-exceptional releases, prefer:
+  - patch release over cleanup by yank
+  - clear migration instructions in changelog and release notes
+
+If yank is used, document:
+
+- reason and approver
+- exact crates and versions yanked
+- whether a replacement patch release is planned
+
+---
+
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

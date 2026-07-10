@@ -37,6 +37,12 @@ pub enum PlanFormat {
     Json,
 }
 
+/// Compute and emit the publish plan.
+///
+/// # Errors
+///
+/// Returns an error if `cargo metadata` fails, if the metadata cannot be parsed, or if
+/// the resulting publish plan fails validation.
 #[inline]
 pub fn run_plan(format: PlanFormat, check_only: bool) -> Result<()> {
     let plan = build_publish_plan()?;
@@ -93,7 +99,8 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
         .packages
         .into_iter()
         .filter(|package| {
-            workspace_members.contains(&package.id) && is_publishable_package(&package.publish)
+            workspace_members.contains(&package.id)
+                && is_publishable_package(package.publish.as_ref())
         })
         .collect::<Vec<_>>();
 
@@ -216,9 +223,8 @@ fn validate_publish_plan(plan: &[String]) -> Result<()> {
     Ok(())
 }
 
-fn is_publishable_package(publish: &Option<Value>) -> bool {
+fn is_publishable_package(publish: Option<&Value>) -> bool {
     match publish {
-        None => true,
         Some(Value::Bool(false)) => false,
         Some(Value::Array(values)) => !values.is_empty(),
         _ => true,

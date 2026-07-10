@@ -535,7 +535,7 @@ rules:
 
 - [copybook-rs Documentation](https://github.com/EffortlessMetrics/copybook-rs)
 - [CLAUDE.md](../../CLAUDE.md) - Project development guidelines
-- [Performance Baselines](../../copybook-bench/BASELINE_METHODOLOGY.md)
+- [Performance Baselines](../../tools/copybook-bench/BASELINE_METHODOLOGY.md)
 - [Kubernetes Kustomize](https://kustomize.io/)
 - [Kubernetes Jobs](https://kubernetes.io/docs/concepts/workloads/controllers/job/)
 ## License

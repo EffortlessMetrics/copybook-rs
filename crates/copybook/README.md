@@ -44,3 +44,10 @@ Each module re-exports the corresponding published component crate:
 Use the component crates directly when you need the smallest possible dependency
 surface. Use `copybook` when you want the canonical project entrypoint and a
 single dependency over the public crate family.
+
+Add `copybook` in your `Cargo.toml`:
+
+```toml
+[dependencies]
+copybook = "0.4"
+```

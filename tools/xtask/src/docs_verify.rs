@@ -161,14 +161,12 @@ fn verify_performance_floor_and_receipt() -> Result<()> {
     let comp3_floor = parse_floor_value(&policy_text, "COMP-3")?;
     if (display_floor - DISPLAY_FLOOR_MIBPS).abs() > f64::EPSILON {
         bail!(
-            "DISPLAY floor drift: docs={display_floor} vs perf gate={} | authoritative-source=docs/PERFORMANCE_GOVERNANCE.md and tools/copybook-bench/src/slo.rs",
-            DISPLAY_FLOOR_MIBPS
+            "DISPLAY floor drift: docs={display_floor} vs perf gate={DISPLAY_FLOOR_MIBPS} | authoritative-source=docs/PERFORMANCE_GOVERNANCE.md and tools/copybook-bench/src/slo.rs"
         );
     }
     if (comp3_floor - COMP3_CI_FLOOR_MIBPS).abs() > f64::EPSILON {
         bail!(
-            "COMP-3 floor drift: docs={comp3_floor} vs perf gate={} | authoritative-source=docs/PERFORMANCE_GOVERNANCE.md and tools/copybook-bench/src/slo.rs",
-            COMP3_CI_FLOOR_MIBPS
+            "COMP-3 floor drift: docs={comp3_floor} vs perf gate={COMP3_CI_FLOOR_MIBPS} | authoritative-source=docs/PERFORMANCE_GOVERNANCE.md and tools/copybook-bench/src/slo.rs"
         );
     }
 
@@ -182,17 +180,15 @@ fn verify_performance_floor_and_receipt() -> Result<()> {
     let snapshot = perf::parse_perf_receipt(&canonical)?;
 
     if snapshot.display_mibps < DISPLAY_FLOOR_MIBPS {
+        let display_mibps = snapshot.display_mibps;
         bail!(
-            "canonical performance floor failed: DISPLAY display={} MiB/s < enforced floor {} MiB/s",
-            snapshot.display_mibps,
-            DISPLAY_FLOOR_MIBPS
+            "canonical performance floor failed: DISPLAY display={display_mibps} MiB/s < enforced floor {DISPLAY_FLOOR_MIBPS} MiB/s"
         );
     }
     if snapshot.comp3_mibps < COMP3_CI_FLOOR_MIBPS {
+        let comp3_mibps = snapshot.comp3_mibps;
         bail!(
-            "canonical performance floor failed: COMP-3 {} MiB/s < enforced floor {} MiB/s",
-            snapshot.comp3_mibps,
-            COMP3_CI_FLOOR_MIBPS
+            "canonical performance floor failed: COMP-3 {comp3_mibps} MiB/s < enforced floor {COMP3_CI_FLOOR_MIBPS} MiB/s"
         );
     }
     let display_delta_pct =

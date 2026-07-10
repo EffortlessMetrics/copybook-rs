@@ -1,19 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use copybook_core::support_matrix;
 use std::{fs, path::Path};
-use xtask::{counts, perf, Counts};
-use xtask::publish::{run_plan, PlanFormat};
+use xtask::publish::{PlanFormat, run_plan};
+use xtask::{Counts, counts, perf};
 
+mod docs_verify;
 mod pr_insights;
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let arg_refs = args.iter().map(std::string::String::as_str).collect::<Vec<_>>();
+    let arg_refs = args
+        .iter()
+        .map(std::string::String::as_str)
+        .collect::<Vec<_>>();
 
     match arg_refs.as_slice() {
         ["docs", "sync-tests"] => sync(),
         ["docs", "verify-tests"] => verify(),
+        ["docs", "verify-all"] => docs_verify::run(),
         ["docs", "verify-support-matrix"] => verify_support_matrix(),
         ["perf"] => perf::run(false, None),
         ["perf", "--enforce"] => perf::run(true, None),
@@ -22,7 +27,10 @@ fn main() -> Result<()> {
         ["perf", "--summarize-last" | "--summarize"] => perf_summarize_last(),
         ["publish", "plan", rest @ ..] => publish_plan(rest),
         ["pr-insights"] => pr_insights::generate_summary(),
-        _ => usage(),
+        _ => {
+            usage();
+            Ok(())
+        }
     }
 }
 
@@ -37,10 +45,10 @@ fn publish_plan(args: &[&str]) -> Result<()> {
                 check_only = true;
             }
             "--format" => {
-                let value = args.get(i + 1).copied().ok_or_else(|| {
-                    bail!("Missing value for --format. Expected: plain or json.")
-                })?;
-                format = match value {
+                let Some(value) = args.get(i + 1) else {
+                    bail!("Missing value for --format. Expected: plain or json.");
+                };
+                format = match *value {
                     "plain" => PlanFormat::Plain,
                     "json" => PlanFormat::Json,
                     other => {
@@ -61,12 +69,13 @@ fn publish_plan(args: &[&str]) -> Result<()> {
     run_plan(format, check_only)
 }
 
-fn usage() -> Result<()> {
+fn usage() {
     eprintln!(
         "Usage: cargo run -p xtask -- [docs|perf|publish|pr-insights] <subcommand>\n\
          \n\
          docs sync-tests                     Sync test status from junit.xml\n\
          docs verify-tests                   Verify test status is in sync\n\
+         docs verify-all                     Verify all source-of-truth documentation invariants\n\
          docs verify-support-matrix          Verify support matrix registry -> docs\n\
          perf                                Run perf benchmark runner\n\
          perf --enforce                      Run perf with SLO enforcement\n\
@@ -75,7 +84,6 @@ fn usage() -> Result<()> {
          publish plan [--format <plain|json>] [--check]  Print and validate publish order\n\
          pr-insights                         Generate PR insights report (nextest + perf)"
     );
-    Ok(())
 }
 
 fn block(c: &Counts) -> String {
@@ -135,8 +143,8 @@ fn verify_support_matrix() -> Result<()> {
     let mut missing = Vec::new();
 
     for feature in all_features {
-        let id = serde_plain::to_string(&feature.id)
-            .unwrap_or_else(|_| format!("{:?}", feature.id));
+        let id =
+            serde_plain::to_string(&feature.id).unwrap_or_else(|_| format!("{:?}", feature.id));
 
         // Check if the feature ID appears anywhere in the doc
         // We're lenient: just check for the kebab-case ID string

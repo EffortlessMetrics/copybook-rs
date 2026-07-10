@@ -14,6 +14,11 @@ Rust toolkit for COBOL copybook parsing and fixed-record data conversion. Determ
 
 Engineering Preview (v0.4.3). Stable CLI and library APIs; feature completeness is preview-level. See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
 
+<!-- TEST_STATUS:BEGIN -->
+**conformance:** 1/1 â€¢ **roundtrip:** N/A â€¢ **negative:** N/A â€¢ **skipped:** 0 â€¢ **leaks:** 0  
+_Source: CI receipts (nextest/junit). This block is updated automatically._
+<!-- TEST_STATUS:END -->
+
 ## Try It Now
 
 The repo includes test fixtures. After building, run this to see it work:
@@ -107,3 +112,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full development workflow.
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+

@@ -31,6 +31,7 @@ chrono = { workspace = true, features = ["std", "clock"] }
 copybook-core = { workspace = true }
 copybook-bench = { workspace = true }
 num_cpus = { workspace = true }
+toml.workspace = true
 
 [lints]
 workspace = true

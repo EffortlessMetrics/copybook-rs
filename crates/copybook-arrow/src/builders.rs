@@ -31,6 +31,9 @@ pub(crate) trait ColumnAccumulator: Send {
     /// Append a null value.
     fn append_null(&mut self);
 
+    /// Return the number of appended values (including nulls).
+    fn len(&self) -> usize;
+
     /// Finish building and return the Arrow array.
     fn finish(&mut self) -> ArrayRef;
 }
@@ -126,6 +129,10 @@ impl ColumnAccumulator for Utf8Accumulator {
         self.count += 1;
     }
 
+    fn len(&self) -> usize {
+        self.count
+    }
+
     fn finish(&mut self) -> ArrayRef {
         Arc::new(self.builder.finish())
     }
@@ -189,6 +196,10 @@ impl ColumnAccumulator for ZonedDecimalAccumulator {
         self.count += 1;
     }
 
+    fn len(&self) -> usize {
+        self.count
+    }
+
     fn finish(&mut self) -> ArrayRef {
         Arc::new(self.builder.finish())
     }
@@ -241,6 +252,10 @@ impl ColumnAccumulator for PackedDecimalAccumulator {
     fn append_null(&mut self) {
         self.builder.append_null();
         self.count += 1;
+    }
+
+    fn len(&self) -> usize {
+        self.count
     }
 
     fn finish(&mut self) -> ArrayRef {
@@ -311,6 +326,10 @@ macro_rules! impl_int_accumulator {
                 self.count += 1;
             }
 
+            fn len(&self) -> usize {
+                self.count
+            }
+
             fn finish(&mut self) -> ArrayRef {
                 Arc::new(self.builder.finish())
             }
@@ -367,6 +386,10 @@ impl ColumnAccumulator for Float32Accumulator {
         self.count += 1;
     }
 
+    fn len(&self) -> usize {
+        self.count
+    }
+
     fn finish(&mut self) -> ArrayRef {
         Arc::new(self.builder.finish())
     }
@@ -408,6 +431,10 @@ impl ColumnAccumulator for Float64Accumulator {
     fn append_null(&mut self) {
         self.builder.append_null();
         self.count += 1;
+    }
+
+    fn len(&self) -> usize {
+        self.count
     }
 
     fn finish(&mut self) -> ArrayRef {

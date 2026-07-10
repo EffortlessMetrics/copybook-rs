@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Library API Reference
 
-Complete reference for using copybook-rs as a Rust library.
+Complete reference for using `copybook` as a Rust library.
 
 ## Overview
 
@@ -20,19 +20,20 @@ Encoding and decoding logic for converting between binary data and structured va
 
 ## Quick Start
 
-Add copybook-rs to your `Cargo.toml`:
+Add the canonical `copybook` facade crate to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-copybook-core = "0.1"
-copybook-codec = "0.1"
+copybook = "0.4"
 ```
+
+`copybook-core` and `copybook-codec` remain available for advanced users who need a smaller dependency surface.
 
 Basic usage:
 
 ```rust
-use copybook_core::parse_copybook;
-use copybook_codec::{decode_file_to_jsonl, DecodeOptions, Codepage, RecordFormat};
+use copybook::core::parse_copybook;
+use copybook::codec::{decode_file_to_jsonl, DecodeOptions, Codepage, RecordFormat};
 
 // Parse copybook
 let copybook_text = std::fs::read_to_string("customer.cpy")?;

@@ -241,7 +241,7 @@ fn validate_publish_plan(plan: &[String]) -> Result<()> {
 }
 
 fn is_publish_dependency(kind: Option<&String>) -> bool {
-    kind.is_none() || kind.is_some_and(|kind| kind == "normal")
+    kind.is_none_or(|kind| kind == "normal")
 }
 
 fn is_publishable_package(publish: Option<&Value>) -> bool {

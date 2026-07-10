@@ -55,7 +55,7 @@ responsibilities:
 ### Test Coverage
 
 <!-- TEST_STATUS:BEGIN -->
-**conformance:** 1/1 â€¢ **roundtrip:** N/A â€¢ **negative:** N/A â€¢ **skipped:** 0 â€¢ **leaks:** 0  
+**conformance:** 9881/9881 â€¢ **roundtrip:** N/A â€¢ **negative:** N/A â€¢ **skipped:** 0 â€¢ **leaks:** 0  
 _Source: CI receipts (nextest/junit). This block is updated automatically._
 <!-- TEST_STATUS:END -->
 

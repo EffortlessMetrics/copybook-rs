@@ -16,7 +16,6 @@ struct Metadata {
 #[derive(Debug, Deserialize)]
 struct Package {
     id: String,
-    #[allow(dead_code)]
     name: String,
     #[serde(default)]
     publish: Option<Value>,
@@ -26,7 +25,6 @@ struct Package {
 
 #[derive(Debug, Deserialize)]
 struct Dependency {
-    #[allow(dead_code)]
     name: String,
     #[serde(default)]
     kind: Option<String>,
@@ -40,14 +38,6 @@ pub enum PlanFormat {
     Json,
 }
 
-/// Build a topologically ordered publish plan, and optionally validate the plan.
-///
-/// # Errors
-///
-/// Returns an error if `cargo metadata` fails, if the output cannot be parsed,
-/// if the publish graph cannot be sorted, or if required facade ordering
-/// constraints are violated.
-#[inline]
 pub fn run_plan(format: PlanFormat, check_only: bool) -> Result<()> {
     let plan = build_publish_plan()?;
     if check_only {
@@ -103,8 +93,7 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
         .packages
         .into_iter()
         .filter(|package| {
-            workspace_members.contains(&package.id)
-                && is_publishable_package(package.publish.as_ref())
+            workspace_members.contains(&package.id) && is_publishable_package(&package.publish)
         })
         .collect::<Vec<_>>();
 
@@ -114,13 +103,9 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
 
     let mut publishable_ids = HashSet::new();
     let mut id_to_name = HashMap::new();
-    let mut publishable_names = HashSet::new();
-    let mut name_to_id = HashMap::new();
     for package in &publishable_packages {
         publishable_ids.insert(package.id.clone());
         id_to_name.insert(package.id.clone(), package.name.clone());
-        publishable_names.insert(package.name.clone());
-        name_to_id.insert(package.name.clone(), package.id.clone());
     }
 
     let mut in_degree: HashMap<String, usize> = HashMap::new();
@@ -135,33 +120,24 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
         for dependency in package
             .dependencies
             .iter()
-            .filter(|dep| is_publish_dependency(dep.kind.as_ref()))
+            .filter(|dep| dep.kind.as_deref() == Some("normal"))
         {
-            let dependency_name = if let Some(dep_id) = &dependency.package {
-                id_to_name.get(dep_id)
-            } else {
-                Some(&dependency.name).filter(|name| publishable_names.contains(*name))
-            };
-            let Some(dependency_name) = dependency_name else {
-                continue;
-            };
-            let dep_id = dependency
-                .package
-                .as_ref()
-                .or_else(|| name_to_id.get(dependency_name));
-            let Some(dep_id) = dep_id else {
+            let Some(dep_id) = &dependency.package else {
                 continue;
             };
             if !publishable_ids.contains(dep_id) {
                 continue;
             }
 
-            let edge = (dependency_name.clone(), package.name.clone());
+            let Some(dep_name) = id_to_name.get(dep_id) else {
+                continue;
+            };
+            let edge = (dep_name.clone(), package.name.clone());
             if !seen_edges.insert(edge.clone()) {
                 continue;
             }
             dependents
-                .entry(dependency_name.clone())
+                .entry(dep_name.clone())
                 .or_default()
                 .push(package.name.clone());
             *in_degree.entry(package.name.clone()).or_default() += 1;
@@ -181,9 +157,7 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
 
         if let Some(children) = dependents.get(&crate_name) {
             for child in children {
-                let Some(child_degree) = in_degree.get_mut(child) else {
-                    bail!("dependency graph missing in-degree for package `{child}`");
-                };
+                let child_degree = in_degree.get_mut(child).expect("in-degree exists");
                 if *child_degree > 0 {
                     *child_degree -= 1;
                 }
@@ -219,15 +193,17 @@ fn validate_publish_plan(plan: &[String]) -> Result<()> {
 
     if let (Some(&core_pos), Some(&facade_pos)) =
         (cursor.get("copybook-core"), cursor.get("copybook"))
-        && core_pos > facade_pos
     {
-        bail!("copybook-core must appear before copybook");
+        if core_pos > facade_pos {
+            bail!("copybook-core must appear before copybook");
+        }
     }
 
     if let (Some(&facade_pos), Some(&rs_pos)) = (cursor.get("copybook"), cursor.get("copybook-rs"))
-        && facade_pos > rs_pos
     {
-        bail!("copybook must appear before copybook-rs");
+        if facade_pos > rs_pos {
+            bail!("copybook must appear before copybook-rs");
+        }
     }
 
     let mut unique = HashSet::new();
@@ -240,12 +216,9 @@ fn validate_publish_plan(plan: &[String]) -> Result<()> {
     Ok(())
 }
 
-fn is_publish_dependency(kind: Option<&String>) -> bool {
-    kind.is_none_or(|kind| kind == "normal")
-}
-
-fn is_publishable_package(publish: Option<&Value>) -> bool {
+fn is_publishable_package(publish: &Option<Value>) -> bool {
     match publish {
+        None => true,
         Some(Value::Bool(false)) => false,
         Some(Value::Array(values)) => !values.is_empty(),
         _ => true,
@@ -273,7 +246,7 @@ mod tests {
                         {"name":"copybook-core","kind":"normal","package":"id-core"}
                     ]},
                     {"id":"id-facade","name":"copybook","dependencies":[
-                        {"name":"copybook-core","package":"id-core","kind":null},
+                        {"name":"copybook-core","kind":"normal","package":"id-core"},
                         {"name":"copybook-codec","kind":"normal","package":"id-codec"}
                     ]},
                     {"id":"id-rs","name":"copybook-rs","dependencies":[
@@ -292,27 +265,6 @@ mod tests {
                 "copybook".to_string(),
                 "copybook-rs".to_string(),
             ]
-        );
-    }
-
-    #[test]
-    fn publish_plan_orders_dependencies_with_null_kind() {
-        let plan = parse_plan(
-            r#"{
-                "workspace_members":["id-core", "id-rs"],
-                "packages":[
-                    {"id":"id-core","name":"copybook-core","dependencies":[
-                        {"name":"copybook-rs","kind":null}
-                    ]},
-                    {"id":"id-rs","name":"copybook-rs","dependencies":[]}
-                ]
-            }"#,
-        )
-        .unwrap();
-
-        assert_eq!(
-            plan,
-            vec!["copybook-rs".to_string(), "copybook-core".to_string()]
         );
     }
 

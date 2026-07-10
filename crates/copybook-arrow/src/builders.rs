@@ -33,10 +33,6 @@ pub(crate) trait ColumnAccumulator: Send {
 
     /// Finish building and return the Arrow array.
     fn finish(&mut self) -> ArrayRef;
-
-    /// Number of values accumulated.
-    #[allow(dead_code)]
-    fn len(&self) -> usize;
 }
 
 /// Create the right accumulator for a given `FieldKind`.
@@ -133,10 +129,6 @@ impl ColumnAccumulator for Utf8Accumulator {
     fn finish(&mut self) -> ArrayRef {
         Arc::new(self.builder.finish())
     }
-
-    fn len(&self) -> usize {
-        self.count
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -200,10 +192,6 @@ impl ColumnAccumulator for ZonedDecimalAccumulator {
     fn finish(&mut self) -> ArrayRef {
         Arc::new(self.builder.finish())
     }
-
-    fn len(&self) -> usize {
-        self.count
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -257,10 +245,6 @@ impl ColumnAccumulator for PackedDecimalAccumulator {
 
     fn finish(&mut self) -> ArrayRef {
         Arc::new(self.builder.finish())
-    }
-
-    fn len(&self) -> usize {
-        self.count
     }
 }
 
@@ -330,10 +314,6 @@ macro_rules! impl_int_accumulator {
             fn finish(&mut self) -> ArrayRef {
                 Arc::new(self.builder.finish())
             }
-
-            fn len(&self) -> usize {
-                self.count
-            }
         }
     };
 }
@@ -390,10 +370,6 @@ impl ColumnAccumulator for Float32Accumulator {
     fn finish(&mut self) -> ArrayRef {
         Arc::new(self.builder.finish())
     }
-
-    fn len(&self) -> usize {
-        self.count
-    }
 }
 
 struct Float64Accumulator {
@@ -436,10 +412,6 @@ impl ColumnAccumulator for Float64Accumulator {
 
     fn finish(&mut self) -> ArrayRef {
         Arc::new(self.builder.finish())
-    }
-
-    fn len(&self) -> usize {
-        self.count
     }
 }
 

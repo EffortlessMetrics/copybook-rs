@@ -127,16 +127,25 @@ cargo build -p copybook-arrow --examples
 cargo test -p copybook-arrow
 ```
 
-## Kafka Adapter
+## Kafka Adapters
 
-The Kafka adapter (`examples/kafka_pipeline`) provides a streaming pipeline for processing COBOL data and publishing to Kafka topics.
+The repository includes two Kafka adapter examples:
+
+- `examples/kafka_pipeline` (legacy) — producer-only pipeline.
+- `examples/kafka_streaming` — producer + consumer example for local streaming workflows.
 
 ### Installation
 
-The Kafka adapter is provided as an example. Build it:
+Build the legacy producer example:
 
 ```bash
 cargo build --manifest-path examples/kafka_pipeline/Cargo.toml
+```
+ 
+Build the producer/consumer example:
+
+```bash
+cargo build --manifest-path examples/kafka_streaming/Cargo.toml
 ```
 
 ### Configuration
@@ -147,8 +156,8 @@ Configure via environment variables:
 |----------|-------------|---------|
 | `KAFKA_BROKERS` | Comma-separated Kafka brokers | `localhost:9092` |
 | `KAFKA_TOPIC` | Kafka topic name | `copybook-data` |
-| `COPYBOOK_PATH` | Path to COBOL copybook file | `test-data/simple.cpy` |
-| `DATA_PATH` | Path to binary data file | `test-data/simple.bin` |
+| `COPYBOOK_PATH` | Path to COBOL copybook file | `sample_data/schema.cpy` |
+| `DATA_PATH` | Path to binary data file | `sample_data/data.bin` |
 
 ### Running the Example
 
@@ -161,6 +170,10 @@ export DATA_PATH="path/to/data.bin"
 
 # Run the pipeline
 cargo run --manifest-path examples/kafka_pipeline/Cargo.toml
+
+# Producer + consumer example (run in separate terminals)
+cargo run --manifest-path examples/kafka_streaming/Cargo.toml --example producer
+cargo run --manifest-path examples/kafka_streaming/Cargo.toml --example consumer
 ```
 
 ### Features
@@ -199,6 +212,9 @@ cargo build --manifest-path examples/kafka_pipeline/Cargo.toml
 
 # Build with release optimizations
 cargo build --manifest-path examples/kafka_pipeline/Cargo.toml --release
+
+# Producer/consumer streaming example
+cargo build --manifest-path examples/kafka_streaming/Cargo.toml
 ```
 
 ## Building and Running Examples
@@ -217,6 +233,9 @@ cargo build -p copybook-arrow --examples
 
 # Kafka pipeline example
 cargo build --manifest-path examples/kafka_pipeline/Cargo.toml
+
+# Kafka streaming example
+cargo build --manifest-path examples/kafka_streaming/Cargo.toml
 ```
 
 ### Run Examples
@@ -229,6 +248,10 @@ cargo run --example batch_processing -p copybook-arrow
 
 # Kafka example
 cargo run --manifest-path examples/kafka_pipeline/Cargo.toml
+
+# Kafka streaming example
+cargo run --manifest-path examples/kafka_streaming/Cargo.toml --example producer
+cargo run --manifest-path examples/kafka_streaming/Cargo.toml --example consumer
 ```
 
 ### Using Just

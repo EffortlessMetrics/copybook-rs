@@ -49,6 +49,7 @@ members = [
 ]
 exclude = [
     "examples/kafka_pipeline",
+    "examples/kafka_streaming",
 ]
 resolver = "2"
 

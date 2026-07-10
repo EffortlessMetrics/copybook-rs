@@ -52,6 +52,7 @@ pub fn fixture_path(relative_path: &str) -> TestResult<PathBuf> {
 }
 
 /// Get the path to a test-data file relative to workspace root
+#[allow(dead_code)]
 pub fn test_data_path(relative_path: &str) -> PathBuf {
     find_workspace_root()
         .expect("Failed to find workspace root")
@@ -73,6 +74,7 @@ pub fn copybook_cmd(args: &[&str]) -> Command {
 
 /// Create a copybook command without any pre-configured arguments
 #[must_use]
+#[allow(dead_code)]
 pub fn bin() -> Command {
     cargo_bin_cmd!("copybook")
 }

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use copybook_bench::{COMP3_CI_FLOOR_MIBPS, DISPLAY_FLOOR_MIBPS};
 use regex::Regex;
 use std::{collections::BTreeSet, fs, path::Path};
 
 use super::{verify, verify_support_matrix};
+use xtask::junit_xml_path;
 use xtask::perf;
 
 type Verifier = (&'static str, fn() -> Result<()>);
@@ -120,12 +121,7 @@ fn verify_copybook_rs_redirect_invariant() -> Result<()> {
 }
 
 fn verify_test_status_if_present() -> Result<()> {
-    let junit_path = Path::new("target/nextest/junit.xml");
-    if !junit_path.exists() {
-        bail!(
-            "missing mandatory test-status evidence at {junit_path:?}; run docs sync-tests after generating target/nextest/junit.xml"
-        );
-    }
+    let _junit_path = junit_xml_path()?;
     verify()?;
     Ok(())
 }

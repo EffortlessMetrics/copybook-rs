@@ -3,8 +3,8 @@
 //!
 //! Exposes testable modules
 
-use anyhow::{Result, bail};
-use std::{fs, path::Path};
+use anyhow::Result;
+use std::{fs, path::Path, path::PathBuf};
 
 pub mod perf;
 pub mod publish;
@@ -16,6 +16,29 @@ pub struct Counts {
     pub skipped: u64,
 }
 
+fn junit_xml_paths() -> [PathBuf; 2] {
+    [
+        Path::new("target/nextest/junit.xml").to_path_buf(),
+        Path::new("target/nextest/ci/junit.xml").to_path_buf(),
+    ]
+}
+
+pub fn junit_xml_path() -> Result<PathBuf> {
+    let candidates = junit_xml_paths();
+    let primary = candidates[0].display().to_string();
+    let secondary = candidates[1].display().to_string();
+
+    candidates
+        .iter()
+        .find(|path| path.exists())
+        .cloned()
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "No junit.xml found (run nextest with junit output in one of {primary} or {secondary})"
+            )
+        })
+}
+
 /// Parse nextest `JUnit` XML and return test counts.
 ///
 /// # Errors
@@ -23,10 +46,7 @@ pub struct Counts {
 /// Returns an error if the `JUnit` XML file is missing or malformed.
 #[inline]
 pub fn counts() -> Result<Counts> {
-    let junit_path = Path::new("target/nextest/junit.xml");
-    if !junit_path.exists() {
-        bail!("No junit.xml found (run nextest with junit output)");
-    }
+    let junit_path = junit_xml_path()?;
 
     let xml_content = fs::read_to_string(junit_path)?;
     let doc = roxmltree::Document::parse(&xml_content)?;

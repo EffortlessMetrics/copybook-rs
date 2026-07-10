@@ -58,6 +58,30 @@ Group: ROOT.CUSTOMER
 Context: Safe array bounds validation with overflow protection
 ```
 
+#### CBKP022_NESTED_ODO
+**Description**: OCCURS DEPENDING ON array nested inside another OCCURS/ODO array
+**Severity**: Fatal
+**Context**: Field path of the nested ODO array
+**Resolution**: Restructure the copybook so the ODO array is not contained in another OCCURS/ODO array (see `docs/design/NESTED_ODO_BEHAVIOR.md`)
+
+```
+Error: CBKP022_NESTED_ODO
+Nested ODO not supported: field 'ROOT.CUSTOMER.ORDERS.ITEMS' has
+OCCURS DEPENDING ON inside another OCCURS/ODO array
+```
+
+#### CBKP023_ODO_REDEFINES
+**Description**: OCCURS DEPENDING ON array inside a REDEFINES region
+**Severity**: Fatal
+**Context**: Field path of the ODO array in the REDEFINES region
+**Resolution**: Move the ODO array out of the REDEFINES region or replace it with a fixed OCCURS
+
+```
+Error: CBKP023_ODO_REDEFINES
+ODO over REDEFINES not supported: field 'ROOT.CUSTOMER.ALT-VIEW.ORDERS' has
+OCCURS DEPENDING ON inside a REDEFINES region
+```
+
 #### CBKP051_UNSUPPORTED_EDITED_PIC
 **Description**: **unsupported edited PIC token**. Triggered only by Space (`B`) insertion, which remains unsupported. All other edited PIC patterns (Z, $, +/-, CR/DB, commas, asterisk, currency) are fully supported in E1/E2/E3 phases.
 **Severity**: Fatal
@@ -69,6 +93,18 @@ Error: CBKP051_UNSUPPORTED_EDITED_PIC
 PIC: 99B99B99
 Field: ROOT.CUSTOMER.PHONE
 Token: B (space insertion)
+```
+
+#### CBKP101_INVALID_PIC
+**Description**: Invalid PIC clause syntax or illegal characters in the PIC string
+**Severity**: Fatal
+**Context**: PIC clause text, field path
+**Resolution**: Fix the PIC clause to use valid COBOL picture characters
+
+```
+Error: CBKP101_INVALID_PIC
+Field: ROOT.CUSTOMER.CODE
+PIC: 9Q9 (illegal character 'Q')
 ```
 
 ### Schema Errors (CBKS*) - Enterprise Safety
@@ -123,6 +159,108 @@ Counter value: 150, clipped to maximum: 100
 Warning: CBKS302_ODO_RAISED at record 5678
 Field: ROOT.CUSTOMER.ORDERS
 Counter value: 0, raised to minimum: 1
+```
+
+#### CBKS601_RENAME_UNKNOWN_FROM
+**Description**: RENAMES `from` field not found in the enclosing record scope
+**Severity**: Fatal
+**Context**: RENAMES alias name, missing `from` field name
+**Resolution**: Ensure the field named after RENAMES exists in the same 01-level record
+
+```
+Error: CBKS601_RENAME_UNKNOWN_FROM
+Alias: CUSTOMER-HEADER (RENAMES CUSTMER-ID THRU CUSTOMER-NAME)
+Field CUSTMER-ID not found in record scope
+```
+
+#### CBKS602_RENAME_UNKNOWN_THRU
+**Description**: RENAMES `THRU` field not found in the enclosing record scope
+**Severity**: Fatal
+**Context**: RENAMES alias name, missing `THRU` field name
+**Resolution**: Ensure the field named after THRU exists in the same 01-level record
+
+```
+Error: CBKS602_RENAME_UNKNOWN_THRU
+Alias: CUSTOMER-HEADER (RENAMES CUSTOMER-ID THRU CUSTOMER-NAM)
+Field CUSTOMER-NAM not found in record scope
+```
+
+#### CBKS603_RENAME_NOT_CONTIGUOUS
+**Description**: RENAMES range is not contiguous (gap between `from` and `THRU` fields)
+**Severity**: Fatal
+**Context**: RENAMES alias name, `from`/`THRU` field offsets
+**Resolution**: Adjust the RENAMES range so it covers a contiguous byte range. Note: strict byte-level contiguity is not currently enforced by layout resolution; this code is reserved for that validation.
+
+#### CBKS604_RENAME_REVERSED_RANGE
+**Description**: RENAMES range is reversed (`from` field starts after the `THRU` field)
+**Severity**: Fatal
+**Context**: RENAMES alias name, `from`/`THRU` field positions
+**Resolution**: Swap the `from` and `THRU` field names so the range runs forward
+
+```
+Error: CBKS604_RENAME_REVERSED_RANGE
+Alias: CUSTOMER-HEADER (RENAMES CUSTOMER-NAME THRU CUSTOMER-ID)
+Range is reversed: CUSTOMER-NAME starts after CUSTOMER-ID
+```
+
+#### CBKS605_RENAME_FROM_CROSSES_GROUP
+**Description**: RENAMES `from` field crosses a group boundary
+**Severity**: Fatal
+**Context**: RENAMES alias name, `from` field path, group boundary
+**Resolution**: Restrict the RENAMES range so it does not straddle group boundaries (see `docs/design/RENAMES_NESTED_GROUPS.md`)
+
+#### CBKS606_RENAME_THRU_CROSSES_GROUP
+**Description**: RENAMES `THRU` field crosses a group boundary
+**Severity**: Fatal
+**Context**: RENAMES alias name, `THRU` field path, group boundary
+**Resolution**: Restrict the RENAMES range so it does not straddle group boundaries (see `docs/design/RENAMES_NESTED_GROUPS.md`)
+
+#### CBKS607_RENAME_CROSSES_OCCURS
+**Description**: RENAMES range crosses an OCCURS array boundary
+**Severity**: Fatal
+**Context**: RENAMES alias name, OCCURS field in range
+**Resolution**: Keep the RENAMES range entirely outside (or entirely inside a single element of) OCCURS arrays
+
+```
+Error: CBKS607_RENAME_CROSSES_OCCURS
+Alias: ORDER-SUMMARY (RENAMES ORDER-ID THRU ORDER-ITEMS)
+Range crosses OCCURS boundary at ORDER-ITEMS
+```
+
+#### CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND
+**Description**: Qualified name in RENAMES clause (e.g., `FIELD OF GROUP`) could not be resolved
+**Severity**: Fatal
+**Context**: RENAMES alias name, qualified name
+**Resolution**: Verify the qualified name path matches the record structure
+
+#### CBKS609_RENAME_OVER_REDEFINES
+**Description**: RENAMES alias spans REDEFINES field(s) (R4 scenario)
+**Severity**: Fatal
+**Context**: RENAMES alias name, REDEFINES fields in range
+**Resolution**: Exclude REDEFINES fields from the RENAMES range or restructure the copybook
+
+#### CBKS610_RENAME_MULTIPLE_REDEFINES
+**Description**: RENAMES range spans multiple REDEFINES alternatives (R4 scenario)
+**Severity**: Fatal
+**Context**: RENAMES alias name, REDEFINES alternatives in range
+**Resolution**: Limit the RENAMES range to a single REDEFINES alternative
+
+#### CBKS611_RENAME_PARTIAL_OCCURS
+**Description**: RENAMES range spans partial array elements (R5 scenario)
+**Severity**: Fatal
+**Context**: RENAMES alias name, OCCURS field partially covered
+**Resolution**: Cover whole OCCURS arrays in the RENAMES range, not partial elements
+
+#### CBKS612_RENAME_ODO_NOT_SUPPORTED
+**Description**: RENAMES over OCCURS DEPENDING ON arrays is not supported (R5 scenario)
+**Severity**: Fatal
+**Context**: RENAMES alias name, ODO field in range
+**Resolution**: Remove the ODO array from the RENAMES range; RENAMES over variable-length regions is unsupported
+
+```
+Error: CBKS612_RENAME_ODO_NOT_SUPPORTED
+Alias: ORDER-VIEW (RENAMES ORDER-ID THRU ORDER-ITEMS)
+ORDER-ITEMS has OCCURS DEPENDING ON; RENAMES over ODO not supported
 ```
 
 #### CBKS701_PROJECTION_INVALID_ODO
@@ -201,18 +339,6 @@ Warning: CBKR211_RDW_RESERVED_NONZERO at record 100
 Reserved bytes: 0x1234 (expected 0x0000)
 ```
 
-#### CBKF221_RDW_UNDERFLOW
-**Description**: RDW length less than minimum record size
-**Severity**: Fatal
-**Context**: Record number, RDW length, minimum required
-**Resolution**: Check data integrity or record format
-
-```
-Error: CBKF221_RDW_UNDERFLOW at record 200
-RDW length: 50 bytes
-Minimum required: 120 bytes
-```
-
 ### Character Encoding Errors (CBKC*)
 
 Errors in character set conversion and text processing.
@@ -245,18 +371,34 @@ Replaced with: U+FFFD
 
 Errors during binary data decoding to JSON.
 
-#### CBKD301_RECORD_TOO_SHORT
-**Description**: Record is too short to contain the required field data
+#### CBKD101_INVALID_FIELD_TYPE
+**Description**: Invalid field type encountered during processing
 **Severity**: Fatal
-**Context**: Record number, field path, byte offset, expected vs actual length
-**Resolution**: Check data integrity, file transfer mode, or record boundaries
+**Context**: Record number, field path, field type
+**Resolution**: Check schema definition and field type compatibility
 
 ```
-Error: CBKD301_RECORD_TOO_SHORT at record 150
-Field: ROOT.CUSTOMER.BALANCE  
-Expected record length: 120 bytes
-Actual record length: 85 bytes
+Error: CBKD101_INVALID_FIELD_TYPE at record 50
+Field: ROOT.CUSTOMER.ID
+Type: Unknown field type
 ```
+
+#### CBKD301_RECORD_TOO_SHORT
+**Description**: Record data is too short for the required field data or LRECL
+**Severity**: Fatal
+**Context**: Record number, field path (when field-level), expected vs actual byte count
+**Resolution**: Check data integrity, file transfer mode (binary vs text), record boundaries, or LRECL specification; use `copybook inspect` to verify expected record size
+
+```
+Error: CBKD301_RECORD_TOO_SHORT
+Record 15 too short: expected 120 bytes, got 85 bytes
+```
+
+#### CBKD302_EDITED_PIC_NOT_IMPLEMENTED
+**Description**: Edited PIC field encountered during decode when edited PIC decoding is not available (Phase E1)
+**Severity**: Error
+**Context**: Field path, PIC clause
+**Resolution**: Upgrade to a version with Phase E2 edited PIC decode support, or remove edited PIC fields from the decode path
 
 #### CBKD401_COMP3_INVALID_NIBBLE
 **Description**: Invalid nibble in packed decimal field
@@ -268,6 +410,18 @@ Actual record length: 85 bytes
 Error: CBKD401_COMP3_INVALID_NIBBLE at record 400
 Field: ROOT.CUSTOMER.BALANCE
 Offset: 25, nibble: 0xE (expected 0-9, A-F for sign)
+```
+
+#### CBKD410_ZONED_OVERFLOW
+**Description**: Zoned decimal value exceeded numeric capacity during decode
+**Severity**: Error
+**Context**: Record number, field path, digit count
+**Resolution**: Verify the PIC clause digit count matches the data, check for corruption
+
+```
+Error: CBKD410_ZONED_OVERFLOW at record 450
+Field: ROOT.CUSTOMER.BALANCE
+Value exceeds capacity for PIC S9(18)
 ```
 
 #### CBKD411_ZONED_BAD_SIGN
@@ -297,6 +451,24 @@ Warning: CBKD412_ZONED_BLANK_IS_ZERO at record 600
 Field: ROOT.CUSTOMER.DISCOUNT
 All spaces decoded as zero
 ```
+
+#### CBKD413_ZONED_INVALID_ENCODING
+**Description**: Invalid zoned decimal encoding format detected (bytes match neither the expected EBCDIC nor ASCII zoned layout)
+**Severity**: Error
+**Context**: Record number, field path, byte values
+**Resolution**: Verify codepage selection and zoned encoding options, inspect raw bytes with `--emit-raw`
+
+#### CBKD414_ZONED_MIXED_ENCODING
+**Description**: Mixed ASCII/EBCDIC encoding detected within a single zoned decimal field
+**Severity**: Error
+**Context**: Record number, field path, per-byte encoding classification
+**Resolution**: Fix upstream data conversion so each field uses a single encoding, verify file transfer mode
+
+#### CBKD415_ZONED_ENCODING_AMBIGUOUS
+**Description**: Zoned encoding auto-detection failed or remains ambiguous
+**Severity**: Error
+**Context**: Record number, field path
+**Resolution**: Specify the zoned encoding explicitly instead of relying on auto-detection
 
 #### CBKD421_EDITED_PIC_INVALID_FORMAT
 **Description**: Data does not match edited PICTURE pattern (Phase E2 decode)
@@ -338,29 +510,17 @@ Field: ROOT.CUSTOMER.DISCOUNT (PIC ZZZ9 BLANK WHEN ZERO)
 All spaces decoded as "0"
 ```
 
-#### CBKD101_INVALID_FIELD_TYPE
-**Description**: Invalid field type encountered during processing
-**Severity**: Fatal
-**Context**: Record number, field path, field type
-**Resolution**: Check schema definition and field type compatibility
+#### CBKD431_FLOAT_NAN
+**Description**: Floating-point field (COMP-1/COMP-2) contains NaN; the value is decoded as JSON null
+**Severity**: Error
+**Context**: Record number, field path
+**Resolution**: Check upstream data generation for uninitialized float fields; null output is the documented behavior
 
-```
-Error: CBKD101_INVALID_FIELD_TYPE at record 50
-Field: ROOT.CUSTOMER.ID
-Type: Unknown field type
-```
-
-#### CBKD301_RECORD_TOO_SHORT
-**Description**: Record data is shorter than required LRECL (fixed-length records)
-**Severity**: Fatal
-**Context**: Record number, expected vs actual byte count, precise truncation point
-**Resolution**: Check record boundaries, file truncation, or LRECL specification
-**Enhanced**: Now with fail-fast validation and improved performance (4-23% gains)
-
-```
-Error: CBKD301_RECORD_TOO_SHORT
-Record 15 too short: expected 120 bytes, got 85 bytes
-```
+#### CBKD432_FLOAT_INFINITY
+**Description**: Floating-point field (COMP-1/COMP-2) contains infinity; the value is decoded as JSON null
+**Severity**: Error
+**Context**: Record number, field path
+**Resolution**: Check upstream data generation for overflowed float values; null output is the documented behavior
 
 ### Data Encoding Errors (CBKE*)
 
@@ -379,6 +539,42 @@ Expected: string (zoned decimal)
 Found: number
 ```
 
+#### CBKE505_SCALE_MISMATCH
+**Description**: Decimal scale mismatch during field encoding (JSON value has more fractional digits than the PIC clause allows)
+**Severity**: Fatal
+**Context**: Field path, PIC scale, provided value scale
+**Resolution**: Round or reformat the JSON value to match the field's implied decimal scale (V position)
+
+```
+Error: CBKE505_SCALE_MISMATCH
+Field: ROOT.CUSTOMER.BALANCE (PIC S9(7)V99)
+Value: "123.456" has scale 3, field allows scale 2
+```
+
+#### CBKE510_NUMERIC_OVERFLOW
+**Description**: Numeric value exceeds the field's digit capacity during encoding
+**Severity**: Fatal
+**Context**: Field path, digit capacity, provided value
+**Resolution**: Reduce the value or widen the PIC clause digit count
+
+```
+Error: CBKE510_NUMERIC_OVERFLOW
+Field: ROOT.CUSTOMER.COUNT (PIC 9(3))
+Value: 12345 exceeds 3-digit capacity
+```
+
+#### CBKE515_STRING_LENGTH_VIOLATION
+**Description**: String value exceeds the field's declared size during encoding
+**Severity**: Fatal
+**Context**: Field path, field size, string length
+**Resolution**: Truncate the string or widen the PIC X(n) field size
+
+```
+Error: CBKE515_STRING_LENGTH_VIOLATION
+Field: ROOT.CUSTOMER.NAME (PIC X(20))
+String length: 27 exceeds field size 20
+```
+
 #### CBKE521_ARRAY_LEN_OOB
 **Description**: JSON array length out of bounds for OCCURS
 **Severity**: Fatal
@@ -390,6 +586,24 @@ Error: CBKE521_ARRAY_LEN_OOB at record 800
 Field: ROOT.CUSTOMER.ORDERS
 Array length: 150
 Bounds: min=1, max=100
+```
+
+#### CBKE530_SIGN_SEPARATE_ENCODE_ERROR
+**Description**: SIGN SEPARATE field could not be encoded (invalid sign character or value inconsistent with the separate sign position)
+**Severity**: Error
+**Context**: Field path, sign position (LEADING/TRAILING), provided value
+**Resolution**: Ensure the JSON value's sign is representable for the SIGN SEPARATE field configuration
+
+#### CBKE531_FLOAT_ENCODE_OVERFLOW
+**Description**: Float encode overflow: f64 JSON value is too large for an f32 COMP-1 field
+**Severity**: Error
+**Context**: Field path, provided value
+**Resolution**: Reduce the value to f32 range or change the field to COMP-2 (f64)
+
+```
+Error: CBKE531_FLOAT_ENCODE_OVERFLOW
+Field: ROOT.MEASUREMENT.RATIO (COMP-1)
+Value: 3.5e50 exceeds f32 range
 ```
 
 ### Iterator and Infrastructure Errors (CBKI*)
@@ -434,6 +648,67 @@ Warning: CBKF104_RDW_SUSPECT_ASCII at record 900
 RDW bytes: 0x30303030 (ASCII "0000")
 Possible text-mode transfer corruption
 ```
+
+#### CBKF221_RDW_UNDERFLOW
+**Description**: RDW length less than minimum record size
+**Severity**: Fatal
+**Context**: Record number, RDW length, minimum required
+**Resolution**: Check data integrity or record format
+
+```
+Error: CBKF221_RDW_UNDERFLOW at record 200
+RDW length: 50 bytes
+Minimum required: 120 bytes
+```
+
+### Audit Errors (CBKA*)
+
+Errors in performance and compliance audit operations.
+
+#### CBKA001_BASELINE_ERROR
+**Description**: Performance baseline operation failed (baseline file could not be read, parsed, serialized, or written)
+**Severity**: Error
+**Context**: Baseline file path, underlying I/O or serialization error
+**Resolution**: Check that the baseline file exists, is valid JSON, and is writable
+
+```
+Error: CBKA001_BASELINE_ERROR
+Failed to read baseline file: No such file or directory (os error 2)
+```
+
+### Arrow/Writer Errors (CBKW*)
+
+Errors in Apache Arrow and Parquet conversion (copybook-arrow integration).
+
+#### CBKW001_SCHEMA_CONVERSION
+**Description**: COBOL schema could not be converted to an Arrow schema
+**Severity**: Error
+**Context**: Schema details, conversion failure reason
+**Resolution**: Check the copybook for constructs unsupported in Arrow conversion
+
+#### CBKW002_TYPE_MAPPING
+**Description**: A `FieldKind` has no valid Arrow type mapping
+**Severity**: Error
+**Context**: Field path, field kind
+**Resolution**: Remove or restructure the unsupported field type for Arrow output
+
+#### CBKW003_DECIMAL_OVERFLOW
+**Description**: Decimal precision exceeds the Decimal128 limit (38 digits)
+**Severity**: Error
+**Context**: Field path, PIC digit count
+**Resolution**: Reduce the field's digit count to 38 or fewer for Arrow output
+
+#### CBKW004_BATCH_BUILD
+**Description**: Arrow `RecordBatch` construction failed
+**Severity**: Error
+**Context**: Batch details, underlying Arrow error
+**Resolution**: Check input data consistency and memory availability
+
+#### CBKW005_PARQUET_WRITE
+**Description**: Parquet file write failed
+**Severity**: Error
+**Context**: Output path, underlying I/O or Parquet error
+**Resolution**: Check output file permissions, disk space, and Parquet writer configuration
 
 ## Error Handling Modes
 
@@ -592,37 +867,73 @@ Possible text-mode transfer corruption
 
 ## Error Code Index
 
+All 63 stable error codes across 10 families:
+
 | Code | Category | Severity | Description |
 |------|----------|----------|-------------|
 | CBKP001 | Parse | Fatal | Syntax error |
 | CBKP011 | Parse | Fatal | Unsupported clause |
 | CBKP021 | Parse | Fatal | ODO not at tail |
+| CBKP022 | Parse | Fatal | Nested ODO not supported |
+| CBKP023 | Parse | Fatal | ODO over REDEFINES not supported |
 | CBKP051 | Parse | Fatal | Unsupported edited PIC token (Space `B` only) |
+| CBKP101 | Parse | Fatal | Invalid PIC clause |
 | CBKS121 | Schema | Fatal | Counter not found |
 | CBKS141 | Schema | Fatal | Record too large |
 | CBKS301 | Schema | Warning | ODO clipped |
 | CBKS302 | Schema | Warning | ODO raised |
+| CBKS601 | Schema | Fatal | RENAMES: from field not found |
+| CBKS602 | Schema | Fatal | RENAMES: thru field not found |
+| CBKS603 | Schema | Fatal | RENAMES: range not contiguous |
+| CBKS604 | Schema | Fatal | RENAMES: reversed range |
+| CBKS605 | Schema | Fatal | RENAMES: from crosses group boundary |
+| CBKS606 | Schema | Fatal | RENAMES: thru crosses group boundary |
+| CBKS607 | Schema | Fatal | RENAMES: range crosses OCCURS |
+| CBKS608 | Schema | Fatal | RENAMES: qualified name not found |
+| CBKS609 | Schema | Fatal | RENAMES: spans REDEFINES field(s) |
+| CBKS610 | Schema | Fatal | RENAMES: spans multiple REDEFINES alternatives |
+| CBKS611 | Schema | Fatal | RENAMES: partial OCCURS coverage |
+| CBKS612 | Schema | Fatal | RENAMES: ODO not supported |
 | CBKS701 | Schema | Fatal | Projection: Invalid ODO (counter not accessible) |
 | CBKS702 | Schema | Fatal | Projection: Unresolved RENAMES alias |
 | CBKS703 | Schema | Fatal | Projection: Field not found |
 | CBKR101 | Record | Fatal | Fixed record error |
 | CBKR201 | Record | Fatal | RDW read error |
 | CBKR211 | Record | Warning/Fatal | RDW reserved non-zero |
-| CBKF102 | File | Fatal | RDW length invalid |
-| CBKF221 | File | Fatal | RDW underflow |
 | CBKC201 | Charset | Fatal | JSON write error |
 | CBKC301 | Charset | Warning/Fatal | Invalid EBCDIC byte |
 | CBKD101 | Decode | Fatal | Invalid field type |
 | CBKD301 | Decode | Fatal | Record too short |
+| CBKD302 | Decode | Error | Edited PIC decode not implemented (Phase E1) |
 | CBKD401 | Decode | Fatal/Warning | COMP-3 invalid nibble |
+| CBKD410 | Decode | Error | Zoned overflow |
 | CBKD411 | Decode | Fatal/Warning | Zoned bad sign |
 | CBKD412 | Decode | Warning | Zoned blank is zero |
+| CBKD413 | Decode | Error | Zoned invalid encoding |
+| CBKD414 | Decode | Error | Zoned mixed ASCII/EBCDIC encoding |
+| CBKD415 | Decode | Error | Zoned encoding ambiguous |
 | CBKD421 | Decode | Fatal | Edited PIC: Invalid format (Phase E2) |
 | CBKD422 | Decode | Fatal | Edited PIC: Sign mismatch (Phase E2) |
 | CBKD423 | Decode | Warning | Edited PIC: Blank when zero (Phase E2) |
+| CBKD431 | Decode | Error | Float NaN (decoded as null) |
+| CBKD432 | Decode | Error | Float infinity (decoded as null) |
+| CBKI001 | Infrastructure | Fatal | Invalid iterator/internal state |
 | CBKE501 | Encode | Fatal | JSON type mismatch |
+| CBKE505 | Encode | Fatal | Decimal scale mismatch |
+| CBKE510 | Encode | Fatal | Numeric overflow |
+| CBKE515 | Encode | Fatal | String length violation |
 | CBKE521 | Encode | Fatal | Array length OOB |
+| CBKE530 | Encode | Error | SIGN SEPARATE encode error |
+| CBKE531 | Encode | Error | Float encode overflow (f64 to f32) |
+| CBKF102 | File | Fatal | RDW length invalid |
 | CBKF104 | File | Warning | RDW suspect ASCII |
+| CBKF221 | File | Fatal | RDW underflow |
+| CBKA001 | Audit | Error | Performance baseline error |
+| CBKW001 | Arrow/Writer | Error | Arrow schema conversion failed |
+| CBKW002 | Arrow/Writer | Error | No Arrow type mapping for field kind |
+| CBKW003 | Arrow/Writer | Error | Decimal exceeds Decimal128 (38 digits) |
+| CBKW004 | Arrow/Writer | Error | RecordBatch build failure |
+| CBKW005 | Arrow/Writer | Error | Parquet write failure |
 
 ## Panic Elimination Architecture
 

@@ -1,19 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use copybook_core::support_matrix;
 use std::{fs, path::Path};
-use xtask::{Counts, counts, perf};
+use xtask::{counts, perf, Counts};
+use xtask::publish::{run_plan, PlanFormat};
 
 mod pr_insights;
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match args
-        .iter()
-        .map(std::string::String::as_str)
-        .collect::<Vec<_>>()
-        .as_slice()
-    {
+    let arg_refs = args.iter().map(std::string::String::as_str).collect::<Vec<_>>();
+
+    match arg_refs.as_slice() {
         ["docs", "sync-tests"] => sync(),
         ["docs", "verify-tests"] => verify(),
         ["docs", "verify-support-matrix"] => verify_support_matrix(),
@@ -22,30 +20,69 @@ fn main() -> Result<()> {
         ["perf", "--out-dir", out_dir] => perf::run(false, Some(out_dir)),
         ["perf", "--enforce", "--out-dir", out_dir] => perf::run(true, Some(out_dir)),
         ["perf", "--summarize-last" | "--summarize"] => perf_summarize_last(),
+        ["publish", "plan", rest @ ..] => publish_plan(rest),
         ["pr-insights"] => pr_insights::generate_summary(),
-        _ => {
-            eprintln!(
-                "Usage: cargo run -p xtask -- [docs|perf|pr-insights] <subcommand>\n\
-                 \n\
-                 docs sync-tests                 Sync test status from junit.xml\n\
-                 docs verify-tests               Verify test status is in sync\n\
-                 docs verify-support-matrix      Verify support matrix registry ↔ docs\n\
-                 perf                            Run perf benchmark runner\n\
-                 perf --enforce                  Run perf with SLO enforcement\n\
-                 perf --out-dir <path>           Run perf with custom output directory\n\
-                 perf --summarize-last           Summarize latest perf.json with SLO comparison\n\
-                 pr-insights                     Generate PR insights report (nextest + perf)"
-            );
-            Ok(())
-        }
+        _ => usage(),
     }
+}
+
+fn publish_plan(args: &[&str]) -> Result<()> {
+    let mut format = PlanFormat::Plain;
+    let mut check_only = false;
+
+    let mut i = 0;
+    while i < args.len() {
+        match args[i] {
+            "--check" => {
+                check_only = true;
+            }
+            "--format" => {
+                let value = args.get(i + 1).copied().ok_or_else(|| {
+                    bail!("Missing value for --format. Expected: plain or json.")
+                })?;
+                format = match value {
+                    "plain" => PlanFormat::Plain,
+                    "json" => PlanFormat::Json,
+                    other => {
+                        bail!("Unknown format '{other}'. Expected: plain or json.");
+                    }
+                };
+                i += 1;
+            }
+            other => {
+                bail!(
+                    "Unknown publish plan argument '{other}'. Expected: --check and optional --format <plain|json>."
+                );
+            }
+        }
+        i += 1;
+    }
+
+    run_plan(format, check_only)
+}
+
+fn usage() -> Result<()> {
+    eprintln!(
+        "Usage: cargo run -p xtask -- [docs|perf|publish|pr-insights] <subcommand>\n\
+         \n\
+         docs sync-tests                     Sync test status from junit.xml\n\
+         docs verify-tests                   Verify test status is in sync\n\
+         docs verify-support-matrix          Verify support matrix registry -> docs\n\
+         perf                                Run perf benchmark runner\n\
+         perf --enforce                      Run perf with SLO enforcement\n\
+         perf --out-dir <path>               Run perf with custom output directory\n\
+         perf --summarize-last               Summarize latest perf.json with SLO comparison\n\
+         publish plan [--format <plain|json>] [--check]  Print and validate publish order\n\
+         pr-insights                         Generate PR insights report (nextest + perf)"
+    );
+    Ok(())
 }
 
 fn block(c: &Counts) -> String {
     let p = c.passed;
     let s = c.skipped;
     format!(
-        "**conformance:** {p}/{p} • **roundtrip:** N/A • **negative:** N/A • **skipped:** {s} • **leaks:** 0  \n\
+        "**conformance:** {p}/{p} â€¢ **roundtrip:** N/A â€¢ **negative:** N/A â€¢ **skipped:** {s} â€¢ **leaks:** 0  \n\
          _Source: CI receipts (nextest/junit). This block is updated automatically._"
     )
 }
@@ -71,7 +108,7 @@ fn sync() -> Result<()> {
     replace_in_file("README.md", &b)?;
     replace_in_file("docs/REPORT.md", &b)?;
 
-    println!("✓ Synced test status to README.md and docs/REPORT.md");
+    println!("âœ“ Synced test status to README.md and docs/REPORT.md");
     Ok(())
 }
 
@@ -86,7 +123,7 @@ fn verify() -> Result<()> {
         }
     }
 
-    println!("✓ Test status is in sync");
+    println!("âœ“ Test status is in sync");
     Ok(())
 }
 
@@ -98,8 +135,8 @@ fn verify_support_matrix() -> Result<()> {
     let mut missing = Vec::new();
 
     for feature in all_features {
-        let id =
-            serde_plain::to_string(&feature.id).unwrap_or_else(|_| format!("{:?}", feature.id));
+        let id = serde_plain::to_string(&feature.id)
+            .unwrap_or_else(|_| format!("{:?}", feature.id));
 
         // Check if the feature ID appears anywhere in the doc
         // We're lenient: just check for the kebab-case ID string
@@ -118,7 +155,7 @@ fn verify_support_matrix() -> Result<()> {
     }
 
     println!(
-        "✓ Support matrix registry ↔ docs in sync ({} features verified)",
+        "âœ“ Support matrix registry â†” docs in sync ({} features verified)",
         all_features.len()
     );
     Ok(())
@@ -154,7 +191,7 @@ fn perf_summarize_last() -> Result<()> {
             anyhow::bail!(
                 "No benchmark receipt directories found under {}",
                 benchmarks_dir.display()
-            );
+            )
         };
         let latest_dir = &latest_entry.path();
         let latest_perf = latest_dir.join("perf.json");

@@ -38,19 +38,54 @@ jobs:
         git rev-parse HEAD
         git describe --tags --always
 
-    - name: Dry run publish (leaf crates)
+    - name: Prepare publish plan
+      id: publish-plan
       run: |
-        echo "=== Dry-run publish for leaf crates (no workspace deps) ==="
+        set -euo pipefail
 
-        # Level 0: No internal dependencies
-        for crate in \
-          copybook-error \
-          copybook-determinism \
-          copybook-dialect \
-          copybook-codepage \
-          copybook-contracts \
-          copybook-support-matrix \
-          copybook-sequence-ring; do
+        PLAN_JSON="${{ runner.temp }}/publish-plan.json"
+        cargo run -p xtask -- publish plan --check
+        cargo run -p xtask -- publish plan --format json > "${PLAN_JSON}"
+
+        PLAN_COUNT=$(python - "${PLAN_JSON}" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    print(len(json.load(handle)))
+PY
+        )
+
+        if [ "${PLAN_COUNT}" -le 0 ]; then
+          echo "No publishable crates found."
+          exit 1
+        fi
+
+        echo "plan_json=${PLAN_JSON}" >> "${GITHUB_OUTPUT}"
+        echo "plan_count=${PLAN_COUNT}" >> "${GITHUB_OUTPUT}"
+
+    - name: Dry run publish (publishable crates)
+      run: |
+        set -euo pipefail
+
+        echo "=== Dry-run publish for all publishable crates ==="
+        PLAN_JSON="${{ steps.publish-plan.outputs.plan_json }}"
+        mapfile -t PUBLISH_CRATES < <(python - "$PLAN_JSON" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    for crate in json.load(handle):
+        print(crate)
+PY
+        )
+
+        if [ "${#PUBLISH_CRATES[@]}" -ne "${{ steps.publish-plan.outputs.plan_count }}" ]; then
+          echo "Publish plan count mismatch."
+          exit 1
+        fi
+
+        for crate in "${PUBLISH_CRATES[@]}"; do
           echo "Testing ${crate}..."
           cargo publish -p "${crate}" --dry-run
           echo "  ${crate} dry-run successful"
@@ -58,35 +93,21 @@ jobs:
 
     - name: Package manifest check (all publishable crates)
       run: |
-        echo "=== Package manifest check for all 25 publishable crates ==="
+        set -euo pipefail
 
-        # All publishable crates in dependency order
-        for crate in \
-          copybook-error \
-          copybook-determinism \
-          copybook-dialect \
-          copybook-codepage \
-          copybook-contracts \
-          copybook-support-matrix \
-          copybook-sequence-ring \
-          copybook-overflow \
-          copybook-error-reporter \
-          copybook-charset \
-          copybook-governance-contracts \
-          copybook-codec-memory \
-          copybook-overpunch \
-          copybook-utils \
-          copybook-governance-grid \
-          copybook-options \
-          copybook-governance-runtime \
-          copybook-core \
-          copybook-governance \
-          copybook-fixed \
-          copybook-rdw \
-          copybook-record-io \
-          copybook-codec \
-          copybook-arrow \
-          copybook-cli; do
+        echo "=== Package manifest check for all publishable crates ==="
+        PLAN_JSON="${{ steps.publish-plan.outputs.plan_json }}"
+        mapfile -t PUBLISH_CRATES < <(python - "$PLAN_JSON" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    for crate in json.load(handle):
+        print(crate)
+PY
+        )
+
+        for crate in "${PUBLISH_CRATES[@]}"; do
           echo "Checking ${crate}..."
           cargo package -p "${crate}" --list > /dev/null
           echo "  ${crate} package file list OK"
@@ -97,18 +118,19 @@ jobs:
       run: |
         echo "Publish preflight checks passed!"
         echo ""
-        echo "Validated 25 publishable crates:"
-        echo "  Level 0 (7): copybook-error, copybook-determinism, copybook-dialect,"
-        echo "               copybook-codepage, copybook-contracts, copybook-support-matrix,"
-        echo "               copybook-sequence-ring"
-        echo "  Level 1 (6): copybook-overflow, copybook-error-reporter, copybook-charset,"
-        echo "               copybook-governance-contracts, copybook-codec-memory, copybook-overpunch"
-        echo "  Level 2 (3): copybook-utils, copybook-governance-grid, copybook-options"
-        echo "  Level 3 (2): copybook-governance-runtime, copybook-core"
-        echo "  Level 4 (3): copybook-governance, copybook-fixed, copybook-rdw"
-        echo "  Level 5 (1): copybook-record-io"
-        echo "  Level 6 (1): copybook-codec"
-        echo "  Level 7 (2): copybook-arrow, copybook-cli"
+        echo "Validated ${{ steps.publish-plan.outputs.plan_count }} publishable crates:"
+        mapfile -t PUBLISH_CRATES < <(python - "${{ steps.publish-plan.outputs.plan_json }}" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    for crate in json.load(handle):
+        print(crate)
+PY
+        )
+        for crate in "${PUBLISH_CRATES[@]}"; do
+          echo "  - ${crate}"
+        done
         echo ""
         echo "Downstream publish dry-runs are run just-in-time in .github/workflows/publish.yml"
         echo "after upstream crates exist on crates.io."

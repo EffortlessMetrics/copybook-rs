@@ -2,7 +2,10 @@
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 use serde_json::Value;
-use std::{collections::{HashMap, HashSet}, process::Command};
+use std::{
+    collections::{HashMap, HashSet},
+    process::Command,
+};
 
 #[derive(Debug, Deserialize)]
 struct Metadata {
@@ -13,7 +16,8 @@ struct Metadata {
 #[derive(Debug, Deserialize)]
 struct Package {
     id: String,
-    name: String,
+    #[serde(rename = "name")]
+    _name: String,
     #[serde(default)]
     publish: Option<Value>,
     #[serde(default)]
@@ -22,7 +26,8 @@ struct Package {
 
 #[derive(Debug, Deserialize)]
 struct Dependency {
-    name: String,
+    #[serde(rename = "name")]
+    _name: String,
     #[serde(default)]
     kind: Option<String>,
     #[serde(default)]
@@ -35,11 +40,22 @@ pub enum PlanFormat {
     Json,
 }
 
+/// Build a topologically ordered publish plan, and optionally validate the plan.
+///
+/// # Errors
+///
+/// Returns an error if `cargo metadata` fails, if the output cannot be parsed,
+/// if the publish graph cannot be sorted, or if required facade ordering
+/// constraints are violated.
+#[inline]
 pub fn run_plan(format: PlanFormat, check_only: bool) -> Result<()> {
     let plan = build_publish_plan()?;
     if check_only {
         validate_publish_plan(&plan)?;
-        println!("publish plan validated: {} publishable crate(s)", plan.len());
+        println!(
+            "publish plan validated: {} publishable crate(s)",
+            plan.len()
+        );
         return Ok(());
     }
 
@@ -68,22 +84,27 @@ fn build_publish_plan() -> Result<Vec<String>> {
         bail!("cargo metadata failed:\n{stderr}");
     }
 
-    let metadata_text = String::from_utf8(output.stdout).context("cargo metadata output not valid UTF-8")?;
-    let metadata: Metadata = serde_json::from_str(&metadata_text)
-        .context("failed to parse cargo metadata output")?;
+    let metadata_text =
+        String::from_utf8(output.stdout).context("cargo metadata output not valid UTF-8")?;
+    let metadata: Metadata =
+        serde_json::from_str(&metadata_text).context("failed to parse cargo metadata output")?;
 
     let plan = ordered_publish_plan(metadata)?;
     Ok(plan)
 }
 
 fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
-    let workspace_members = metadata.workspace_members.into_iter().collect::<HashSet<_>>();
+    let workspace_members = metadata
+        .workspace_members
+        .into_iter()
+        .collect::<HashSet<_>>();
 
     let publishable_packages = metadata
         .packages
         .into_iter()
         .filter(|package| {
-            workspace_members.contains(&package.id) && is_publishable_package(&package.publish)
+            workspace_members.contains(&package.id)
+                && is_publishable_package(package.publish.as_ref())
         })
         .collect::<Vec<_>>();
 
@@ -95,7 +116,7 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
     let mut id_to_name = HashMap::new();
     for package in &publishable_packages {
         publishable_ids.insert(package.id.clone());
-        id_to_name.insert(package.id.clone(), package.name.clone());
+        id_to_name.insert(package.id.clone(), package._name.clone());
     }
 
     let mut in_degree: HashMap<String, usize> = HashMap::new();
@@ -103,7 +124,7 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
     let mut seen_edges = HashSet::new();
 
     for package in &publishable_packages {
-        in_degree.entry(package.name.clone()).or_insert(0);
+        in_degree.entry(package._name.clone()).or_insert(0);
     }
 
     for package in &publishable_packages {
@@ -122,17 +143,15 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
             let Some(dep_name) = id_to_name.get(dep_id) else {
                 continue;
             };
-            let edge = (dep_name.clone(), package.name.clone());
+            let edge = (dep_name.clone(), package._name.clone());
             if !seen_edges.insert(edge.clone()) {
                 continue;
             }
             dependents
                 .entry(dep_name.clone())
                 .or_default()
-                .push(package.name.clone());
-            *in_degree
-                .entry(package.name.clone())
-                .or_default() += 1;
+                .push(package._name.clone());
+            *in_degree.entry(package._name.clone()).or_default() += 1;
         }
     }
 
@@ -149,7 +168,9 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
 
         if let Some(children) = dependents.get(&crate_name) {
             for child in children {
-                let child_degree = in_degree.get_mut(child).expect("in-degree exists");
+                let Some(child_degree) = in_degree.get_mut(child) else {
+                    bail!("dependency graph missing in-degree for package `{child}`");
+                };
                 if *child_degree > 0 {
                     *child_degree -= 1;
                 }
@@ -185,16 +206,15 @@ fn validate_publish_plan(plan: &[String]) -> Result<()> {
 
     if let (Some(&core_pos), Some(&facade_pos)) =
         (cursor.get("copybook-core"), cursor.get("copybook"))
+        && core_pos > facade_pos
     {
-        if core_pos > facade_pos {
-            bail!("copybook-core must appear before copybook");
-        }
+        bail!("copybook-core must appear before copybook");
     }
 
-    if let (Some(&facade_pos), Some(&rs_pos)) = (cursor.get("copybook"), cursor.get("copybook-rs")) {
-        if facade_pos > rs_pos {
-            bail!("copybook must appear before copybook-rs");
-        }
+    if let (Some(&facade_pos), Some(&rs_pos)) = (cursor.get("copybook"), cursor.get("copybook-rs"))
+        && facade_pos > rs_pos
+    {
+        bail!("copybook must appear before copybook-rs");
     }
 
     let mut unique = HashSet::new();
@@ -207,9 +227,8 @@ fn validate_publish_plan(plan: &[String]) -> Result<()> {
     Ok(())
 }
 
-fn is_publishable_package(publish: &Option<Value>) -> bool {
+fn is_publishable_package(publish: Option<&Value>) -> bool {
     match publish {
-        None => true,
         Some(Value::Bool(false)) => false,
         Some(Value::Array(values)) => !values.is_empty(),
         _ => true,
@@ -314,10 +333,7 @@ mod tests {
 
     #[test]
     fn validate_publish_plan_requires_facades() {
-        let plan = vec![
-            "copybook-core".to_string(),
-            "copybook-codec".to_string(),
-        ];
+        let plan = vec!["copybook-core".to_string(), "copybook-codec".to_string()];
         assert!(validate_publish_plan(&plan).is_err());
     }
 }

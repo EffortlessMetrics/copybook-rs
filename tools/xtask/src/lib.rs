@@ -23,6 +23,12 @@ fn junit_xml_paths() -> [PathBuf; 2] {
     ]
 }
 
+/// Return the active nextest junit report location used by docs verification.
+///
+/// # Errors
+///
+/// Returns an error if no expected junit report path exists at either location.
+#[inline]
 pub fn junit_xml_path() -> Result<PathBuf> {
     let candidates = junit_xml_paths();
     let primary = candidates[0].display().to_string();

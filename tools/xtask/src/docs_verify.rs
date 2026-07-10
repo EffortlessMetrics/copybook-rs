@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use copybook_bench::{COMP3_CI_FLOOR_MIBPS, DISPLAY_FLOOR_MIBPS};
 use regex::Regex;
 use std::{collections::BTreeSet, fs, path::Path};

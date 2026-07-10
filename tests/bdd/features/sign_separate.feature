@@ -1,5 +1,5 @@
 @sign-separate
-Feature: SIGN SEPARATE Leading and Trailing for DISPLAY and COMP-3
+Feature: SIGN SEPARATE Leading and Trailing for DISPLAY and COMP-3: test
 
   As a developer working with COBOL signed numeric fields
   I want SIGN SEPARATE to work correctly with various field types

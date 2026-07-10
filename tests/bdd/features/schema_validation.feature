@@ -1,5 +1,5 @@
 @copybook-parsing
-Feature: Schema Validation and Field Properties
+Feature: Schema Validation and Field Properties: test
 
   As a developer working with COBOL copybooks
   I want schema parsing to correctly determine field properties

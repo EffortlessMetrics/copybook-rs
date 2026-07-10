@@ -1,5 +1,5 @@
 @verification-extended
-Feature: Verification and Data Validation Extended
+Feature: Verification and Data Validation Extended: test
   As a developer validating mainframe data
   I want the verify command to correctly validate data against schemas
   So that data quality issues are caught before processing

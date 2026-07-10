@@ -1,4 +1,4 @@
-Feature: Enterprise COBOL Features
+Feature: Enterprise COBOL Features: test
 
   As a developer working with enterprise COBOL data
   I want to process complex copybook structures

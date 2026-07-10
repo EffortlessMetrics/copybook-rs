@@ -1,5 +1,5 @@
 @projection-advanced
-Feature: Advanced Field Projection
+Feature: Advanced Field Projection: test
 
   As a developer using field projection
   I want comprehensive coverage of advanced projection scenarios

@@ -1,5 +1,5 @@
 @occurs-arrays
-Feature: Fixed OCCURS Array Processing
+Feature: Fixed OCCURS Array Processing: test
 
   As a developer working with COBOL fixed-length arrays
   I want OCCURS arrays to be correctly parsed, decoded, and encoded

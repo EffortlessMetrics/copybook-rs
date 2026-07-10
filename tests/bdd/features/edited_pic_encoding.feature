@@ -1,4 +1,4 @@
-Feature: Edited PIC E3 Encoding
+Feature: Edited PIC E3 Encoding: test
 
   As a developer working with COBOL edited PICTURE clauses
   I want to encode numeric values using edited PIC E3 patterns

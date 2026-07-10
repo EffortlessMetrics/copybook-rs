@@ -1,5 +1,5 @@
 @occurs-arrays
-Feature: OCCURS Arrays and ODO
+Feature: OCCURS Arrays and ODO: test
 
   As a developer working with COBOL copybooks
   I want OCCURS and OCCURS DEPENDING ON to be handled correctly

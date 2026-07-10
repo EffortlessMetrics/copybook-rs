@@ -1,5 +1,5 @@
 @dialect
-Feature: Dialect Lever Behavior
+Feature: Dialect Lever Behavior: test
 
   As a developer working with copybooks from different COBOL vendors
   I want the dialect lever to control ODO min_count interpretation

@@ -1,5 +1,5 @@
 @field-projection @projection
-Feature: Field Projection
+Feature: Field Projection: test
 
   As a developer working with large COBOL data structures
   I want to selectively project only the fields I need from a copybook schema

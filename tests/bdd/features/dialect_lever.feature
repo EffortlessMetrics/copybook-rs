@@ -1,5 +1,5 @@
 @dialect
-Feature: Dialect Lever for ODO (OCCURS DEPENDING ON) Behavior
+Feature: Dialect Lever for ODO (OCCURS DEPENDING ON) Behavior: test
 
   As a developer working with COBOL copybooks containing ODO clauses
   I want to control how min_count is interpreted through dialect settings

@@ -1,5 +1,5 @@
 @decode_numeric
-Feature: Numeric Display Field Processing
+Feature: Numeric Display Field Processing: test
 
   As a developer working with COBOL numeric DISPLAY data
   I want to correctly parse, decode, encode, and round-trip PIC 9 fields

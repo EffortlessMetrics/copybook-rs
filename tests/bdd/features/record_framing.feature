@@ -1,5 +1,5 @@
 @record-framing
-Feature: Record Framing
+Feature: Record Framing: test
 
   As a developer processing mainframe data files
   I want fixed-length and RDW record framing to be handled correctly

@@ -1,5 +1,5 @@
 @parsing-modes
-Feature: Parsing Modes
+Feature: Parsing Modes: test
   Test strict vs tolerant parsing and comment handling
 
   Scenario: Strict parsing of valid copybook

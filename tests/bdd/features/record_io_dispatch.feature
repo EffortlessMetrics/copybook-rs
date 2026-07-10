@@ -1,5 +1,5 @@
 @raw
-Feature: Record I/O Dispatch Microcrate
+Feature: Record I/O Dispatch Microcrate: test
 
   As a maintainer of codec compatibility APIs
   I want fixed-vs-RDW legacy dispatch isolated in a dedicated microcrate

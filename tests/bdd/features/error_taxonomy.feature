@@ -1,4 +1,4 @@
-Feature: Error Taxonomy Coverage
+Feature: Error Taxonomy Coverage: test
 
   As a developer integrating with copybook-rs
   I want each error family to produce correct error codes

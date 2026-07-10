@@ -1,5 +1,5 @@
 @dialect-extended
-Feature: Dialect and ODO Behavior Extended
+Feature: Dialect and ODO Behavior Extended: test
   As a developer working with different COBOL dialects
   I want ODO behavior to be correct under all dialect modes
   So that data from IBM, Micro Focus, and standard COBOL systems is handled properly

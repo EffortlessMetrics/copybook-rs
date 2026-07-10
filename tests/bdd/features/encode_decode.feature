@@ -1,4 +1,4 @@
-Feature: Encode and Decode Operations
+Feature: Encode and Decode Operations: test
 
   As a developer working with COBOL data
   I want to encode and decode binary records using copybook schemas

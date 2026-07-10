@@ -1,5 +1,5 @@
 @copybook-parsing
-Feature: Alphanumeric Field Processing
+Feature: Alphanumeric Field Processing: test
 
   As a developer working with COBOL alphanumeric data
   I want to correctly parse, decode, encode, and round-trip PIC X fields

@@ -1,5 +1,5 @@
 @parallel
-Feature: Parallel Processing
+Feature: Parallel Processing: test
   Test multi-threaded decoding behavior
 
   Background:

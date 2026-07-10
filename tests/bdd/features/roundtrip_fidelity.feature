@@ -1,5 +1,5 @@
 @roundtrip
-Feature: Round-Trip Fidelity
+Feature: Round-Trip Fidelity: test
   Encode-then-decode (or decode-then-encode) must produce byte-identical
   output to prove lossless data conversion through the pipeline.
 

@@ -1,5 +1,5 @@
 @support
-Feature: Support Command
+Feature: Support Command: test
   Test the support matrix feature query
 
   Scenario: Query all features in support matrix

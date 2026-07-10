@@ -1,5 +1,5 @@
 @redefines-deep
-Feature: Deep REDEFINES with Multiple Alternates, Nesting, and Group-Level
+Feature: Deep REDEFINES with Multiple Alternates, Nesting, and Group-Level: test
 
   As a developer working with complex COBOL REDEFINES patterns
   I want multi-alternate, nested, and group-level REDEFINES to work correctly

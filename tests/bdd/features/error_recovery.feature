@@ -1,5 +1,5 @@
 @error-recovery
-Feature: Error Recovery
+Feature: Error Recovery: test
   As a developer working with COBOL data
   I want the system to handle malformed copybooks, truncated data, and corrupted records gracefully
   So that errors are reported clearly without crashes

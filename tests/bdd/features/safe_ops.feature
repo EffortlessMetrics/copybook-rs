@@ -1,5 +1,5 @@
 @safe-ops
-Feature: Safe operations contract
+Feature: Safe operations contract: test
   Scenario: parse a valid unsigned integer
     Given the safe-op input is "2048"
     When safe_ops parses the input as usize

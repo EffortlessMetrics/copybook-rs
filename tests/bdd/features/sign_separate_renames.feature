@@ -1,4 +1,4 @@
-Feature: SIGN SEPARATE and RENAMES R4-R6 Support
+Feature: SIGN SEPARATE and RENAMES R4-R6 Support: test
 
   As a developer working with COBOL data
   I want to parse copybooks with SIGN SEPARATE clause and RENAMES R4-R6 rules

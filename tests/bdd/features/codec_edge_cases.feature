@@ -1,5 +1,5 @@
 @codec-edge-cases
-Feature: Codec Edge Cases
+Feature: Codec Edge Cases: test
 
   As a developer working with COBOL data
   I want comprehensive coverage of codec edge cases

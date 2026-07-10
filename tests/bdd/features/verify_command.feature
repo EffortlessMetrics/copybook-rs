@@ -1,5 +1,5 @@
 @verify
-Feature: Verify Command
+Feature: Verify Command: test
   Test data verification against schema
 
   Scenario: Verify valid fixed-length data

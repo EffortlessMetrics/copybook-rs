@@ -1,5 +1,5 @@
 @codepage
-Feature: Codepage Variants
+Feature: Codepage Variants: test
   Test encoding/decoding with all supported EBCDIC codepages
 
   Background:

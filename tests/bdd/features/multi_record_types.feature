@@ -1,5 +1,5 @@
 @multi-record
-Feature: Multi-Record Type Handling
+Feature: Multi-Record Type Handling: test
   As a developer processing mainframe data files
   I want to handle multiple record types and layouts within a single copybook
   So that I can process complex multi-record data files correctly

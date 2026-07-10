@@ -1,5 +1,5 @@
 @comp1-comp2
-Feature: COMP-1 Float and COMP-2 Double Decode, Encode, and Schema
+Feature: COMP-1 Float and COMP-2 Double Decode, Encode, and Schema: test
 
   As a developer working with mainframe COBOL floating-point data
   I want to correctly decode, encode, and round-trip COMP-1 and COMP-2 fields

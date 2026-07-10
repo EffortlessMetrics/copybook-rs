@@ -1,5 +1,5 @@
 @enterprise @insurance
-Feature: Enterprise Insurance Record Layouts
+Feature: Enterprise Insurance Record Layouts: test
 
   As a developer processing mainframe insurance data
   I want to decode and encode insurance policy and claim records

@@ -1,5 +1,5 @@
 @comp-binary
-Feature: COMP Binary, COMP-1 Float, and COMP-2 Double
+Feature: COMP Binary, COMP-1 Float, and COMP-2 Double: test
 
   As a developer working with mainframe COBOL binary data types
   I want to correctly decode, encode, and round-trip COMP, COMP-1, and COMP-2 fields

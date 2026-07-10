@@ -1,5 +1,5 @@
 @numeric-precision
-Feature: Numeric Precision
+Feature: Numeric Precision: test
   As a developer working with financial and scientific mainframe data
   I want numeric fields to be decoded and encoded with full precision
   So that no data is lost during conversion

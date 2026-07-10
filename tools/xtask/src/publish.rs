@@ -16,8 +16,8 @@ struct Metadata {
 #[derive(Debug, Deserialize)]
 struct Package {
     id: String,
-    #[serde(rename = "name")]
-    _name: String,
+    #[allow(dead_code)]
+    name: String,
     #[serde(default)]
     publish: Option<Value>,
     #[serde(default)]
@@ -26,8 +26,8 @@ struct Package {
 
 #[derive(Debug, Deserialize)]
 struct Dependency {
-    #[serde(rename = "name")]
-    _name: String,
+    #[allow(dead_code)]
+    name: String,
     #[serde(default)]
     kind: Option<String>,
     #[serde(default)]
@@ -116,7 +116,7 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
     let mut id_to_name = HashMap::new();
     for package in &publishable_packages {
         publishable_ids.insert(package.id.clone());
-        id_to_name.insert(package.id.clone(), package._name.clone());
+        id_to_name.insert(package.id.clone(), package.name.clone());
     }
 
     let mut in_degree: HashMap<String, usize> = HashMap::new();
@@ -124,7 +124,7 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
     let mut seen_edges = HashSet::new();
 
     for package in &publishable_packages {
-        in_degree.entry(package._name.clone()).or_insert(0);
+        in_degree.entry(package.name.clone()).or_insert(0);
     }
 
     for package in &publishable_packages {
@@ -143,15 +143,15 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
             let Some(dep_name) = id_to_name.get(dep_id) else {
                 continue;
             };
-            let edge = (dep_name.clone(), package._name.clone());
+            let edge = (dep_name.clone(), package.name.clone());
             if !seen_edges.insert(edge.clone()) {
                 continue;
             }
             dependents
                 .entry(dep_name.clone())
                 .or_default()
-                .push(package._name.clone());
-            *in_degree.entry(package._name.clone()).or_default() += 1;
+                .push(package.name.clone());
+            *in_degree.entry(package.name.clone()).or_default() += 1;
         }
     }
 

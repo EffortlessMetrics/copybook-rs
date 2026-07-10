@@ -1,4 +1,4 @@
-Feature: Decode Edge Cases
+Feature: Decode Edge Cases: test
 
   As a developer working with COBOL data
   I want robust decoding of edge-case binary records

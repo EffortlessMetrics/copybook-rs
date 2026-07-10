@@ -1,5 +1,5 @@
 @sign-handling @extended
-Feature: Sign Handling Extended Scenarios
+Feature: Sign Handling Extended Scenarios: test
 
   As a developer working with signed COBOL numeric data
   I want comprehensive coverage of SIGN SEPARATE, overpunch, and negative zero

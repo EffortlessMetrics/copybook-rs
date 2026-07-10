@@ -1,5 +1,5 @@
 @binary-integer
-Feature: COMP Binary Integer Decode, Encode, and Round-Trip
+Feature: COMP Binary Integer Decode, Encode, and Round-Trip: test
 
   As a developer working with mainframe COBOL data
   I want to correctly decode, encode, and round-trip COMP binary integer fields

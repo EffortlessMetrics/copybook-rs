@@ -1,5 +1,5 @@
 @exit-codes
-Feature: CLI Exit Codes
+Feature: CLI Exit Codes: test
   Test exit code mapping from error families
 
   Scenario: Success returns exit code 0

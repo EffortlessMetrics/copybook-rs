@@ -1,5 +1,5 @@
 @determinism
-Feature: Determinism Validation
+Feature: Determinism Validation: test
 
   As a developer working with COBOL data
   I want to verify that encode and decode operations produce deterministic results

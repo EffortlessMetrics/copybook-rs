@@ -1,5 +1,5 @@
 @metadata
-Feature: Metadata Emission
+Feature: Metadata Emission: test
   Test emit_meta flag behavior
 
   Background:

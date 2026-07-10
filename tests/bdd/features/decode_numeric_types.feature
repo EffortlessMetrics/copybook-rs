@@ -1,5 +1,5 @@
 @decode_numeric
-Feature: Decode Numeric COBOL Types
+Feature: Decode Numeric COBOL Types: test
 
   As a developer working with COBOL data
   I want to decode all numeric COBOL field types correctly

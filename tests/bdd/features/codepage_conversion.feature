@@ -1,5 +1,5 @@
 @codepage-conversion
-Feature: Codepage Conversion Edge Cases
+Feature: Codepage Conversion Edge Cases: test
   As a developer converting between EBCDIC and ASCII
   I want codepage conversions to handle edge cases correctly
   So that data integrity is maintained across all supported codepages

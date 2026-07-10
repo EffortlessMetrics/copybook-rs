@@ -1,5 +1,5 @@
 @comp3-packed
-Feature: COMP-3 Packed Decimal Decode, Encode, and Round-Trip
+Feature: COMP-3 Packed Decimal Decode, Encode, and Round-Trip: test
 
   As a developer working with mainframe COBOL data
   I want to correctly decode, encode, and round-trip COMP-3 packed decimal fields

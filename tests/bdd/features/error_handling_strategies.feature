@@ -1,5 +1,5 @@
 @error-strategies
-Feature: Error Handling Strategies
+Feature: Error Handling Strategies: test
   Test strict/lenient modes and max_errors
 
   Background:

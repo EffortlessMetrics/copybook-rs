@@ -1,5 +1,5 @@
 @schema-validation
-Feature: Schema Validation Edge Cases
+Feature: Schema Validation Edge Cases: test
   As a developer parsing COBOL copybooks
   I want the parser to validate all schema constraints correctly
   So that invalid copybooks are rejected with clear errors

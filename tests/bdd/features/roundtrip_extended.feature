@@ -1,5 +1,5 @@
 @roundtrip @extended
-Feature: Extended Round-Trip Fidelity
+Feature: Extended Round-Trip Fidelity: test
 
   Byte-identical decode-then-encode proves lossless data conversion.
   This suite covers all field types, codepages, and ODO variable-length records.

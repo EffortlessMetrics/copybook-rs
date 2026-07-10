@@ -1,5 +1,5 @@
 @projection_smoke
-Feature: Test Projection Minimal
+Feature: Test Projection Minimal: test
 
   Background:
     Given ASCII codepage

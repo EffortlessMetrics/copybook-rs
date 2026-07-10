@@ -1,5 +1,5 @@
 @edited-pic-roundtrip
-Feature: Edited PIC Round-Trip and Extended Pattern Coverage
+Feature: Edited PIC Round-Trip and Extended Pattern Coverage: test
 
   As a developer working with COBOL edited PICTURE clauses
   I want complete round-trip coverage for edited PIC patterns

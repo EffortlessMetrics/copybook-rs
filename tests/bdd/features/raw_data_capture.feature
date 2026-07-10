@@ -1,5 +1,5 @@
 @raw
-Feature: Raw Data Capture
+Feature: Raw Data Capture: test
   Test raw data capture modes (__raw_b64)
 
   Background:

@@ -1,5 +1,5 @@
 @edited-pic @scenarios
-Feature: Edited PIC Pattern Scenarios
+Feature: Edited PIC Pattern Scenarios: test
 
   As a developer working with COBOL edited PICTURE clauses
   I want comprehensive coverage of all edited PIC patterns

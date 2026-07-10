@@ -1,4 +1,4 @@
-Feature: RDW (Record Descriptor Word) Processing
+Feature: RDW (Record Descriptor Word) Processing: test
 
   As a developer working with mainframe data
   I want to process variable-length records with RDW headers

@@ -1,5 +1,5 @@
 @redefines
-Feature: Advanced REDEFINES Scenarios
+Feature: Advanced REDEFINES Scenarios: test
 
   As a developer working with COBOL REDEFINES
   I want complex REDEFINES patterns to be handled correctly

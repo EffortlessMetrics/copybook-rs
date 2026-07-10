@@ -1,5 +1,5 @@
 @governance
-Feature: Governance flag synchronization
+Feature: Governance flag synchronization: test
   The governance system must keep feature flags, support matrix,
   and runtime behavior in sync.
 

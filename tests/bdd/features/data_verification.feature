@@ -1,5 +1,5 @@
 @data-verification
-Feature: Data Verification
+Feature: Data Verification: test
   Verify binary data against a copybook schema to detect structural and
   content errors before full decode/encode processing.
 

@@ -1,5 +1,5 @@
 @enterprise @retail
-Feature: Enterprise Retail Record Layouts
+Feature: Enterprise Retail Record Layouts: test
 
   As a developer processing mainframe retail and POS data
   I want to decode and encode retail transaction records

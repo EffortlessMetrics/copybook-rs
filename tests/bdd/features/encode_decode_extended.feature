@@ -1,5 +1,5 @@
 @encode-decode-extended
-Feature: Encode Decode Edge Cases Extended
+Feature: Encode Decode Edge Cases Extended: test
   As a developer encoding and decoding mainframe data
   I want edge cases in encode/decode to work correctly
   So that data conversions are reliable

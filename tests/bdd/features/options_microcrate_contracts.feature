@@ -1,5 +1,5 @@
 @options
-Feature: Options Microcrate Contracts
+Feature: Options Microcrate Contracts: test
   Validate configuration option behavior through the codec facade.
 
   Scenario: Decode options builder applies contract fields

@@ -1,5 +1,5 @@
 @cli @workflow
-Feature: CLI Workflow Scenarios
+Feature: CLI Workflow Scenarios: test
 
   As a user of the copybook CLI
   I want to run full workflows through parse, inspect, decode, encode, and verify

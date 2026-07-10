@@ -1,5 +1,5 @@
 @enterprise @banking
-Feature: Enterprise Banking Record Layouts
+Feature: Enterprise Banking Record Layouts: test
 
   As a developer processing mainframe banking data
   I want to decode and encode banking record structures

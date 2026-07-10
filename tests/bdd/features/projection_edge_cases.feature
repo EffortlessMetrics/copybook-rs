@@ -1,5 +1,5 @@
 @projection-edge-cases
-Feature: Field Projection Edge Cases
+Feature: Field Projection Edge Cases: test
   As a developer using field projection
   I want projection to work correctly with various copybook structures
   So that I can select exactly the fields I need

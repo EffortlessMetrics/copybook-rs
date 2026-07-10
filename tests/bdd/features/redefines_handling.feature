@@ -1,5 +1,5 @@
 @redefines
-Feature: REDEFINES Handling
+Feature: REDEFINES Handling: test
 
   As a developer working with COBOL copybooks
   I want REDEFINES clauses to be parsed and handled correctly

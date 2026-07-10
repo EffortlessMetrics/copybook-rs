@@ -1,4 +1,4 @@
-Feature: Golden Fixtures Validation
+Feature: Golden Fixtures Validation: test
 
   As a developer working with copybook-rs
   I want to validate golden fixtures for structural consistency

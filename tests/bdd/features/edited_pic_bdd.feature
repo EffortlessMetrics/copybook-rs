@@ -1,5 +1,5 @@
 @edited-pic
-Feature: Edited PIC BDD Coverage
+Feature: Edited PIC BDD Coverage: test
 
   As a developer working with COBOL edited PICTURE clauses
   I want comprehensive BDD coverage of edited PIC decode, encode, and round-trip

@@ -1,5 +1,5 @@
 @enterprise-audit
-Feature: Enterprise Audit System
+Feature: Enterprise Audit System: test
 
   As an enterprise data processing organization
   I want to have comprehensive audit capabilities for regulatory compliance

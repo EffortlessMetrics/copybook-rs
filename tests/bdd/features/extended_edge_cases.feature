@@ -1,5 +1,5 @@
 @codec-edge-cases @copybook-parsing
-Feature: Extended Edge Cases
+Feature: Extended Edge Cases: test
 
   As a developer working with COBOL data
   I want comprehensive coverage of parsing and codec edge cases

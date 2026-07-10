@@ -1,5 +1,5 @@
 @zoned-encoding
-Feature: Zoned Encoding Policies
+Feature: Zoned Encoding Policies: test
   Test zoned decimal encoding format options
 
   Background:

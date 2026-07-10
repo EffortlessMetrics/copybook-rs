@@ -1,5 +1,5 @@
 @copybook-parsing
-Feature: Group Structure Parsing and Decoding
+Feature: Group Structure Parsing and Decoding: test
 
   As a developer working with COBOL copybooks
   I want nested group structures to be correctly parsed and decoded

@@ -1,5 +1,5 @@
 @json-numbers
-Feature: JSON Number Modes
+Feature: JSON Number Modes: test
   Test lossless vs native number representation
 
   Scenario: Lossless mode preserves numeric precision as string

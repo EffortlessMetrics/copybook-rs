@@ -70,7 +70,15 @@ See [COBOL_SUPPORT_MATRIX.md](docs/reference/COBOL_SUPPORT_MATRIX.md) for the fu
 | [Internal Docs](docs/internal/) | Internal implementation and spec references |
 | [Stability Guarantees](docs/STABILITY_GUARANTEES.md) | API stability contract and versioning policy |
 | [Support Policy](docs/SUPPORT_POLICY.md) | Release support windows and response times |
+| [API Freeze Audit](docs/API_FREEZE_AUDIT.md) | Checklist for pre-v1.0 stability freeze completion |
 | [Roadmap](docs/ROADMAP.md) | Project status and what's next |
+
+## Stability and support posture
+
+- **Stability contract:** see [Stability Guarantees](docs/STABILITY_GUARANTEES.md)
+- **Freeze rules:** see [API Freeze](docs/API_FREEZE.md)
+- **Support window:** see [Support Policy](docs/SUPPORT_POLICY.md)
+- **Freeze audit checklist:** see [API Freeze Audit](docs/API_FREEZE_AUDIT.md)
 
 ## Exit Codes
 

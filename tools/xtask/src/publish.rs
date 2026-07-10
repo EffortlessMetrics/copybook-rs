@@ -2,10 +2,7 @@
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 use serde_json::Value;
-use std::{
-    collections::{HashMap, HashSet},
-    process::Command,
-};
+use std::{collections::{HashMap, HashSet}, process::Command};
 
 #[derive(Debug, Deserialize)]
 struct Metadata {
@@ -42,10 +39,7 @@ pub fn run_plan(format: PlanFormat, check_only: bool) -> Result<()> {
     let plan = build_publish_plan()?;
     if check_only {
         validate_publish_plan(&plan)?;
-        println!(
-            "publish plan validated: {} publishable crate(s)",
-            plan.len()
-        );
+        println!("publish plan validated: {} publishable crate(s)", plan.len());
         return Ok(());
     }
 
@@ -74,20 +68,16 @@ fn build_publish_plan() -> Result<Vec<String>> {
         bail!("cargo metadata failed:\n{stderr}");
     }
 
-    let metadata_text =
-        String::from_utf8(output.stdout).context("cargo metadata output not valid UTF-8")?;
-    let metadata: Metadata =
-        serde_json::from_str(&metadata_text).context("failed to parse cargo metadata output")?;
+    let metadata_text = String::from_utf8(output.stdout).context("cargo metadata output not valid UTF-8")?;
+    let metadata: Metadata = serde_json::from_str(&metadata_text)
+        .context("failed to parse cargo metadata output")?;
 
     let plan = ordered_publish_plan(metadata)?;
     Ok(plan)
 }
 
 fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
-    let workspace_members = metadata
-        .workspace_members
-        .into_iter()
-        .collect::<HashSet<_>>();
+    let workspace_members = metadata.workspace_members.into_iter().collect::<HashSet<_>>();
 
     let publishable_packages = metadata
         .packages
@@ -140,7 +130,9 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
                 .entry(dep_name.clone())
                 .or_default()
                 .push(package.name.clone());
-            *in_degree.entry(package.name.clone()).or_default() += 1;
+            *in_degree
+                .entry(package.name.clone())
+                .or_default() += 1;
         }
     }
 
@@ -199,8 +191,7 @@ fn validate_publish_plan(plan: &[String]) -> Result<()> {
         }
     }
 
-    if let (Some(&facade_pos), Some(&rs_pos)) = (cursor.get("copybook"), cursor.get("copybook-rs"))
-    {
+    if let (Some(&facade_pos), Some(&rs_pos)) = (cursor.get("copybook"), cursor.get("copybook-rs")) {
         if facade_pos > rs_pos {
             bail!("copybook must appear before copybook-rs");
         }
@@ -323,7 +314,10 @@ mod tests {
 
     #[test]
     fn validate_publish_plan_requires_facades() {
-        let plan = vec!["copybook-core".to_string(), "copybook-codec".to_string()];
+        let plan = vec![
+            "copybook-core".to_string(),
+            "copybook-codec".to_string(),
+        ];
         assert!(validate_publish_plan(&plan).is_err());
     }
 }

@@ -13,7 +13,8 @@
 | `proptest` | proptest (`copybook-proptest`) | Property-based round-trip and invariants |
 
 ## Navigation
-- Repository root + invariants: `../CLAUDE.md`
+- Repository contract: `../AGENTS.md`
+- Test-specific contract: `AGENTS.md`
 - Shared test helpers: `common/`
 
 ## Run

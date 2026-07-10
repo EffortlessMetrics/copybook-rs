@@ -256,16 +256,19 @@ fn decode_raw_mode_field() {
 
 #[test]
 fn decode_raw_mode_field_no_record_level_raw() {
-    // Field mode should still produce record-level __raw_b64 (existing behavior)
-    // but also field-level entries
+    // Field mode should produce field-level entries without whole-record raw payloads.
     let schema = parse_copybook("01 FLD PIC X(5).").unwrap();
     let data = b"HELLO";
     let opts = ascii_decode_opts().with_emit_raw(RawMode::Field);
     let json = decode_record(&schema, data, &opts).unwrap();
 
     assert!(
-        json.get("FLD_raw_b64").is_some(),
-        "RawMode::Field should emit field-level raw"
+        json.get("FLD_raw_b64").is_some()
+            && json.get("raw_b64").is_none()
+            && json.get("__raw_b64").is_none(),
+        "RawMode::Field should emit field-level raw without record-level raw, got keys: {:?}",
+        json.as_object()
+            .map(|object| object.keys().collect::<Vec<_>>())
     );
 }
 

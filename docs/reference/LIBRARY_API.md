@@ -33,7 +33,6 @@ Basic usage:
 ```rust
 use copybook_core::parse_copybook;
 use copybook_codec::{decode_file_to_jsonl, DecodeOptions, Codepage, RecordFormat};
-use std::path::Path;
 
 // Parse copybook
 let copybook_text = std::fs::read_to_string("customer.cpy")?;
@@ -41,14 +40,15 @@ let schema = parse_copybook(&copybook_text)?;
 
 // Configure decode options
 let opts = DecodeOptions {
-    codepage: Codepage::Cp037,
+    codepage: Codepage::CP037,
     format: RecordFormat::Fixed,
     ..Default::default()
 };
 
 // Decode to JSONL
+let input = std::fs::File::open("data.bin")?;
 let output = std::fs::File::create("output.jsonl")?;
-let summary = decode_file_to_jsonl(&schema, Path::new("data.bin"), &opts, output)?;
+let summary = decode_file_to_jsonl(&schema, input, output, &opts)?;
 ```
 
 ## Core Types
@@ -73,9 +73,14 @@ pub struct Schema {
 **Methods:**
 ```rust
 impl Schema {
+    /// Find a field by its full dot-separated path (recursive).
     pub fn find_field(&self, path: &str) -> Option<&Field>;
-    pub fn max_record_size(&self) -> u32;
-    pub fn validate(&self) -> Result<(), Error>;
+    /// Find a field by path, falling back to level-66 RENAMES alias lookup by name.
+    pub fn find_field_or_alias(&self, name_or_path: &str) -> Option<&Field>;
+    /// Resolve a RENAMES alias to its first storage-bearing target field.
+    pub fn resolve_alias_to_target(&self, name_or_path: &str) -> Option<&Field>;
+    /// Find all fields whose REDEFINES clause targets the given path.
+    pub fn find_redefining_fields<'a>(&'a self, target_path: &str) -> Vec<&'a Field>;
 }
 ```
 
@@ -84,17 +89,25 @@ impl Schema {
 ```rust
 pub struct Field {
     pub path: String,
+    pub name: String,
+    pub level: u8,
     pub kind: FieldKind,
     pub offset: u32,
     pub len: u32,
     pub redefines_of: Option<String>,
     pub occurs: Option<Occurs>,
-    pub sync: Option<u16>,
+    pub sync_padding: Option<u16>,
+    pub synchronized: bool,
+    pub blank_when_zero: bool,
+    pub resolved_renames: Option<ResolvedRenames>,
+    pub children: Vec<Field>,
 }
 ```
 
 **Fields:**
 - `path` - Dot-separated field path (e.g., "ROOT.CUSTOMER.ID")
+- `name` - Field name (last component of path)
+- `level` - Level number from copybook (e.g., 01, 05, 66, 88)
 - `kind` - Field type and characteristics
 - `offset` - Byte offset within record
 - `len` - Field length in bytes
@@ -102,16 +115,39 @@ pub struct Field {
 - `occurs` - Array information (if applicable)
 - `sync_padding` - Alignment padding bytes (if SYNCHRONIZED) following IBM mainframe standards
 - `synchronized` - Boolean flag indicating if field uses SYNCHRONIZED alignment
+- `blank_when_zero` - Whether field has BLANK WHEN ZERO
+- `resolved_renames` - Resolved RENAMES information (level-66 fields only)
+- `children` - Child fields (for groups)
 
 ### FieldKind
 
 ```rust
 pub enum FieldKind {
     Alphanum { len: u32 },
-    ZonedDecimal { digits: u16, scale: i16, signed: bool },
+    ZonedDecimal {
+        digits: u16,
+        scale: i16,
+        signed: bool,
+        sign_separate: Option<SignSeparateInfo>,
+    },
     BinaryInt { bits: u16, signed: bool },
     PackedDecimal { digits: u16, scale: i16, signed: bool },
     Group,
+    /// Level-88 condition field (conditional values)
+    Condition { values: Vec<String> },
+    /// Level-66 RENAMES field (field aliasing/regrouping)
+    Renames { from_field: String, thru_field: String },
+    /// Edited numeric field (e.g., PIC ZZZ9, PIC $ZZ,ZZ9.99, PIC 9(7)V99CR)
+    EditedNumeric {
+        pic_string: String,
+        width: u16,
+        scale: u16,
+        signed: bool,
+    },
+    /// Single-precision floating-point (COMP-1, IEEE 754 binary32, 4 bytes)
+    FloatSingle,
+    /// Double-precision floating-point (COMP-2, IEEE 754 binary64, 8 bytes)
+    FloatDouble,
 }
 ```
 
@@ -130,17 +166,19 @@ pub enum Occurs {
 
 ```rust
 pub struct DecodeOptions {
-    pub codepage: Codepage,
     pub format: RecordFormat,
-    pub strict: bool,
-    pub max_errors: Option<u32>,
+    pub codepage: Codepage,
+    pub json_number_mode: JsonNumberMode,
     pub emit_filler: bool,
     pub emit_meta: bool,
     pub emit_raw: RawMode,
-    pub json_number: JsonNumberMode,
+    pub strict_mode: bool,
+    pub max_errors: Option<u64>,
     pub on_decode_unmappable: UnmappablePolicy,
+    pub threads: usize,
     pub preserve_zoned_encoding: bool,
     pub preferred_zoned_encoding: ZonedEncodingFormat,
+    pub float_format: FloatFormat,
 }
 ```
 
@@ -153,14 +191,19 @@ pub struct DecodeOptions {
 
 ```rust
 pub struct EncodeOptions {
-    pub codepage: Codepage,
     pub format: RecordFormat,
-    pub strict: bool,
-    pub max_errors: Option<u32>,
+    pub codepage: Codepage,
+    pub preferred_zoned_encoding: ZonedEncodingFormat,
     pub use_raw: bool,
     pub bwz_encode: bool,
-    pub preferred_zoned_encoding: ZonedEncodingFormat,
+    pub strict_mode: bool,
+    pub max_errors: Option<u64>,
+    pub threads: usize,
+    pub coerce_numbers: bool,
+    pub on_encode_unmappable: UnmappablePolicy,
+    pub json_number_mode: JsonNumberMode,
     pub zoned_encoding_override: Option<ZonedEncodingFormat>,
+    pub float_format: FloatFormat,
 }
 ```
 
@@ -173,17 +216,17 @@ pub struct EncodeOptions {
 
 ```rust
 pub enum Codepage {
-    Cp037,    // US/Canada EBCDIC
-    Cp273,    // Germany/Austria EBCDIC
-    Cp500,    // International EBCDIC
-    Cp1047,   // Open Systems EBCDIC
-    Cp1140,   // US/Canada Euro EBCDIC
-    Ascii,    // ASCII (8-bit transparent)
+    ASCII,    // ASCII (8-bit transparent)
+    CP037,    // US/Canada EBCDIC
+    CP273,    // Germany/Austria EBCDIC
+    CP500,    // International EBCDIC
+    CP1047,   // Open Systems EBCDIC
+    CP1140,   // US/Canada Euro EBCDIC
 }
 
 pub enum RecordFormat {
     Fixed,    // Fixed-length records
-    Rdw,      // Variable-length with RDW header
+    RDW,      // Variable-length with RDW header
 }
 
 pub enum JsonNumberMode {
@@ -193,9 +236,9 @@ pub enum JsonNumberMode {
 
 pub enum RawMode {
     Off,         // No raw capture
-    Record,      // Capture entire record (payload only) as `raw_b64` on the envelope
-    Field,       // Capture individual fields as `<field>_raw_b64`
-    RecordRdw,   // Capture record + RDW header as `raw_b64`
+    Record,      // Capture entire record (payload only) as `__raw_b64` on the envelope
+    Field,       // Capture individual fields as `<FIELD>__raw_b64`
+    RecordRDW,   // Capture record + RDW header as `__raw_b64`
 }
 
 pub enum UnmappablePolicy {
@@ -208,6 +251,11 @@ pub enum ZonedEncodingFormat {
     Ascii,    // ASCII digit zones (0x30-0x39)
     Ebcdic,   // EBCDIC digit zones (0xF0-0xF9)
     Auto,     // Automatic detection from data
+}
+
+pub enum FloatFormat {
+    IeeeBigEndian, // IEEE-754 big-endian binary format (default)
+    IbmHex,        // IBM hexadecimal floating-point format
 }
 ```
 
@@ -265,24 +313,24 @@ Decoded records are wrapped in a stable JSON envelope:
 - `record_index` – Zero-based record sequence number
 - `codepage` – Decoder code page (e.g., `cp037`)
 - `fields` – Map of decoded field values (nested for groups)
-- `schema_fingerprint`, `offset`, `length` – Added when `emit_meta` is enabled
+- `schema_fingerprint`, `__schema_id`, `length`, `__record_index`, `__length` – Added when
+  `emit_meta` is enabled
 
-When `emit_raw` is enabled, record-level payloads are emitted as **`raw_b64`** (with the legacy
-`__raw_b64` still present for backwards compatibility). Field-level capture uses the
-`<field>_raw_b64` naming pattern:
+When `emit_raw` is enabled, record-level payloads are emitted as **`raw_b64`** (with the canonical
+`__raw_b64` key also present). Field-level capture uses the `<FIELD>__raw_b64` naming pattern:
 
 ```rust
 // RawMode::Record - capture record payload only
 let opts = DecodeOptions::new().with_emit_raw(RawMode::Record);
-// JSON excerpt: { "raw_b64": "AAABBBCCC..." }
+// JSON excerpt: { "raw_b64": "AAABBBCCC...", "__raw_b64": "AAABBBCCC..." }
 
-// RawMode::RecordRdw - capture payload + 4-byte RDW header
-let opts = DecodeOptions::new().with_emit_raw(RawMode::RecordRdw);
-// JSON excerpt: { "raw_b64": "AAAAAAhBBBCCC..." }
+// RawMode::RecordRDW - capture payload + 4-byte RDW header
+let opts = DecodeOptions::new().with_emit_raw(RawMode::RecordRDW);
+// JSON excerpt: { "raw_b64": "AAAAAAhBBBCCC...", "__raw_b64": "AAAAAAhBBBCCC..." }
 
 // RawMode::Field - capture individual field payloads
 let opts = DecodeOptions::new().with_emit_raw(RawMode::Field);
-// JSON excerpt: { "fields": { "FIELD1": "decoded", "FIELD1_raw_b64": "AAA..." } }
+// JSON excerpt: { "fields": { "FIELD1": "decoded", "FIELD1__raw_b64": "AAA..." } }
 ```
 
 **Roundtrip Encoding**:
@@ -292,7 +340,7 @@ When `use_raw` is enabled in `EncodeOptions`, the encoder consumes `raw_b64` (or
 ```rust
 // Decode with raw preservation
 let decode_opts = DecodeOptions::new()
-    .with_emit_raw(RawMode::RecordRdw);
+    .with_emit_raw(RawMode::RecordRDW);
 let json_value = decode_record(&schema, &original_data, &decode_opts)?;
 
 // Encode using raw data (preserves reserved bytes, avoids recomputation)
@@ -305,12 +353,12 @@ assert_eq!(original_data, encoded_data);
 ```
 
 **RDW-Specific Considerations**:
-- **Reserved Bytes**: `RawMode::RecordRdw` preserves bytes 2-3 of RDW header (reserved, typically zero)
+- **Reserved Bytes**: `RawMode::RecordRDW` preserves bytes 2-3 of RDW header (reserved, typically zero)
 - **Length Recomputation**: When `use_raw=false`, encoder recomputes RDW length from payload size
 - **Truncation Detection**: Fixed-format records validate expected length against actual data
 - **Error Codes**:
   - `CBKR211_RDW_RESERVED_NONZERO` - Non-zero reserved bytes warning (lenient mode)
-  - `CBKR311_RDW_UNDERFLOW` - Incomplete RDW header or payload
+  - `CBKF221_RDW_UNDERFLOW` - Incomplete RDW header or payload
   - `CBKE501_JSON_TYPE_MISMATCH` - Invalid base64 in `raw_b64` / `__raw_b64`
 
 ## Core Functions
@@ -356,13 +404,22 @@ println!("Parsed {} fields with panic-safe operations", schema.fields.len());
 
 // Advanced parsing with custom options
 let parse_options = ParseOptions {
+    emit_filler: true,            // Emit FILLER fields in the parsed schema
     allow_inline_comments: false, // Disable COBOL-2002 inline comments (*>)
-    max_field_depth: 20,         // Prevent stack overflow from deep nesting
+    strict: true,                 // Strict mode with less error tolerance
     ..ParseOptions::default()
 };
 
 let schema_custom = parse_copybook_with_options(copybook, &parse_options)?;
 ```
+
+**ParseOptions fields:**
+- `emit_filler: bool` - Whether to emit FILLER fields in the parsed schema output
+- `codepage: String` - Codepage identifier used for fingerprint calculation (e.g., `"cp037"`)
+- `allow_inline_comments: bool` - Whether to allow COBOL-2002 inline comments (`*>`)
+- `strict: bool` - Whether to run in strict mode with less error tolerance
+- `strict_comments: bool` - Whether to enforce strict comment parsing rules
+- `dialect: Dialect` - Dialect for ODO `min_count` interpretation
 
 ### Enhanced Safe Operations Module
 
@@ -440,21 +497,21 @@ for (record_num, record_result) in iterator.enumerate() {
 ### File-Level Decoding
 
 ```rust
-pub fn decode_file_to_jsonl<W: Write>(
+pub fn decode_file_to_jsonl(
     schema: &Schema,
-    data_path: &Path,
-    opts: &DecodeOptions,
-    output: W,
-) -> Result<RunSummary, Error>
+    input: impl Read,
+    output: impl Write,
+    options: &DecodeOptions,
+) -> Result<RunSummary>
 ```
 
-Decode an entire file to JSONL format with **enterprise reliability**.
+Decode an entire input stream to JSONL format with **enterprise reliability**.
 
 **Parameters:**
 - `schema` - Parsed copybook schema
-- `data_path` - Path to binary data file
-- `opts` - Decode configuration options
+- `input` - Reader for binary record data
 - `output` - Writer for JSONL output
+- `options` - Decode configuration options
 
 **Returns:**
 - `Ok(RunSummary)` - Processing statistics
@@ -463,7 +520,7 @@ Decode an entire file to JSONL format with **enterprise reliability**.
 **Example:**
 ```rust
 let opts = DecodeOptions {
-    codepage: Codepage::Cp037,
+    codepage: Codepage::CP037,
     format: RecordFormat::Fixed,
     emit_meta: true,
     preserve_zoned_encoding: true, // Enable encoding preservation
@@ -471,8 +528,9 @@ let opts = DecodeOptions {
     ..Default::default()
 };
 
+let input = std::fs::File::open("data.bin")?;
 let output = std::fs::File::create("output.jsonl")?;
-let summary = decode_file_to_jsonl(&schema, Path::new("data.bin"), &opts, output)?;
+let summary = decode_file_to_jsonl(&schema, input, output, &opts)?;
 
 println!("Processed {} records with {} errors",
          summary.records_processed, summary.records_with_errors);
@@ -514,19 +572,19 @@ Even without the feature, the library emits an `INFO` log with target `copybook:
 ```rust
 pub fn encode_jsonl_to_file(
     schema: &Schema,
-    jsonl_path: &Path,
-    opts: &EncodeOptions,
-    out_path: &Path,
-) -> Result<RunSummary, Error>
+    input: impl Read,
+    output: impl Write,
+    options: &EncodeOptions,
+) -> Result<RunSummary>
 ```
 
 Encode JSONL data to binary format.
 
 **Parameters:**
 - `schema` - Parsed copybook schema
-- `jsonl_path` - Path to JSONL input file
-- `opts` - Encode configuration options
-- `out_path` - Path for binary output file
+- `input` - Reader for JSONL input
+- `output` - Writer for binary output
+- `options` - Encode configuration options
 
 **Returns:**
 - `Ok(RunSummary)` - Processing statistics
@@ -535,7 +593,7 @@ Encode JSONL data to binary format.
 **Example:**
 ```rust
 let opts = EncodeOptions {
-    codepage: Codepage::Cp037,
+    codepage: Codepage::CP037,
     format: RecordFormat::Fixed,
     use_raw: true,
     zoned_encoding_override: None, // Respect preserved formats
@@ -544,18 +602,15 @@ let opts = EncodeOptions {
 
 // Or with explicit format override:
 let opts_override = EncodeOptions {
-    codepage: Codepage::Cp037,
+    codepage: Codepage::CP037,
     format: RecordFormat::Fixed,
     zoned_encoding_override: Some(ZonedEncodingFormat::Ascii), // Force ASCII zones
     ..Default::default()
 };
 
-let summary = encode_jsonl_to_file(
-    &schema,
-    Path::new("input.jsonl"),
-    &opts,
-    Path::new("output.bin"),
-)?;
+let input = std::fs::File::open("input.jsonl")?;
+let output = std::fs::File::create("output.bin")?;
+let summary = encode_jsonl_to_file(&schema, input, output, &opts)?;
 ```
 
 ### Record-Level Processing
@@ -652,83 +707,35 @@ for result in iter {
 > record at EOF is a clean stop (`Ok(None)`), not an error. Missing
 > `lrecl_fixed` with `Fixed` format yields `Err(CBKI001)` on the first read.
 
-### JSON Writer with Schema Access
+**Single-record encode** (`encode_record`, crate root):
 
 ```rust
-pub struct JsonWriter<W: Write> {
-    // Internal fields
-}
-
-impl<W: Write> JsonWriter<W> {
-    /// Create a new JSON writer with schema access for field path resolution
-    pub fn new(writer: W, schema: Schema, options: DecodeOptions) -> Self;
-
-    /// Write a single record as JSON line with schema-based field processing
-    pub fn write_record(
-        &mut self,
-        record_data: &[u8],
-        record_index: u64,
-        byte_offset: u64,
-    ) -> Result<()>;
-
-    /// Write a record using optimized streaming approach with direct schema access
-    pub fn write_record_streaming(
-        &mut self,
-        record_data: &[u8],
-        record_index: u64,
-        byte_offset: u64,
-    ) -> Result<()>;
-
-    /// Finish writing and return the inner writer
-    pub fn finish(self) -> Result<W>;
-}
+/// Encode one JSON record to binary bytes using the provided schema.
+pub fn encode_record(
+    schema: &Schema,
+    json: &serde_json::Value,
+    options: &EncodeOptions,
+) -> Result<Vec<u8>>;
 ```
 
-**Key Features:**
-- **Schema Integration**: Direct access to schema structure for field path resolution
-- **REDEFINES Handling**: Enhanced cluster processing with proper size calculation using schema field lookup
-- **ODO Processing**: Improved counter field lookup using schema-based field path resolution
-- **Metadata Integration**: Automatic schema fingerprint inclusion in JSON output
-- **Streaming Performance**: Optimized JSON generation with schema-aware field ordering
-
-**Example:**
-```rust
-use copybook_codec::{JsonWriter, DecodeOptions};
-use std::io::Cursor;
-
-// Create JsonWriter with schema access
-let output_buffer = Vec::new();
-let cursor = Cursor::new(output_buffer);
-let mut json_writer = JsonWriter::new(cursor, schema.clone(), opts);
-
-// Write records with automatic schema-based field processing
-let record_data = &[0x01, 0x02, 0x03, /* ... */];
-json_writer.write_record(record_data, 0, 0)?;
-
-// Alternative streaming approach for better performance
-json_writer.write_record_streaming(record_data, 1, record_size as u64)?;
-
-// Finish and retrieve output
-let cursor = json_writer.finish()?;
-let json_output = cursor.into_inner();
-```
+The input JSON may either be a bare object of field values or a full decode
+envelope with a `fields` object. When `options.use_raw` is enabled and a
+`raw_b64` / `__raw_b64` key is present, the raw payload is used for bit-exact
+round-tripping.
 
 ```rust
-pub struct RecordEncoder {
-    // Internal fields
-}
+use copybook_core::parse_copybook;
+use copybook_codec::{encode_record, EncodeOptions};
+use copybook_codec::options::{Codepage, RecordFormat};
+use serde_json::json;
 
-impl RecordEncoder {
-    pub fn new(schema: &Schema, opts: &EncodeOptions) -> Result<Self, Error>;
-    
-    pub fn encode_record(&mut self, json: &serde_json::Value) -> Result<Vec<u8>, Error>;
-    
-    pub fn encode_jsonl_file<P: AsRef<Path>, W: Write>(
-        &mut self, 
-        jsonl_path: P, 
-        output: W
-    ) -> Result<RunSummary, Error>;
-}
+let schema = parse_copybook("01 FLD PIC X(5).")?;
+let json = json!({"fields": {"FLD": "HELLO"}});
+let options = EncodeOptions::new()
+    .with_codepage(Codepage::ASCII)
+    .with_format(RecordFormat::Fixed);
+let binary = encode_record(&schema, &json, &options)?;
+assert_eq!(&binary[..5], b"HELLO");
 ```
 
 ## Error Handling with Panic Safety
@@ -739,7 +746,7 @@ impl RecordEncoder {
 pub struct Error {
     pub code: ErrorCode,
     pub message: String,
-    pub context: ErrorContext,
+    pub context: Option<ErrorContext>,
 }
 
 pub enum ErrorCode {
@@ -756,7 +763,7 @@ pub enum ErrorCode {
 
     // Data processing errors (CBKD*)
     CBKD101_INVALID_FIELD_TYPE,       // Type mismatch in data
-    CBKD201_TRUNCATED_RECORD,         // Record shorter than expected
+    CBKD301_RECORD_TOO_SHORT,         // Record shorter than expected
 
     // Encoding errors (CBKE*)
     CBKE501_JSON_TYPE_MISMATCH,       // JSON encoding type issues
@@ -768,16 +775,16 @@ pub struct ErrorContext {
     pub field_path: Option<String>,
     pub byte_offset: Option<u64>,
     pub line_number: Option<u32>,
-    pub operation_context: Option<String>,  // Enhanced: Operation being performed
-    pub safety_context: Option<String>,     // Enhanced: Safety-related context
-    pub additional: HashMap<String, String>,
+    pub details: Option<String>,
 }
 ```
 
-**Enhanced Error Context:**
-- **Operation context** - Specific operation that failed (e.g., "field offset calculation")
-- **Safety context** - Information about panic-safe operation that was used
-- **Detailed diagnostics** - Comprehensive information for debugging production issues
+**Error Context:**
+- **record_index** - Record number where the error occurred (for data processing errors)
+- **field_path** - Hierarchical field path in dot notation (e.g., "customer.address.street")
+- **byte_offset** - Byte offset within the record or file where the error occurred
+- **line_number** - Line number in the copybook source (for parse errors)
+- **details** - Free-form text providing extra details relevant to the specific error
 
 ### Panic-Safe Error Handling Patterns
 
@@ -790,7 +797,7 @@ match parse_copybook(text) {
     Ok(schema) => {
         tracing::info!(
             fields = %schema.fields.len(),
-            fixed_length = ?schema.fixed_record_length,
+            fixed_length = ?schema.lrecl_fixed,
             "Schema parsed successfully with panic-safe operations"
         );
     },
@@ -861,17 +868,16 @@ let token = tokens
     )?;
 
 // Collect errors during processing
-let mut errors = Vec::new();
 let opts = DecodeOptions {
-    strict: false,
+    strict_mode: false,
     max_errors: Some(100),
     ..Default::default()
 };
 
-match decode_file_to_jsonl(&schema, path, &opts, output) {
+match decode_file_to_jsonl(&schema, input, output, &opts) {
     Ok(summary) => {
-        if summary.error_count > 0 {
-            println!("Completed with {} errors", summary.error_count);
+        if summary.records_with_errors > 0 {
+            println!("Completed with {} errored records", summary.records_with_errors);
         }
     },
     Err(e) => {
@@ -885,20 +891,22 @@ match decode_file_to_jsonl(&schema, path, &opts, output) {
 ```rust
 pub struct RunSummary {
     pub records_processed: u64,
-    pub records_skipped: u64,
-    pub error_count: u64,
-    pub warning_count: u64,
+    pub records_with_errors: u64,
+    pub warnings: u64,
+    pub processing_time_ms: u64,
     pub bytes_processed: u64,
-    pub duration: Duration,
+    pub schema_fingerprint: String,
     pub throughput_mbps: f64,
+    pub peak_memory_bytes: Option<u64>,
+    pub threads_used: usize,
 }
 ```
 
 ## Advanced Usage
 
-### Enhanced REDEFINES Cluster Handling
+### REDEFINES Cluster Inspection
 
-The JsonWriter now provides enhanced REDEFINES processing with proper cluster size calculation using direct schema access:
+`Schema::find_redefining_fields` returns every field that redefines a given target path, letting callers reason about a REDEFINES cluster (e.g. to pick the widest field for size calculations, or to inspect which alternate views are defined):
 
 ```rust
 // Example schema with REDEFINES cluster
@@ -909,51 +917,34 @@ let copybook = r#"
    05 FIELD-B         REDEFINES DATA-FIELD PIC 9(8) COMP-3.
    05 FIELD-C         REDEFINES DATA-FIELD PIC X(15).
 "#;
+let schema = parse_copybook(copybook)?;
 
-// Schema-based cluster size calculation
-impl JsonEncoder {
-    /// Calculate cluster size accounting for all redefining fields
-    fn calculate_redefines_cluster_size(&self, field: &Field) -> Result<usize> {
-        let cluster_path = self.get_redefines_cluster_path(field);
-        let mut max_size = field.len as usize;
-        
-        // Find all fields in the REDEFINES cluster using schema lookup
-        for check_field in &self.schema.fields {
-            if let Some(ref check_redefines) = check_field.redefines_of {
-                if *check_redefines == cluster_path || check_field.path == cluster_path {
-                    max_size = max_size.max(check_field.len as usize);
-                }
-            } else if check_field.path == cluster_path {
-                max_size = max_size.max(check_field.len as usize);
-            }
-        }
-        
-        Ok(max_size)
-    }
-}
-
-// Enhanced view resolution using schema.find_redefining_fields()
-let redefining_fields = self.schema.find_redefining_fields(&primary_field.path);
-for redefining_field in redefining_fields {
-    // Process each redefining field with proper type checking
-    if let Some(value) = json_obj.get(&redefining_field.name) {
-        cluster_views.push((redefining_field, value));
-    }
-}
+// Find every field that redefines DATA-FIELD
+// (find_redefining_fields matches the bare name written after REDEFINES;
+// find_field matches the fully-qualified dotted path)
+let redefining_fields = schema.find_redefining_fields("DATA-FIELD");
+let max_size = redefining_fields
+    .iter()
+    .map(|f| f.len)
+    .chain(std::iter::once(
+        schema.find_field("RECORD.DATA-FIELD").unwrap().len,
+    ))
+    .max()
+    .unwrap();
 ```
 
-**Key Improvements:**
-- **Accurate Cluster Sizing**: Uses schema traversal to find maximum size across all redefining fields
+**Key Points:**
+- **Accurate Cluster Sizing**: Traverse `find_redefining_fields()` results to find the maximum size across all redefining fields
 - **Complete Field Discovery**: `find_redefining_fields()` method finds all fields that redefine a target
 - **Type-Safe Processing**: Schema access ensures proper field type and offset information
 - **Memory Safety**: Bounds checking uses actual calculated cluster size, not field-specific sizes
 
-### Improved ODO Counter Processing with Schema-Based Field Lookup
+### ODO (OCCURS DEPENDING ON) Schema Inspection
 
-The JsonWriter provides enhanced ODO (OCCURS DEPENDING ON) processing using direct schema field lookup:
+ODO counter resolution, encoding, and bounds validation happen automatically inside `decode_record`/`encode_record` — callers don't drive this directly. To *inspect* an ODO array's schema (e.g. to report its counter field or bounds), match on `Occurs::ODO`:
 
 ```rust
-// Example schema with ODO arrays
+// Example schema with an ODO array
 let copybook = r#"
 01 RECORD.
    05 ITEM-COUNT     PIC 9(3) COMP-3.
@@ -961,92 +952,17 @@ let copybook = r#"
       10 ITEM-ID     PIC 9(8).
       10 ITEM-NAME   PIC X(20).
 "#;
+let schema = parse_copybook(copybook)?;
 
-// Schema-based ODO counter field lookup
-impl JsonEncoder {
-    /// Update ODO counter using schema field lookup
-    fn update_odo_counter(
-        &self,
-        counter_path: &str,
-        count: u32,
-        _json_obj: &Map<String, Value>,
-        record_data: &mut [u8],
-    ) -> Result<()> {
-        // Find counter field using schema.find_field() method
-        let counter_field = self
-            .schema
-            .find_field(counter_path)
-            .ok_or_else(|| {
-                Error::new(
-                    ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                    format!("Field not found: {}", counter_path),
-                )
-            })?;
-            
-        // Encode count value with proper type handling
-        match &counter_field.kind {
-            FieldKind::ZonedDecimal { digits, scale, signed } => {
-                let encoded = crate::numeric::encode_zoned_decimal(
-                    &count_str, *digits, *scale, *signed, self.options.codepage
-                )?;
-                // Write to counter field at correct offset
-                let end_offset = (counter_field.offset + counter_field.len) as usize;
-                record_data[counter_field.offset as usize..end_offset]
-                    .copy_from_slice(&encoded);
-            }
-            FieldKind::PackedDecimal { digits, scale, signed } => {
-                let encoded = crate::numeric::encode_packed_decimal(
-                    &count_str, *digits, *scale, *signed
-                )?;
-                // Write with proper offset and bounds checking
-            }
-            FieldKind::BinaryInt { bits, signed } => {
-                let encoded = crate::numeric::encode_binary_int(
-                    i64::from(count), *bits, *signed
-                )?;
-                // Write with schema-provided offset information
-            }
-            _ => {
-                return Err(Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("Invalid counter field type for ODO")
-                ));
-            }
-        }
-        
-        Ok(())
-    }
+let items_field = schema.find_field("RECORD.ITEMS").unwrap();
+if let Some(Occurs::ODO { min, max, counter_path }) = &items_field.occurs {
+    println!("ITEMS occurs {min}..={max} times, counted by {counter_path}");
 }
 ```
 
-**Key Improvements:**
-- **Schema Field Lookup**: Uses `schema.find_field(counter_path)` for reliable counter field resolution
-- **Type-Safe Counter Encoding**: Proper handling of zoned decimal, packed decimal, and binary integer counters
-- **Accurate Offset Calculation**: Uses schema-provided field offset and length information
-- **Comprehensive Error Handling**: Clear error messages for missing or invalid counter fields
-- **Memory Safety**: Proper bounds checking using schema field dimensions
-
-**ODO Array Processing:**
-```rust
-// Enhanced array count resolution
-fn get_actual_array_count(&self, occurs: &Occurs, record_data: &[u8]) -> Result<u32> {
-    match occurs {
-        Occurs::Fixed { count } => Ok(*count),
-        Occurs::ODO { min, max, counter_path } => {
-            // Schema-based counter field lookup (when fully implemented)
-            let counter_field = self.schema.find_field(counter_path)?;
-            let counter_value = self.read_counter_value(counter_field, record_data)?;
-            
-            // Validate against ODO bounds
-            if counter_value < *min || counter_value > *max {
-                return Err(/* ODO bounds error */);
-            }
-            
-            Ok(counter_value)
-        }
-    }
-}
-```
+**Key Points:**
+- **Automatic Resolution**: `decode_record`/`encode_record` read and write the counter field and validate `min`/`max` bounds internally; no manual counter handling is required.
+- **Schema-Only Inspection**: `Occurs::ODO { min, max, counter_path }` is available for callers who want to report on or validate schema structure without decoding data.
 
 ### Custom Field Processing
 
@@ -1065,12 +981,9 @@ for field in &schema.fields {
 }
 ```
 
-### Schema Validation
+### Schema Inspection
 
 ```rust
-// Validate schema before use
-schema.validate()?;
-
 // Check for specific features
 if schema.tail_odo.is_some() {
     println!("Schema has ODO array");
@@ -1108,20 +1021,6 @@ for handle in handles {
 }
 ```
 
-### Custom Codepage Support
-
-```rust
-// Extend with custom codepage (requires feature flag)
-#[cfg(feature = "custom-codepage")]
-use copybook_codec::CustomCodepage;
-
-let custom_cp = CustomCodepage::from_table(&conversion_table)?;
-let opts = DecodeOptions {
-    codepage: Codepage::Custom(custom_cp),
-    ..Default::default()
-};
-```
-
 ## Integration Examples
 
 ### Serde Integration
@@ -1137,12 +1036,12 @@ struct Customer {
 }
 
 // Decode to typed struct
-let json_value = decoder.decode_record(data)?;
+let json_value = decode_record(&schema, data, &decode_opts)?;
 let customer: Customer = serde_json::from_value(json_value)?;
 
 // Encode from typed struct
 let json_value = serde_json::to_value(&customer)?;
-let binary_data = encoder.encode_record(&json_value)?;
+let binary_data = encode_record(&schema, &json_value, &encode_opts)?;
 ```
 
 ### Tokio Integration
@@ -1158,7 +1057,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     file.read_to_end(&mut buffer).await?;
     
     // Process with copybook-rs
-    let json_value = decoder.decode_record(&buffer)?;
+    let json_value = decode_record(&schema, &buffer, &opts)?;
     
     let mut output = File::create("output.jsonl").await?;
     output.write_all(serde_json::to_string(&json_value)?.as_bytes()).await?;
@@ -1282,8 +1181,8 @@ proptest! {
             "BALANCE": format!("{:08}", balance)
         });
         
-        let binary = encoder.encode_record(&json)?;
-        let decoded = decoder.decode_record(&binary)?;
+        let binary = encode_record(&schema, &json, &encode_opts)?;
+        let decoded = decode_record(&schema, &binary, &decode_opts)?;
         
         prop_assert_eq!(json, decoded);
     }
@@ -1331,7 +1230,7 @@ impl ZonedEncodingFormat {
 ```rust
 // Decode with encoding preservation
 let decode_opts = DecodeOptions::new()
-    .with_codepage(Codepage::Cp037)
+    .with_codepage(Codepage::CP037)
     .with_format(RecordFormat::Fixed)
     .with_preserve_zoned_encoding(true)
     .with_preferred_zoned_encoding(ZonedEncodingFormat::Ebcdic)
@@ -1339,7 +1238,7 @@ let decode_opts = DecodeOptions::new()
 
 // Encode with format override
 let encode_opts = EncodeOptions::new()
-    .with_codepage(Codepage::Cp037)
+    .with_codepage(Codepage::CP037)
     .with_format(RecordFormat::Fixed)
     .with_zoned_encoding_override(Some(ZonedEncodingFormat::Ascii));
 ```
@@ -1369,26 +1268,26 @@ let original_data = &[
 
 // Step 1: Decode with encoding preservation
 let decode_opts = DecodeOptions::new()
-    .with_codepage(Codepage::Cp037)
+    .with_codepage(Codepage::CP037)
     .with_format(RecordFormat::Fixed)
     .with_preserve_zoned_encoding(true)
     .with_emit_meta(true);
 
 let json_value = decode_record(&schema, original_data, &decode_opts)?;
 
-// JSON now contains encoding metadata:
+// JSON now contains encoding metadata (flat field-name -> format strings):
 // {
 //   "CUSTOMER_ID": "12345678",
 //   "ACCOUNT_BALANCE": "1234567.89",
 //   "_encoding_metadata": {
-//     "CUSTOMER_ID": {"zoned_encoding": "ascii", "detection_confidence": 1.0},
-//     "ACCOUNT_BALANCE": {"zoned_encoding": "ascii", "detection_confidence": 1.0}
+//     "CUSTOMER_ID": "ascii",
+//     "ACCOUNT_BALANCE": "ascii"
 //   }
 // }
 
 // Step 2: Encode preserving original format
 let encode_opts = EncodeOptions::new()
-    .with_codepage(Codepage::Cp037)
+    .with_codepage(Codepage::CP037)
     .with_format(RecordFormat::Fixed)
     .with_zoned_encoding_override(None); // Use preserved formats
 
@@ -1431,7 +1330,7 @@ match decode_record(&schema, &data, &opts) {
         ErrorCode::CBKD414_ZONED_MIXED_ENCODING => {
             eprintln!("Mixed ASCII/EBCDIC encoding in single field");
         }
-        ErrorCode::CBKD415_ZONED_ENCODING_DETECTION_FAILED => {
+        ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS => {
             eprintln!("Unable to reliably detect encoding format");
         }
         _ => {
@@ -1476,7 +1375,7 @@ println!("Decode with encoding preservation: {:?}", decode_time);
 let customer_id = record.get_field("CUSTOMER-ID")?;
 
 // copybook-rs equivalent
-let json = decoder.decode_record(data)?;
+let json = decode_record(&schema, data, &opts)?;
 let customer_id = json["CUSTOMER_ID"].as_str().unwrap();
 ```
 
@@ -1488,8 +1387,8 @@ let customer_id = json["CUSTOMER_ID"].as_str().unwrap();
 
 // copybook-rs equivalent
 let opts = DecodeOptions {
-    codepage: Codepage::Cp037,
-    strict: true,
+    codepage: Codepage::CP037,
+    strict_mode: true,
     ..Default::default()
 };
 // Decode records via decode_record / decode_file_to_jsonl / the iterator API

@@ -52,7 +52,7 @@ just ci-quick
 just pr
 ```
 
-See [CLAUDE.md](CLAUDE.md) for complete command reference.
+See [AGENTS.md](AGENTS.md) for the current command and maintenance contract.
 
 ## Code Style
 
@@ -148,7 +148,8 @@ Use [feature_request.yml](.github/ISSUE_TEMPLATE/feature_request.yml) template. 
 
 ## Architecture Overview
 
-copybook-rs is a Cargo workspace with 38 publishable crates under `crates/` and 4 dev-only crates under `tools/`. Key crates include:
+copybook-rs is a multi-crate Cargo workspace. See [AGENTS.md](AGENTS.md) and
+the root `Cargo.toml` for current architecture and membership. Key crates include:
 
 - **copybook-core**: COBOL copybook parsing (lexer, parser, AST, layout resolution)
 - **copybook-codec**: Data encoding/decoding, character conversion, record framing
@@ -159,7 +160,7 @@ copybook-rs is a Cargo workspace with 38 publishable crates under `crates/` and 
 
 **Processing Flow**: copybook-core (parse) → copybook-codec (encode/decode) → copybook-cli (commands)
 
-See [CLAUDE.md](CLAUDE.md) for detailed architecture.
+See [AGENTS.md](AGENTS.md) for architecture and ownership guidance.
 
 ## Release Process
 
@@ -171,10 +172,10 @@ See [RELEASE_RUNBOOK.md](docs/RELEASE_RUNBOOK.md) for detailed procedures.
 
 ## Performance Standards
 
-**CI Floors**: DISPLAY ≥80 MiB/s, COMP-3 ≥40 MiB/s
-**Baseline** (2025-09-30): DISPLAY 205 MiB/s, COMP-3 58 MiB/s, Memory <256 MiB
-
-See [BASELINE_METHODOLOGY.md](tools/copybook-bench/BASELINE_METHODOLOGY.md) for details.
+Performance floors and receipts change as CI evidence evolves. See
+[PERFORMANCE_GOVERNANCE.md](docs/PERFORMANCE_GOVERNANCE.md) and the canonical
+receipt at `scripts/bench/perf.json`; benchmark methodology remains in
+[BASELINE_METHODOLOGY.md](tools/copybook-bench/BASELINE_METHODOLOGY.md).
 
 ## Project Status & Resources
 

@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn ascii_heuristic_and_reference_match() {
-        let header = [b'0', b'1', b'2', b'3'];
+        let header = *b"0123";
         assert_eq!(
             detect_rdw_ascii_corruption(&header).is_some(),
             expected_corruption_present(&header)

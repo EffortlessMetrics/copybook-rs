@@ -77,9 +77,9 @@
 |---------|--------|-------------|---------------|
 | **E1: Parse + Schema** | ✅ Supported | - | `edited_pic_e1_tests.rs` (15 tests) |
 | **E2: Decode (subset)** | ✅ Supported | CBKD421-423 | `edited_pic_decode_e2_tests.rs` (28 tests) |
-| **E3.1: Basic Encode** | ✅ Supported | CBKE421-423 | `edited_pic_encode_e3_tests.rs` (672 lines) |
-| **E3.2: Trailing Signs** | ✅ Supported | CBKE421-423 | `edited_pic_encode_e3_tests.rs` (E3.2 tests) |
-| **E3.3-E3.6: Full Encode** | ✅ Supported | CBKE4xx | CR/DB, commas, asterisk, currency |
+| **E3.1: Basic Encode** | ✅ Supported | CBKD421-423 | `edited_pic_encode_e3_tests.rs` (672 lines) |
+| **E3.2: Trailing Signs** | ✅ Supported | CBKD421-423 | `edited_pic_encode_e3_tests.rs` (E3.2 tests) |
+| **E3.3-E3.6: Full Encode** | ✅ Supported | CBKD421-423 | CR/DB, commas, asterisk, currency |
 | Z (zero suppress) | ✅ E1/E2 | - | `test_e2_simple_z_editing_zzz9` |
 | $ (currency) | ✅ E1/E2 | - | `test_e2_currency_dollar_zz_zzz_99` |
 | +/- (sign) | ✅ E1/E2 | - | `test_e2_sign_editing_*` |
@@ -282,19 +282,23 @@ copybook determinism decode --output json --format fixed --codepage cp037 schema
 
 ## Error Code Coverage
 
-**Comprehensive error taxonomy with 48 error codes total** (Wave 1C audit: 42 with direct tests, 6 reserved/vestigial/internal):
+**Comprehensive error taxonomy with 63 stable error codes total** (counts generated from the `ErrorCode` enum in `crates/copybook-error/src/lib.rs`):
 
-### Error Code Audit Summary (Wave 1C)
+### Error Code Audit Summary
 
-| Category | Prefix | Total Codes | Directly Tested | Reserved/Vestigial |
-|----------|--------|-------------|-----------------|-------------------|
-| Parse Errors | CBKP* | 8 | 7 | 1 (CBKP051 - only Space `B` remains) |
-| Schema Validation | CBKS* | 16 | 14 | 2 (internal) |
-| Data Errors | CBKD* | 12 | 11 | 1 (vestigial) |
-| Encode Errors | CBKE* | 8 | 7 | 1 (reserved) |
-| Record Errors | CBKR* | 2 | 2 | 0 |
-| Internal/Infra | CBKI*/CBKA* | 2 | 1 | 1 (internal) |
-| **Total** | | **48** | **42** | **6** |
+| Category | Prefix | Total Codes |
+|----------|--------|-------------|
+| Parse Errors | CBKP* | 7 |
+| Schema Validation | CBKS* | 19 |
+| Data Errors | CBKD* | 15 |
+| Encode Errors | CBKE* | 7 |
+| Record Errors | CBKR* | 3 |
+| Character Set Errors | CBKC* | 2 |
+| File/Format Errors | CBKF* | 3 |
+| Infrastructure | CBKI* | 1 |
+| Audit | CBKA* | 1 |
+| Arrow/Writer | CBKW* | 5 |
+| **Total** | | **63** |
 
 ### Parse Errors (CBKP*)
 - `CBKP001_SYNTAX`: Copybook syntax errors — `comprehensive_parser_tests.rs::test_error_context_with_line_numbers`
@@ -324,8 +328,8 @@ copybook determinism decode --output json --format fixed --codepage cp037 schema
 ### Encode Errors (CBKE*)
 - `CBKE510`: Zoned/packed overflow — `error_code_tests.rs::test_cbke510_zoned_decimal_overflow`
 - `CBKE515`: String length exceeds capacity — `error_code_tests.rs::test_cbke515_string_length_exceeds_capacity`
-- `CBKE421_EDITED_PIC_ENCODE_INVALID_FORMAT`: Edited PIC encode mismatch — `edited_pic_encode_e3_tests.rs::test_e3_1_edge_invalid_character`
-- `CBKE423_EDITED_PIC_ENCODE_OVERFLOW`: Edited PIC encode overflow — `edited_pic_encode_e3_tests.rs::test_e3_1_edge_overflow_value_too_long`
+- `CBKD421_EDITED_PIC_INVALID_FORMAT` (encode path): Edited PIC encode mismatch — `edited_pic_encode_e3_tests.rs::test_e3_1_edge_invalid_character`
+- `CBKD421_EDITED_PIC_INVALID_FORMAT` (encode overflow): Edited PIC encode overflow — `edited_pic_encode_e3_tests.rs::test_e3_1_edge_overflow_value_too_long`
 
 ### Record/Infrastructure Errors
 - `CBKI001`: Fixed reader configuration — `error_code_tests.rs::test_cbki001_fixed_reader_requires_lrecl`
@@ -537,7 +541,7 @@ pub enum FieldKind {
 - Enterprise scenarios: `enterprise_mainframe_production_scenarios.rs` (5 tests)
 - Determinism validation: `determinism_cli.rs` (6 tests)
 - Panic elimination: Zero unsafe code, comprehensive error path coverage
-- Error code coverage: 42/48 codes directly tested (6 reserved/vestigial/internal)
+- Error code coverage: 63 stable codes in the taxonomy (see [ERROR_CODES.md](ERROR_CODES.md))
 
 See [TEST_INFRASTRUCTURE_LANDSCAPE.md](../TEST_INFRASTRUCTURE_LANDSCAPE.md) for detailed analysis.
 
@@ -610,7 +614,7 @@ See [REPORT.md](../REPORT.md) for complete performance analysis.
 **2026-02-15**: v0.4.3 - Comprehensive Audit Update
 - Updated all test evidence columns with specific test function names (not just counts)
 - Added Determinism Validation section with 6 CLI tests
-- Added Error Code Audit Summary table (48 codes total, 42 directly tested)
+- Added Error Code Audit Summary table (63 codes total)
 - Enhanced Field Projection section with 19 core tests + 7 CLI tests
 - Updated Edited PIC status to ✅ Fully Supported (E1-E3 complete, including E3.3-E3.7)
 - Updated total test count: 1652 passing tests across workspace
@@ -623,7 +627,7 @@ See [REPORT.md](../REPORT.md) for complete performance analysis.
   - Core implementation with `Dialect` enum (27 tests, 581 lines)
   - CLI integration with `--dialect` flag and `COPYBOOK_DIALECT` env var (11 tests, 275 lines)
   - Documentation complete (CLI_REFERENCE.md, CLAUDE.md, COBOL_SUPPORT_MATRIX.md)
-- Added E3.1/E3.2 encode error codes (CBKE421-423)
+- Added E3.1/E3.2 encode error coverage (CBKD421-423)
 - Updated test counts: 626+ passing tests
 - Full dialect lever support: Normative (n), ZeroTolerant (0), OneTolerant (1)
 - RENAMES R1-R3 codec support: decode ✅, encode ✅ skipped by design (non-storage semantics)

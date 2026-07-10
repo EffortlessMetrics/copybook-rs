@@ -41,7 +41,7 @@ fn invalid_ascii_corrupted_header_suspect() {
 #[test]
 fn invalid_ascii_corrupted_header_all_digits() {
     // All four bytes are ASCII digits
-    assert!(rdw_is_suspect_ascii_corruption([b'9', b'9', b'0', b'0']));
+    assert!(rdw_is_suspect_ascii_corruption(*b"9900"));
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn reserved_bytes_ascii_printable_does_not_affect_predicate() {
     // Reserved bytes being printable ASCII doesn't change the predicate outcome
     // (the predicate only inspects bytes 0 and 1)
     assert!(!rdw_is_suspect_ascii_corruption([0x00, 0x50, b'A', b'B']));
-    assert!(rdw_is_suspect_ascii_corruption([b'1', b'2', b'A', b'B']));
+    assert!(rdw_is_suspect_ascii_corruption(*b"12AB"));
 }
 
 // ===========================================================================
@@ -280,7 +280,7 @@ fn array_and_slice_agree_on_representative_inputs() {
     let cases: &[[u8; 4]] = &[
         [b'0', b'0', 0x00, 0x00],
         [b'5', b'5', 0xFF, 0xFF],
-        [b'9', b'9', b'Z', b'Z'],
+        *b"99ZZ",
         [0x00, 0x50, 0x00, 0x00],
         [0x00, 0x00, 0x00, 0x00],
         [0xFF, 0xFF, 0xFF, 0xFF],

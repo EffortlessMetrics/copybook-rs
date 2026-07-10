@@ -6,8 +6,10 @@ Complete reference for the copybook command-line interface.
 ## Synopsis
 
 ```
-copybook <COMMAND> [OPTIONS]
+copybook [GLOBAL OPTIONS] <COMMAND> [OPTIONS]
 ```
+
+Global options (see [Global Options](#global-options)) must be placed before the subcommand.
 
 ## Commands
 
@@ -22,9 +24,7 @@ copybook parse <COPYBOOK> [OPTIONS]
 - `<COPYBOOK>` - Path to COBOL copybook file
 
 **Options:**
-- `--output <FILE>` - Output file (default: stdout)
-- `--pretty` - Pretty-print JSON output
-- `--validate` - Validate schema after parsing
+- `-o, --output <FILE>` - Output file (default: stdout)
 - `--strict` - Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
 - `--dialect <MODE>` - Dialect mode: n (normative), 0 (zero-tolerant), 1 (one-tolerant) (default: n)
@@ -37,8 +37,8 @@ copybook parse customer.cpy
 # Parse and save to file
 copybook parse customer.cpy --output customer-schema.json
 
-# Parse with pretty formatting
-copybook parse customer.cpy --pretty
+# Parse with strict validation
+copybook parse customer.cpy --strict
 ```
 
 ### inspect
@@ -53,9 +53,6 @@ copybook inspect <COPYBOOK> [OPTIONS]
 
 **Options:**
 - `--codepage <CP>` - Character encoding (default: cp037)
-- `--format <FORMAT>` - Output format: table, json, yaml (default: table)
-- `--show-offsets` - Include byte offsets in output
-- `--show-lengths` - Include field lengths in output
 - `--strict` - Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
 - `--dialect <MODE>` - Dialect mode: n (normative), 0 (zero-tolerant), 1 (one-tolerant) (default: n)
@@ -67,11 +64,11 @@ copybook inspect <COPYBOOK> [OPTIONS]
 # Basic layout inspection
 copybook inspect customer.cpy
 
-# Show detailed layout with offsets
-copybook inspect customer.cpy --show-offsets --show-lengths
+# Inspect with strict validation
+copybook inspect customer.cpy --strict
 
-# Output as JSON
-copybook inspect customer.cpy --format json
+# Inspect with an alternate codepage
+copybook inspect customer.cpy --codepage cp500
 ```
 
 ### decode
@@ -88,8 +85,9 @@ copybook decode <COPYBOOK> <DATA> [OPTIONS]
 **Options:**
 
 **Output:**
-- `--output <FILE>` - Output file (default: stdout)
+- `-o, --output <FILE>` - Output JSONL file (required; use `-` for stdout)
 - `--format <FORMAT>` - Record format: fixed, rdw (required)
+- `--select <FIELD[,FIELD...]>` - Include only specific fields in output (comma-separated or repeated); ODO counters and parent groups are included automatically
 
 **Character Encoding:**
 - `--codepage <CP>` - Character encoding: cp037, cp273, cp500, cp1047, cp1140, ascii (default: cp037)
@@ -97,12 +95,15 @@ copybook decode <COPYBOOK> <DATA> [OPTIONS]
 
 **Zoned Decimal Encoding (Experimental):**
 - `--preserve-zoned-encoding` - Preserve original encoding format (ASCII/EBCDIC zones) for round-trip fidelity
-- `--preferred-zoned-encoding <FORMAT>` - Preferred format for ambiguous detection: ascii, ebcdic, auto (default: auto)
+- `--preferred-zoned-encoding <FORMAT>` - Preferred format when neither preserved nor overridden: preferred, ascii, ebcdic, auto (default: preferred)
+
+**Floating Point:**
+- `--float-format <FORMAT>` - COMP-1/COMP-2 binary format: ieee-be, ibm-hex (default: ieee-be)
 
 **Error Handling:**
-- `--strict` - Stop on first error (default: lenient)
+- `--strict` - Enable strict mode validation (default: false for lenient mode)
+- `--fail-fast` - Stop on first error (default: false)
 - `--max-errors <N>` - Maximum errors before stopping
-- `--verbose` - Verbose error reporting
 
 **Parsing Options:**
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
@@ -111,11 +112,11 @@ copybook decode <COPYBOOK> <DATA> [OPTIONS]
 **Output Control:**
 - `--emit-filler` - Include FILLER fields in output
 - `--emit-meta` - Add metadata keys (`schema_fingerprint`, `record_index`, `offset`, `length`)
-- `--emit-raw <MODE>` - Capture raw bytes (`raw_b64`): off, record, field, record+rdw (default: off)
+- `--emit-raw <MODE>` - Capture raw bytes (`__raw_b64`): off, record, field, record+rdw (default: off)
 - `--json-number <MODE>` - JSON number format: lossless, native (default: lossless)
 
 **Performance:**
-- `--threads <N>` - Number of worker threads (default: CPU count)
+- `--threads <N>` - Number of worker threads (default: 1)
 
 **Examples:**
 ```bash
@@ -147,7 +148,7 @@ copybook decode customer.cpy large-data.bin \
   --threads 8 \
   --output data.jsonl
 
-# Decode with zoned encoding preservation (when CLI flags are implemented)
+# Decode with zoned encoding preservation
 copybook decode financial.cpy mainframe-data.bin \
   --format fixed \
   --codepage cp037 \
@@ -159,6 +160,12 @@ copybook decode legacy.cpy mixed-data.bin \
   --format fixed \
   --preferred-zoned-encoding ebcdic \
   --output detected.jsonl
+
+# Decode only selected fields
+copybook decode customer.cpy data.bin \
+  --format fixed \
+  --select "CUSTOMER-ID,BALANCE" \
+  --output selected.jsonl
 ```
 
 ### encode
@@ -175,31 +182,35 @@ copybook encode <COPYBOOK> <JSONL> [OPTIONS]
 **Options:**
 
 **Output:**
-- `--output <FILE>` - Output file (required)
+- `-o, --output <FILE>` - Output binary file (required; use `-` for stdout)
 - `--format <FORMAT>` - Record format: fixed, rdw (required)
+- `--select <FIELD[,FIELD...]>` - Validate only specific fields during encoding (comma-separated or repeated); ODO counters and parent groups are included automatically
 
 **Character Encoding:**
 - `--codepage <CP>` - Character encoding: cp037, cp273, cp500, cp1047, cp1140, ascii (default: cp037)
 
 **Encoding Options:**
-- `--use-raw` - Use raw bytes from `raw_b64` when available
+- `--use-raw` - Use raw bytes from `__raw_b64` (or legacy `raw_b64`) when available
 - `--bwz-encode` - Encode zero values as spaces for BLANK WHEN ZERO fields
+- `--coerce-numbers` - Coerce non-string JSON numbers to strings before encoding
 
 **Zoned Decimal Encoding (Experimental):**
 - `--zoned-encoding-override <FORMAT>` - Override zoned decimal format: ascii, ebcdic (default: respect preserved formats)
 
+**Floating Point:**
+- `--float-format <FORMAT>` - COMP-1/COMP-2 binary format: ieee-be, ibm-hex (default: ieee-be)
+
 **Error Handling:**
 - `--fail-fast` - Stop on first error (default: true)
-- `--strict` - Enable strict mode validation
+- `--strict` - Enable strict mode validation (default: false for lenient mode)
 - `--max-errors <N>` - Maximum errors before stopping
-- `--verbose` - Verbose error reporting
 
 **Parsing Options:**
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
 - `--dialect <MODE>` - Dialect mode: n (normative), 0 (zero-tolerant), 1 (one-tolerant) (default: n)
 
 **Performance:**
-- `--threads <N>` - Number of worker threads (default: CPU count)
+- `--threads <N>` - Number of worker threads (default: 1)
 
 **Examples:**
 ```bash
@@ -220,7 +231,7 @@ copybook encode customer.cpy data.jsonl \
   --bwz-encode \
   --output data.bin
 
-# Encode with zoned encoding override (when CLI flags are implemented)
+# Encode with zoned encoding override
 copybook encode financial.cpy data.jsonl \
   --format fixed \
   --zoned-encoding-override ascii \
@@ -252,6 +263,7 @@ copybook verify <COPYBOOK> <DATA> [OPTIONS]
 - `--report <FILE>` - Output verification report (JSON format)
 - `--max-errors <N>` - Maximum errors before stopping
 - `--sample <N>` - Number of sample records to include in report (default: 5)
+- `--select <FIELD[,FIELD...]>` - Validate only specific fields (comma-separated or repeated); ODO counters and parent groups are included automatically
 
 **Examples:**
 ```bash
@@ -266,38 +278,133 @@ copybook verify customer.cpy data.bin \
 # Exit codes: 0 = ok, 3 = validation errors, 2 = fatal (I/O/schema)
 # Report schema: docs/VERIFY_REPORT.schema.json
 
-# Quick summary
-copybook verify customer.cpy data.bin --format fixed --summary
+# Validate only selected fields
+copybook verify customer.cpy data.bin --format fixed --select "CUSTOMER-ID,BALANCE"
+```
+
+### support
+Display the COBOL support matrix or check feature compatibility.
+
+```
+copybook support [OPTIONS]
+```
+
+**Options:**
+- `--format <FORMAT>` - Output format: table, json (default: table)
+- `--check <FEATURE_ID>` - Check support for a specific feature ID, e.g. `level-88`, `occurs-depending`, `edited-pic` (exit 0 only if supported)
+- `--status <FILTER>` - Filter by support status: supported, partial, planned, not-planned
+- `--with-governance` - Include governance and feature-flag linkage metadata
+
+**Examples:**
+```bash
+# Show the full support matrix
+copybook support
+
+# Support matrix as JSON
+copybook support --format json
+
+# Check a specific feature
+copybook support --check level-88
+
+# Show only supported features with governance metadata
+copybook support --status supported --with-governance
+```
+
+### determinism
+Validate determinism of encode/decode operations (byte-identical output across runs).
+
+```
+copybook determinism <MODE> <COPYBOOK> <INPUT> [OPTIONS]
+```
+
+**Modes:**
+- `decode <COPYBOOK> <DATA>` - Check decode determinism (binary -> JSON)
+- `encode <COPYBOOK> <JSON>` - Check encode determinism (JSON -> binary; first line is used)
+- `round-trip <COPYBOOK> <DATA>` - Check full round-trip determinism (binary -> JSON -> binary -> JSON)
+
+**Options (shared by all modes):**
+- `--format <FORMAT>` - Record format: fixed, rdw (default: fixed)
+- `--codepage <CP>` - Character encoding (default: cp037)
+- `--json-number <MODE>` - JSON number format: lossless, native (default: lossless)
+- `--emit-meta` - Include metadata in JSON output
+- `--output <FORMAT>` - Output rendering: human, json (default: human)
+- `--max-diffs <N>` - Maximum number of byte diffs to report
+
+**Exit codes:** 0 = deterministic (hashes match), 2 = non-deterministic (drift detected), 3 = codec/usage error.
+
+**Examples:**
+```bash
+# Check decode determinism
+copybook determinism decode customer.cpy data.bin --format fixed
+
+# Check round-trip determinism with JSON output for CI
+copybook determinism round-trip customer.cpy data.bin --output json
+```
+
+### audit
+Enterprise audit system for regulatory compliance (SOX, HIPAA, GDPR, PCI DSS), performance auditing, security monitoring, and data lineage tracking.
+
+**Note:** The `audit` subcommand is only available when the CLI is built with the non-default `audit` cargo feature (`cargo build -p copybook-cli --features audit`).
+
+```
+copybook audit <SUBCOMMAND> [OPTIONS]
+```
+
+**Subcommands:**
+- `report` - Generate comprehensive audit reports
+- `validate` - Validate compliance against regulatory frameworks
+- `lineage` - Analyze data lineage and transformation impact
+
+**Examples:**
+```bash
+copybook audit validate --compliance sox,gdpr schema.cpy
+copybook audit report --include-performance schema.cpy data.bin -o report.json
+copybook audit lineage source.cpy --source-system mainframe -o lineage.json
 ```
 
 ## Global Options
 
-These options are available for all commands:
+These options are defined at the top level and must be placed **before** the subcommand (e.g. `copybook -v decode ...`):
 
-- `--help` - Show help information
-- `--version` - Show version information
-- `--config <FILE>` - Load configuration from file
-- `--log-level <LEVEL>` - Set logging level: error, warn, info, debug, trace (default: info)
+- `-h, --help` - Show help information
+- `-V, --version` - Show version information
+- `-v, --verbose` - Enable verbose logging
+- `--strict-policy` - Enforce policy checks. Precedence: `--strict-policy` > `--no-strict-policy` > `COPYBOOK_STRICT_POLICY`
+- `--no-strict-policy` - Disable strict checks for this run, even if `COPYBOOK_STRICT_POLICY=1`
 
-## Configuration File
+**Feature Flags:**
+- `--enable-features <FEATURE[,FEATURE...]>` - Enable specific feature flags (comma-separated)
+- `--disable-features <FEATURE[,FEATURE...]>` - Disable specific feature flags (takes precedence over `--enable-features` and environment variables)
+- `--enable-category <CATEGORY>` - Enable all features in a category: experimental, enterprise, performance, debug, testing
+- `--disable-category <CATEGORY>` - Disable all features in a category
+- `--feature-flags-config <PATH>` - Load feature flags from a TOML or JSON configuration file
+- `--list-features` - List all available feature flags and their status, then exit
 
-You can specify default options in a configuration file:
+**Metrics (only when built with the non-default `metrics` cargo feature):**
+- `--metrics-listen <ADDR>` - Expose Prometheus metrics at this address (e.g. `0.0.0.0:9300`)
+- `--metrics-grace-ms <MS>` - Delay after run completion so scrapes can observe final metrics (default: 0)
+
+## Feature Flags Configuration File
+
+Feature flags can be loaded from a configuration file with `--feature-flags-config <PATH>`. The file can be in TOML or JSON format:
 
 ```toml
-# copybook.toml
-[decode]
-codepage = "cp037"
-format = "fixed"
-emit_meta = true
-threads = 4
-
-[encode]
-codepage = "cp037"
-format = "fixed"
-use_raw = true
+# feature-flags.toml
+[feature_flags]
+enabled = ["sign_separate", "verbose_logging"]
+disabled = ["lru_cache"]
 ```
 
-Use with `--config copybook.toml`.
+```json
+{
+  "feature_flags": {
+    "enabled": ["sign_separate", "verbose_logging"],
+    "disabled": ["lru_cache"]
+  }
+}
+```
+
+CLI flags (`--enable-features`, `--disable-features`, `--enable-category`, `--disable-category`) are applied on top of the config file. Use `copybook --list-features` to see all available flags and their current status.
 
 ## Dialect Lever
 
@@ -342,10 +449,10 @@ copybook decode schema.cpy data.bin --format fixed --output data.jsonl
 copybook parse schema.cpy --dialect n
 
 # Use zero-tolerant dialect for IBM Enterprise COBOL
-copybook decode schema.cpy data.bin --format fixed --codepage cp037 --dialect 0
+copybook decode schema.cpy data.bin --format fixed --codepage cp037 --dialect 0 --output data.jsonl
 
 # Use one-tolerant dialect for Micro Focus COBOL
-copybook encode schema.cpy data.jsonl output.bin --format fixed --dialect 1
+copybook encode schema.cpy data.jsonl --output output.bin --format fixed --dialect 1
 
 # Environment variable override
 export COPYBOOK_DIALECT=0
@@ -353,7 +460,7 @@ copybook verify schema.cpy data.bin --format fixed
 
 # CLI flag takes precedence over environment variable
 export COPYBOOK_DIALECT=0
-copybook decode schema.cpy data.bin --format fixed --dialect 1  # Uses one-tolerant
+copybook decode schema.cpy data.bin --format fixed --dialect 1 --output data.jsonl  # Uses one-tolerant
 ```
 
 ### COBOL Copybook Impact
@@ -395,10 +502,10 @@ The `--dialect` flag is supported on all copybook-processing commands:
 
 ## Environment Variables
 
-- `COPYBOOK_LOG_LEVEL` - Set default log level
-- `COPYBOOK_THREADS` - Set default thread count
-- `COPYBOOK_CODEPAGE` - Set default codepage
-- `COPYBOOK_DIALECT` - Set default dialect mode (n, 0, or 1)
+- `COPYBOOK_DIALECT` - Set default dialect mode (n, 0, or 1); overridden by the `--dialect` flag
+- `COPYBOOK_STRICT_POLICY` - Enforce policy checks (`1`, `true`, `yes`, or `on`); overridden by `--strict-policy`/`--no-strict-policy`
+- `COPYBOOK_FF_<FEATURE>` - Enable a feature flag by name, e.g. `COPYBOOK_FF_SIGN_SEPARATE=1`
+- `RUST_LOG` - Tracing filter for log output (overrides the default `warn`, or `debug` with `-v/--verbose`)
 
 ## Validation Modes
 
@@ -460,9 +567,16 @@ copybook decode legacy-schema.cpy data.bin --format fixed --strict-comments --ou
 
 ## Exit Codes
 
-- `0` - Success (warnings allowed)
-- `1` - Completed with errors
-- `2` - Fatal error (parse failure, invalid arguments)
+| Code | Tag | Meaning |
+|-----:|:---:|---------|
+| 0 | OK | Success |
+| 1 | CBK? | Unhandled failure (panic, unknown errors) |
+| 2 | CBKD | Data quality failure |
+| 3 | CBKE | Encode/validation failure |
+| 4 | CBKF | Record format/RDW failure |
+| 5 | CBKI | Internal orchestration error |
+
+Some subcommands document additional command-specific semantics: `verify` reports 3 for validation errors and 2 for fatal I/O/schema errors; `determinism` reports 0 for deterministic, 2 for drift detected, and 3 for codec/usage errors.
 
 ## Character Encodings
 
@@ -531,8 +645,8 @@ Binary field sizes are determined by PIC digits: ≤4→16b, 5–9→32b, 10–1
 - `length` - Record length in bytes
 
 **Raw Bytes (--emit-raw):**
-- `raw_b64` - Base64-encoded raw record bytes (record/record+rdw modes)
-- `<field>_raw_b64` - Base64 payload for individual fields (field mode)
+- `__raw_b64` - Canonical base64-encoded raw record bytes (record/record+rdw modes); a legacy `raw_b64` key is also emitted for backward compatibility
+- `<FIELD>__raw_b64` - Base64 payload for individual fields (field mode)
 - Enables byte-perfect round trips when re-encoding
 
 **FILLER Fields (--emit-filler):**
@@ -543,7 +657,7 @@ Binary field sizes are determined by PIC digits: ≤4→16b, 5–9→32b, 10–1
 ## Performance Tuning
 
 ### Thread Count
-- Default: CPU core count
+- Default: 1 (set `--threads <N>` to parallelize)
 - Increase for I/O-bound workloads
 - Decrease if memory-constrained
 - Output remains deterministic regardless of thread count
@@ -590,11 +704,11 @@ copybook decode schema.cpy data.bin \
   --strict \
   --output /dev/null
 
-# Lenient with error reporting
-copybook decode schema.cpy data.bin \
+# Lenient with error reporting (note: -v/--verbose is a global flag
+# and goes before the subcommand)
+copybook -v decode schema.cpy data.bin \
   --format fixed \
   --max-errors 1000 \
-  --verbose \
   --output validated.jsonl 2> errors.log
 ```
 
@@ -642,7 +756,7 @@ diff original.bin roundtrip.bin
 
 1. Use `copybook <command> --help` for command-specific help
 2. Check error codes in [ERROR_CODES.md](ERROR_CODES.md)
-3. Use `--verbose` for detailed diagnostics
+3. Use `-v/--verbose` (before the subcommand) for detailed diagnostics
 4. Test with small data samples first
 5. Refer to examples in [README.md](../README.md)
 ## License

@@ -14,7 +14,8 @@
 | `xtask` | Project automation xtasks (CI/release helpers) |
 
 ## Navigation
-- Repository root + invariants: `../CLAUDE.md`
+- Repository contract: `../AGENTS.md`
+- Tooling-specific contract: `AGENTS.md`
 - Perf receipts (bench output): `../scripts/bench/perf.json`
 
 ## Build

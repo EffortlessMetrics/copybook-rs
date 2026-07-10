@@ -2,7 +2,7 @@
 # claude.md
 
 ## Scope
-- Error types and taxonomy (10 families, 61 stable codes) for copybook-rs.
+- Error types and taxonomy (10 families, 63 stable codes) for copybook-rs.
 - Layer: **Safety**.
 - Workspace package `copybook-error` (see `Cargo.toml`).
 - Error code catalog: `../../docs/reference/ERROR_CODES.md`

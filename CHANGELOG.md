@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **codec**: Keep `RawMode::Field` output scoped to `<field>_raw_b64` values instead of also emitting whole-record `raw_b64` and `__raw_b64` payloads
 - Release prep: resolve clippy/rustdoc gate failures across core, codec, arrow examples, and test suites
 - Release prep: stabilize enterprise throughput assertions in `enterprise_mainframe_production_scenarios` for CI-consistent performance checks
 - **ci**: Add `workflow_dispatch` trigger to CI Quick and Feature Flags CI workflows
@@ -43,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous Tasks
 
+- **docs**: Add a tool-neutral `AGENTS.md` hierarchy and align Claude, Gemini, Copilot, and contributor entry points
 - Update GitHub Actions to use latest action versions
 - **docs**: Update CLAUDE.md workspace structure (36 crates, 69 deps)
 - **docs**: Update README test count (10,000+ passed, 15 ignored)

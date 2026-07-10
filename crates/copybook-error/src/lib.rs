@@ -81,6 +81,8 @@ impl Error {
 /// - **CBKE**: Encoding and JSON serialization
 /// - **CBKF**: File format and structure validation
 /// - **CBKI**: Iterator and infrastructure state validation (e.g., fixed-format without LRECL -> `CBKI001_INVALID_STATE`)
+/// - **CBKA**: Audit operations (performance baselines)
+/// - **CBKW**: Arrow/Writer errors (Apache Arrow and Parquet conversion)
 ///
 /// Implements `Serialize`/`Deserialize` for error code persistence and API responses.
 ///

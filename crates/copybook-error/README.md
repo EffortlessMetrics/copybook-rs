@@ -5,7 +5,7 @@ Error types and taxonomy for copybook-rs.
 This crate provides a comprehensive error taxonomy with stable error codes
 for all failure modes in the copybook processing system.
 
-**61 error codes across 10 families** covering parse, schema, data, encoding, record, character set, file, infrastructure, audit, and Arrow/writer errors.
+**63 error codes across 10 families** covering parse, schema, data, encoding, record, character set, file, infrastructure, audit, and Arrow/writer errors.
 
 ## Public API
 

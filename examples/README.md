@@ -27,12 +27,21 @@ The standalone example files (`basic/`, `integration/`, `enterprise/`) are refer
 implementations demonstrating copybook-rs API usage patterns. They are not registered
 as cargo examples — review them as code samples.
 
-The Kafka pipeline is a standalone crate that can be built separately (requires
-`rdkafka` and its native dependencies — see [kafka_pipeline/README.md](kafka_pipeline/README.md)):
+There are two Kafka examples:
+
+- [kafka_pipeline](kafka_pipeline/) is a historical standalone producer-only crate.
+- [kafka_streaming](kafka_streaming/) is a producer + consumer streaming example with local compose support.
 
 ```bash
-# Build the Kafka pipeline example (requires cmake, perl, openssl)
+# Build the Kafka pipeline examples
 cargo build --manifest-path examples/kafka_pipeline/Cargo.toml
+cargo build --manifest-path examples/kafka_streaming/Cargo.toml
+```
+
+```bash
+# Run the streaming example
+cargo run --manifest-path examples/kafka_streaming/Cargo.toml --example producer
+cargo run --manifest-path examples/kafka_streaming/Cargo.toml --example consumer
 ```
 
 ## Example Data

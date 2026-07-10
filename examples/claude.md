@@ -4,6 +4,7 @@
 ## Scope
 - Standalone example projects demonstrating how to consume copybook-rs crates as a user would.
 - `kafka_pipeline` is excluded from the workspace (see root `Cargo.toml` `exclude`); build it standalone.
+- `kafka_streaming` is a two-binary producer/consumer streaming example, also standalone.
 
 ## Examples
 | Example | Focus |
@@ -12,6 +13,7 @@
 | `enterprise` | Audit/governance/governance-runtime features |
 | `integration` | Multi-crate composition |
 | `kafka_pipeline` | Streaming pipeline (standalone crate, not a workspace member) |
+| `kafka_streaming` | Producer + consumer Kafka streaming example |
 
 ## Navigation
 - Repository contract: `../AGENTS.md`
@@ -21,3 +23,6 @@
 ## Run
 - `cargo run --example <name>` (for workspace examples)
 - `kafka_pipeline`: `cd kafka_pipeline && cargo run`
+- `kafka_streaming`:
+  - `cargo run --manifest-path examples/kafka_streaming/Cargo.toml --example producer`
+  - `cargo run --manifest-path examples/kafka_streaming/Cargo.toml --example consumer`

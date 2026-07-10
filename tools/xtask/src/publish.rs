@@ -114,9 +114,13 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
 
     let mut publishable_ids = HashSet::new();
     let mut id_to_name = HashMap::new();
+    let mut publishable_names = HashSet::new();
+    let mut name_to_id = HashMap::new();
     for package in &publishable_packages {
         publishable_ids.insert(package.id.clone());
         id_to_name.insert(package.id.clone(), package.name.clone());
+        publishable_names.insert(package.name.clone());
+        name_to_id.insert(package.name.clone(), package.id.clone());
     }
 
     let mut in_degree: HashMap<String, usize> = HashMap::new();
@@ -131,24 +135,33 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
         for dependency in package
             .dependencies
             .iter()
-            .filter(|dep| dep.kind.as_deref() == Some("normal"))
+            .filter(|dep| is_publish_dependency(dep.kind.as_ref()))
         {
-            let Some(dep_id) = &dependency.package else {
+            let dependency_name = if let Some(dep_id) = &dependency.package {
+                id_to_name.get(dep_id)
+            } else {
+                Some(&dependency.name).filter(|name| publishable_names.contains(*name))
+            };
+            let Some(dependency_name) = dependency_name else {
+                continue;
+            };
+            let dep_id = dependency
+                .package
+                .as_ref()
+                .or_else(|| name_to_id.get(dependency_name));
+            let Some(dep_id) = dep_id else {
                 continue;
             };
             if !publishable_ids.contains(dep_id) {
                 continue;
             }
 
-            let Some(dep_name) = id_to_name.get(dep_id) else {
-                continue;
-            };
-            let edge = (dep_name.clone(), package.name.clone());
+            let edge = (dependency_name.clone(), package.name.clone());
             if !seen_edges.insert(edge.clone()) {
                 continue;
             }
             dependents
-                .entry(dep_name.clone())
+                .entry(dependency_name.clone())
                 .or_default()
                 .push(package.name.clone());
             *in_degree.entry(package.name.clone()).or_default() += 1;
@@ -227,6 +240,10 @@ fn validate_publish_plan(plan: &[String]) -> Result<()> {
     Ok(())
 }
 
+fn is_publish_dependency(kind: Option<&String>) -> bool {
+    kind.is_none() || kind.is_some_and(|kind| kind == "normal")
+}
+
 fn is_publishable_package(publish: Option<&Value>) -> bool {
     match publish {
         Some(Value::Bool(false)) => false,
@@ -256,7 +273,7 @@ mod tests {
                         {"name":"copybook-core","kind":"normal","package":"id-core"}
                     ]},
                     {"id":"id-facade","name":"copybook","dependencies":[
-                        {"name":"copybook-core","kind":"normal","package":"id-core"},
+                        {"name":"copybook-core","package":"id-core","kind":null},
                         {"name":"copybook-codec","kind":"normal","package":"id-codec"}
                     ]},
                     {"id":"id-rs","name":"copybook-rs","dependencies":[
@@ -275,6 +292,27 @@ mod tests {
                 "copybook".to_string(),
                 "copybook-rs".to_string(),
             ]
+        );
+    }
+
+    #[test]
+    fn publish_plan_orders_dependencies_with_null_kind() {
+        let plan = parse_plan(
+            r#"{
+                "workspace_members":["id-core", "id-rs"],
+                "packages":[
+                    {"id":"id-core","name":"copybook-core","dependencies":[
+                        {"name":"copybook-rs","kind":null}
+                    ]},
+                    {"id":"id-rs","name":"copybook-rs","dependencies":[]}
+                ]
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            plan,
+            vec!["copybook-rs".to_string(), "copybook-core".to_string()]
         );
     }
 

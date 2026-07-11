@@ -90,7 +90,7 @@ fn block(c: &Counts) -> String {
     let p = c.passed;
     let s = c.skipped;
     format!(
-        "**conformance:** {p}/{p} â€¢ **roundtrip:** N/A â€¢ **negative:** N/A â€¢ **skipped:** {s} â€¢ **leaks:** 0  \n\
+        "**conformance:** {p}/{p}  \u{2022} **roundtrip:** N/A  \u{2022} **negative:** N/A  \u{2022} **skipped:** {s}  \u{2022} **leaks:** 0  \n\
          _Source: CI receipts (nextest/junit). This block is updated automatically._"
     )
 }
@@ -116,7 +116,7 @@ fn sync() -> Result<()> {
     replace_in_file("README.md", &b)?;
     replace_in_file("docs/REPORT.md", &b)?;
 
-    println!("âœ“ Synced test status to README.md and docs/REPORT.md");
+    println!("\u{2713} Synced test status to README.md and docs/REPORT.md");
     Ok(())
 }
 
@@ -131,7 +131,7 @@ fn verify() -> Result<()> {
         }
     }
 
-    println!("âœ“ Test status is in sync");
+    println!("\u{2713} Test status is in sync");
     Ok(())
 }
 
@@ -163,7 +163,7 @@ fn verify_support_matrix() -> Result<()> {
     }
 
     println!(
-        "âœ“ Support matrix registry â†” docs in sync ({} features verified)",
+        "\u{2713} Support matrix registry \u{2194} docs in sync ({} features verified)",
         all_features.len()
     );
     Ok(())

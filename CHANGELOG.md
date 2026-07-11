@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **codec**: Reject ODO (OCCURS DEPENDING ON) encode input where the JSON counter value disagrees with the array length instead of silently writing extra elements that are unrecoverable on decode (`CBKE521_ARRAY_LEN_OOB`)
 - **codec**: Keep `RawMode::Field` output scoped to `<field>_raw_b64` values instead of also emitting whole-record `raw_b64` and `__raw_b64` payloads
 - Release prep: resolve clippy/rustdoc gate failures across core, codec, arrow examples, and test suites
 - Release prep: stabilize enterprise throughput assertions in `enterprise_mainframe_production_scenarios` for CI-consistent performance checks

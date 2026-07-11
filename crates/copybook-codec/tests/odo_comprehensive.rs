@@ -317,7 +317,7 @@ fn test_odo_payload_length_correctness() {
 }
 
 #[test]
-fn test_odo_encode_counter_update() {
+fn test_odo_encode_counter_array_mismatch_rejected() {
     let copybook = r#"
 01 RECORD-LAYOUT.
    05 ITEM-COUNT PIC 9(3).
@@ -326,7 +326,11 @@ fn test_odo_encode_counter_update() {
 
     let schema = parse_copybook(copybook).unwrap();
 
-    // JSON with array length different from counter
+    // JSON with array length different from counter. The counter is encoded
+    // independently as a scalar, and the array is written using its own
+    // length - if the two disagree, the mismatch must be rejected up front
+    // rather than silently writing more elements than the counter says are
+    // present (which would make them unrecoverable on decode).
     let json_data = json!({
         "ITEM-COUNT": "002", // Counter says 2
         "ITEMS": ["ITEM1     ", "ITEM2     ", "ITEM3     "] // But array has 3 items
@@ -344,12 +348,44 @@ fn test_odo_encode_counter_update() {
     let input = Cursor::new(jsonl_data.as_bytes());
     let mut output = Vec::new();
 
-    // Should succeed but does not update counter in current lib_api encoder path
+    let summary =
+        copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options).unwrap();
+    assert_eq!(summary.records_with_errors, 1);
+    assert!(output.is_empty());
+}
+
+#[test]
+fn test_odo_encode_counter_array_match_accepted() {
+    let copybook = r#"
+01 RECORD-LAYOUT.
+   05 ITEM-COUNT PIC 9(3).
+   05 ITEMS PIC X(10) OCCURS 0 TO 5 TIMES DEPENDING ON ITEM-COUNT.
+"#;
+
+    let schema = parse_copybook(copybook).unwrap();
+
+    // Counter and array length agree - this must still succeed.
+    let json_data = json!({
+        "ITEM-COUNT": "003",
+        "ITEMS": ["ITEM1     ", "ITEM2     ", "ITEM3     "]
+    });
+
+    let jsonl_data = format!("{json_data}\n");
+
+    let options = EncodeOptions {
+        codepage: Codepage::ASCII,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
+        ..EncodeOptions::default()
+    };
+
+    let input = Cursor::new(jsonl_data.as_bytes());
+    let mut output = Vec::new();
+
     let summary =
         copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options).unwrap();
     assert_eq!(summary.records_with_errors, 0);
 
-    // Decode back to verify counter was updated
     let decode_options = DecodeOptions {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
@@ -368,11 +404,10 @@ fn test_odo_encode_counter_update() {
 
     let json_record = copybook_codec::decode_record(&schema, &output, &decode_options).unwrap();
 
-    // Counter remains as provided in JSON
-    assert_eq!(json_record["ITEM-COUNT"], "002");
+    assert_eq!(json_record["ITEM-COUNT"], "003");
 
     let items = json_record["ITEMS"].as_array().unwrap();
-    assert_eq!(items.len(), 2);
+    assert_eq!(items.len(), 3);
 }
 
 #[test]

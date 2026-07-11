@@ -359,7 +359,7 @@ fn test_odo_decode_clamp_vs_strict() {
 }
 
 #[test]
-fn test_odo_encode_counter_update() {
+fn test_odo_encode_counter_array_mismatch_rejected() {
     let copybook = r#"
 01 ODO-RECORD.
    05 COUNTER PIC 9(2).
@@ -369,22 +369,50 @@ fn test_odo_encode_counter_update() {
     let schema = parse_copybook(copybook).unwrap();
     let options = create_test_encode_options(false);
 
-    // Test encoding with array length different from counter
+    // The counter is encoded independently as a scalar and the array is
+    // written using its own length, so a mismatch between the two must be
+    // rejected rather than silently writing elements the counter doesn't
+    // account for (which would make them unrecoverable on decode).
     let json_data = json!({
         "COUNTER": "02",
         "VARIABLE-ARRAY": ["ABC", "DEF", "GHI"] // 3 elements, counter says 2
     });
 
     let result = copybook_codec::encode_record(&schema, &json_data, &options);
-    assert!(result.is_ok(), "Should succeed and update counter");
+    assert!(
+        result.is_err(),
+        "Counter/array length mismatch must be rejected"
+    );
+    assert_eq!(result.unwrap_err().code, ErrorCode::CBKE521_ARRAY_LEN_OOB);
+}
+
+#[test]
+fn test_odo_encode_counter_array_match_succeeds() {
+    let copybook = r#"
+01 ODO-RECORD.
+   05 COUNTER PIC 9(2).
+   05 VARIABLE-ARRAY OCCURS 1 TO 5 TIMES DEPENDING ON COUNTER PIC X(3).
+"#;
+
+    let schema = parse_copybook(copybook).unwrap();
+    let options = create_test_encode_options(false);
+
+    let json_data = json!({
+        "COUNTER": "03",
+        "VARIABLE-ARRAY": ["ABC", "DEF", "GHI"]
+    });
+
+    let result = copybook_codec::encode_record(&schema, &json_data, &options);
+    assert!(
+        result.is_ok(),
+        "Matching counter/array length should succeed"
+    );
 
     let encoded_data = result.unwrap();
-
-    // Counter is encoded from the provided JSON and array elements are encoded in order.
-    assert_eq!(&encoded_data[0..2], b"02"); // Counter remains as provided
-    assert_eq!(&encoded_data[2..5], [0, 0, 0]); // Array elements are not encoded yet in this path
-    assert_eq!(&encoded_data[5..8], [0, 0, 0]);
-    assert_eq!(&encoded_data[8..11], [0, 0, 0]);
+    assert_eq!(&encoded_data[0..2], b"03");
+    assert_eq!(&encoded_data[2..5], b"ABC");
+    assert_eq!(&encoded_data[5..8], b"DEF");
+    assert_eq!(&encoded_data[8..11], b"GHI");
 }
 
 #[test]

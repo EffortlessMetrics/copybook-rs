@@ -17,10 +17,21 @@ API freeze is a development phase where:
 
 ## Public API Scope
 
-The following crates have frozen public APIs:
-- **copybook-core**: Core parsing and schema types
-- **copybook-codec**: Encoding and decoding codecs
-- **copybook-cli**: Command-line interface (binary crate)
+The frozen public API scope is the stable surface in:
+
+- `docs/stability/surface-registry.json`
+
+Current stable packages in that registry are:
+- **copybook**
+- **copybook-charset**
+- **copybook-cli**
+- **copybook-cli-determinism**
+- **copybook-codec**
+- **copybook-codepage**
+- **copybook-contracts**
+- **copybook-core**
+- **copybook-error**
+- **copybook-error-reporter**
 
 The public API includes:
 - All `pub` functions and methods
@@ -123,14 +134,17 @@ bash scripts/api-baseline.sh freeze-status
 
 ```bash
 # Install cargo-semver-checks
-cargo install --locked cargo-semver-checks --version 0.37.0
+cargo install --locked cargo-semver-checks --version 0.46.0
 
 # Check API compatibility
+# Optional raw invocation equivalent for this lane:
+# Exclude workspace packages that are not classified `stable`.
+# The repository script computes this exclusion list from
+# `docs/stability/surface-registry.json` automatically.
 cargo semver-checks check-release \
   --workspace \
-  --baseline-root=origin/main \
-  --current-root=. \
-  --error-on-missing
+  --baseline-rev=<COMMIT_SHA>
+# (add --exclude <crate-name> for each non-stable package)
 ```
 
 ## How to Update Baseline

@@ -9,7 +9,7 @@ use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, RunSummary,
     decode_file_to_jsonl, encode_jsonl_to_file, iter_records,
 };
-use copybook_core::{parse_copybook, project_schema};
+use copybook_core::{ErrorCode, parse_copybook, project_schema};
 use std::io::Cursor;
 
 // ---------------------------------------------------------------------------
@@ -715,7 +715,15 @@ fn iter_records_from_file_nonexistent() {
     let schema = parse_copybook(SIMPLE_SCHEMA).unwrap();
     let opts = ascii_decode_opts();
     let result = iter_records_from_file("nonexistent_file_12345.bin", &schema, &opts);
-    assert!(result.is_err(), "Should error on nonexistent file");
+    match result {
+        Ok(iterator) => {
+            let _ = iterator;
+            panic!("Should error on nonexistent file");
+        }
+        Err(err) => {
+            assert_eq!(err.code, ErrorCode::CBKR201_RDW_READ_ERROR);
+        }
+    }
 }
 
 // ===========================================================================

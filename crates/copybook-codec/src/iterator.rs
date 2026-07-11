@@ -402,7 +402,7 @@ impl<R: Read> RecordIterator<R> {
                     }
                     Err(e) => {
                         return Err(Error::new(
-                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                            ErrorCode::CBKR101_FIXED_RECORD_ERROR,
                             format!("Failed to read fixed record: {e}"),
                         ));
                     }
@@ -689,7 +689,7 @@ mod tests {
     use super::*;
     use crate::Codepage;
     use copybook_core::parse_copybook;
-    use std::io::Cursor;
+    use std::io::{self, Cursor, Read};
 
     #[test]
     fn test_record_iterator_basic() {
@@ -1077,5 +1077,42 @@ mod tests {
 
         // Second call should return None (EOF)
         assert!(iterator.next().is_none());
+    }
+
+    #[derive(Default)]
+    struct FailingReader {
+        fail: bool,
+    }
+
+    impl Read for FailingReader {
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
+            if self.fail {
+                Ok(0)
+            } else {
+                self.fail = true;
+                Err(io::Error::other("forced read error"))
+            }
+        }
+    }
+
+    #[test]
+    fn test_iterator_fixed_format_read_error_code() {
+        let copybook_text = r"
+            01 RECORD.
+               05 ID PIC 9(3).
+               05 NAME PIC X(5).
+        ";
+
+        let schema = parse_copybook(copybook_text).unwrap();
+
+        let mut schema = schema;
+        schema.lrecl_fixed = Some(8);
+
+        let mut iterator =
+            RecordIterator::new(FailingReader::default(), &schema, &DecodeOptions::default())
+                .unwrap();
+
+        let error = iterator.read_raw_record().unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
     }
 }

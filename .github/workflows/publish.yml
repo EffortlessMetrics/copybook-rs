@@ -299,55 +299,12 @@ PY
     needs: publish
     steps:
     - uses: dtolnay/rust-toolchain@stable
-
-    - name: Install copybook-cli (default features)
+    - name: Run release smoke from registry artifacts
       run: |
         VERSION="${{ github.ref_name || github.event.inputs.tag }}"
-        VERSION=${VERSION#v}
-
-        echo "Testing installation of copybook-cli@${VERSION}"
-        cargo install copybook-cli@${VERSION} --locked --root /tmp/copybook-default
-        /tmp/copybook-default/bin/copybook --version
-        /tmp/copybook-default/bin/copybook --help >/dev/null
-
-        echo "Smoke test passed: copybook-cli@${VERSION} installs and runs"
-
-    - name: Install copybook-cli (arrow feature compile check)
-      run: |
-        VERSION="${{ github.ref_name || github.event.inputs.tag }}"
-        VERSION=${VERSION#v}
-
-        echo "Testing installation with --features arrow"
-        cargo install copybook-cli@${VERSION} --locked --features arrow --root /tmp/copybook-arrow
-        /tmp/copybook-arrow/bin/copybook --version
-
-        echo "Arrow feature resolves from crates.io"
-
-    - name: Validate facade + redirect crates from crates.io
-      run: |
-        set -euo pipefail
-
-        VERSION="${{ github.ref_name || github.event.inputs.tag }}"
-        VERSION=${VERSION#v}
-
-        WORKDIR="$(mktemp -d)"
-        mkdir -p "${WORKDIR}/src"
-        cat > "${WORKDIR}/Cargo.toml" <<EOF
-[package]
-name = "copybook-smoke"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-copybook = "=${VERSION}"
-copybook-rs = "=${VERSION}"
-EOF
-        cat > "${WORKDIR}/src/main.rs" <<EOF
-fn main() {}
-EOF
-
-        cargo build --manifest-path "${WORKDIR}/Cargo.toml"
-        echo "Smoke test passed: copybook and copybook-rs resolve and compile from crates.io version ${VERSION}"
+        VERSION="${VERSION#v}"
+        chmod +x scripts/ci/release_smoke.sh
+        scripts/ci/release_smoke.sh "${VERSION}"
 
     - name: Validate docs.rs builds
       run: |

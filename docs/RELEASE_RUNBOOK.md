@@ -147,6 +147,16 @@ VERSION="X.Y.Z"
 cargo install copybook-cli@${VERSION} --locked
 cargo install copybook-cli@${VERSION} --locked --features arrow
 ```
+For early local verification before crates are published, run:
+
+```bash
+RELEASE_SMOKE_DEPS=local \
+  bash scripts/ci/release_smoke.sh "v${VERSION}"
+```
+
+This keeps the smoke workflow identical while resolving the smoke fixture crate
+dependencies from the workspace checkouts. Set `RELEASE_SMOKE_PYTHON` to
+`python3` or `python` if your shell requires a specific binary name.
 
 Validate public visibility from `publish-plan.json` (all crates listed there, including `copybook` and
 `copybook-rs`) on both crates.io and docs.rs.

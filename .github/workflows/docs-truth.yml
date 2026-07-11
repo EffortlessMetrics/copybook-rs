@@ -56,6 +56,8 @@ jobs:
         run: cargo nextest run --workspace --exclude copybook-bench --exclude copybook-bdd --profile ci
       - name: Sync docs test status
         run: cargo run -p xtask -- docs sync-tests
+      - name: Verify docs truth gate
+        run: cargo run -p xtask -- docs verify-all
       - name: Forbid unlinked perf marketing
         run: |
           set -euo pipefail
@@ -67,5 +69,5 @@ jobs:
               echo "Forbidden perf/marketing claims without receipts:"; cat /tmp/hits.txt; exit 1
             fi
           fi
-      - name: Verify support matrix registry ↔ docs sync
+      - name: Verify support matrix docs-sync
         run: cargo run -p xtask -- docs verify-support-matrix

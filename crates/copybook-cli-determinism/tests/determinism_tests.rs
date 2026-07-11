@@ -28,7 +28,6 @@ const SIMPLE_COPYBOOK: &str = r"
 
 /// CP037-encoded "ABCDE"
 const SIMPLE_DATA_CP037: [u8; 5] = [0xC1, 0xC2, 0xC3, 0xC4, 0xC5];
-
 const NUMERIC_COPYBOOK: &str = r"
        01 RECORD.
           05 AMOUNT PIC 9(5)V99.
@@ -49,6 +48,26 @@ fn write_fixture(
     fs::write(&cpy, copybook).expect("write copybook");
     fs::write(&bin, data).expect("write data");
     fs::write(&jsonl, format!("{json_line}\n")).expect("write json");
+    (cpy, bin, jsonl)
+}
+
+fn write_rdw_fixture(
+    dir: &tempfile::TempDir,
+    copybook: &str,
+    payload: &[u8],
+    json_line: &str,
+) -> (PathBuf, PathBuf, PathBuf) {
+    let (cpy, bin, jsonl) = write_fixture(dir, copybook, payload, json_line);
+    fs::write(
+        &bin,
+        [
+            &u16::try_from(payload.len()).unwrap().to_be_bytes(),
+            &[0x00, 0x00],
+            payload,
+        ]
+        .concat(),
+    )
+    .expect("write rdw data");
     (cpy, bin, jsonl)
 }
 
@@ -419,7 +438,9 @@ fn build_encode_options_uses_common_args() {
         max_diffs: 10,
     };
     let opts = build_encode_options(&common);
-    let _ = opts;
+    assert_eq!(opts.format, common.format);
+    assert_eq!(opts.codepage, common.codepage);
+    assert_eq!(opts.json_number_mode, common.json_number);
 }
 
 #[test]
@@ -435,6 +456,23 @@ fn build_decode_options_with_native_json_number() {
     };
     let opts = build_decode_options(&common);
     let _ = opts;
+}
+
+#[test]
+fn build_encode_options_with_rdw_format() {
+    let common = CommonDeterminismArgs {
+        copybook: PathBuf::from("dummy.cpy"),
+        format: RecordFormat::RDW,
+        codepage: Codepage::CP037,
+        json_number: JsonNumberMode::Lossless,
+        emit_meta: true,
+        output: OutputFormat::Human,
+        max_diffs: 10,
+    };
+    let opts = build_encode_options(&common);
+    assert_eq!(opts.format, RecordFormat::RDW);
+    assert_eq!(opts.codepage, Codepage::CP037);
+    assert_eq!(opts.json_number_mode, JsonNumberMode::Lossless);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -762,6 +800,24 @@ fn round_trip_determinism_with_numeric_copybook() {
         }),
     };
     let result = run(&cmd).expect("run round-trip numeric");
+    assert_eq!(result.verdict, DeterminismVerdict::Deterministic);
+}
+
+#[test]
+fn round_trip_determinism_with_rdw_format() {
+    let tmp = tempdir().expect("tempdir");
+    let (cpy, bin, _) = write_rdw_fixture(
+        &tmp,
+        SIMPLE_COPYBOOK,
+        &SIMPLE_DATA_CP037,
+        r#"{"FIELD":"ABCDE"}"#,
+    );
+    let mut common = make_common(cpy);
+    common.format = RecordFormat::RDW;
+    let cmd = DeterminismCommand {
+        mode: DeterminismModeCommand::RoundTrip(RoundTripDeterminismArgs { common, data: bin }),
+    };
+    let result = run(&cmd).expect("run round-trip rdw");
     assert_eq!(result.verdict, DeterminismVerdict::Deterministic);
 }
 

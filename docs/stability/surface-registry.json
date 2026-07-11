@@ -1,0 +1,944 @@
+{
+  "schema_version": "1.0.0",
+  "packages": [
+    {
+      "name": "copybook",
+      "publish": true,
+      "class": "stable",
+      "stability_statement": "Canonical public facade and primary installation surface for users.",
+      "limitations": [],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-arrow",
+      "publish": true,
+      "class": "experimental",
+      "stability_statement": "Arrow/Parquet interop is opt-in and may change behavior in place.",
+      "limitations": [
+        "Schema and conversion API may add, remove, or rename public helpers before graduation.",
+        "Benchmarks and parity guarantees are best-effort while the surface is experimental."
+      ],
+      "graduation_criteria": [
+        "Stability and compatibility evidence for all documented conversion paths are established.",
+        "The CLI and library contracts for Arrow/Parquet are declared in the API/feature registry."
+      ],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [
+        {
+          "name": "comprehensive-tests",
+          "class": "internal-dev-only",
+          "stability_statement": "Test-only feature entrypoint; not a user support guarantee.",
+          "limitations": [],
+          "graduation_criteria": []
+        },
+        {
+          "name": "experimental",
+          "class": "experimental",
+          "stability_statement": "Opt-in feature gate that keeps the crate on the experimental track.",
+          "limitations": [
+            "Can change API shape without a major-version-compatible migration."
+          ],
+          "graduation_criteria": [
+            "Feature remains stable through a full compatibility evidence cycle and no public break without migration docs."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "copybook-bdd",
+      "publish": false,
+      "class": "internal-dev-only",
+      "stability_statement": "BDD test harness crate for repository validation only.",
+      "limitations": [
+        "Not intended for downstream consumption.",
+        "No stability guarantees are made for downstream API usage."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [
+        {
+          "name": "audit",
+          "class": "internal-dev-only",
+          "stability_statement": "Test-helper feature only; not part of product support promises.",
+          "limitations": [
+            "Reserved for local validation and CI workflows."
+          ],
+          "graduation_criteria": []
+        }
+      ]
+    },
+    {
+      "name": "copybook-bench",
+      "publish": false,
+      "class": "internal-dev-only",
+      "stability_statement": "Benchmarking crate used for local and CI performance evaluation.",
+      "limitations": [
+        "Not part of stable user-facing support commitments.",
+        "Benchmarks and flags may change for internal experimentation."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [
+        {
+          "name": "comprehensive-tests",
+          "class": "internal-dev-only",
+          "stability_statement": "Test coverage feature gate.",
+          "limitations": [
+            "Only used for internal validation paths."
+          ],
+          "graduation_criteria": []
+        },
+        {
+          "name": "diagnostics",
+          "class": "internal-dev-only",
+          "stability_statement": "Internal diagnostics mode.",
+          "limitations": [
+            "No external usage or API compatibility promise."
+          ],
+          "graduation_criteria": []
+        },
+        {
+          "name": "perf",
+          "class": "internal-dev-only",
+          "stability_statement": "Performance-only toggle for internal workflows.",
+          "limitations": [
+            "Behavior may change when performance harness evolves."
+          ],
+          "graduation_criteria": []
+        },
+        {
+          "name": "progressive",
+          "class": "internal-dev-only",
+          "stability_statement": "Progressive mode is test-only.",
+          "limitations": [
+            "No downstream compatibility promises."
+          ],
+          "graduation_criteria": []
+        }
+      ]
+    },
+    {
+      "name": "copybook-charset",
+      "publish": true,
+      "class": "stable",
+      "stability_statement": "Character-set conversion helpers used by parser and codec entrypoints.",
+      "limitations": [],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [
+        {
+          "name": "clap",
+          "class": "beta",
+          "stability_statement": "Optional CLI integration feature for downstream command wiring.",
+          "limitations": [
+            "Public feature surface is not included in the v1 compatibility contract."
+          ],
+          "graduation_criteria": [
+            "Cross-version compatibility verification for downstream CLI integrations is added.",
+            "Feature stability is validated in the API baseline run."
+          ]
+        },
+        {
+          "name": "comprehensive-tests",
+          "class": "internal-dev-only",
+          "stability_statement": "Feature is for repository test matrix execution.",
+          "limitations": [
+            "Not part of user-facing support promises."
+          ],
+          "graduation_criteria": []
+        }
+      ]
+    },
+    {
+      "name": "copybook-cli",
+      "publish": true,
+      "class": "stable",
+      "stability_statement": "Supported CLI surface for parse/encode/decode/verify/use-case workflows.",
+      "limitations": [],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md",
+        "docs/CLI_REFERENCE.md"
+      ],
+      "features": [
+        {
+          "name": "arrow",
+          "class": "experimental",
+          "stability_statement": "Optional Arrow runtime surface is explicitly experimental.",
+          "limitations": [
+            "May change command output, option names, and crate API shape."
+          ],
+          "graduation_criteria": [
+            "Arrow behavior is covered by stable schema/CLI evidence and frozen for v1."
+          ]
+        },
+        {
+          "name": "audit",
+          "class": "internal-dev-only",
+          "stability_statement": "Debug/audit mode for internal compliance-focused workflows.",
+          "limitations": [
+            "No downstream stability promise."
+          ],
+          "graduation_criteria": []
+        },
+        {
+          "name": "comprehensive-tests",
+          "class": "internal-dev-only",
+          "stability_statement": "Feature is for repository test coverage only.",
+          "limitations": [
+            "Not documented as supported behavior."
+          ],
+          "graduation_criteria": []
+        },
+        {
+          "name": "metrics",
+          "class": "beta",
+          "stability_statement": "Optional metrics integration for operational observability.",
+          "limitations": [
+            "Optional observability paths are not yet in the v1 freeze."
+          ],
+          "graduation_criteria": [
+            "Metrics contract is documented with a stable output schema and compatibility checks."
+          ]
+        },
+        {
+          "name": "soak",
+          "class": "internal-dev-only",
+          "stability_statement": "Soak/benchmarking path not part of the supported CLI contract.",
+          "limitations": [
+            "Used only for sustained-load validation."
+          ],
+          "graduation_criteria": []
+        }
+      ]
+    },
+    {
+      "name": "copybook-cli-determinism",
+      "publish": true,
+      "class": "stable",
+      "stability_statement": "Determinism-focused CLI subcommands and fixtures for reproducible behavior checks.",
+      "limitations": [],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-codec",
+      "publish": true,
+      "class": "stable",
+      "stability_statement": "Core parse/decode/encode implementation for supported data pipelines.",
+      "limitations": [],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/reference/LIBRARY_API.md",
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [
+        {
+          "name": "audit",
+          "class": "experimental",
+          "stability_statement": "Audit controls and diagnostics are not part of the v1 stable codec promise.",
+          "limitations": [
+            "Behavior may evolve as audit-policy semantics are refined."
+          ],
+          "graduation_criteria": [
+            "Audit workflows are fully documented with migration rules and compatibility evidence."
+          ]
+        },
+        {
+          "name": "comp3_fast",
+          "class": "internal-dev-only",
+          "stability_statement": "Performance-tuned COMP-3 path; implementation detail for advanced users.",
+          "limitations": [
+            "Not covered by the v1 stable codec contract."
+          ],
+          "graduation_criteria": []
+        },
+        {
+          "name": "comp3_unsafe",
+          "class": "internal-dev-only",
+          "stability_statement": "Unsafe COMP-3 optimization path.",
+          "limitations": [
+            "May change with implementation and does not carry user-facing stability."
+          ],
+          "graduation_criteria": []
+        },
+        {
+          "name": "comprehensive-tests",
+          "class": "internal-dev-only",
+          "stability_statement": "Test-only test-integration feature.",
+          "limitations": [
+            "Not intended for downstream use."
+          ],
+          "graduation_criteria": []
+        },
+        {
+          "name": "metrics",
+          "class": "beta",
+          "stability_statement": "Optional telemetry support and counters for integrations.",
+          "limitations": [
+            "Telemetry naming and availability can change before graduation."
+          ],
+          "graduation_criteria": [
+            "Stability of metrics hooks is proven across release evidence and documented."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "copybook-codec-memory",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Performance memory helpers for codec internals.",
+      "limitations": [
+        "Internal performance crate with no external support obligation.",
+        "API is free to evolve while under this class."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-codepage",
+      "publish": true,
+      "class": "stable",
+      "stability_statement": "Canonical supported codepage policy and conversion surface.",
+      "limitations": [],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/reference/LIBRARY_API.md",
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [
+        {
+          "name": "clap",
+          "class": "beta",
+          "stability_statement": "CLI-facing integration feature for downstream command assembly.",
+          "limitations": [
+            "Not part of the v1 stable API contract."
+          ],
+          "graduation_criteria": [
+            "Downstream CLI compatibility matrix includes this feature with migration steps."
+          ]
+        },
+        {
+          "name": "comprehensive-tests",
+          "class": "internal-dev-only",
+          "stability_statement": "Internal test-only feature.",
+          "limitations": [
+            "No user-facing stability promise."
+          ],
+          "graduation_criteria": []
+        }
+      ]
+    },
+    {
+      "name": "copybook-contracts",
+      "publish": true,
+      "class": "stable",
+      "stability_statement": "Governance and feature contracts are part of the supported compatibility baseline.",
+      "limitations": [],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-core",
+      "publish": true,
+      "class": "stable",
+      "stability_statement": "Core parser and schema construction APIs are a stable platform surface.",
+      "limitations": [],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/reference/LIBRARY_API.md",
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [
+        {
+          "name": "audit",
+          "class": "experimental",
+          "stability_statement": "Audit module remains experimental and may change.",
+          "limitations": [
+            "Behavior, API shape, and output payloads can change while experimental."
+          ],
+          "graduation_criteria": [
+            "Audit surface is moved to beta only after deterministic compatibility evidence."
+          ]
+        },
+        {
+          "name": "comprehensive-tests",
+          "class": "internal-dev-only",
+          "stability_statement": "Test fixture feature only.",
+          "limitations": [
+            "Not a supported feature for external users."
+          ],
+          "graduation_criteria": []
+        }
+      ]
+    },
+    {
+      "name": "copybook-corruption",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Internal corruption and validation helpers.",
+      "limitations": [
+        "No explicit support commitment for downstream consumers."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-corruption-detectors",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Internal corruption detector modules for repository internals.",
+      "limitations": [
+        "No downstream API promises."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-corruption-predicates",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Internal predicate helpers for corruption workflows.",
+      "limitations": [
+        "No public support guarantee."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-corruption-rdw",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "RDW corruption support helpers used by internal pipelines.",
+      "limitations": [
+        "Not part of user-facing stable compatibility promises."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-determinism",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Determinism helper crate for internal test evidence paths.",
+      "limitations": [
+        "No downstream API compatibility commitments."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-dialect",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Dialect parsing surface exposed for parser behavior specialization.",
+      "limitations": [
+        "Not part of default v1 compatibility commitments."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [
+        {
+          "name": "comprehensive-tests",
+          "class": "internal-dev-only",
+          "stability_statement": "Internal fixture feature only.",
+          "limitations": [
+            "Test-only feature."
+          ],
+          "graduation_criteria": []
+        }
+      ]
+    },
+    {
+      "name": "copybook-e2e",
+      "publish": false,
+      "class": "internal-dev-only",
+      "stability_statement": "End-to-end integration test crate for repository pipelines.",
+      "limitations": [
+        "Not intended for downstream reuse or support."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-error",
+      "publish": true,
+      "class": "stable",
+      "stability_statement": "Versioned error taxonomy and reporting contracts used by core APIs.",
+      "limitations": [],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/reference/ERROR_CODES.md",
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-error-reporter",
+      "publish": true,
+      "class": "stable",
+      "stability_statement": "Supported error reporting and formatting interfaces for diagnostics.",
+      "limitations": [],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-fixed",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Specialized fixed-field helpers for internal parser composition.",
+      "limitations": [
+        "No downstream support contract."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [
+        {
+          "name": "comprehensive-tests",
+          "class": "internal-dev-only",
+          "stability_statement": "Test-only feature gate.",
+          "limitations": [
+            "No user-facing support promise."
+          ],
+          "graduation_criteria": []
+        }
+      ]
+    },
+    {
+      "name": "copybook-gen",
+      "publish": false,
+      "class": "internal-dev-only",
+      "stability_statement": "Code-generation utilities for repository build workflows.",
+      "limitations": [
+        "Internal-only and can change without compatibility commitments."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [
+        {
+          "name": "comprehensive-tests",
+          "class": "internal-dev-only",
+          "stability_statement": "Fixture-focused feature for internal testing.",
+          "limitations": [
+            "No downstream API promise."
+          ],
+          "graduation_criteria": []
+        }
+      ]
+    },
+    {
+      "name": "copybook-governance",
+      "publish": true,
+      "class": "beta",
+      "stability_statement": "Compatibility runtime facade with user-facing imports but not yet v1 guaranteed.",
+      "limitations": [
+        "Governance behavior may evolve as feature lifecycle definitions are finalized.",
+        "No strict freeze guarantees until beta criteria are met."
+      ],
+      "graduation_criteria": [
+        "Documented mapping between governance, support-matrix, and runtime policy is stable.",
+        "No compatibility regressions and evidence is added through API baseline checks."
+      ],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-governance-contracts",
+      "publish": true,
+      "class": "beta",
+      "stability_statement": "Interoperability contracts for governance and support are currently beta.",
+      "limitations": [
+        "The stability of the mapping layer may change across minor releases.",
+        "API shape may adjust during migration to final v1 contract."
+      ],
+      "graduation_criteria": [
+        "Feature contracts are complete, documented, and covered by regression evidence."
+      ],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-governance-grid",
+      "publish": true,
+      "class": "beta",
+      "stability_statement": "Governance mapping grid is stable for internal usage but not yet v1 guaranteed.",
+      "limitations": [
+        "Grid rows and coverage diagnostics may still evolve."
+      ],
+      "graduation_criteria": [
+        "Coverage diagnostics, completeness checks, and migration behavior are documented and stable."
+      ],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-governance-runtime",
+      "publish": true,
+      "class": "beta",
+      "stability_statement": "Runtime governance evaluation is useful and used internally but still beta.",
+      "limitations": [
+        "Runtime summaries and availability logic may change for compatibility."
+      ],
+      "graduation_criteria": [
+        "Runtime states and summaries are compatibility-verified and accompanied by migration notes."
+      ],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-lexer",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Tokenizer and lexer internals for parser composition.",
+      "limitations": [
+        "No downstream support commitments."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [
+        {
+          "name": "comprehensive-tests",
+          "class": "internal-dev-only",
+          "stability_statement": "Test-only fixture feature.",
+          "limitations": [
+            "Only for repository CI validation."
+          ],
+          "graduation_criteria": []
+        }
+      ]
+    },
+    {
+      "name": "copybook-options",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Internal options parsing and policy types.",
+      "limitations": [
+        "No user-facing support contract."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-overflow",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Overflow-aware behavior and helpers for parser internals.",
+      "limitations": [
+        "Not guaranteed for downstream API compatibility."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-overpunch",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Overpunch conversion helpers for signed-data support.",
+      "limitations": [
+        "Internal helper behavior may change."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-proptest",
+      "publish": false,
+      "class": "internal-dev-only",
+      "stability_statement": "Property-based testing crate for resilience checks.",
+      "limitations": [
+        "Used for internal test generation only."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [
+        {
+          "name": "comp3_fast",
+          "class": "internal-dev-only",
+          "stability_statement": "Experimental fast-COMP3 test feature.",
+          "limitations": [
+            "Internal and not part of product guarantees."
+          ],
+          "graduation_criteria": []
+        }
+      ]
+    },
+    {
+      "name": "copybook-rdw",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "RDW record format helper crate.",
+      "limitations": [
+        "No external user support commitments."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [
+        {
+          "name": "comprehensive-tests",
+          "class": "internal-dev-only",
+          "stability_statement": "Test-only coverage feature.",
+          "limitations": [
+            "Internal usage only."
+          ],
+          "graduation_criteria": []
+        }
+      ]
+    },
+    {
+      "name": "copybook-rdw-predicates",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "RDW predicate surface for internal validation paths.",
+      "limitations": [
+        "No public compatibility promises."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-record-io",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Record I/O helpers used to support parser/codec internals.",
+      "limitations": [
+        "No v1 guarantee for downstream API compatibility."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [
+        {
+          "name": "comprehensive-tests",
+          "class": "internal-dev-only",
+          "stability_statement": "Test-only feature.",
+          "limitations": [
+            "Internal usage only."
+          ],
+          "graduation_criteria": []
+        }
+      ]
+    },
+    {
+      "name": "copybook-rs",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Compatibility alias that preserves the canonical `copybook` name for downstream crates and installs.",
+      "limitations": [
+        "No independent compatibility surface; supported behavior follows `copybook`.",
+        "Stability is not separately guaranteed beyond redirect compatibility."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-safe-index",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Safety and indexing primitives for internal bounded operations.",
+      "limitations": [
+        "Not intended for downstream API guarantees."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-safe-ops",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Low-level safe operation helpers for internal execution paths.",
+      "limitations": [
+        "No external support or stability obligations."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-safe-text",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Text safety helpers for internal parser and codec use.",
+      "limitations": [
+        "Not covered by downstream stability guarantees."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-scripts",
+      "publish": false,
+      "class": "internal-dev-only",
+      "stability_statement": "Script utilities for repository maintenance and automation.",
+      "limitations": [
+        "No downstream consumption or support contract."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-sequence-ring",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Internal bounded-sequence data structure with deterministic iteration helper.",
+      "limitations": [
+        "Internal utility crate with no downstream stability promise."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-support-matrix",
+      "publish": true,
+      "class": "beta",
+      "stability_statement": "Support feature matrix is foundational but currently beta as process and coverage are still under hardening.",
+      "limitations": [
+        "Feature IDs and status semantics may still evolve while beta.",
+        "Evidence mapping is being aligned before v1 lock."
+      ],
+      "graduation_criteria": [
+        "Support matrix status model is aligned with API baseline and governance bindings.",
+        "Full compatibility evidence is added for documented matrix rows."
+      ],
+      "source_of_truth": [
+        "docs/ROADMAP.md",
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-utils",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Utility helpers for parser/codec internals and test fixtures.",
+      "limitations": [
+        "No user-facing compatibility contract."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "copybook-zoned-format",
+      "publish": true,
+      "class": "internal-dev-only",
+      "stability_statement": "Zoned-format helpers for internal numeric conversion workflows.",
+      "limitations": [
+        "Behavioral contracts can change while in internal class."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    },
+    {
+      "name": "xtask",
+      "publish": false,
+      "class": "internal-dev-only",
+      "stability_statement": "Build and maintenance automation tasks.",
+      "limitations": [
+        "Not a distributable user API."
+      ],
+      "graduation_criteria": [],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": []
+    }
+  ]
+}

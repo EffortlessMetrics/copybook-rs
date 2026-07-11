@@ -23,6 +23,28 @@ This document defines what users can expect to remain stable across releases, pr
 - Zoned decimal metadata preservation for maintaining copybook semantics
 - Codepage conversion accuracy (EBCDIC <-> ASCII)
 
+## Stability Surface Registry
+
+The canonical machine-readable surface classification is:
+
+- `docs/stability/surface-registry.json`
+
+Allowed classes:
+
+- `stable`: Included in the current stable product promise
+- `beta`: Usable, but subject to ongoing compatibility or policy changes
+- `experimental`: Opt-in and may change without major-version compatibility
+- `internal-dev-only`: Not a user-facing support commitment
+
+All public packages and public Cargo features are declared in this registry.
+`rtk cargo run -p xtask -- docs verify-all` enforces:
+
+- registry coverage for every workspace package
+- package-level class validation
+- public feature-level class validation
+- non-placeholder stability statements and non-empty beta/experimental criteria
+- source-of-truth path checks
+
 ## What May Change
 
 **Internal APIs**

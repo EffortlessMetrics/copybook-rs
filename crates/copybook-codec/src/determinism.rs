@@ -9,6 +9,7 @@ use crate::lib_api::{decode_record, encode_record};
 use crate::options::{DecodeOptions, EncodeOptions};
 use copybook_core::{Error, ErrorCode, Result, Schema};
 use copybook_determinism::compare_outputs;
+use copybook_rdw::RdwHeader;
 
 pub use copybook_determinism::{ByteDiff, DeterminismMode, DeterminismResult};
 
@@ -33,8 +34,9 @@ pub fn check_decode_determinism(
     data: &[u8],
     options: &DecodeOptions,
 ) -> Result<DeterminismResult> {
-    let value1 = decode_record(schema, data, options)?;
-    let value2 = decode_record(schema, data, options)?;
+    let payload = payload_for_format(data, options.format)?;
+    let value1 = decode_record(schema, payload, options)?;
+    let value2 = decode_record(schema, payload, options)?;
 
     let json1 = serialize_json(&value1, "first decode result")?;
     let json2 = serialize_json(&value2, "second decode result")?;
@@ -77,9 +79,11 @@ pub fn check_round_trip_determinism(
     decode_opts: &DecodeOptions,
     encode_opts: &EncodeOptions,
 ) -> Result<DeterminismResult> {
-    let json1 = decode_record(schema, data, decode_opts)?;
+    let decoded_payload = payload_for_format(data, decode_opts.format)?;
+    let json1 = decode_record(schema, decoded_payload, decode_opts)?;
     let binary = encode_record(schema, &json1, encode_opts)?;
-    let json2 = decode_record(schema, &binary, decode_opts)?;
+    let encoded_payload = payload_for_format(&binary, decode_opts.format)?;
+    let json2 = decode_record(schema, encoded_payload, decode_opts)?;
 
     let serialized1 = serialize_json(&json1, "first round-trip decode result")?;
     let serialized2 = serialize_json(&json2, "second round-trip decode result")?;
@@ -89,6 +93,48 @@ pub fn check_round_trip_determinism(
         &serialized1,
         &serialized2,
     ))
+}
+
+#[inline]
+fn payload_for_format(data: &[u8], format: crate::options::RecordFormat) -> Result<&[u8]> {
+    if format != crate::options::RecordFormat::RDW {
+        return Ok(data);
+    }
+
+    if data.len() < copybook_rdw::RDW_HEADER_LEN {
+        return Err(Error::new(
+            ErrorCode::CBKF221_RDW_UNDERFLOW,
+            "RDW data is shorter than the 4-byte RDW header",
+        ));
+    }
+
+    let header = match data.get(..copybook_rdw::RDW_HEADER_LEN) {
+        Some(bytes) => {
+            let header_bytes =
+                <[u8; 4]>::try_from(bytes).expect("RDW header length has already been validated");
+            RdwHeader::from_bytes(header_bytes)
+        }
+        None => {
+            return Err(Error::new(
+                ErrorCode::CBKF221_RDW_UNDERFLOW,
+                "RDW data is shorter than the 4-byte RDW header",
+            ));
+        }
+    };
+
+    let payload_len = usize::from(header.length());
+    let expected_len = copybook_rdw::RDW_HEADER_LEN.saturating_add(payload_len);
+    if data.len() != expected_len {
+        return Err(Error::new(
+            ErrorCode::CBKF221_RDW_UNDERFLOW,
+            format!(
+                "RDW payload mismatch: expected {expected_len} bytes, got {}",
+                data.len()
+            ),
+        ));
+    }
+
+    Ok(&data[copybook_rdw::RDW_HEADER_LEN..expected_len])
 }
 
 #[cfg(test)]

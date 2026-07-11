@@ -365,7 +365,10 @@ pub fn build_decode_options(common: &CommonDeterminismArgs) -> DecodeOptions {
 #[inline]
 #[must_use]
 pub fn build_encode_options(common: &CommonDeterminismArgs) -> EncodeOptions {
-    EncodeOptions::new().with_codepage(common.codepage)
+    EncodeOptions::new()
+        .with_codepage(common.codepage)
+        .with_format(common.format)
+        .with_json_number_mode(common.json_number)
 }
 
 /// Load and parse schema from a file or stdin.

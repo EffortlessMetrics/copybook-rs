@@ -108,19 +108,22 @@ fn payload_for_format(data: &[u8], format: crate::options::RecordFormat) -> Resu
         ));
     }
 
-    let header = match data.get(..copybook_rdw::RDW_HEADER_LEN) {
-        Some(bytes) => {
-            let header_bytes =
-                <[u8; 4]>::try_from(bytes).expect("RDW header length has already been validated");
-            RdwHeader::from_bytes(header_bytes)
-        }
-        None => {
-            return Err(Error::new(
+    let header_slice = data.get(..copybook_rdw::RDW_HEADER_LEN).ok_or_else(|| {
+        Error::new(
+            ErrorCode::CBKF221_RDW_UNDERFLOW,
+            "RDW data is shorter than the 4-byte RDW header",
+        )
+    })?;
+
+    let header_bytes: [u8; copybook_rdw::RDW_HEADER_LEN] =
+        header_slice.try_into().map_err(|_| {
+            Error::new(
                 ErrorCode::CBKF221_RDW_UNDERFLOW,
-                "RDW data is shorter than the 4-byte RDW header",
-            ));
-        }
-    };
+                "RDW header must be exactly 4 bytes",
+            )
+        })?;
+
+    let header = RdwHeader::from_bytes(header_bytes);
 
     let payload_len = usize::from(header.length());
     let expected_len = copybook_rdw::RDW_HEADER_LEN.saturating_add(payload_len);

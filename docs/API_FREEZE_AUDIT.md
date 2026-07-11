@@ -33,10 +33,11 @@ Before freeze closure, confirm these items are completed and evidenced in reposi
 rg "#\\[deprecated" copybook-* -g "*.rs"
 ```
 
-- Keep the canonical machine-readable deprecation inventory in:
+- Keep the canonical machine-readable deprecation inventories in:
 
 ```bash
 docs/reports/deprecation-audit.json
+docs/reports/surface-deprecation-audit.json
 ```
 
 - Validate the file is complete and consistent by running:

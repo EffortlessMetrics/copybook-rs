@@ -1622,10 +1622,9 @@ fn validate_lib_api_odo_encoding(
     if let Some(array) = json_lookup_array(fields_value, &array_field.path)
         .or_else(|| json_lookup_array(fields_value, &tail_odo.array_path))
     {
-        if json_lookup_value(fields_value, &counter_field.path)
+        let Some(counter_json_value) = json_lookup_value(fields_value, &counter_field.path)
             .or_else(|| json_lookup_value(fields_value, &tail_odo.counter_path))
-            .is_none()
-        {
+        else {
             return Err(crate::odo_redefines::handle_missing_counter_field(
                 &counter_field.path,
                 &array_field.path,
@@ -1633,6 +1632,35 @@ fn validate_lib_api_odo_encoding(
                 0,
                 u64::from(counter_field.offset),
             ));
+        };
+
+        // The counter field is encoded independently as a scalar, and the array
+        // is written using its own length. If the two disagree, whichever value
+        // wins at encode time makes the other one wrong on decode - silently
+        // dropping array elements or leaving a stale counter. Reject the
+        // inconsistent input instead of guessing which side is authoritative.
+        if let Some(counter_count) = json_counter_value_as_usize(counter_json_value)
+            && counter_count != array.len()
+        {
+            return Err(Error::new(
+                ErrorCode::CBKE521_ARRAY_LEN_OOB,
+                format!(
+                    "ODO counter '{}' value ({counter_count}) does not match array '{}' length ({})",
+                    counter_field.path,
+                    array_field.path,
+                    array.len()
+                ),
+            )
+            .with_context(crate::odo_redefines::create_comprehensive_error_context(
+                0,
+                &array_field.path,
+                u64::from(array_field.offset),
+                Some(format!(
+                    "counter_field={}, counter_value={counter_count}, array_length={}",
+                    counter_field.path,
+                    array.len()
+                )),
+            )));
         }
 
         let context = crate::odo_redefines::OdoValidationContext {
@@ -1652,6 +1680,15 @@ fn validate_lib_api_odo_encoding(
     }
 
     Ok(())
+}
+
+/// Parse a JSON counter field value (string or number) into an element count.
+fn json_counter_value_as_usize(value: &Value) -> Option<usize> {
+    match value {
+        Value::Number(n) => n.as_u64().and_then(|v| usize::try_from(v).ok()),
+        Value::String(s) => s.trim().parse::<usize>().ok(),
+        _ => None,
+    }
 }
 
 fn json_lookup_value<'a>(value: &'a Value, field_path: &str) -> Option<&'a Value> {

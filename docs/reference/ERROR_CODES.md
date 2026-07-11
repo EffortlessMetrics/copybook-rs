@@ -576,10 +576,10 @@ String length: 27 exceeds field size 20
 ```
 
 #### CBKE521_ARRAY_LEN_OOB
-**Description**: JSON array length out of bounds for OCCURS
+**Description**: JSON array length out of bounds for OCCURS. Also raised for OCCURS DEPENDING ON (ODO) fields when the JSON counter field's value does not equal the JSON array's length, since the two are encoded independently and a mismatch would silently drop or fabricate elements on decode.
 **Severity**: Fatal
-**Context**: Record number, field path, array length, min/max bounds
-**Resolution**: Adjust array length or OCCURS bounds
+**Context**: Record number, field path, array length, min/max bounds (or counter field, counter value, array length for an ODO counter/array mismatch)
+**Resolution**: Adjust array length or OCCURS bounds, or make the ODO counter value match the array length
 
 ```
 Error: CBKE521_ARRAY_LEN_OOB at record 800

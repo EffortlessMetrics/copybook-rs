@@ -2,7 +2,14 @@
 use anyhow::{Context, Result, bail};
 use copybook_bench::{COMP3_CI_FLOOR_MIBPS, DISPLAY_FLOOR_MIBPS};
 use regex::Regex;
-use std::{collections::BTreeSet, fs, path::Path};
+use serde::Deserialize;
+use serde_json::Value;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    env, fs,
+    path::Path,
+    process::Command,
+};
 
 use super::{verify, verify_support_matrix};
 use xtask::junit_xml_path;
@@ -11,7 +18,7 @@ use xtask::perf;
 type Verifier = (&'static str, fn() -> Result<()>);
 
 pub(crate) fn run() -> Result<()> {
-    let checks: [Verifier; 10] = [
+    let checks: [Verifier; 11] = [
         (
             "workspace-version-and-msrv",
             verify_workspace_version_and_msrv,
@@ -33,6 +40,7 @@ pub(crate) fn run() -> Result<()> {
             "publish-workflow-inventory",
             verify_publish_workflow_inventory,
         ),
+        ("stability-registry", verify_stability_registry),
         ("quick-start-versioning", verify_quick_start_versioning),
     ];
     run_checks(&checks)
@@ -45,6 +53,374 @@ fn run_checks(checks: &[Verifier]) -> Result<()> {
 
     println!("docs verify-all completed");
     Ok(())
+}
+
+const STABILITY_SCHEMA_VERSION: &str = "1.0.0";
+const STABILITY_REGISTRY_PATH: &str = "docs/stability/surface-registry.json";
+const STABILITY_MANUAL_REVIEW_PLACEHOLDERS: [&str; 2] = ["tbd", "set during manual review"];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StabilityClass {
+    Stable,
+    Beta,
+    Experimental,
+    InternalDevOnly,
+}
+
+impl StabilityClass {
+    fn requires_contracts(self) -> bool {
+        matches!(self, Self::Beta | Self::Experimental)
+    }
+}
+
+fn parse_stability_class(value: &str, context: &str) -> Result<StabilityClass> {
+    match value {
+        "stable" => Ok(StabilityClass::Stable),
+        "beta" => Ok(StabilityClass::Beta),
+        "experimental" => Ok(StabilityClass::Experimental),
+        "internal-dev-only" => Ok(StabilityClass::InternalDevOnly),
+        other => bail!("unknown stability class `{other}` in {context}"),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct StabilityRegistry {
+    schema_version: String,
+    packages: Vec<StabilityPackage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StabilityPackage {
+    name: String,
+    publish: bool,
+    class: String,
+    stability_statement: String,
+    limitations: Vec<String>,
+    graduation_criteria: Vec<String>,
+    source_of_truth: Vec<String>,
+    #[serde(default)]
+    features: Vec<StabilityFeature>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StabilityFeature {
+    name: String,
+    class: String,
+    stability_statement: String,
+    limitations: Vec<String>,
+    graduation_criteria: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CargoMetadata {
+    workspace_members: Vec<String>,
+    packages: Vec<CargoMetadataPackage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CargoMetadataPackage {
+    id: String,
+    name: String,
+    #[serde(default)]
+    features: BTreeMap<String, Value>,
+    #[serde(default)]
+    publish: Option<Value>,
+}
+
+#[derive(Debug, Clone)]
+struct WorkspacePackageInventory {
+    publish: bool,
+    features: BTreeSet<String>,
+}
+
+fn verify_stability_registry() -> Result<()> {
+    let registry = load_stability_registry()?;
+    let metadata = load_cargo_metadata()?;
+    verify_stability_registry_against_metadata(&registry, &metadata)
+}
+
+fn load_stability_registry() -> Result<StabilityRegistry> {
+    let registry_path = resolve_workspace_file(STABILITY_REGISTRY_PATH)
+        .ok_or_else(|| anyhow::anyhow!("loading docs/stability/surface-registry.json"))?;
+    let source = fs::read_to_string(&registry_path)
+        .with_context(|| format!("loading {}", registry_path.display()))?;
+    let registry: StabilityRegistry =
+        serde_json::from_str(&source).context("parsing docs/stability/surface-registry.json")?;
+    Ok(registry)
+}
+
+fn load_cargo_metadata() -> Result<CargoMetadata> {
+    let output = Command::new("cargo")
+        .args(["metadata", "--format-version", "1", "--no-deps", "--locked"])
+        .output()
+        .context("failed to execute cargo metadata")?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("cargo metadata failed:\n{stderr}");
+    }
+    let metadata_text =
+        String::from_utf8(output.stdout).context("cargo metadata output not valid UTF-8")?;
+    let metadata: CargoMetadata =
+        serde_json::from_str(&metadata_text).context("failed to parse cargo metadata output")?;
+    Ok(metadata)
+}
+
+fn verify_stability_registry_against_metadata(
+    registry: &StabilityRegistry,
+    metadata: &CargoMetadata,
+) -> Result<()> {
+    if registry.schema_version != STABILITY_SCHEMA_VERSION {
+        bail!(
+            "stability schema version mismatch: expected {STABILITY_SCHEMA_VERSION}, found {}",
+            registry.schema_version
+        );
+    }
+
+    let workspace = collect_workspace_packages(metadata);
+    if workspace.is_empty() {
+        bail!("no workspace packages found for stability registry validation");
+    }
+
+    let registry_by_name = index_registry_packages(registry)?;
+    ensure_package_coverage(&workspace, &registry_by_name)?;
+
+    for (package_name, package_inventory) in workspace {
+        let entry = registry_by_name.get(&package_name).context(format!(
+            "missing stability entry for package {package_name}"
+        ))?;
+        verify_stability_package_entry(entry, package_name.as_str(), &package_inventory)?;
+    }
+
+    Ok(())
+}
+
+fn index_registry_packages(
+    registry: &StabilityRegistry,
+) -> Result<BTreeMap<String, &StabilityPackage>> {
+    let mut registry_by_name = BTreeMap::new();
+
+    for package in &registry.packages {
+        if registry_by_name
+            .insert(package.name.clone(), package)
+            .is_some()
+        {
+            bail!(
+                "stability registry duplicate package entry: {}",
+                package.name
+            );
+        }
+    }
+
+    Ok(registry_by_name)
+}
+
+fn ensure_package_coverage(
+    workspace: &BTreeMap<String, WorkspacePackageInventory>,
+    registry_by_name: &BTreeMap<String, &StabilityPackage>,
+) -> Result<()> {
+    let workspace_names: BTreeSet<String> = workspace.keys().cloned().collect();
+    let registry_names: BTreeSet<String> = registry_by_name.keys().cloned().collect();
+    let missing_from_registry = workspace_names
+        .difference(&registry_names)
+        .collect::<Vec<_>>();
+    let extra_in_registry = registry_names
+        .difference(&workspace_names)
+        .collect::<Vec<_>>();
+
+    if !missing_from_registry.is_empty() {
+        bail!("stability registry missing packages: {missing_from_registry:?}");
+    }
+    if !extra_in_registry.is_empty() {
+        bail!("stability registry has unknown packages: {extra_in_registry:?}");
+    }
+
+    Ok(())
+}
+
+fn verify_stability_package_entry(
+    entry: &StabilityPackage,
+    package_name: &str,
+    package_inventory: &WorkspacePackageInventory,
+) -> Result<()> {
+    let context = format!("package `{package_name}`");
+
+    if entry.publish != package_inventory.publish {
+        bail!(
+            "stability registry publish mismatch for `{package_name}`: registry={}, metadata={}",
+            entry.publish,
+            package_inventory.publish
+        );
+    }
+
+    let class = parse_stability_class(&entry.class, &context)?;
+    validate_stability_entry(
+        &context,
+        class,
+        &entry.stability_statement,
+        &entry.limitations,
+        &entry.graduation_criteria,
+    )?;
+
+    if entry.source_of_truth.is_empty() {
+        bail!("{context} missing source_of_truth");
+    }
+    for doc in &entry.source_of_truth {
+        if resolve_source_of_truth_path(doc).is_none() {
+            bail!("{context} references missing source-of-truth path `{doc}`");
+        }
+    }
+
+    let mut feature_names = BTreeSet::new();
+    for feature in &entry.features {
+        if !feature_names.insert(feature.name.clone()) {
+            bail!("{context} has duplicate feature entry: {}", feature.name);
+        }
+        if !package_inventory.features.contains(&feature.name) {
+            bail!(
+                "{context} has stability entry for unknown feature `{}`",
+                feature.name
+            );
+        }
+
+        let feature_context = format!("{context} feature `{}`", feature.name);
+        let feature_class = parse_stability_class(&feature.class, &feature_context)?;
+        validate_stability_entry(
+            &feature_context,
+            feature_class,
+            &feature.stability_statement,
+            &feature.limitations,
+            &feature.graduation_criteria,
+        )?;
+    }
+
+    verify_feature_coverage(&context, &package_inventory.features, &feature_names)?;
+    Ok(())
+}
+
+fn verify_feature_coverage(
+    context: &str,
+    package_features: &BTreeSet<String>,
+    registry_features: &BTreeSet<String>,
+) -> Result<()> {
+    let missing_features = package_features
+        .difference(registry_features)
+        .collect::<Vec<_>>();
+    if !missing_features.is_empty() {
+        bail!("{context} missing feature-level registry rows for {missing_features:?}");
+    }
+
+    Ok(())
+}
+
+fn resolve_workspace_file(doc: &str) -> Option<std::path::PathBuf> {
+    let relative = Path::new(doc);
+    if relative.exists() {
+        return Some(relative.to_path_buf());
+    }
+
+    let mut current = env::current_dir().ok()?;
+    while let Some(parent) = current.parent() {
+        if current.join(relative).exists() {
+            return Some(current.join(relative));
+        }
+        current = parent.to_path_buf();
+    }
+
+    None
+}
+
+fn resolve_source_of_truth_path(doc: &str) -> Option<std::path::PathBuf> {
+    resolve_workspace_file(doc)
+}
+
+fn collect_workspace_packages(
+    metadata: &CargoMetadata,
+) -> BTreeMap<String, WorkspacePackageInventory> {
+    let members: BTreeSet<&str> = metadata
+        .workspace_members
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let mut packages = BTreeMap::new();
+
+    for package in metadata
+        .packages
+        .iter()
+        .filter(|pkg| members.contains(package_id_as_str(pkg)))
+    {
+        let mut features = BTreeSet::new();
+        for feature_name in package.features.keys() {
+            if feature_name != "default" {
+                features.insert(feature_name.clone());
+            }
+        }
+
+        packages.insert(
+            package.name.clone(),
+            WorkspacePackageInventory {
+                publish: is_publishable_package(package.publish.as_ref()),
+                features,
+            },
+        );
+    }
+
+    packages
+}
+
+fn package_id_as_str(package: &CargoMetadataPackage) -> &str {
+    package.id.as_str()
+}
+
+fn is_publishable_package(publish: Option<&Value>) -> bool {
+    match publish {
+        Some(Value::Bool(false)) => false,
+        Some(Value::Array(values)) => !values.is_empty(),
+        Some(_) | None => true,
+    }
+}
+
+fn validate_stability_entry(
+    context: &str,
+    class: StabilityClass,
+    statement: &str,
+    limitations: &[String],
+    graduation: &[String],
+) -> Result<()> {
+    let normalized_statement = statement.trim();
+    if normalized_statement.is_empty() || is_placeholder_text(normalized_statement) {
+        bail!("{context} has missing stability_statement");
+    }
+
+    if class.requires_contracts() {
+        if limitations.is_empty() {
+            bail!("{context} needs explicit stability limitations (beta/experimental)");
+        }
+        if graduation.is_empty() {
+            bail!("{context} needs explicit graduation criteria (beta/experimental)");
+        }
+    }
+
+    for limit in limitations {
+        let value = limit.trim();
+        if value.is_empty() || is_placeholder_text(value) {
+            bail!("{context} has invalid stability limitation placeholder");
+        }
+    }
+    for criterion in graduation {
+        let value = criterion.trim();
+        if value.is_empty() || is_placeholder_text(value) {
+            bail!("{context} has invalid graduation criteria placeholder");
+        }
+    }
+
+    Ok(())
+}
+
+fn is_placeholder_text(value: &str) -> bool {
+    let normalized = value.trim().to_ascii_lowercase();
+    STABILITY_MANUAL_REVIEW_PLACEHOLDERS
+        .iter()
+        .any(|placeholder| normalized == *placeholder)
 }
 
 fn verify_workspace_version_and_msrv() -> Result<()> {
@@ -546,6 +922,7 @@ fn snake_case(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::sync::{Mutex, OnceLock};
 
     use super::*;
@@ -640,5 +1017,334 @@ mod tests {
         let source = "enum Commands {\n    Parse {\n    }\n    Decode {\n    }\n}\n";
         let commands = parse_cli_command_variants(source).unwrap();
         assert_eq!(commands, vec!["parse", "decode"]);
+    }
+
+    fn metadata_package(
+        name: &str,
+        id: &str,
+        publish: Option<Value>,
+        features: &[&str],
+    ) -> CargoMetadataPackage {
+        let mut feature_map = BTreeMap::new();
+        for feature in features {
+            feature_map.insert((*feature).to_string(), Value::Array(vec![]));
+        }
+
+        CargoMetadataPackage {
+            id: id.to_string(),
+            name: name.to_string(),
+            publish,
+            features: feature_map,
+        }
+    }
+
+    fn package_entry(
+        name: &str,
+        class: &str,
+        publish: bool,
+        features: Vec<StabilityFeature>,
+    ) -> StabilityPackage {
+        StabilityPackage {
+            name: name.to_string(),
+            publish,
+            class: class.to_string(),
+            stability_statement: format!("{name} surface class {class}"),
+            limitations: if class == "beta" || class == "experimental" {
+                vec!["Documented stability limitations".to_string()]
+            } else {
+                Vec::new()
+            },
+            graduation_criteria: if class == "beta" || class == "experimental" {
+                vec!["Graduation criteria are satisfied in planning".to_string()]
+            } else {
+                Vec::new()
+            },
+            source_of_truth: vec!["docs/STABILITY_GUARANTEES.md".to_string()],
+            features,
+        }
+    }
+
+    fn feature_entry(name: &str, class: &str) -> StabilityFeature {
+        StabilityFeature {
+            name: name.to_string(),
+            class: class.to_string(),
+            stability_statement: format!("{name} feature class {class}"),
+            limitations: if class == "beta" || class == "experimental" {
+                vec!["Documented feature limitations".to_string()]
+            } else {
+                Vec::new()
+            },
+            graduation_criteria: if class == "beta" || class == "experimental" {
+                vec!["Feature graduation criteria".to_string()]
+            } else {
+                Vec::new()
+            },
+        }
+    }
+
+    #[test]
+    fn verify_stability_registry_catches_unknown_package() {
+        let metadata = CargoMetadata {
+            workspace_members: vec!["id-core".to_string()],
+            packages: vec![metadata_package("copybook-core", "id-core", None, &[])],
+        };
+
+        let registry = StabilityRegistry {
+            schema_version: STABILITY_SCHEMA_VERSION.to_string(),
+            packages: vec![package_entry("copybook", "stable", true, vec![])],
+        };
+
+        assert!(verify_stability_registry_against_metadata(&registry, &metadata).is_err());
+    }
+
+    #[test]
+    fn verify_stability_registry_catches_unknown_feature() {
+        let metadata = CargoMetadata {
+            workspace_members: vec!["id-core".to_string(), "id-charset".to_string()],
+            packages: vec![
+                metadata_package("copybook-core", "id-core", None, &[]),
+                metadata_package("copybook-charset", "id-charset", None, &["clap"]),
+            ],
+        };
+
+        let registry = StabilityRegistry {
+            schema_version: STABILITY_SCHEMA_VERSION.to_string(),
+            packages: vec![
+                package_entry("copybook-core", "stable", true, vec![]),
+                package_entry(
+                    "copybook-charset",
+                    "stable",
+                    true,
+                    vec![feature_entry("unknown", "internal-dev-only")],
+                ),
+            ],
+        };
+
+        assert!(verify_stability_registry_against_metadata(&registry, &metadata).is_err());
+    }
+
+    #[test]
+    fn verify_stability_registry_catches_publish_mismatch() {
+        let metadata = CargoMetadata {
+            workspace_members: vec!["id-core".to_string()],
+            packages: vec![metadata_package(
+                "copybook-core",
+                "id-core",
+                Some(Value::Bool(false)),
+                &[],
+            )],
+        };
+
+        let registry = StabilityRegistry {
+            schema_version: STABILITY_SCHEMA_VERSION.to_string(),
+            packages: vec![package_entry("copybook-core", "stable", true, vec![])],
+        };
+
+        assert!(verify_stability_registry_against_metadata(&registry, &metadata).is_err());
+    }
+
+    #[test]
+    fn verify_stability_registry_catches_invalid_class() {
+        let metadata = CargoMetadata {
+            workspace_members: vec!["id-core".to_string()],
+            packages: vec![metadata_package("copybook-core", "id-core", None, &[])],
+        };
+
+        let mut entry = package_entry("copybook-core", "stable", true, vec![]);
+        entry.class = "deprecated".to_string();
+        let registry = StabilityRegistry {
+            schema_version: STABILITY_SCHEMA_VERSION.to_string(),
+            packages: vec![entry],
+        };
+
+        assert!(verify_stability_registry_against_metadata(&registry, &metadata).is_err());
+    }
+
+    #[test]
+    fn verify_stability_registry_catches_beta_without_contracts() {
+        let metadata = CargoMetadata {
+            workspace_members: vec!["id-core".to_string()],
+            packages: vec![metadata_package("copybook-core", "id-core", None, &[])],
+        };
+
+        let mut entry = package_entry("copybook-core", "beta", true, vec![]);
+        entry.limitations.clear();
+        entry.graduation_criteria.clear();
+        let registry = StabilityRegistry {
+            schema_version: STABILITY_SCHEMA_VERSION.to_string(),
+            packages: vec![entry],
+        };
+
+        assert!(verify_stability_registry_against_metadata(&registry, &metadata).is_err());
+    }
+
+    #[test]
+    fn verify_stability_registry_catches_duplicate_package_entries() {
+        let metadata = CargoMetadata {
+            workspace_members: vec!["id-core".to_string()],
+            packages: vec![metadata_package("copybook-core", "id-core", None, &[])],
+        };
+
+        let registry = StabilityRegistry {
+            schema_version: STABILITY_SCHEMA_VERSION.to_string(),
+            packages: vec![
+                package_entry("copybook-core", "stable", true, vec![]),
+                package_entry("copybook-core", "stable", true, vec![]),
+            ],
+        };
+
+        assert!(verify_stability_registry_against_metadata(&registry, &metadata).is_err());
+    }
+
+    #[test]
+    fn verify_stability_registry_catches_duplicate_feature_entries() {
+        let metadata = CargoMetadata {
+            workspace_members: vec!["id-core".to_string()],
+            packages: vec![metadata_package(
+                "copybook-core",
+                "id-core",
+                None,
+                &["audit", "comprehensive-tests"],
+            )],
+        };
+
+        let registry = StabilityRegistry {
+            schema_version: STABILITY_SCHEMA_VERSION.to_string(),
+            packages: vec![package_entry(
+                "copybook-core",
+                "stable",
+                true,
+                vec![
+                    feature_entry("audit", "experimental"),
+                    feature_entry("audit", "internal-dev-only"),
+                ],
+            )],
+        };
+
+        assert!(verify_stability_registry_against_metadata(&registry, &metadata).is_err());
+    }
+
+    #[test]
+    fn verify_stability_registry_catches_missing_source_of_truth() {
+        let metadata = CargoMetadata {
+            workspace_members: vec!["id-core".to_string()],
+            packages: vec![metadata_package("copybook-core", "id-core", None, &[])],
+        };
+
+        let mut entry = package_entry("copybook-core", "stable", true, vec![]);
+        entry.source_of_truth.clear();
+
+        let registry = StabilityRegistry {
+            schema_version: STABILITY_SCHEMA_VERSION.to_string(),
+            packages: vec![entry],
+        };
+
+        assert!(verify_stability_registry_against_metadata(&registry, &metadata).is_err());
+    }
+
+    #[test]
+    fn verify_stability_registry_catches_nonexistent_source_of_truth_path() {
+        let metadata = CargoMetadata {
+            workspace_members: vec!["id-core".to_string()],
+            packages: vec![metadata_package("copybook-core", "id-core", None, &[])],
+        };
+
+        let mut entry = package_entry("copybook-core", "stable", true, vec![]);
+        entry.source_of_truth = vec!["docs/does_not_exist.md".to_string()];
+
+        let registry = StabilityRegistry {
+            schema_version: STABILITY_SCHEMA_VERSION.to_string(),
+            packages: vec![entry],
+        };
+
+        assert!(verify_stability_registry_against_metadata(&registry, &metadata).is_err());
+    }
+
+    #[test]
+    fn verify_stability_registry_catches_schema_version_mismatch() {
+        let metadata = CargoMetadata {
+            workspace_members: vec!["id-core".to_string()],
+            packages: vec![metadata_package("copybook-core", "id-core", None, &[])],
+        };
+
+        let registry = StabilityRegistry {
+            schema_version: "2.0.0".to_string(),
+            packages: vec![package_entry("copybook-core", "stable", true, vec![])],
+        };
+
+        assert!(verify_stability_registry_against_metadata(&registry, &metadata).is_err());
+    }
+
+    #[test]
+    fn verify_stability_registry_matches_current_workspace() {
+        let registry = load_stability_registry().expect("failed to load surface registry");
+        let metadata = load_cargo_metadata().expect("failed to load cargo metadata");
+
+        assert!(verify_stability_registry_against_metadata(&registry, &metadata).is_ok());
+    }
+
+    #[test]
+    fn verify_stability_registry_rejects_placeholder_text() {
+        let metadata = CargoMetadata {
+            workspace_members: vec!["id-core".to_string()],
+            packages: vec![metadata_package("copybook-core", "id-core", None, &[])],
+        };
+
+        let mut entry = package_entry("copybook-core", "stable", true, vec![]);
+        entry.stability_statement = "TBD".to_string();
+
+        let registry = StabilityRegistry {
+            schema_version: STABILITY_SCHEMA_VERSION.to_string(),
+            packages: vec![entry],
+        };
+
+        assert!(verify_stability_registry_against_metadata(&registry, &metadata).is_err());
+    }
+
+    #[test]
+    fn verify_stability_registry_accepts_valid_minimal_inventory() {
+        let metadata = CargoMetadata {
+            workspace_members: vec!["id-core".to_string(), "id-charset".to_string()],
+            packages: vec![
+                metadata_package(
+                    "copybook-core",
+                    "id-core",
+                    None,
+                    &["audit", "comprehensive-tests"],
+                ),
+                metadata_package(
+                    "copybook-charset",
+                    "id-charset",
+                    None,
+                    &["clap", "comprehensive-tests"],
+                ),
+            ],
+        };
+
+        let registry = StabilityRegistry {
+            schema_version: STABILITY_SCHEMA_VERSION.to_string(),
+            packages: vec![
+                package_entry(
+                    "copybook-core",
+                    "stable",
+                    true,
+                    vec![
+                        feature_entry("audit", "experimental"),
+                        feature_entry("comprehensive-tests", "internal-dev-only"),
+                    ],
+                ),
+                package_entry(
+                    "copybook-charset",
+                    "stable",
+                    true,
+                    vec![
+                        feature_entry("clap", "beta"),
+                        feature_entry("comprehensive-tests", "internal-dev-only"),
+                    ],
+                ),
+            ],
+        };
+
+        assert!(verify_stability_registry_against_metadata(&registry, &metadata).is_ok());
     }
 }

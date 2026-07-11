@@ -61,6 +61,93 @@ pub(crate) fn run_contracts_command() -> Result<()> {
         .and_then(|manifest| persist_stable_contract_manifest(&manifest))
 }
 
+pub(crate) fn run_freeze_contract_checks() -> Result<()> {
+    let checks: [Verifier; 3] = [
+        ("error-code-inventory", verify_error_code_inventory),
+        ("cli-inventory", verify_cli_inventory),
+        (
+            "stable-contract-inventory",
+            verify_stable_contract_inventory_strict,
+        ),
+    ];
+    run_checks(&checks)
+}
+
+fn verify_contracts_with_strictness(
+    baseline: &StableSurfaceContractManifest,
+    current: &StableSurfaceContractManifest,
+    fail_on_additions: bool,
+) -> Result<()> {
+    let deltas = diff_contracts(baseline, current);
+
+    if !deltas.removed.is_empty() {
+        let mut lines = Vec::new();
+        for item in deltas.removed {
+            lines.push(format!("- {} {}", item.category, item.item));
+        }
+        lines.sort_unstable();
+        bail!(
+            "stable-contract inventory has breaking changes:\n{}",
+            lines.join("\n")
+        );
+    }
+
+    if !fail_on_additions {
+        if !deltas.added.is_empty() {
+            let mut lines = Vec::new();
+            for item in deltas.added {
+                lines.push(format!("- {} {}", item.category, item.item));
+            }
+            lines.sort_unstable();
+            println!(
+                "stable-contract inventory additions (non-blocking):\n{}",
+                lines.join("\n")
+            );
+        }
+        return Ok(());
+    }
+
+    if !deltas.added.is_empty() {
+        let mut lines = Vec::new();
+        for item in deltas.added {
+            lines.push(format!("- {} {}", item.category, item.item));
+        }
+        lines.sort_unstable();
+        bail!(
+            "stable-contract inventory has incompatible changes:\n{}",
+            lines.join("\n")
+        );
+    }
+
+    Ok(())
+}
+
+fn verify_stable_contract_inventory() -> Result<()> {
+    let baseline = load_stable_contract_manifest()?;
+    if baseline.schema_version != STABLE_CONTRACT_SCHEMA_VERSION {
+        bail!(
+            "stable contract manifest schema mismatch: expected {STABLE_CONTRACT_SCHEMA_VERSION}, found {}",
+            baseline.schema_version
+        );
+    }
+
+    let current = collect_stable_contract_inventory()?;
+    verify_contracts_with_strictness(&baseline, &current, false)
+}
+
+fn verify_stable_contract_inventory_strict() -> Result<()> {
+    let baseline = load_stable_contract_manifest()?;
+    if baseline.schema_version != STABLE_CONTRACT_SCHEMA_VERSION {
+        bail!(
+            "stable contract manifest schema mismatch: expected {STABLE_CONTRACT_SCHEMA_VERSION}, found {}",
+            baseline.schema_version
+        );
+    }
+
+    let current = collect_stable_contract_inventory()?;
+    verify_contracts_with_strictness(&baseline, &current, true)
+}
+
 fn run_checks(checks: &[Verifier]) -> Result<()> {
     for (name, check) in checks {
         check().map_err(|err| anyhow::anyhow!("{name} failed: {err}"))?;
@@ -284,43 +371,6 @@ fn verify_stability_registry() -> Result<()> {
     let registry = load_stability_registry()?;
     let metadata = load_cargo_metadata()?;
     verify_stability_registry_against_metadata(&registry, &metadata)
-}
-
-fn verify_stable_contract_inventory() -> Result<()> {
-    let baseline = load_stable_contract_manifest()?;
-    if baseline.schema_version != STABLE_CONTRACT_SCHEMA_VERSION {
-        bail!(
-            "stable contract manifest schema mismatch: expected {STABLE_CONTRACT_SCHEMA_VERSION}, found {}",
-            baseline.schema_version
-        );
-    }
-
-    let current = collect_stable_contract_inventory()?;
-    let deltas = diff_contracts(&baseline, &current);
-
-    if !deltas.removed.is_empty() {
-        let mut lines = Vec::new();
-        for item in deltas.removed {
-            lines.push(format!("- {} {}", item.category, item.item));
-        }
-        bail!(
-            "stable-contract inventory has breaking changes:\n{}",
-            lines.join("\n")
-        );
-    }
-
-    if !deltas.added.is_empty() {
-        let mut lines = Vec::new();
-        for item in deltas.added {
-            lines.push(format!("- {} {}", item.category, item.item));
-        }
-        println!(
-            "stable-contract inventory additions (non-blocking):\n{}",
-            lines.join("\n")
-        );
-    }
-
-    Ok(())
 }
 
 fn verify_deprecation_audit() -> Result<()> {
@@ -2178,6 +2228,94 @@ mod tests {
         );
         assert!(!deltas.removed.is_empty());
         assert!(!deltas.added.is_empty());
+    }
+
+    fn simple_contract_manifest(
+        commands: &[&str],
+        error_codes: &[&str],
+        exit_variants: &[&str],
+        exit_tags: &[&str],
+    ) -> StableSurfaceContractManifest {
+        StableSurfaceContractManifest {
+            schema_version: "1.0.0".to_string(),
+            generated_at: "current".to_string(),
+            generated_by: "current".to_string(),
+            source_revision: "current".to_string(),
+            source_paths: STABLE_CONTRACT_SOURCE_PATHS
+                .iter()
+                .map(|path| path.to_string())
+                .collect(),
+            cli: ContractCliInventory {
+                commands: commands
+                    .iter()
+                    .map(|command| (*command).to_string())
+                    .collect(),
+                options: vec!["input".to_string()],
+                env_vars: vec!["COPYBOOK_STRICT_POLICY".to_string()],
+            },
+            error: ContractErrorInventory {
+                variants: error_codes
+                    .iter()
+                    .map(|error| (*error).to_string())
+                    .collect(),
+            },
+            exit_code: ContractExitCodeInventory {
+                variants: exit_variants
+                    .iter()
+                    .map(|variant| (*variant).to_string())
+                    .collect(),
+                tags: exit_tags.iter().map(|tag| (*tag).to_string()).collect(),
+            },
+            jsonl: ContractJsonlInventory {
+                schema_keys: vec!["schema".to_string()],
+                required_keys: vec!["schema".to_string()],
+                pattern_properties: vec!["^prefix_".to_string()],
+                compatibility_keys: vec!["raw_b64".to_string()],
+            },
+            raw_capture: ContractRawCaptureInventory {
+                modes: vec!["Off".to_string()],
+                emitted_keys: vec!["__raw_b64".to_string()],
+            },
+        }
+    }
+
+    #[test]
+    fn verify_contracts_with_strictness_allows_added_items_when_non_strict() {
+        let baseline = simple_contract_manifest(&["decode"], &["CBK001"], &["Data"], &["CBKD"]);
+        let current =
+            simple_contract_manifest(&["decode", "parse"], &["CBK001"], &["Data"], &["CBKD"]);
+
+        assert!(verify_contracts_with_strictness(&baseline, &current, false).is_ok());
+    }
+
+    #[test]
+    fn verify_contracts_with_strictness_rejects_added_items_when_strict() {
+        let baseline = simple_contract_manifest(&["decode"], &["CBK001"], &["Data"], &["CBKD"]);
+        let current =
+            simple_contract_manifest(&["decode", "parse"], &["CBK001"], &["Data"], &["CBKD"]);
+
+        let err = verify_contracts_with_strictness(&baseline, &current, true).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("stable-contract inventory has incompatible changes")
+        );
+    }
+
+    #[test]
+    fn verify_contracts_with_strictness_rejects_removed_items_when_non_strict() {
+        let baseline = simple_contract_manifest(
+            &["decode", "parse"],
+            &["CBK001", "CBK002"],
+            &["Data", "Encode"],
+            &["CBKD", "CBKE"],
+        );
+        let current = simple_contract_manifest(&["decode"], &["CBK001"], &["Data"], &["CBKD"]);
+
+        let err = verify_contracts_with_strictness(&baseline, &current, false).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("stable-contract inventory has breaking changes")
+        );
     }
 
     #[test]

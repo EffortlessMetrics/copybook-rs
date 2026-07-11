@@ -7,9 +7,9 @@ concurrency:
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   workflow_dispatch:
 
 env:
@@ -18,117 +18,201 @@ env:
 
 jobs:
   # ============================================================================
-  # API Freeze Check - Detects public API changes during freeze
+  # API Freeze Check - Detects public API and stable-surface contract changes during freeze
   # ============================================================================
   api-freeze:
     name: API Freeze Check
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v7
-      with:
-        fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
 
-    - name: Install cargo-semver-checks
-      run: |
-        cargo install --locked cargo-semver-checks --version 0.46.0
+      - name: Install cargo-semver-checks
+        run: |
+          cargo install --locked cargo-semver-checks --version 0.46.0
 
-    - name: Check if API freeze is active
-      id: freeze-check
-      shell: bash
-      run: |
-        # Check for API freeze indicator file
-        if [ -f ".api-freeze" ]; then
-          echo "freeze_active=true" >> $GITHUB_OUTPUT
-          echo "🔒 API freeze is ACTIVE"
-          cat .api-freeze || echo "No freeze message"
-        else
-          echo "freeze_active=false" >> $GITHUB_OUTPUT
-          echo "✅ API freeze is NOT active"
-        fi
+      - name: Check if API freeze is active
+        id: freeze-check
+        shell: bash
+        run: |
+          if [ -f ".api-freeze" ]; then
+            echo "freeze_active=true" >> "$GITHUB_OUTPUT"
+            echo "API freeze is ACTIVE"
+            cat .api-freeze || echo "No freeze message"
+          else
+            echo "freeze_active=false" >> "$GITHUB_OUTPUT"
+            echo "API freeze is NOT active"
+          fi
 
-    - name: Detect changed paths
-      id: changed-paths
-      shell: bash
-      run: |
-        # Get the base ref for comparison
-        if [ "${{ github.event_name }}" = "pull_request" ]; then
-          BASE_REF="${{ github.base_ref }}"
-        else
-          # For pushes, compare to previous commit
-          BASE_REF="HEAD~1"
-        fi
+      - name: Detect changed paths
+        id: changed-paths
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="origin/${{ github.base_ref }}"
+          else
+            if git rev-parse --verify --quiet HEAD~1 >/dev/null 2>&1; then
+              BASE_REF="HEAD~1"
+            else
+              BASE_REF="$(git rev-list --max-parents=0 HEAD | head -n 1)"
+            fi
+          fi
 
-        echo "Base ref: $BASE_REF"
+          echo "Base ref: $BASE_REF"
+          CHANGED_FILES=$(git diff --name-only "$BASE_REF"...HEAD || true)
 
-        # Detect which paths changed
-        CHANGED_FILES=$(git diff --name-only $BASE_REF...HEAD || echo "")
+          {
+            echo "changed_files<<EOF"
+            echo "$CHANGED_FILES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
-        {
-          echo "changed_files<<EOF"
-          echo "$CHANGED_FILES"
-          echo "EOF"
-        } >> "$GITHUB_OUTPUT"
+          echo "changed_count=$(printf '%s\n' "$CHANGED_FILES" | awk 'NF' | wc -l | tr -d ' ')" >> "$GITHUB_OUTPUT"
 
-        # Check if only docs/bench/tests changed
-        if echo "$CHANGED_FILES" | grep -vE '^(docs/|tools/copybook-bench/|tests/|\.github/|scripts/)' | grep -q .; then
-          echo "api_only_changes=false" >> $GITHUB_OUTPUT
-          echo "📝 Non-docs/bench/tests changes detected"
-        else
-          echo "api_only_changes=true" >> $GITHUB_OUTPUT
-          echo "📚 Only docs/bench/tests changes detected"
-        fi
+      - name: Classify freeze-relevant changes
+        id: freeze-scope
+        shell: bash
+        run: |
+          CHANGED_FILES="${{ steps.changed-paths.outputs.changed_files }}"
+          export CHANGED_FILES
+          CHANGED_FILES="${CHANGED_FILES//$'\r'/}"
+          python - <<'PY'
+          import json
+          import os
+          
+          changed_files = os.environ.get("CHANGED_FILES", "")
+          
+          files = [line.strip() for line in changed_files.splitlines() if line.strip()]
+          
+          stable_packages = []
+          stable_package_file = ".api-baseline/stable-packages.txt"
+          if os.path.exists(stable_package_file):
+              with open(stable_package_file, "r", encoding="utf-8") as handle:
+                  for line in handle:
+                      pkg = line.strip()
+                      if pkg:
+                          stable_packages.append(pkg)
+          else:
+              with open("docs/stability/surface-registry.json", "r", encoding="utf-8") as handle:
+                  registry = json.load(handle)
+              for entry in registry.get("packages", []):
+                  if entry.get("class") == "stable" and entry.get("name"):
+                      stable_packages.append(entry["name"])
+          
+          with open("docs/contracts/stable-surface-contract.json", "r", encoding="utf-8") as handle:
+              manifest = json.load(handle)
+          
+          contract_paths = set(manifest.get("source_paths", []))
+          contract_paths.update(
+              {
+                  "docs/CLI_REFERENCE.md",
+                  "docs/reference/ERROR_CODES.md",
+                  "docs/reference/LIBRARY_API.md",
+                  "docs/reference/COBOL_SUPPORT_MATRIX.md",
+                  "schemas/record-format.json",
+                  "docs/contracts/stable-surface-contract.json",
+                  "scripts/api-baseline.sh",
+                  ".api-baseline/version.txt",
+                  ".api-baseline/revision.txt",
+                  ".api-baseline/stable-packages.txt",
+                  "docs/stability/surface-registry.json",
+                  "Cargo.toml",
+              }
+          )
+          for package in stable_packages:
+              contract_paths.add(f"crates/{package}/")
+              contract_paths.add(f"crates/{package}/src/")
+              contract_paths.add(f"crates/{package}/Cargo.toml")
+          
+          allowed_prefixes = [
+              "docs/",
+              "tests/",
+              ".github/",
+              "scripts/",
+              "tools/",
+              "target/",
+          ]
+          allowed_files = {
+              "README.md",
+              "CHANGELOG.md",
+              "CONTRIBUTING.md",
+              "LICENSE",
+              "AGENTS.md",
+              ".gitignore",
+              "CODEOWNERS",
+          }
+          
+          
+          def is_allowed_non_contract(path: str) -> bool:
+              if path in allowed_files:
+                  return True
+              if any(path.startswith(prefix) for prefix in allowed_prefixes):
+                  return True
+              return False
+          
+          
+          def is_contract_relevant(path: str) -> bool:
+              if path in contract_paths:
+                  return True
+              return any(path.startswith(prefix) for prefix in contract_paths if prefix.endswith("/"))
+          
+          
+          contract_relevant_files = []
+          non_allowed_non_contract = []
+          for path in files:
+              if is_contract_relevant(path):
+                  contract_relevant_files.append(path)
+              elif not is_allowed_non_contract(path):
+                  non_allowed_non_contract.append(path)
+          
+          needs_contract_checks = bool(contract_relevant_files or non_allowed_non_contract)
+          
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"needs_contract_checks={'true' if needs_contract_checks else 'false'}\n")
+              out.write(f"has_contract_files={'true' if contract_relevant_files else 'false'}\n")
+              out.write(f"has_non_allowed_non_contract={'true' if non_allowed_non_contract else 'false'}\n")
+              out.write("contract_relevant_files=" + "|".join(contract_relevant_files) + "\n")
+              out.write("non_allowed_non_contract_files=" + "|".join(non_allowed_non_contract) + "\n")
+          PY
+          
+      - name: Generate baseline for current version
+        if: steps.freeze-check.outputs.freeze_active == 'false'
+        run: |
+          bash scripts/api-baseline.sh generate
 
-    - name: Generate baseline for current version
-      if: steps.freeze-check.outputs.freeze_active == 'false'
-      run: |
-        # Generate current API docs for future comparison
-        cargo doc --workspace --no-deps
+      - name: Check stable API + contract surface during freeze
+        if: steps.freeze-check.outputs.freeze_active == 'true' && steps.freeze-scope.outputs.needs_contract_checks == 'true'
+        run: |
+          echo "Running API freeze checks for contract-relevant changes"
+          bash scripts/api-baseline.sh check
+          cargo run -p xtask -- docs freeze contracts
 
-    - name: Check API compatibility
-      if: steps.freeze-check.outputs.freeze_active == 'true'
-      run: |
-        # When API freeze is active, check against baseline
-        # Use the last released version as baseline
-        cargo semver-checks check-release \
-          --workspace \
-          --baseline-rev=origin/main
+      - name: Allow non-contract-only changes during freeze
+        if: steps.freeze-check.outputs.freeze_active == 'true' && steps.freeze-scope.outputs.needs_contract_checks == 'false'
+        run: |
+          echo "API freeze checks skipped: change set is limited to non-contract docs/tests/CI/tooling files"
+          if [[ "${{ steps.changed-paths.outputs.changed_files }}" != "" ]]; then
+            echo "Changed files:"
+            printf '%s\n' "${{ steps.changed-paths.outputs.changed_files }}"
+          fi
 
-    - name: Allow docs/bench/tests only changes during freeze
-      if: steps.freeze-check.outputs.freeze_active == 'true' && steps.changed-paths.outputs.api_only_changes == 'true'
-      run: |
-        echo "✅ Skipping API check - only docs/bench/tests changes detected during freeze"
-
-    - name: Fail on API changes during freeze
-      if: steps.freeze-check.outputs.freeze_active == 'true' && steps.changed-paths.outputs.api_only_changes == 'false'
-      run: |
-        echo "❌ ERROR: API freeze is active but API changes detected!"
-        echo ""
-        echo "During API freeze, only the following changes are allowed:"
-        echo "  - Documentation changes (docs/)"
-        echo "  - Benchmark changes (tools/copybook-bench/)"
-        echo "  - Test changes (tests/)"
-        echo "  - CI/CD changes (.github/, scripts/)"
-        echo ""
-        echo "Changed files:"
-        echo "${{ steps.changed-paths.outputs.changed_files }}"
-        echo ""
-        echo "To make API changes:"
-        echo "  1. Remove the .api-freeze file"
-        echo "  2. Commit and push your changes"
-        echo "  3. After release, re-create .api-freeze for next freeze"
-        exit 1
-
-    - name: Upload API diff
-      if: failure() && steps.freeze-check.outputs.freeze_active == 'true'
-      run: |
-        # Generate detailed API diff for debugging
-        cargo semver-checks check-release \
-          --workspace \
-          --baseline-rev=origin/main \
-          2>&1 || true
+      - name: Upload API diff on freeze failure
+        if: failure() && steps.freeze-check.outputs.freeze_active == 'true'
+        run: |
+          echo "API freeze failed for this change"
+          if [[ -f .api-baseline/version.txt ]]; then
+            bash scripts/api-baseline.sh info || true
+          fi
+          echo ""
+          echo "Contract-relevant files:"
+          echo "${{ steps.freeze-scope.outputs.contract_relevant_files }}"
+          echo ""
+          echo "Non-allowed non-contract files:"
+          echo "${{ steps.freeze-scope.outputs.non_allowed_non_contract_files }}"

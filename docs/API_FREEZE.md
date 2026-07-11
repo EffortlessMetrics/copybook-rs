@@ -41,41 +41,31 @@ The public API includes:
 - All `pub` type aliases
 - All `pub` constants
 
-## Allowed Changes During Freeze
+## Allowed Change Categories During Freeze
 
-### Documentation Changes (docs/)
-- API documentation updates
-- README improvements
-- Example additions
-- Tutorial updates
-- Architecture documentation
+The freeze still allows routine non-contract updates in:
 
-### Benchmark Changes (copybook-bench/)
-- New benchmarks
-- Benchmark infrastructure updates
-- Performance measurement improvements
-- Baseline updates
+- Documentation (`docs/`, selected root docs files)
+- Test-only files (`tests/`)
+- CI/tooling (`.github/`, `scripts/`, `tools/`)
 
-### Test Changes (tests/)
-- New test cases
-- Test infrastructure improvements
-- Bug fixes in tests
-- Test coverage improvements
-
-### CI/CD Changes (.github/, scripts/)
-- Workflow improvements
-- Build script updates
-- Tooling improvements
-- Documentation generation
+Those files are still validated by normal CI, but they do not force API/contract checks when they are the only changed files.
 
 ## Prohibited Changes During Freeze
 
-Any changes that affect the public API are prohibited:
+Changes that affect the stable surface are validated and blocked when incompatible.
+
+- Stable crates listed in `.api-baseline/stable-packages.txt`
+- Stable contract source paths in `docs/contracts/stable-surface-contract.json`
+- Contract reference docs (`docs/CLI_REFERENCE.md`, `docs/reference/ERROR_CODES.md`, `docs/reference/LIBRARY_API.md`, `schemas/record-format.json`)
+- Stability metadata (`docs/stability/surface-registry.json`, `.api-baseline/*`)
+
+Any changes that affect the public API are prohibited without a reviewed exception:
 
 ### Function/Method Changes
 - Adding or removing public functions
 - Changing function signatures (parameters, return types)
-- Changing function visibility (pub → pub(crate))
+- Changing function visibility from `pub` to `pub(crate)`
 
 ### Struct Changes
 - Adding or removing public fields
@@ -123,6 +113,9 @@ bash scripts/api-baseline.sh generate
 # Check API compatibility
 bash scripts/api-baseline.sh check
 
+# Check stable contract invariants (strict freeze contract check)
+cargo run -p xtask -- docs freeze contracts
+
 # Show baseline info
 bash scripts/api-baseline.sh info
 
@@ -136,16 +129,9 @@ bash scripts/api-baseline.sh freeze-status
 # Install cargo-semver-checks
 cargo install --locked cargo-semver-checks --version 0.46.0
 
-# Check API compatibility
-# Optional raw invocation equivalent for this lane:
-# Exclude workspace packages that are not classified `stable`.
-# The repository script computes this exclusion list from
-# `docs/stability/surface-registry.json` automatically.
-cargo semver-checks check-release \
-  --workspace \
-  --baseline-rev=<COMMIT_SHA>
-# (add --exclude <crate-name> for each non-stable package)
-```
+# Check API compatibility via the repository script (stable-surface baseline)
+bash scripts/api-baseline.sh check
+``` 
 
 ## How to Update Baseline
 
@@ -254,41 +240,37 @@ The `.github/workflows/api-freeze.yml` workflow enforces the API freeze:
 1. **Detects freeze status**: Checks for `.api-freeze` file
 2. **Analyzes changes**: Determines which files changed in the PR
 3. **Enforces policy**:
-   - If freeze is active and only docs/bench/tests changed → **PASS**
-   - If freeze is active and API changes detected → **FAIL**
-   - If freeze is not active → **PASS** (generate baseline)
+   - If freeze is active and only non-contract scope changes are detected: **PASS**
+   - If freeze is active and contract-relevant or non-allowed files changed: **FAIL**
+   - If freeze is not active: **PASS** (generate baseline)
 
 ### Example CI Output
 
-**Passing (freeze active, docs only)**:
-```
-🔒 API freeze is ACTIVE
-📚 Only docs/bench/tests changes detected
-✅ Skipping API check - only docs/bench/tests changes detected during freeze
-```
+**Passing (freeze active, non-contract-only changes)**:
+~~~txt
+API freeze is ACTIVE
+Only non-contract files changed
+Skipping API check - no contract-relevant files changed during freeze
+~~~
 
-**Failing (freeze active, API changes)**:
-```
-🔒 API freeze is ACTIVE
-📝 Non-docs/bench/tests changes detected
-❌ ERROR: API freeze is active but API changes detected!
+**Failing (freeze active, contract-sensitive change)**:
+~~~txt
+API freeze is ACTIVE
+Contract-relevant or non-allowed files changed
 
-During API freeze, only the following changes are allowed:
-  - Documentation changes (docs/)
-  - Benchmark changes (copybook-bench/)
-  - Test changes (tests/)
-  - CI/CD changes (.github/, scripts/)
+Allowed auto-pass scope only:
+- Documentation changes (docs/, selected root docs files)
+- Test changes (tests/)
+- CI/tooling files (.github/, scripts/, tools/)
 
 Changed files:
-  copybook-codec/src/lib_api.rs
+  crates/copybook-core/src/lib_api.rs
 
 To make API changes:
   1. Remove the .api-freeze file
-  2. Commit and push your changes
-  3. After release, re-create .api-freeze for next freeze
-```
-
-## Troubleshooting
+  2. Commit and push the change
+  3. Re-establish freeze with updated .api-freeze
+~~~
 
 ### API Check Fails
 
@@ -296,8 +278,8 @@ If `just api-check` fails:
 
 1. **Review the error message** to understand what changed
 2. **Check if the change is intentional**:
-   - If yes → Remove `.api-freeze` and update baseline
-   - If no → Revert the API change
+   - If yes -> Remove `.api-freeze` and update baseline
+   - If no -> Revert the API change
 3. **For breaking changes**: Consider if this is the right time to make them
 
 ### Freeze Status Incorrect

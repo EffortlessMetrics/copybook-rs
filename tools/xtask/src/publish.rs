@@ -28,6 +28,8 @@ struct Dependency {
     #[serde(default)]
     kind: Option<String>,
     #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
     package: Option<String>,
 }
 
@@ -110,9 +112,11 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
 
     let mut publishable_ids = HashSet::new();
     let mut id_to_name = HashMap::new();
+    let mut name_to_id = HashMap::new();
     for package in &publishable_packages {
         publishable_ids.insert(package.id.clone());
         id_to_name.insert(package.id.clone(), package.name.clone());
+        name_to_id.insert(package.name.clone(), package.id.clone());
     }
 
     let mut in_degree: HashMap<String, usize> = HashMap::new();
@@ -127,16 +131,25 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
         for dependency in package
             .dependencies
             .iter()
-            .filter(|dep| dep.kind.as_deref() == Some("normal"))
+            .filter(|dep| matches!(dep.kind.as_deref(), None | Some("normal")))
         {
-            let Some(dep_id) = &dependency.package else {
-                continue;
+            let dep_id = if let Some(dep_id) = dependency.package.as_ref() {
+                dep_id.clone()
+            } else {
+                let Some(dep_name) = dependency.name.as_ref() else {
+                    continue;
+                };
+                let Some(dep_id) = name_to_id.get(dep_name) else {
+                    continue;
+                };
+                dep_id.clone()
             };
-            if !publishable_ids.contains(dep_id) {
+
+            if !publishable_ids.contains(&dep_id) {
                 continue;
             }
 
-            let Some(dep_name) = id_to_name.get(dep_id) else {
+            let Some(dep_name) = id_to_name.get(&dep_id) else {
                 continue;
             };
             let edge = (dep_name.clone(), package.name.clone());
@@ -268,6 +281,34 @@ mod tests {
             vec![
                 "copybook-core".to_string(),
                 "copybook-codec".to_string(),
+                "copybook".to_string(),
+                "copybook-rs".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn publish_plan_orders_workspace_dependencies_without_package_field() {
+        let plan = parse_plan(
+            r#"{
+                "workspace_members":["id-core", "id-facade", "id-rs"],
+                "packages":[
+                    {"id":"id-facade","name":"copybook","publish":["crates-io"],"dependencies":[
+                        {"name":"copybook-core"}
+                    ]},
+                    {"id":"id-core","name":"copybook-core","publish":["crates-io"],"dependencies":[]},
+                    {"id":"id-rs","name":"copybook-rs","publish":["crates-io"],"dependencies":[
+                        {"name":"copybook"}
+                    ]}
+                ]
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            plan,
+            vec![
+                "copybook-core".to_string(),
                 "copybook".to_string(),
                 "copybook-rs".to_string(),
             ]

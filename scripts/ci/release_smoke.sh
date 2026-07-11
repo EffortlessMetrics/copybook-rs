@@ -40,7 +40,47 @@ if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
   fi
 fi
 
-RUN_DIR="$(mktemp -d -t copybook-release-smoke-XXXXXX)"
+mktemp_dir() {
+  local dir
+  if dir="$(mktemp -d -t copybook-release-smoke-XXXXXX 2>/dev/null)"; then
+    printf '%s\n' "$dir"
+    return 0
+  fi
+  mktemp -d "/tmp/copybook-release-smoke-XXXXXX"
+}
+
+readlink_f() {
+  local path="$1"
+  if command -v realpath >/dev/null 2>&1; then
+    realpath -- "$path"
+    return 0
+  fi
+  if command -v readlink >/dev/null 2>&1; then
+    local resolved
+    resolved="$(readlink -f -- "$path" 2>/dev/null || true)"
+    if [ -n "$resolved" ]; then
+      printf '%s\n' "$resolved"
+      return 0
+    fi
+  fi
+  "${PYTHON_BIN}" - "$path" <<'PY'
+import os
+import sys
+
+print(os.path.realpath(sys.argv[1]))
+PY
+}
+
+compare_bytes() {
+  local expected="$1"
+  local actual="$2"
+  if ! cmp -- "${expected}" "${actual}" >/dev/null; then
+    echo "byte comparison failed for: ${expected} != ${actual}" >&2
+    exit 1
+  fi
+}
+
+RUN_DIR="$(mktemp_dir)"
 FIXTURE_DIR="${RUN_DIR}/fixtures"
 PROJECT_DIR="${RUN_DIR}/copybook-smoke"
 mkdir -p "${FIXTURE_DIR}" "${PROJECT_DIR}/src"
@@ -119,8 +159,8 @@ run_with_binary() {
     --output "${roundtrip_out}"
 
   if [ "${mode}" = "fixed" ]; then
-    cmp -n "$(( $(wc -c < "${data_file}") ))" "${data_file}" "${encode_out}"
-    cmp "${decode_out}" "${roundtrip_out}"
+    compare_bytes "${data_file}" "${encode_out}"
+    compare_bytes "${decode_out}" "${roundtrip_out}"
   fi
 
   if [ "${format}" = "rdw" ]; then
@@ -170,7 +210,7 @@ if [ "${SMOKE_MODE}" != "local" ] && [ "${SMOKE_MODE}" != "registry" ]; then
 fi
 
 if [ -n "${COPYBOOK_CLI_BIN:-}" ]; then
-  COPYBOOK_CLI_BIN="$(readlink -f "${COPYBOOK_CLI_BIN}")"
+  COPYBOOK_CLI_BIN="$(readlink_f "${COPYBOOK_CLI_BIN}")"
   if [ ! -x "${COPYBOOK_CLI_BIN}" ]; then
     echo "COPYBOOK_CLI_BIN is set but not executable: ${COPYBOOK_CLI_BIN}" >&2
     exit 1

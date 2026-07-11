@@ -95,13 +95,13 @@ and evidence remain governed by the support matrix and tests:
 
 ## Phase 0 — Reset repository truth
 
-**Status**: In progress
+**Status**: Done
 
-- [ ] [#536](https://github.com/EffortlessMetrics/copybook-rs/issues/536) —
+- [x] [#536](https://github.com/EffortlessMetrics/copybook-rs/issues/536) —
       reset this roadmap and supersede stale tracker #75
-- [ ] [#537](https://github.com/EffortlessMetrics/copybook-rs/issues/537) —
+- [x] [#537](https://github.com/EffortlessMetrics/copybook-rs/issues/537) —
       make `copybook` the default library entrypoint in public docs
-- [ ] [#540](https://github.com/EffortlessMetrics/copybook-rs/issues/540) —
+- [x] [#540](https://github.com/EffortlessMetrics/copybook-rs/issues/540) —
       add one `xtask docs verify-all` source-of-truth gate
 
 ### Exit criteria
@@ -115,12 +115,12 @@ and evidence remain governed by the support matrix and tests:
 
 ## Phase 1 — Make distribution and first use reliable
 
-**Status**: Queued after the initial roadmap/docs reset
+**Status**: Completed
 
-- [ ] [#538](https://github.com/EffortlessMetrics/copybook-rs/issues/538) —
+- [x] [#538](https://github.com/EffortlessMetrics/copybook-rs/issues/538) —
       derive the publish plan from workspace metadata and include both facade
       packages
-- [ ] [#539](https://github.com/EffortlessMetrics/copybook-rs/issues/539) —
+- [x] [#539](https://github.com/EffortlessMetrics/copybook-rs/issues/539) —
       replace yank-based rollback with resumable fix-forward recovery
 
 ### Exit criteria

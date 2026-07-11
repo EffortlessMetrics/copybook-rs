@@ -25,6 +25,21 @@ if [ ! -f "${FIXTURE_COPYBOOK}" ] || [ ! -f "${FIXTURE_FIXED}" ]; then
   exit 1
 fi
 
+PYTHON_BIN="${RELEASE_SMOKE_PYTHON:-python3}"
+if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
+  if [ -n "${RELEASE_SMOKE_PYTHON:-}" ]; then
+    echo "RELEASE_SMOKE_PYTHON set to '${PYTHON_BIN}', but command was not found." >&2
+    exit 1
+  fi
+
+  if command -v python >/dev/null 2>&1; then
+    PYTHON_BIN="python"
+  else
+    echo "python or python3 is required to generate the RDW fixture." >&2
+    exit 1
+  fi
+fi
+
 RUN_DIR="$(mktemp -d -t copybook-release-smoke-XXXXXX)"
 FIXTURE_DIR="${RUN_DIR}/fixtures"
 PROJECT_DIR="${RUN_DIR}/copybook-smoke"
@@ -48,7 +63,7 @@ make_rdw_fixture() {
   local input="$1"
   local output="$2"
 
-  python - "$input" "$output" <<'PY'
+  "${PYTHON_BIN}" - "$input" "$output" <<'PY'
 import pathlib
 import struct
 import sys
@@ -116,7 +131,44 @@ run_with_binary() {
   fi
 }
 
+emit_smoke_manifest() {
+  local manifest_path="$1"
+  local mode="$2"
+
+  if [ "${mode}" = "local" ]; then
+    cat > "${manifest_path}" <<EOF
+[package]
+name = "copybook-smoke"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+copybook = { path = "${REPO_ROOT}/crates/copybook" }
+copybook-rs = { path = "${REPO_ROOT}/crates/copybook-rs" }
+EOF
+    return
+  fi
+
+  cat > "${manifest_path}" <<EOF
+[package]
+name = "copybook-smoke"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+copybook = "=${VERSION}"
+copybook-rs = "=${VERSION}"
+EOF
+}
+
 echo "=== Release smoke: version ${VERSION} ==="
+SMOKE_MODE="${RELEASE_SMOKE_DEPS:-registry}"
+
+if [ "${SMOKE_MODE}" != "local" ] && [ "${SMOKE_MODE}" != "registry" ]; then
+  echo "RELEASE_SMOKE_DEPS must be either 'registry' (default) or 'local'." >&2
+  exit 1
+fi
+
 if [ -n "${COPYBOOK_CLI_BIN:-}" ]; then
   COPYBOOK_CLI_BIN="$(readlink -f "${COPYBOOK_CLI_BIN}")"
   if [ ! -x "${COPYBOOK_CLI_BIN}" ]; then
@@ -140,22 +192,13 @@ fi
 "${COPYBOOK_CLI_BIN}" --version
 "${COPYBOOK_CLI_BIN}" --help >/dev/null
 
-cat > "${PROJECT_DIR}/Cargo.toml" <<EOF
-[package]
-name = "copybook-smoke"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-copybook = "=${VERSION}"
-copybook-rs = "=${VERSION}"
-EOF
+emit_smoke_manifest "${PROJECT_DIR}/Cargo.toml" "${SMOKE_MODE}"
 
 cat > "${PROJECT_DIR}/src/main.rs" <<EOF
 fn main() {}
 EOF
 
-echo "Validating copybook and copybook-rs resolve via crates.io"
+echo "Validating copybook and copybook-rs dependency resolution"
 cargo build --manifest-path "${PROJECT_DIR}/Cargo.toml"
 
 echo "Running smoke fixed workflow"

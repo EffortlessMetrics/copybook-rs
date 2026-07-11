@@ -10,9 +10,19 @@ Thank you for your interest in contributing to copybook-rs. This guide will help
 - **Rust 1.92+** (MSRV enforced at workspace level)
 - **Git** for version control
 - **Cargo** (comes with Rust)
-- **[just](https://github.com/casey/just)** task runner (for `just ci-quick`, `just pr`)
-- **[cargo-nextest](https://nexte.st/)** — `cargo install cargo-nextest`
-- **[cargo-deny](https://github.com/EmbarkStudios/cargo-deny)** — `cargo install cargo-deny`
+- **[just](https://github.com/casey/just)** task runner (for `just ci-quick`, `just pr`) — `cargo install just`
+
+The remaining dev-only cargo subcommands used by the justfile
+(`cargo-nextest`, `cargo-deny`, `cargo-watch`, `cargo-llvm-cov`,
+`cargo-mutants`) can be installed one at a time, or all at once with:
+
+```bash
+just setup
+```
+
+`just setup` skips any tool that is already installed, and uses
+[`cargo-binstall`](https://github.com/cargo-bins/cargo-binstall) for faster
+installs when it's available on your `PATH`.
 
 ### Setting Up Your Development Environment
 
@@ -20,6 +30,9 @@ Thank you for your interest in contributing to copybook-rs. This guide will help
 # Fork the repository on GitHub, then clone your fork
 git clone https://github.com/YOUR_USERNAME/copybook-rs.git
 cd copybook-rs
+
+# Install the dev toolchain (nextest, cargo-deny, cargo-watch, ...)
+just setup
 
 # Build the workspace
 cargo build --workspace

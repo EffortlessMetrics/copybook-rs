@@ -44,7 +44,7 @@
       "deprecated_since": "0.5.0",
       "replacement": "schema_fingerprint",
       "migration_example": "Prefer the stable `schema_fingerprint` JSON key when reading decoded records from CLI or library output.",
-      "planned_removal": "No pre-v1 removal is planned; retained until the v1 migration decision approved by #543.",
+      "planned_removal": "No pre-v1 removal is planned; retained for compatibility through v1.0.0 unless #543 is revised by roadmap vote.",
       "compatibility_impact": "Existing JSON consumers that read `__schema_id` must fall back to `schema_fingerprint` for forward compatibility.",
       "note": "This key is retained for pre-v1 compatibility while the migration toward a single schema identifier key is completed."
     },
@@ -57,7 +57,7 @@
       "deprecated_since": "0.5.0",
       "replacement": "raw_b64",
       "migration_example": "Use `raw_b64` as the primary raw payload field and accept `__raw_b64` only as compatibility input.",
-      "planned_removal": "No pre-v1 removal is planned; retained until the v1 migration decision approved by #543.",
+      "planned_removal": "No pre-v1 removal is planned; retained for compatibility through v1.0.0 unless #543 is revised by roadmap vote.",
       "compatibility_impact": "Legacy consumers relying only on `__raw_b64` must add `raw_b64` handling before v1 migration decisions.",
       "note": "Dual emission of both keys is intentional for migration; output docs now call `raw_b64` canonical."
     }

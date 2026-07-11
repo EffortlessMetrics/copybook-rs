@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 use anyhow::{Context, Result, bail};
+use chrono::Utc;
 use copybook_bench::{COMP3_CI_FLOOR_MIBPS, DISPLAY_FLOOR_MIBPS};
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -18,7 +19,7 @@ use xtask::perf;
 type Verifier = (&'static str, fn() -> Result<()>);
 
 pub(crate) fn run() -> Result<()> {
-    let checks: [Verifier; 11] = [
+    let checks: [Verifier; 12] = [
         (
             "workspace-version-and-msrv",
             verify_workspace_version_and_msrv,
@@ -41,9 +42,18 @@ pub(crate) fn run() -> Result<()> {
             verify_publish_workflow_inventory,
         ),
         ("stability-registry", verify_stability_registry),
+        (
+            "stable-contract-inventory",
+            verify_stable_contract_inventory,
+        ),
         ("quick-start-versioning", verify_quick_start_versioning),
     ];
     run_checks(&checks)
+}
+
+pub(crate) fn run_contracts_command() -> Result<()> {
+    generate_stable_contract_manifest()
+        .and_then(|manifest| persist_stable_contract_manifest(&manifest))
 }
 
 fn run_checks(checks: &[Verifier]) -> Result<()> {
@@ -57,7 +67,69 @@ fn run_checks(checks: &[Verifier]) -> Result<()> {
 
 const STABILITY_SCHEMA_VERSION: &str = "1.0.0";
 const STABILITY_REGISTRY_PATH: &str = "docs/stability/surface-registry.json";
+const STABLE_CONTRACT_SCHEMA_VERSION: &str = "1.0.0";
+const STABLE_CONTRACT_MANIFEST_PATH: &str = "docs/contracts/stable-surface-contract.json";
+const STABLE_CONTRACT_SOURCE_PATHS: [&str; 6] = [
+    "crates/copybook-cli/src/main.rs",
+    "crates/copybook-cli/src/exit_codes.rs",
+    "crates/copybook-error/src/lib.rs",
+    "crates/copybook-options/src/lib.rs",
+    "schemas/record-format.json",
+    "docs/CLI_REFERENCE.md",
+];
 const STABILITY_MANUAL_REVIEW_PLACEHOLDERS: [&str; 2] = ["tbd", "set during manual review"];
+
+#[derive(Debug, Serialize, Deserialize)]
+struct StableSurfaceContractManifest {
+    schema_version: String,
+    generated_at: String,
+    generated_by: String,
+    source_revision: String,
+    source_paths: Vec<String>,
+    cli: ContractCliInventory,
+    error: ContractErrorInventory,
+    exit_code: ContractExitCodeInventory,
+    jsonl: ContractJsonlInventory,
+    raw_capture: ContractRawCaptureInventory,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ContractCliInventory {
+    commands: Vec<String>,
+    options: Vec<String>,
+    env_vars: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ContractErrorInventory {
+    variants: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ContractExitCodeInventory {
+    variants: Vec<String>,
+    tags: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ContractJsonlInventory {
+    schema_keys: Vec<String>,
+    required_keys: Vec<String>,
+    pattern_properties: Vec<String>,
+    compatibility_keys: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ContractRawCaptureInventory {
+    modes: Vec<String>,
+    emitted_keys: Vec<String>,
+}
+
+#[derive(Debug)]
+struct ContractDelta {
+    category: &'static str,
+    item: String,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StabilityClass {
@@ -137,6 +209,493 @@ fn verify_stability_registry() -> Result<()> {
     let registry = load_stability_registry()?;
     let metadata = load_cargo_metadata()?;
     verify_stability_registry_against_metadata(&registry, &metadata)
+}
+
+fn verify_stable_contract_inventory() -> Result<()> {
+    let baseline = load_stable_contract_manifest()?;
+    if baseline.schema_version != STABLE_CONTRACT_SCHEMA_VERSION {
+        bail!(
+            "stable contract manifest schema mismatch: expected {STABLE_CONTRACT_SCHEMA_VERSION}, found {}",
+            baseline.schema_version
+        );
+    }
+
+    let current = collect_stable_contract_inventory()?;
+    let deltas = diff_contracts(&baseline, &current);
+
+    if !deltas.removed.is_empty() {
+        let mut lines = Vec::new();
+        for item in deltas.removed {
+            lines.push(format!("- {} {}", item.category, item.item));
+        }
+        bail!(
+            "stable-contract inventory has breaking changes:\n{}",
+            lines.join("\n")
+        );
+    }
+
+    if !deltas.added.is_empty() {
+        let mut lines = Vec::new();
+        for item in deltas.added {
+            lines.push(format!("- {} {}", item.category, item.item));
+        }
+        println!(
+            "stable-contract inventory additions (non-blocking):\n{}",
+            lines.join("\n")
+        );
+    }
+
+    Ok(())
+}
+
+fn collect_stable_contract_inventory() -> Result<StableSurfaceContractManifest> {
+    let cli_source = fs::read_to_string("crates/copybook-cli/src/main.rs")
+        .context("loading crates/copybook-cli/src/main.rs")?;
+    let cli_reference =
+        fs::read_to_string("docs/CLI_REFERENCE.md").context("loading docs/CLI_REFERENCE.md")?;
+    let exit_code_source = fs::read_to_string("crates/copybook-cli/src/exit_codes.rs")
+        .context("loading crates/copybook-cli/src/exit_codes.rs")?;
+    let error_source = fs::read_to_string("crates/copybook-error/src/lib.rs")
+        .context("loading crates/copybook-error/src/lib.rs")?;
+    let raw_mode_source = fs::read_to_string("crates/copybook-options/src/lib.rs")
+        .context("loading crates/copybook-options/src/lib.rs")?;
+    let jsonl_schema_source = fs::read_to_string("schemas/record-format.json")
+        .context("loading schemas/record-format.json")?;
+
+    let cli_contract = ContractCliInventory {
+        commands: parse_cli_command_variants(&cli_source)?,
+        options: parse_cli_reference_option_contracts(&cli_reference)?,
+        env_vars: parse_cli_reference_env_contracts(&cli_reference)?,
+    };
+    let error_contract = ContractErrorInventory {
+        variants: parse_error_code_variants(&error_source)?,
+    };
+    let exit_code_inventory = parse_exit_code_inventory(&exit_code_source)?;
+    let (schema_keys, required_keys, pattern_properties) =
+        parse_jsonl_schema_inventory(&jsonl_schema_source)?;
+    let raw_capture_inventory = ContractRawCaptureInventory {
+        modes: parse_raw_mode_variants(&raw_mode_source)?,
+        emitted_keys: parse_cli_reference_raw_keys(&cli_reference)?,
+    };
+
+    let source_revision = git_head_revision().unwrap_or_else(|_| "unknown".to_string());
+    Ok(StableSurfaceContractManifest {
+        schema_version: STABLE_CONTRACT_SCHEMA_VERSION.to_string(),
+        generated_at: Utc::now().to_rfc3339(),
+        generated_by: "cargo run -p xtask -- docs contracts generate".to_string(),
+        source_revision,
+        source_paths: STABLE_CONTRACT_SOURCE_PATHS
+            .iter()
+            .map(ToString::to_string)
+            .collect(),
+        cli: cli_contract,
+        error: error_contract,
+        exit_code: exit_code_inventory,
+        jsonl: ContractJsonlInventory {
+            schema_keys,
+            required_keys,
+            pattern_properties,
+            compatibility_keys: vec!["__raw_b64".to_string(), "raw_b64".to_string()],
+        },
+        raw_capture: raw_capture_inventory,
+    })
+}
+
+fn generate_stable_contract_manifest() -> Result<StableSurfaceContractManifest> {
+    collect_stable_contract_inventory()
+}
+
+fn persist_stable_contract_manifest(manifest: &StableSurfaceContractManifest) -> Result<()> {
+    let output_path = resolve_workspace_file("docs").map(|docs_dir| {
+        if docs_dir.is_file() {
+            docs_dir.with_file_name("contracts/stable-surface-contract.json")
+        } else {
+            docs_dir.join("contracts/stable-surface-contract.json")
+        }
+    });
+    let output_path = output_path.ok_or_else(|| {
+        anyhow::anyhow!("unable to resolve docs/contracts/stable-surface-contract.json location")
+    })?;
+    if let Some(parent) = output_path.parent() {
+        fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
+    }
+
+    let payload =
+        serde_json::to_string_pretty(manifest).context("serializing stable contract manifest")?;
+    fs::write(&output_path, format!("{payload}\n")).with_context(|| {
+        format!(
+            "writing stable contract manifest to {}",
+            output_path.display()
+        )
+    })?;
+    println!(
+        "stable-contract inventory updated at {}",
+        output_path.display()
+    );
+    Ok(())
+}
+
+fn load_stable_contract_manifest() -> Result<StableSurfaceContractManifest> {
+    let manifest_path = resolve_workspace_file(STABLE_CONTRACT_MANIFEST_PATH)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "unable to resolve stable contract manifest path; run `cargo run -p xtask -- docs contracts generate`"
+            )
+        })?;
+    let source = fs::read_to_string(&manifest_path)
+        .with_context(|| format!("loading {}", manifest_path.display()))?;
+    serde_json::from_str(&source).context("parsing docs/contracts/stable-surface-contract.json")
+}
+
+fn diff_contracts(
+    baseline: &StableSurfaceContractManifest,
+    current: &StableSurfaceContractManifest,
+) -> ContractDiffSet {
+    let mut deltas = ContractDiffSet {
+        added: Vec::new(),
+        removed: Vec::new(),
+    };
+
+    let mut expected_source_paths = BTreeSet::new();
+    expected_source_paths.extend(STABLE_CONTRACT_SOURCE_PATHS.iter().map(ToString::to_string));
+    let current_paths: BTreeSet<String> = current.source_paths.iter().cloned().collect();
+    classify_delta_items(
+        &expected_source_paths,
+        &current_paths,
+        "contract-source-path",
+        &mut deltas,
+    );
+
+    classify_delta_items(
+        &baseline.cli.commands.iter().cloned().collect(),
+        &current.cli.commands.iter().cloned().collect(),
+        "cli.command",
+        &mut deltas,
+    );
+    classify_delta_items(
+        &baseline.cli.options.iter().cloned().collect(),
+        &current.cli.options.iter().cloned().collect(),
+        "cli.option",
+        &mut deltas,
+    );
+    classify_delta_items(
+        &baseline.cli.env_vars.iter().cloned().collect(),
+        &current.cli.env_vars.iter().cloned().collect(),
+        "cli.env-var",
+        &mut deltas,
+    );
+    classify_delta_items(
+        &baseline.error.variants.iter().cloned().collect(),
+        &current.error.variants.iter().cloned().collect(),
+        "error-code",
+        &mut deltas,
+    );
+    classify_delta_items(
+        &baseline.exit_code.variants.iter().cloned().collect(),
+        &current.exit_code.variants.iter().cloned().collect(),
+        "cli.exit-code-variant",
+        &mut deltas,
+    );
+    classify_delta_items(
+        &baseline.exit_code.tags.iter().cloned().collect(),
+        &current.exit_code.tags.iter().cloned().collect(),
+        "cli.exit-code-tag",
+        &mut deltas,
+    );
+    classify_delta_items(
+        &baseline.jsonl.schema_keys.iter().cloned().collect(),
+        &current.jsonl.schema_keys.iter().cloned().collect(),
+        "jsonl.schema-key",
+        &mut deltas,
+    );
+    classify_delta_items(
+        &baseline.jsonl.required_keys.iter().cloned().collect(),
+        &current.jsonl.required_keys.iter().cloned().collect(),
+        "jsonl.required-key",
+        &mut deltas,
+    );
+    classify_delta_items(
+        &baseline.jsonl.pattern_properties.iter().cloned().collect(),
+        &current.jsonl.pattern_properties.iter().cloned().collect(),
+        "jsonl.pattern-key",
+        &mut deltas,
+    );
+    classify_delta_items(
+        &baseline.jsonl.compatibility_keys.iter().cloned().collect(),
+        &current.jsonl.compatibility_keys.iter().cloned().collect(),
+        "jsonl.compat-key",
+        &mut deltas,
+    );
+    classify_delta_items(
+        &baseline.raw_capture.modes.iter().cloned().collect(),
+        &current.raw_capture.modes.iter().cloned().collect(),
+        "raw.mode",
+        &mut deltas,
+    );
+    classify_delta_items(
+        &baseline.raw_capture.emitted_keys.iter().cloned().collect(),
+        &current.raw_capture.emitted_keys.iter().cloned().collect(),
+        "raw.key",
+        &mut deltas,
+    );
+
+    deltas
+}
+
+#[derive(Debug)]
+struct ContractDiffSet {
+    added: Vec<ContractDelta>,
+    removed: Vec<ContractDelta>,
+}
+
+fn classify_delta_items(
+    baseline: &BTreeSet<String>,
+    current: &BTreeSet<String>,
+    category: &'static str,
+    deltas: &mut ContractDiffSet,
+) {
+    for item in baseline.difference(current) {
+        deltas.removed.push(ContractDelta {
+            category,
+            item: item.clone(),
+        });
+    }
+    for item in current.difference(baseline) {
+        deltas.added.push(ContractDelta {
+            category,
+            item: item.clone(),
+        });
+    }
+}
+
+fn parse_cli_reference_option_contracts(source: &str) -> Result<Vec<String>> {
+    let option_re = Regex::new(r"--([a-z0-9][a-z0-9_-]*)")?;
+    let mut options = BTreeSet::new();
+    for capture in option_re.captures_iter(source) {
+        options.insert(capture[1].replace('_', "-"));
+    }
+    if options.is_empty() {
+        bail!("CLI reference option inventory is empty");
+    }
+    Ok(options.into_iter().collect())
+}
+
+fn parse_cli_reference_env_contracts(source: &str) -> Result<Vec<String>> {
+    let env_re = Regex::new(r"\b(COPYBOOK_[A-Z0-9]+(?:_[A-Z0-9]+)*)\b")?;
+    let mut vars = BTreeSet::new();
+    for capture in env_re.captures_iter(source) {
+        vars.insert(capture[1].to_string());
+    }
+    if vars.is_empty() {
+        bail!("CLI reference environment variable inventory is empty");
+    }
+    Ok(vars.into_iter().collect())
+}
+
+fn parse_exit_code_inventory(source: &str) -> Result<ContractExitCodeInventory> {
+    let variants = parse_exit_code_variants(source)?;
+    let tags: BTreeSet<String> = variants
+        .iter()
+        .filter_map(|variant| match variant.as_str() {
+            "Data" => Some("CBKD"),
+            "Encode" => Some("CBKE"),
+            "Format" => Some("CBKF"),
+            "Internal" => Some("CBKI"),
+            _ => None,
+        })
+        .map(ToString::to_string)
+        .collect();
+
+    if variants.is_empty() {
+        bail!("no ExitCode variants parsed from copybook-cli/src/exit_codes.rs");
+    }
+
+    Ok(ContractExitCodeInventory {
+        variants,
+        tags: tags.into_iter().collect(),
+    })
+}
+
+fn parse_exit_code_variants(source: &str) -> Result<Vec<String>> {
+    let start_re = Regex::new(r"(?m)^pub enum ExitCode \{")?;
+    let start = start_re
+        .find(source)
+        .ok_or_else(|| anyhow::anyhow!("could not find ExitCode enum"))?
+        .end();
+
+    let mut depth = 1i32;
+    let mut end = source.len();
+    for (offset, ch) in source[start..].char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = start + offset;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if end <= start {
+        bail!("could not parse ExitCode enum body");
+    }
+
+    let remainder = &source[start..end];
+    let variant_re =
+        Regex::new(r"(?m)^\s*([A-Za-z][A-Za-z0-9_]*)\s*(?:=\s*[^,]+)?\s*,?(?:\s*//.*)?$")?;
+    let mut variants = BTreeSet::new();
+    for capture in variant_re.captures_iter(remainder) {
+        variants.insert(capture[1].to_string());
+    }
+    if variants.is_empty() {
+        bail!("no ExitCode variants parsed");
+    }
+
+    Ok(variants.into_iter().collect())
+}
+
+fn parse_error_code_variants(source: &str) -> Result<Vec<String>> {
+    let start_re = Regex::new(r"(?m)^pub enum ErrorCode \{")?;
+    let start = start_re
+        .find(source)
+        .ok_or_else(|| anyhow::anyhow!("could not find ErrorCode enum"))?
+        .end();
+
+    let mut depth = 1i32;
+    let mut end = source.len();
+    for (offset, ch) in source[start..].char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = start + offset;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    if end <= start {
+        bail!("could not parse ErrorCode enum body");
+    }
+
+    let remainder = &source[start..end];
+    let variant_re = Regex::new(r"(?m)^\s*([A-Z][A-Z0-9_]*)\s*(?:=\s*[^,]+)?\s*,(?:\s*//.*)?$")?;
+    let mut variants = BTreeSet::new();
+    for capture in variant_re.captures_iter(remainder) {
+        variants.insert(capture[1].to_string());
+    }
+    if variants.is_empty() {
+        bail!("no ErrorCode variants parsed");
+    }
+    Ok(variants.into_iter().collect())
+}
+
+fn parse_jsonl_schema_inventory(source: &str) -> Result<(Vec<String>, Vec<String>, Vec<String>)> {
+    let value: Value =
+        serde_json::from_str(source).context("parsing schemas/record-format.json")?;
+    let properties = value
+        .get("properties")
+        .and_then(|value| value.as_object())
+        .ok_or_else(|| anyhow::anyhow!("record-format.json missing object `properties`"))?;
+    let required = value
+        .get("required")
+        .and_then(|value| value.as_array())
+        .ok_or_else(|| anyhow::anyhow!("record-format.json missing array `required`"))?
+        .iter()
+        .filter_map(|entry| entry.as_str())
+        .map(ToString::to_string)
+        .collect();
+    let pattern_properties = value
+        .get("patternProperties")
+        .and_then(|value| value.as_object())
+        .map(|object| object.keys().map(ToString::to_string).collect())
+        .unwrap_or_default();
+
+    Ok((
+        properties.keys().map(ToString::to_string).collect(),
+        required,
+        pattern_properties,
+    ))
+}
+
+fn parse_cli_reference_raw_keys(source: &str) -> Result<Vec<String>> {
+    let key_re = Regex::new(r"`([^`]+raw_b64[^`]*)`")?;
+    let mut keys = BTreeSet::new();
+    for capture in key_re.captures_iter(source) {
+        let key = capture[1].trim();
+        if key.contains("raw_b64") && !key.contains('`') {
+            keys.insert(key.to_string());
+        }
+    }
+
+    if keys.is_empty() {
+        bail!("no raw-capture keys found in docs/CLI_REFERENCE.md");
+    }
+
+    Ok(keys.into_iter().collect())
+}
+
+fn parse_raw_mode_variants(source: &str) -> Result<Vec<String>> {
+    let start_re = Regex::new(r"(?m)^pub enum RawMode \{")?;
+    let start = start_re
+        .find(source)
+        .ok_or_else(|| anyhow::anyhow!("could not find RawMode enum"))?
+        .end();
+
+    let mut depth = 1i32;
+    let mut end = source.len();
+    for (offset, ch) in source[start..].char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = start + offset;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    if end <= start {
+        bail!("could not parse RawMode enum body");
+    }
+
+    let body = &source[start..end];
+    let variant_re = Regex::new(r"(?m)^\s*([A-Z][A-Za-z0-9_]*)\s*(?:,|$)")?;
+    let mut variants = BTreeSet::new();
+    for capture in variant_re.captures_iter(body) {
+        let variant = capture[1].to_string();
+        if variant == "Off" || variant == "Record" || variant == "Field" || variant == "RecordRDW" {
+            variants.insert(variant);
+        }
+    }
+
+    if variants.is_empty() {
+        bail!("no RawMode variants parsed");
+    }
+
+    Ok(variants.into_iter().collect())
+}
+
+fn git_head_revision() -> Result<String> {
+    let output = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .context("failed to run `git rev-parse HEAD`")?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git rev-parse HEAD failed: {stderr}");
+    }
+    Ok(String::from_utf8(output.stdout)
+        .context("git rev-parse HEAD output was not UTF-8")?
+        .trim()
+        .to_string())
 }
 
 fn load_stability_registry() -> Result<StabilityRegistry> {
@@ -1001,6 +1560,120 @@ mod tests {
 }"#;
 
         assert_eq!(parse_error_code_variant_count(source).unwrap(), 3);
+    }
+
+    #[test]
+    fn parse_stable_contract_exit_code_tags() {
+        let source = r#"pub enum ExitCode {
+    Ok = 0,
+    Unknown = 1,
+    Data = 2,
+    Encode = 3,
+    Format = 4,
+    Internal = 5,
+}"#;
+
+        let inventory = parse_exit_code_inventory(source).unwrap();
+        assert_eq!(
+            inventory.variants,
+            vec!["Data", "Encode", "Format", "Internal", "Ok", "Unknown"]
+        );
+        assert_eq!(inventory.tags, vec!["CBKD", "CBKE", "CBKF", "CBKI"]);
+    }
+
+    #[test]
+    fn parse_cli_reference_env_contracts_ignores_partial_prefix() {
+        let source = "- `COPYBOOK_STRICT_POLICY` and `COPYBOOK_FF_SIGN_SEPARATE`";
+        let vars = parse_cli_reference_env_contracts(source).unwrap();
+        assert_eq!(
+            vars,
+            vec!["COPYBOOK_FF_SIGN_SEPARATE", "COPYBOOK_STRICT_POLICY"]
+        );
+    }
+
+    #[test]
+    fn diff_contracts_reports_removed_and_added_contract_items() {
+        let baseline = StableSurfaceContractManifest {
+            schema_version: "1.0.0".to_string(),
+            generated_at: "baseline".to_string(),
+            generated_by: "baseline".to_string(),
+            source_revision: "baseline".to_string(),
+            source_paths: vec!["crates/copybook-core/src/lib.rs".to_string()],
+            cli: ContractCliInventory {
+                commands: vec!["decode".to_string()],
+                options: vec!["input".to_string()],
+                env_vars: vec!["COPYBOOK_STRICT_POLICY".to_string()],
+            },
+            error: ContractErrorInventory {
+                variants: vec!["CBK001".to_string()],
+            },
+            exit_code: ContractExitCodeInventory {
+                variants: vec!["Data".to_string()],
+                tags: vec!["CBKD".to_string()],
+            },
+            jsonl: ContractJsonlInventory {
+                schema_keys: vec!["schema".to_string()],
+                required_keys: vec!["schema".to_string()],
+                pattern_properties: vec!["^prefix_".to_string()],
+                compatibility_keys: vec!["raw_b64".to_string()],
+            },
+            raw_capture: ContractRawCaptureInventory {
+                modes: vec!["Off".to_string()],
+                emitted_keys: vec!["__raw_b64".to_string()],
+            },
+        };
+
+        let current = StableSurfaceContractManifest {
+            schema_version: "1.0.0".to_string(),
+            generated_at: "current".to_string(),
+            generated_by: "current".to_string(),
+            source_revision: "current".to_string(),
+            source_paths: vec!["crates/copybook-cli/src/main.rs".to_string()],
+            cli: ContractCliInventory {
+                commands: vec!["decode".to_string(), "parse".to_string()],
+                options: vec!["input".to_string()],
+                env_vars: vec!["COPYBOOK_STRICT_POLICY".to_string()],
+            },
+            error: ContractErrorInventory {
+                variants: vec!["CBK001".to_string(), "CBK002".to_string()],
+            },
+            exit_code: ContractExitCodeInventory {
+                variants: vec!["Data".to_string(), "Encode".to_string()],
+                tags: vec!["CBKD".to_string(), "CBKE".to_string()],
+            },
+            jsonl: ContractJsonlInventory {
+                schema_keys: vec!["schema".to_string()],
+                required_keys: vec!["schema".to_string(), "record_index".to_string()],
+                pattern_properties: vec!["^prefix_".to_string()],
+                compatibility_keys: vec!["raw_b64".to_string()],
+            },
+            raw_capture: ContractRawCaptureInventory {
+                modes: vec!["Field".to_string()],
+                emitted_keys: vec!["__raw_b64".to_string()],
+            },
+        };
+
+        let deltas = diff_contracts(&baseline, &current);
+        assert!(
+            deltas
+                .removed
+                .iter()
+                .all(|item| item.category != "cli.command")
+        );
+        assert!(
+            deltas
+                .added
+                .iter()
+                .any(|item| { item.category == "cli.command" && item.item == "parse" })
+        );
+        assert!(
+            deltas
+                .added
+                .iter()
+                .any(|item| { item.category == "error-code" && item.item == "CBK002" })
+        );
+        assert!(!deltas.removed.is_empty());
+        assert!(!deltas.added.is_empty());
     }
 
     #[test]

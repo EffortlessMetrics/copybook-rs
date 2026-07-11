@@ -20,6 +20,7 @@ fn main() -> Result<()> {
         ["docs", "verify-tests"] => verify(),
         ["docs", "verify-all"] => docs_verify::run(),
         ["docs", "verify-support-matrix"] => verify_support_matrix(),
+        ["docs", "contracts", "generate"] => docs_verify::run_contracts_command(),
         ["perf"] => perf::run(false, None),
         ["perf", "--enforce"] => perf::run(true, None),
         ["perf", "--out-dir", out_dir] => perf::run(false, Some(out_dir)),
@@ -76,6 +77,7 @@ fn usage() {
          docs sync-tests                     Sync test status from junit.xml\n\
          docs verify-tests                   Verify test status is in sync\n\
          docs verify-all                     Verify all source-of-truth documentation invariants\n\
+         docs contracts generate             Regenerate stable contract manifest baseline\n\
          docs verify-support-matrix          Verify support matrix registry -> docs\n\
          perf                                Run perf benchmark runner\n\
          perf --enforce                      Run perf with SLO enforcement\n\

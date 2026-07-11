@@ -7,7 +7,7 @@
 //! - SLO evaluation (`evaluate_slo`) for validating performance targets
 
 use anyhow::{Context, Result, bail};
-use copybook_bench::PerformanceReport;
+use copybook_bench::{COMP3_CI_FLOOR_MIBPS, DISPLAY_FLOOR_MIBPS, PerformanceReport};
 use serde_json::Value;
 use std::path::PathBuf;
 use std::process::Command;
@@ -31,8 +31,8 @@ pub enum SloStatus {
 }
 
 /// SLO thresholds (must match .github/workflows/perf.yml)
-pub const DISPLAY_SLO_MIBPS: f64 = 80.0;
-pub const COMP3_SLO_MIBPS: f64 = 40.0;
+pub const DISPLAY_SLO_MIBPS: f64 = DISPLAY_FLOOR_MIBPS;
+pub const COMP3_SLO_MIBPS: f64 = COMP3_CI_FLOOR_MIBPS;
 
 /// Run performance benchmarks and emit JSON receipts
 ///
@@ -374,7 +374,7 @@ mod tests {
     fn test_delta_percentage_calculation() {
         let snapshot = PerfSnapshot {
             display_mibps: 88.0, // +10% over 80
-            comp3_mibps: 36.0,   // -10% under 40
+            comp3_mibps: 7.2,    // -10% under 8
         };
 
         let status = evaluate_slo(&snapshot);

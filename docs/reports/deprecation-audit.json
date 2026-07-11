@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-07-10T00:00:00Z",
+  "generated_by": "rtk cargo run -p xtask -- docs verify-all",
+  "items": [
+    {
+      "path": "crates/copybook-arrow/src/legacy.rs",
+      "symbol": "json_type_to_arrow",
+      "kind": "fn",
+      "deprecated_since": "0.5.0",
+      "replacement": "crates/copybook-arrow::schema_convert::cobol_schema_to_arrow",
+      "migration_example": "Replace calls to `json_type_to_arrow` with conversions through `cobol_schema_to_arrow` from `schema_convert`.",
+      "planned_removal": "pre-v1 clean-up; removal date approved through #543",
+      "compatibility_impact": "Deprecated API may still be used; avoid in new code to prevent reliance on JSON-first conversion path.",
+      "note": "JSON-based schema conversion is legacy and will eventually be removed in favor of typed conversion."
+    },
+    {
+      "path": "crates/copybook-arrow/src/legacy.rs",
+      "symbol": "json_to_schema",
+      "kind": "fn",
+      "deprecated_since": "0.5.0",
+      "replacement": "copybook_arrow::schema_convert::cobol_schema_to_arrow",
+      "migration_example": "Use parsed COBOL schema as input and convert with `cobol_schema_to_arrow(...)` instead of `json_to_schema(...)`.",
+      "planned_removal": "pre-v1 clean-up; removal date approved through #543",
+      "compatibility_impact": "Public code using `json_to_schema` will need migration before the legacy API removal.",
+      "note": "Prefer typed COBOL schema conversion API to avoid JSON intermediate."
+    },
+    {
+      "path": "crates/copybook-arrow/src/legacy.rs",
+      "symbol": "json_value_to_array",
+      "kind": "fn",
+      "deprecated_since": "0.5.0",
+      "replacement": "copybook_arrow::builders::RecordBatchBuilder",
+      "migration_example": "Build typed column accumulators directly instead of invoking `json_value_to_array` for legacy conversion.",
+      "planned_removal": "pre-v1 clean-up; removal date approved through #543",
+      "compatibility_impact": "Using this helper can keep typed conversions from being deterministic with modern typed builders.",
+      "note": "Typed builders provide better compile-time and runtime safety than JSON-array conversion."
+    },
+    {
+      "path": "crates/copybook-arrow/src/legacy.rs",
+      "symbol": "json_to_record_batch",
+      "kind": "fn",
+      "deprecated_since": "0.5.0",
+      "replacement": "copybook_arrow::batch_builder::RecordBatchBuilder",
+      "migration_example": "Construct records with `RecordBatchBuilder` and feed decoded `copybook` values directly, instead of `json_to_record_batch(...)`.",
+      "planned_removal": "pre-v1 clean-up; removal date approved through #543",
+      "compatibility_impact": "Legacy JSON-based record conversion will be removed from the supported path.",
+      "note": "Direct typed conversion avoids intermediate serde JSON allocation and field-shape drift."
+    },
+    {
+      "path": "crates/copybook-arrow/src/legacy.rs",
+      "symbol": "LegacyArrowWriter",
+      "kind": "struct",
+      "deprecated_since": "0.5.0",
+      "replacement": "copybook_arrow::batch_builder::RecordBatchBuilder",
+      "migration_example": "Replace `LegacyArrowWriter` usage with `RecordBatchBuilder` and stream batches via its add/flush API.",
+      "planned_removal": "pre-v1 clean-up; removal date approved through #543",
+      "compatibility_impact": "Type migration is required; consumers should update constructor and method calls.",
+      "note": "Legacy JSON-oriented writer is maintained only for migration support."
+    },
+    {
+      "path": "crates/copybook-arrow/src/legacy.rs",
+      "symbol": "LegacyParquetFileWriter",
+      "kind": "struct",
+      "deprecated_since": "0.5.0",
+      "replacement": "copybook_arrow::parquet_writer::write_parquet",
+      "migration_example": "Replace `LegacyParquetFileWriter` usage with the typed `write_parquet(...)` API.",
+      "planned_removal": "pre-v1 clean-up; removal date approved through #543",
+      "compatibility_impact": "Parquet output code must migrate to typed writer API before legacy removal.",
+      "note": "Use typed conversion and `write_parquet` for new code paths."
+    },
+    {
+      "path": "crates/copybook-rdw/src/record.rs",
+      "symbol": "new",
+      "kind": "fn",
+      "deprecated_since": "0.4.3",
+      "replacement": "RDWRecord::try_new",
+      "migration_example": "Replace `RDWRecord::new(payload)` with `RDWRecord::try_new(payload)` and propagate the `Result`.",
+      "planned_removal": "pre-v1 clean-up; removal date approved through #543",
+      "compatibility_impact": "Code relying on panic-on-overflow behavior must be migrated to explicit error handling.",
+      "note": "This API is deprecated in favor of fallible construction to avoid panics."
+    },
+    {
+      "path": "crates/copybook-rdw/src/record.rs",
+      "symbol": "with_reserved",
+      "kind": "fn",
+      "deprecated_since": "0.4.3",
+      "replacement": "RDWRecord::try_with_reserved",
+      "migration_example": "Replace `RDWRecord::with_reserved(payload, reserved)` with `RDWRecord::try_with_reserved(payload, reserved)` and handle the `Result`.",
+      "planned_removal": "pre-v1 clean-up; removal date approved through #543",
+      "compatibility_impact": "Panic-based behavior should be migrated to explicit fallible APIs before removal.",
+      "note": "This API exists for backward compatibility only and may panic on oversized payloads."
+    },
+    {
+      "path": "crates/copybook-rdw/src/record.rs",
+      "symbol": "recompute_length",
+      "kind": "fn",
+      "deprecated_since": "0.4.3",
+      "replacement": "RDWRecord::try_recompute_length",
+      "migration_example": "Replace `recompute_length()` with `try_recompute_length()` and handle the `Result`.",
+      "planned_removal": "pre-v1 clean-up; removal date approved through #543",
+      "compatibility_impact": "Callers that relied on panics must switch to fallible error handling patterns.",
+      "note": "Prefer fallible length recomputation for oversized payload safety."
+    }
+  ]
+}

@@ -33,6 +33,18 @@ Before freeze closure, confirm these items are completed and evidenced in reposi
 rg "#\\[deprecated" copybook-* -g "*.rs"
 ```
 
+- Keep the canonical machine-readable deprecation inventory in:
+
+```bash
+docs/reports/deprecation-audit.json
+```
+
+- Validate the file is complete and consistent by running:
+
+```bash
+rtk cargo run -p xtask -- docs verify-all
+```
+
 - For each deprecation, ensure migration notes include a version and a sunset expectation.
 
 ## 3) Stability guarantees visibility

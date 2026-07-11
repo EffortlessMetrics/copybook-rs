@@ -8,7 +8,7 @@ use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
     env, fs,
-    path::Path,
+    path::{Path, PathBuf},
     process::Command,
 };
 
@@ -19,7 +19,7 @@ use xtask::perf;
 type Verifier = (&'static str, fn() -> Result<()>);
 
 pub(crate) fn run() -> Result<()> {
-    let checks: [Verifier; 12] = [
+    let checks: [Verifier; 13] = [
         (
             "workspace-version-and-msrv",
             verify_workspace_version_and_msrv,
@@ -46,6 +46,7 @@ pub(crate) fn run() -> Result<()> {
             "stable-contract-inventory",
             verify_stable_contract_inventory,
         ),
+        ("deprecation-audit", verify_deprecation_audit),
         ("quick-start-versioning", verify_quick_start_versioning),
     ];
     run_checks(&checks)
@@ -65,6 +66,15 @@ fn run_checks(checks: &[Verifier]) -> Result<()> {
     Ok(())
 }
 
+fn workspace_root() -> PathBuf {
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    manifest
+        .parent()
+        .and_then(|tools| tools.parent())
+        .unwrap_or(manifest)
+        .to_path_buf()
+}
+
 const STABILITY_SCHEMA_VERSION: &str = "1.0.0";
 const STABILITY_REGISTRY_PATH: &str = "docs/stability/surface-registry.json";
 const STABLE_CONTRACT_SCHEMA_VERSION: &str = "1.0.0";
@@ -77,6 +87,7 @@ const STABLE_CONTRACT_SOURCE_PATHS: [&str; 6] = [
     "schemas/record-format.json",
     "docs/CLI_REFERENCE.md",
 ];
+const DEPRECATION_AUDIT_PATH: &str = "docs/reports/deprecation-audit.json";
 const STABILITY_MANUAL_REVIEW_PLACEHOLDERS: [&str; 2] = ["tbd", "set during manual review"];
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -123,6 +134,40 @@ struct ContractJsonlInventory {
 struct ContractRawCaptureInventory {
     modes: Vec<String>,
     emitted_keys: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct DeprecatedAuditReport {
+    schema_version: String,
+    generated_at: String,
+    generated_by: String,
+    items: Vec<DeprecatedApiItem>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct DeprecatedApiItem {
+    path: String,
+    symbol: String,
+    kind: String,
+    deprecated_since: String,
+    replacement: String,
+    migration_example: String,
+    planned_removal: String,
+    compatibility_impact: String,
+    note: String,
+}
+
+#[derive(Debug)]
+struct DeprecatedAttribute {
+    since: Option<String>,
+}
+
+#[derive(Debug)]
+struct DiscoveredDeprecatedItem {
+    path: String,
+    symbol: String,
+    kind: String,
+    since: Option<String>,
 }
 
 #[derive(Debug)]
@@ -245,6 +290,110 @@ fn verify_stable_contract_inventory() -> Result<()> {
         );
     }
 
+    Ok(())
+}
+
+fn verify_deprecation_audit() -> Result<()> {
+    let audit = load_deprecation_audit_report()?;
+    let discovered = collect_deprecated_api_inventory()?;
+
+    if discovered.is_empty() {
+        bail!("no deprecated API declarations were discovered in repository sources");
+    }
+
+    let mut discovered_by_key = BTreeMap::new();
+    for item in discovered {
+        let key = format!("{}:{}", item.path, item.symbol);
+        discovered_by_key.insert(key, item);
+    }
+
+    let mut report_by_key = BTreeMap::new();
+    for item in &audit.items {
+        let key = format!("{}:{}", item.path, item.symbol);
+        report_by_key.insert(key, item);
+    }
+
+    let mut missing: Vec<String> = discovered_by_key
+        .keys()
+        .filter(|key| !report_by_key.contains_key(*key))
+        .cloned()
+        .collect();
+
+    if !missing.is_empty() {
+        missing.sort_unstable();
+        bail!(
+            "deprecation audit is missing required entries: {} | authoritative-source=crates and docs/reports/deprecation-audit.json",
+            missing.join(", ")
+        );
+    }
+
+    let mut extra: Vec<String> = report_by_key
+        .keys()
+        .filter(|key| !discovered_by_key.contains_key(*key))
+        .cloned()
+        .collect();
+
+    if !extra.is_empty() {
+        extra.sort_unstable();
+        bail!(
+            "deprecation audit has stale entries: {} | authoritative-source=crates",
+            extra.join(", ")
+        );
+    }
+
+    for item in report_by_key.values() {
+        if item.deprecated_since.trim().is_empty()
+            || item.replacement.trim().is_empty()
+            || item.migration_example.trim().is_empty()
+            || item.planned_removal.trim().is_empty()
+            || item.compatibility_impact.trim().is_empty()
+            || item.note.trim().is_empty()
+        {
+            bail!(
+                "deprecation audit entry `{}` missing required evidence fields | authoritative-source=docs/reports/deprecation-audit.json",
+                item.symbol
+            );
+        }
+
+        let key = format!("{}:{}", item.path, item.symbol);
+        let discovered_item = discovered_by_key.get(&key).ok_or_else(|| {
+            anyhow::anyhow!("deprecation audit item `{key}` missing from discovered inventory")
+        })?;
+
+        if discovered_item.kind != item.kind {
+            bail!(
+                "deprecation audit kind mismatch for {}: report={} discovered={}",
+                item.symbol,
+                item.kind,
+                discovered_item.kind
+            );
+        }
+
+        if item.deprecated_since
+            != discovered_item
+                .since
+                .as_ref()
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "deprecation audit item `{}` is missing deprecated since in source",
+                        item.symbol
+                    )
+                })?
+                .as_str()
+        {
+            bail!(
+                "deprecation audit item `{}` stale `deprecated_since`: report={} source={}",
+                item.symbol,
+                item.deprecated_since,
+                discovered_item.since.as_deref().unwrap_or(""),
+            );
+        }
+    }
+
+    println!(
+        "\u{2713} Deprecation audit inventory coverage verified ({} entries)",
+        audit.items.len()
+    );
     Ok(())
 }
 
@@ -877,7 +1026,7 @@ fn resolve_workspace_file(doc: &str) -> Option<std::path::PathBuf> {
         return Some(relative.to_path_buf());
     }
 
-    let mut current = env::current_dir().ok()?;
+    let mut current = workspace_root();
     while let Some(parent) = current.parent() {
         if current.join(relative).exists() {
             return Some(current.join(relative));
@@ -1251,6 +1400,166 @@ fn verify_quick_start_versioning() -> Result<()> {
     Ok(())
 }
 
+fn load_deprecation_audit_report() -> Result<DeprecatedAuditReport> {
+    let path = resolve_workspace_file(DEPRECATION_AUDIT_PATH)
+        .ok_or_else(|| anyhow::anyhow!("loading docs/reports/deprecation-audit.json"))?;
+    let source = fs::read_to_string(&path)
+        .with_context(|| format!("loading deprecation audit {}", path.display()))?;
+
+    let audit: DeprecatedAuditReport =
+        serde_json::from_str(&source).context("parsing docs/reports/deprecation-audit.json")?;
+    if audit.schema_version != STABILITY_SCHEMA_VERSION {
+        bail!(
+            "deprecation audit schema version mismatch: expected {STABILITY_SCHEMA_VERSION}, found {}",
+            audit.schema_version
+        );
+    }
+
+    Ok(audit)
+}
+
+fn collect_deprecated_api_inventory() -> Result<Vec<DiscoveredDeprecatedItem>> {
+    let mut files = Vec::new();
+    let crates_dir = workspace_root().join("crates");
+    collect_rust_source_files(&crates_dir, &mut files)?;
+
+    let mut items = Vec::new();
+    let deprecated_re = Regex::new(r"^\s*#\[deprecated")?;
+    let attr_since_re = Regex::new(r#"since\s*=\s*"([^"]+)""#)?;
+    let attr_kv_re = Regex::new(r#"^\s*[A-Za-z_][A-Za-z0-9_]*\s*="#)?;
+    let fn_re =
+        Regex::new(r"^\s*(?:pub\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)")?;
+    let type_re =
+        Regex::new(r"^\s*(?:pub\s+)?(struct|enum|trait|type|mod)\s+([A-Za-z_][A-Za-z0-9_]*)")?;
+    let workspace_root = workspace_root();
+
+    for path in files {
+        let source =
+            fs::read_to_string(&path).with_context(|| format!("loading {}", path.display()))?;
+        let mut pending: Option<DeprecatedAttribute> = None;
+
+        for line in source.lines() {
+            if deprecated_re.is_match(line) {
+                let since = attr_since_re
+                    .captures(line)
+                    .and_then(|c| c.get(1).map(|m| m.as_str().to_string()));
+                pending = Some(DeprecatedAttribute { since });
+                continue;
+            }
+
+            if pending.is_none() {
+                continue;
+            }
+
+            let trimmed = line.trim();
+            if let Some(current) = pending.as_mut() {
+                if let Some(c) = attr_since_re.captures(line) {
+                    current.since =
+                        Some(c.get(1).map(|m| m.as_str().to_string()).unwrap_or_default());
+                }
+
+                if trimmed.is_empty()
+                    || trimmed.starts_with('#')
+                    || trimmed.starts_with("//")
+                    || trimmed.starts_with("/*")
+                    || attr_kv_re.is_match(trimmed)
+                    || trimmed == ")"
+                    || trimmed == ")]"
+                    || trimmed == "),"
+                    || trimmed.ends_with(")]")
+                    || trimmed == ","
+                {
+                    continue;
+                }
+
+                if let Some(cap) = fn_re.captures(line) {
+                    let pending_item = pending.take();
+                    let symbol = cap.get(1).map_or_else(
+                        || {
+                            anyhow::bail!(
+                                "failed to extract deprecated function symbol from declaration"
+                            );
+                        },
+                        |m| Ok::<_, anyhow::Error>(m.as_str().to_string()),
+                    )?;
+                    let rel_path = path.strip_prefix(&workspace_root).unwrap_or(&path);
+                    items.push(DiscoveredDeprecatedItem {
+                        path: rel_path.to_string_lossy().replace('\\', "/"),
+                        symbol,
+                        kind: "fn".to_string(),
+                        since: pending_item.as_ref().and_then(|meta| meta.since.clone()),
+                    });
+                    continue;
+                } else if let Some(cap) = type_re.captures(line) {
+                    let pending_item = pending.take();
+                    let kind = cap.get(1).map_or_else(
+                        || {
+                            anyhow::bail!(
+                                "failed to extract deprecated item kind from declaration"
+                            );
+                        },
+                        |m| Ok::<_, anyhow::Error>(m.as_str().to_string()),
+                    )?;
+                    let symbol = cap.get(2).map_or_else(
+                        || {
+                            anyhow::bail!(
+                                "failed to extract deprecated item symbol from declaration"
+                            );
+                        },
+                        |m| Ok::<_, anyhow::Error>(m.as_str().to_string()),
+                    )?;
+                    let rel_path = path.strip_prefix(&workspace_root).unwrap_or(&path);
+                    items.push(DiscoveredDeprecatedItem {
+                        path: rel_path.to_string_lossy().replace('\\', "/"),
+                        symbol,
+                        kind,
+                        since: pending_item.as_ref().and_then(|meta| meta.since.clone()),
+                    });
+                    continue;
+                }
+                pending = None;
+            }
+        }
+    }
+
+    Ok(items)
+}
+
+fn collect_rust_source_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+    for entry in fs::read_dir(dir).context(format!("reading directory {}", dir.display()))? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_dir() {
+            if path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name == "target")
+            {
+                continue;
+            }
+            collect_rust_source_files(&path, files)?;
+            continue;
+        }
+
+        if path
+            .extension()
+            .is_none_or(|ext| !ext.eq_ignore_ascii_case("rs"))
+        {
+            continue;
+        }
+
+        let path_str = path.to_string_lossy().to_lowercase();
+        let exclude_dir = path_str.contains("/tests/") || path_str.contains("\\tests\\");
+        if exclude_dir {
+            continue;
+        }
+
+        files.push(path);
+    }
+    Ok(())
+}
+
 fn collect_copybook_facade_modules() -> Result<BTreeSet<String>> {
     let source = fs::read_to_string("crates/copybook/src/lib.rs")
         .context("loading crates/copybook/src/lib.rs")?;
@@ -1481,7 +1790,7 @@ fn snake_case(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, BTreeSet};
     use std::sync::{Mutex, OnceLock};
 
     use super::*;
@@ -2019,5 +2328,92 @@ mod tests {
         };
 
         assert!(verify_stability_registry_against_metadata(&registry, &metadata).is_ok());
+    }
+
+    #[test]
+    fn verify_deprecation_audit_coverage() {
+        let discovered =
+            collect_deprecated_api_inventory().expect("collect deprecated declarations");
+        assert!(
+            discovered.len() >= 9,
+            "expected at least existing deprecated declarations, found {}",
+            discovered.len()
+        );
+        let discovered_keys: BTreeSet<String> = discovered
+            .iter()
+            .map(|item| format!("{}:{}", item.path, item.symbol))
+            .collect();
+
+        assert!(
+            discovered_keys.contains("crates/copybook-arrow/src/legacy.rs:json_type_to_arrow"),
+            "missing json_type_to_arrow"
+        );
+        assert!(
+            discovered_keys.contains("crates/copybook-arrow/src/legacy.rs:json_to_schema"),
+            "missing json_to_schema"
+        );
+        assert!(
+            discovered_keys.contains("crates/copybook-arrow/src/legacy.rs:json_value_to_array"),
+            "missing json_value_to_array"
+        );
+        assert!(
+            discovered_keys.contains("crates/copybook-arrow/src/legacy.rs:json_to_record_batch"),
+            "missing json_to_record_batch"
+        );
+        assert!(
+            discovered_keys.contains("crates/copybook-arrow/src/legacy.rs:LegacyArrowWriter"),
+            "missing LegacyArrowWriter"
+        );
+        assert!(
+            discovered_keys.contains("crates/copybook-arrow/src/legacy.rs:LegacyParquetFileWriter"),
+            "missing LegacyParquetFileWriter"
+        );
+        assert!(
+            discovered_keys.contains("crates/copybook-rdw/src/record.rs:new"),
+            "missing RDWRecord::new"
+        );
+        assert!(
+            discovered_keys.contains("crates/copybook-rdw/src/record.rs:with_reserved"),
+            "missing RDWRecord::with_reserved"
+        );
+        assert!(
+            discovered_keys.contains("crates/copybook-rdw/src/record.rs:recompute_length"),
+            "missing RDWRecord::recompute_length"
+        );
+    }
+
+    #[test]
+    fn verify_deprecation_audit_report_matches_discovered_inventory() {
+        let discovered =
+            collect_deprecated_api_inventory().expect("collect deprecated declarations");
+        let report = load_deprecation_audit_report().expect("load deprecation audit report");
+
+        let discovered_keys: BTreeSet<String> = discovered
+            .iter()
+            .map(|item| format!("{}:{}", item.path, item.symbol))
+            .collect();
+        let report_keys: BTreeSet<String> = report
+            .items
+            .iter()
+            .map(|item| format!("{}:{}", item.path, item.symbol))
+            .collect();
+
+        assert_eq!(
+            discovered_keys, report_keys,
+            "deprecation report keys do not match discovered deprecated declarations"
+        );
+
+        assert!(
+            !report.items.is_empty(),
+            "deprecation audit report is empty"
+        );
+        for item in report.items {
+            assert!(!item.deprecated_since.trim().is_empty());
+            assert!(!item.replacement.trim().is_empty());
+            assert!(!item.migration_example.trim().is_empty());
+            assert!(!item.planned_removal.trim().is_empty());
+            assert!(!item.compatibility_impact.trim().is_empty());
+            assert!(!item.note.trim().is_empty());
+        }
     }
 }

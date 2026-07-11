@@ -133,23 +133,20 @@ fn ordered_publish_plan(metadata: Metadata) -> Result<Vec<String>> {
             .iter()
             .filter(|dep| matches!(dep.kind.as_deref(), None | Some("normal")))
         {
-            let dep_id = if let Some(dep_id) = dependency.package.as_ref() {
-                dep_id.clone()
-            } else {
-                let Some(dep_name) = dependency.name.as_ref() else {
-                    continue;
-                };
-                let Some(dep_id) = name_to_id.get(dep_name) else {
-                    continue;
-                };
-                dep_id.clone()
+            let Some(dep_id) = dependency.package.as_ref().or_else(|| {
+                dependency
+                    .name
+                    .as_ref()
+                    .and_then(|dep_name| name_to_id.get(dep_name))
+            }) else {
+                continue;
             };
 
-            if !publishable_ids.contains(&dep_id) {
+            if !publishable_ids.contains(dep_id) {
                 continue;
             }
 
-            let Some(dep_name) = id_to_name.get(&dep_id) else {
+            let Some(dep_name) = id_to_name.get(dep_id) else {
                 continue;
             };
             let edge = (dep_name.clone(), package.name.clone());
@@ -213,17 +210,20 @@ fn validate_publish_plan(plan: &[String]) -> Result<()> {
         bail!("publish plan must include copybook-rs");
     }
 
-    if let (Some(&core_pos), Some(&facade_pos)) =
-        (cursor.get("copybook-core"), cursor.get("copybook"))
-        && core_pos > facade_pos
-    {
-        bail!("copybook-core must appear before copybook");
+    if let Some(&core_pos) = cursor.get("copybook-core") {
+        if let Some(&facade_pos) = cursor.get("copybook") {
+            if core_pos > facade_pos {
+                bail!("copybook-core must appear before copybook");
+            }
+        }
     }
 
-    if let (Some(&facade_pos), Some(&rs_pos)) = (cursor.get("copybook"), cursor.get("copybook-rs"))
-        && facade_pos > rs_pos
-    {
-        bail!("copybook must appear before copybook-rs");
+    if let Some(&facade_pos) = cursor.get("copybook") {
+        if let Some(&rs_pos) = cursor.get("copybook-rs") {
+            if facade_pos > rs_pos {
+                bail!("copybook must appear before copybook-rs");
+            }
+        }
     }
 
     let mut unique = HashSet::new();

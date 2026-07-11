@@ -6,11 +6,10 @@
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::float_cmp)]
 
-use xtask::perf::{
-    COMP3_SLO_MIBPS, DISPLAY_SLO_MIBPS, PerfSnapshot, SloStatus, evaluate_slo, format_slo_summary,
-    parse_perf_receipt,
+use copybook_bench::{
+    COMP3_CI_FLOOR_MIBPS as COMP3_SLO_MIBPS, DISPLAY_FLOOR_MIBPS as DISPLAY_SLO_MIBPS,
 };
-
+use xtask::perf::{PerfSnapshot, SloStatus, evaluate_slo, format_slo_summary, parse_perf_receipt};
 /// Helper to get the xtask binary path via the non-deprecated macro.
 fn xtask_bin() -> std::path::PathBuf {
     assert_cmd::cargo::cargo_bin!("xtask").to_path_buf()

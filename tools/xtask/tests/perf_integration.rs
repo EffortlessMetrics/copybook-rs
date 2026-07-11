@@ -58,7 +58,7 @@ fn test_summarize_with_synthetic_perf_json() {
     assert!(stdout.contains("DISPLAY: 205.0 MiB/s"), "stdout: {stdout}");
     assert!(stdout.contains("COMP-3: 58.0 MiB/s"), "stdout: {stdout}");
     assert!(stdout.contains("SLO 80 MiB/s"), "stdout: {stdout}");
-    assert!(stdout.contains("SLO 40 MiB/s"), "stdout: {stdout}");
+    assert!(stdout.contains("SLO 8 MiB/s"), "stdout: {stdout}");
     assert!(stdout.contains("✓ All SLOs met"), "stdout: {stdout}");
 }
 

@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **core**: Refactor `PicToken` methods for clarity and consistency
 - **codec**: Improve JSON writer functionality
+- **docs**: Add explicit pre-v1 migration/retention decision notes for deprecated Rust, CLI/schema/output surfaces in `docs/reports/deprecation-audit.json` and `docs/reports/surface-deprecation-audit.json`
 
 ### Fixed
 

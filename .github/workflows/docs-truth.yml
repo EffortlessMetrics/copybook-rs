@@ -28,6 +28,15 @@ jobs:
             docs:
               - 'README.md'
               - 'docs/**'
+              - 'tools/xtask/**'
+              - 'AGENTS.md'
+              - 'crates/copybook/**'
+              - 'crates/copybook-rs/**'
+              - 'crates/copybook-codec/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'scripts/bench/**'
+              - '.github/workflows/**'
               - '**/*.md'
 
   truth:
@@ -39,8 +48,14 @@ jobs:
       - uses: actions/checkout@v7
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
       - name: Install ripgrep
         run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - name: Run tests (Generate junit.xml)
+        run: cargo nextest run --workspace --exclude copybook-bench --exclude copybook-bdd --profile ci
+      - name: Sync docs test status
+        run: cargo run -p xtask -- docs sync-tests
       - name: Forbid unlinked perf marketing
         run: |
           set -euo pipefail

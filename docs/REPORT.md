@@ -55,10 +55,8 @@ responsibilities:
 ### Test Coverage
 
 <!-- TEST_STATUS:BEGIN -->
-
-- **Tests**: `cargo test --workspace` reports 10,250+ tests passing (15
-  ignored) on the release gate
-
+**conformance:** 9881/9881 â€¢ **roundtrip:** N/A â€¢ **negative:** N/A â€¢ **skipped:** 0 â€¢ **leaks:** 0  
+_Source: CI receipts (nextest/junit). This block is updated automatically._
 <!-- TEST_STATUS:END -->
 
 - **Bench harness**: `copybook-bench` suites run 56/56 tests successfully,

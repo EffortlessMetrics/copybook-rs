@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-07-11T00:00:00Z",
+  "generated_by": "docs/contracts-deprecation-audit",
+  "entries": [
+    {
+      "surface": "cli",
+      "state": "none",
+      "path": "docs/CLI_REFERENCE.md",
+      "symbol": "stable-cli-contract",
+      "kind": "cli-contract",
+      "note": "No stable CLI commands, options, defaults, or environment-variable behaviors are currently marked deprecated. Existing legacy compatibility behavior is explicitly documented in the CLI reference and is not planned for removal in the pre-v1 freeze."
+    },
+    {
+      "surface": "schema",
+      "state": "none",
+      "path": "schemas/record-format.json",
+      "symbol": "stable-jsonl-schema",
+      "kind": "schema",
+      "note": "No schema-key removals are currently scheduled before the v1 freeze."
+    },
+    {
+      "surface": "error",
+      "state": "none",
+      "path": "crates/copybook-error/src/lib.rs",
+      "symbol": "stable-error-codes",
+      "kind": "error-codes",
+      "note": "No new stable error-code retirements are planned before v1; migration notes are only required for breaking renames, which are not currently proposed."
+    },
+    {
+      "surface": "config",
+      "state": "none",
+      "path": "docs/FEATURE_FLAGS.md",
+      "symbol": "stable-feature-flags",
+      "kind": "feature-flags",
+      "note": "No config flags are currently deprecated for stable users; staged flag deprecations must be added as explicit entries in this audit before implementation."
+    },
+    {
+      "surface": "output",
+      "state": "deprecated",
+      "path": "crates/copybook-codec/src/lib_api/envelope.rs",
+      "symbol": "__schema_id",
+      "kind": "json-key",
+      "deprecated_since": "0.5.0",
+      "replacement": "schema_fingerprint",
+      "migration_example": "Prefer the stable `schema_fingerprint` JSON key when reading decoded records from CLI or library output.",
+      "planned_removal": "No pre-v1 removal is planned; retained until the v1 migration decision approved by #543.",
+      "compatibility_impact": "Existing JSON consumers that read `__schema_id` must fall back to `schema_fingerprint` for forward compatibility.",
+      "note": "This key is retained for pre-v1 compatibility while the migration toward a single schema identifier key is completed."
+    },
+    {
+      "surface": "output",
+      "state": "deprecated",
+      "path": "crates/copybook-codec/src/lib_api/envelope.rs",
+      "symbol": "__raw_b64",
+      "kind": "json-key",
+      "deprecated_since": "0.5.0",
+      "replacement": "raw_b64",
+      "migration_example": "Use `raw_b64` as the primary raw payload field and accept `__raw_b64` only as compatibility input.",
+      "planned_removal": "No pre-v1 removal is planned; retained until the v1 migration decision approved by #543.",
+      "compatibility_impact": "Legacy consumers relying only on `__raw_b64` must add `raw_b64` handling before v1 migration decisions.",
+      "note": "Dual emission of both keys is intentional for migration; output docs now call `raw_b64` canonical."
+    }
+  ]
+}

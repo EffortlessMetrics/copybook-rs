@@ -19,7 +19,7 @@ use xtask::perf;
 type Verifier = (&'static str, fn() -> Result<()>);
 
 pub(crate) fn run() -> Result<()> {
-    let checks: [Verifier; 13] = [
+    let checks: [Verifier; 14] = [
         (
             "workspace-version-and-msrv",
             verify_workspace_version_and_msrv,
@@ -47,6 +47,10 @@ pub(crate) fn run() -> Result<()> {
             verify_stable_contract_inventory,
         ),
         ("deprecation-audit", verify_deprecation_audit),
+        (
+            "surface-deprecation-audit",
+            verify_surface_deprecation_audit,
+        ),
         ("quick-start-versioning", verify_quick_start_versioning),
     ];
     run_checks(&checks)
@@ -88,6 +92,9 @@ const STABLE_CONTRACT_SOURCE_PATHS: [&str; 6] = [
     "docs/CLI_REFERENCE.md",
 ];
 const DEPRECATION_AUDIT_PATH: &str = "docs/reports/deprecation-audit.json";
+const SURFACE_DEPRECATION_AUDIT_PATH: &str = "docs/reports/surface-deprecation-audit.json";
+const SURFACE_DEPRECATION_SURFACES: [&str; 5] = ["cli", "schema", "error", "config", "output"];
+const SURFACE_DEPRECATION_STATES: [&str; 2] = ["deprecated", "none"];
 const STABILITY_MANUAL_REVIEW_PLACEHOLDERS: [&str; 2] = ["tbd", "set during manual review"];
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -154,6 +161,29 @@ struct DeprecatedApiItem {
     migration_example: String,
     planned_removal: String,
     compatibility_impact: String,
+    note: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SurfaceDeprecationAuditReport {
+    schema_version: String,
+    generated_at: String,
+    generated_by: String,
+    entries: Vec<SurfaceDeprecationAuditEntry>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SurfaceDeprecationAuditEntry {
+    surface: String,
+    state: String,
+    path: String,
+    symbol: String,
+    kind: String,
+    deprecated_since: Option<String>,
+    replacement: Option<String>,
+    migration_example: Option<String>,
+    planned_removal: Option<String>,
+    compatibility_impact: Option<String>,
     note: String,
 }
 
@@ -394,6 +424,153 @@ fn verify_deprecation_audit() -> Result<()> {
         "\u{2713} Deprecation audit inventory coverage verified ({} entries)",
         audit.items.len()
     );
+    Ok(())
+}
+
+fn verify_surface_deprecation_audit() -> Result<()> {
+    let audit = load_surface_deprecation_audit_report()?;
+
+    if audit.entries.is_empty() {
+        bail!("surface deprecation audit is empty");
+    }
+
+    let mut by_surface: BTreeMap<&str, Vec<&SurfaceDeprecationAuditEntry>> = BTreeMap::new();
+    for entry in &audit.entries {
+        validate_surface_deprecation_audit_entry(entry)?;
+
+        by_surface
+            .entry(entry.surface.as_str())
+            .or_default()
+            .push(entry);
+    }
+
+    validate_surface_deprecation_audit_output(&by_surface)?;
+
+    println!(
+        "\u{2713} Surface deprecation audit coverage verified ({} entries)",
+        audit.entries.len()
+    );
+    Ok(())
+}
+
+fn validate_surface_deprecation_audit_entry(entry: &SurfaceDeprecationAuditEntry) -> Result<()> {
+    if !SURFACE_DEPRECATION_SURFACES.contains(&entry.surface.as_str()) {
+        bail!(
+            "surface deprecation audit contains unknown surface `{}` in entry `{}`",
+            entry.surface,
+            entry.symbol
+        );
+    }
+    if !SURFACE_DEPRECATION_STATES.contains(&entry.state.as_str()) {
+        bail!(
+            "surface deprecation audit has invalid state `{}` for `{}`",
+            entry.state,
+            entry.symbol
+        );
+    }
+
+    let resolved_entry_path = resolve_workspace_file(&entry.path).ok_or_else(|| {
+        anyhow::anyhow!(
+            "surface deprecation audit entry `{}` references unresolved path `{}`",
+            entry.symbol,
+            entry.path
+        )
+    })?;
+    if !resolved_entry_path.exists() {
+        bail!(
+            "surface deprecation audit entry `{}` references missing path `{}`",
+            entry.symbol,
+            entry.path
+        );
+    }
+
+    if entry.symbol.trim().is_empty()
+        || entry.kind.trim().is_empty()
+        || entry.note.trim().is_empty()
+    {
+        bail!("surface deprecation audit entry has empty `symbol`, `kind`, or `note`");
+    }
+
+    if entry.state == "deprecated" {
+        validate_surface_deprecated_entry(entry)?;
+    } else if entry.deprecated_since.is_some()
+        || entry.replacement.is_some()
+        || entry.migration_example.is_some()
+        || entry.planned_removal.is_some()
+        || entry.compatibility_impact.is_some()
+    {
+        bail!(
+            "surface deprecation audit entry `{}` has `state: none` but migration fields",
+            entry.symbol
+        );
+    }
+
+    Ok(())
+}
+
+fn validate_surface_deprecated_entry(entry: &SurfaceDeprecationAuditEntry) -> Result<()> {
+    let required = [
+        (&entry.deprecated_since, "deprecated_since"),
+        (&entry.replacement, "replacement"),
+        (&entry.migration_example, "migration_example"),
+        (&entry.planned_removal, "planned_removal"),
+        (&entry.compatibility_impact, "compatibility_impact"),
+    ];
+    for (value, field_name) in required {
+        let Some(value) = value.as_ref().map(|value| value.trim()) else {
+            bail!(
+                "surface deprecation audit deprecated entry `{}` missing required field `{field_name}`",
+                entry.symbol
+            );
+        };
+        if value.is_empty() {
+            bail!(
+                "surface deprecation audit deprecated entry `{}` has empty required field `{field_name}`",
+                entry.symbol
+            );
+        }
+    }
+
+    let known_output_symbols = ["__schema_id", "__raw_b64"];
+    if entry.surface == "output" && !known_output_symbols.contains(&entry.symbol.as_str()) {
+        bail!(
+            "surface deprecation audit has unexpected deprecated output symbol `{}`",
+            entry.symbol
+        );
+    }
+
+    Ok(())
+}
+
+fn validate_surface_deprecation_audit_output(
+    by_surface: &BTreeMap<&str, Vec<&SurfaceDeprecationAuditEntry>>,
+) -> Result<()> {
+    for surface in SURFACE_DEPRECATION_SURFACES {
+        if !by_surface.contains_key(surface) {
+            bail!(
+                "surface deprecation audit missing required surface `{surface}` in {SURFACE_DEPRECATION_AUDIT_PATH}"
+            );
+        }
+    }
+
+    let output_entries: &[&SurfaceDeprecationAuditEntry] = by_surface
+        .get("output")
+        .map_or(&[], |entries| entries.as_slice());
+    let has_schema_id = output_entries
+        .iter()
+        .any(|entry| entry.symbol == "__schema_id" && entry.state == "deprecated");
+    let has_raw_b64 = output_entries
+        .iter()
+        .any(|entry| entry.symbol == "__raw_b64" && entry.state == "deprecated");
+    if !has_schema_id || !has_raw_b64 {
+        bail!(
+            "surface deprecation audit output surface must include deprecated `__schema_id` and `__raw_b64`; found {:?}",
+            output_entries
+                .iter()
+                .map(|entry| &entry.symbol)
+                .collect::<Vec<_>>()
+        );
+    }
     Ok(())
 }
 
@@ -1418,6 +1595,24 @@ fn load_deprecation_audit_report() -> Result<DeprecatedAuditReport> {
     Ok(audit)
 }
 
+fn load_surface_deprecation_audit_report() -> Result<SurfaceDeprecationAuditReport> {
+    let path = resolve_workspace_file(SURFACE_DEPRECATION_AUDIT_PATH)
+        .ok_or_else(|| anyhow::anyhow!("loading docs/reports/surface-deprecation-audit.json"))?;
+    let source = fs::read_to_string(&path)
+        .with_context(|| format!("loading surface deprecation audit {}", path.display()))?;
+
+    let audit: SurfaceDeprecationAuditReport = serde_json::from_str(&source)
+        .context("parsing docs/reports/surface-deprecation-audit.json")?;
+    if audit.schema_version != STABILITY_SCHEMA_VERSION {
+        bail!(
+            "surface deprecation audit schema version mismatch: expected {STABILITY_SCHEMA_VERSION}, found {}",
+            audit.schema_version
+        );
+    }
+
+    Ok(audit)
+}
+
 fn collect_deprecated_api_inventory() -> Result<Vec<DiscoveredDeprecatedItem>> {
     let mut files = Vec::new();
     let crates_dir = workspace_root().join("crates");
@@ -2415,5 +2610,64 @@ mod tests {
             assert!(!item.compatibility_impact.trim().is_empty());
             assert!(!item.note.trim().is_empty());
         }
+    }
+
+    #[test]
+    fn verify_surface_deprecation_audit_required_surfaces_are_present() {
+        let report =
+            load_surface_deprecation_audit_report().expect("load surface deprecation audit report");
+        assert!(
+            !report.entries.is_empty(),
+            "surface deprecation audit report is empty"
+        );
+
+        let mut seen = BTreeSet::new();
+        for entry in report.entries {
+            assert!(
+                SURFACE_DEPRECATION_SURFACES.contains(&entry.surface.as_str()),
+                "unexpected surface `{}` in surface deprecation audit",
+                entry.surface
+            );
+            seen.insert(entry.surface.clone());
+            assert!(
+                SURFACE_DEPRECATION_STATES.contains(&entry.state.as_str()),
+                "unexpected state `{}` for surface `{}`",
+                entry.state,
+                entry.surface
+            );
+        }
+
+        for surface in SURFACE_DEPRECATION_SURFACES {
+            assert!(
+                seen.contains(surface),
+                "missing required surface `{surface}` from surface deprecation audit"
+            );
+        }
+    }
+
+    #[test]
+    fn verify_surface_deprecation_audit_output_keys_are_included() {
+        let report =
+            load_surface_deprecation_audit_report().expect("load surface deprecation audit report");
+        let output_deprecated_keys: BTreeSet<String> = report
+            .entries
+            .into_iter()
+            .filter(|entry| entry.surface == "output" && entry.state == "deprecated")
+            .map(|entry| entry.symbol)
+            .collect();
+
+        assert!(
+            output_deprecated_keys.contains("__schema_id"),
+            "surface deprecation audit missing deprecated output key `__schema_id`"
+        );
+        assert!(
+            output_deprecated_keys.contains("__raw_b64"),
+            "surface deprecation audit missing deprecated output key `__raw_b64`"
+        );
+    }
+
+    #[test]
+    fn verify_surface_deprecation_audit_check_passes() {
+        verify_surface_deprecation_audit().expect("surface deprecation audit check failed");
     }
 }

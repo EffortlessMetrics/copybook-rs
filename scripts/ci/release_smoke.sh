@@ -205,7 +205,7 @@ echo "=== Release smoke: version ${VERSION} ==="
 SMOKE_MODE="${RELEASE_SMOKE_DEPS:-registry}"
 
 if [ "${SMOKE_MODE}" != "local" ] && [ "${SMOKE_MODE}" != "registry" ]; then
-  echo "RELEASE_SMOKE_DEPS must be either 'local' (default) or 'registry'." >&2
+  echo "RELEASE_SMOKE_DEPS must be either 'registry' (default) or 'local'." >&2
   exit 1
 fi
 

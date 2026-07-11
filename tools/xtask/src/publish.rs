@@ -210,20 +210,18 @@ fn validate_publish_plan(plan: &[String]) -> Result<()> {
         bail!("publish plan must include copybook-rs");
     }
 
-    if let Some(&core_pos) = cursor.get("copybook-core") {
-        if let Some(&facade_pos) = cursor.get("copybook") {
-            if core_pos > facade_pos {
-                bail!("copybook-core must appear before copybook");
-            }
+    match (cursor.get("copybook-core"), cursor.get("copybook")) {
+        (Some(&core_pos), Some(&facade_pos)) if core_pos > facade_pos => {
+            bail!("copybook-core must appear before copybook");
         }
+        _ => {}
     }
 
-    if let Some(&facade_pos) = cursor.get("copybook") {
-        if let Some(&rs_pos) = cursor.get("copybook-rs") {
-            if facade_pos > rs_pos {
-                bail!("copybook must appear before copybook-rs");
-            }
+    match (cursor.get("copybook"), cursor.get("copybook-rs")) {
+        (Some(&facade_pos), Some(&rs_pos)) if facade_pos > rs_pos => {
+            bail!("copybook must appear before copybook-rs");
         }
+        _ => {}
     }
 
     let mut unique = HashSet::new();

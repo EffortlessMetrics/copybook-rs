@@ -14,6 +14,7 @@ Automation and utility scripts for copybook-rs development and CI/CD.
 - **guard-hotpaths.sh** - Rust-backed hot-path allocation guard
 
 ## Development Automation
+- **setup-dev.sh** - One-shot bootstrap that installs the cargo subcommands the justfile expects (cargo-nextest, cargo-deny, cargo-watch, cargo-llvm-cov, cargo-mutants); also runnable as `just setup`
 - **copybook-scripts adapt-review-agents** - Native Rust agent configuration adaptation utility
 - **copybook-scripts final-cleanup-agents** - Native Rust agent cleanup and finalization
 - **copybook-scripts fix-agent-issues** - Native Rust agent configuration repair tool

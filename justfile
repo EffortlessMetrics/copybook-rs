@@ -8,6 +8,10 @@ set dotenv-load := true
 default:
     @just --list
 
+# One-shot dev environment bootstrap (installs nextest, cargo-deny, etc.)
+setup:
+    bash scripts/setup-dev.sh
+
 # Build all workspace crates
 build:
     cargo build --workspace

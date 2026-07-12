@@ -5,11 +5,12 @@
 //! Covers: `iter_records`, `iter_records_from_file`, `decode_file_to_jsonl`,
 //! `encode_jsonl_to_file`, `RecordIterator`, and `RunSummary`.
 
+use base64::Engine;
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, RunSummary,
-    decode_file_to_jsonl, encode_jsonl_to_file, iter_records,
+    decode_file_to_jsonl, encode_jsonl_to_file, iter_records, Codepage, DecodeOptions,
+    EncodeOptions, JsonNumberMode, RawMode, RecordFormat, RunSummary,
 };
-use copybook_core::{ErrorCode, parse_copybook, project_schema};
+use copybook_core::{parse_copybook, project_schema, ErrorCode};
 use std::io::Cursor;
 
 // ---------------------------------------------------------------------------
@@ -84,6 +85,19 @@ fn build_rdw_records(payloads: &[&str]) -> Vec<u8> {
         data.extend_from_slice(bytes);
     }
     data
+}
+
+fn parse_raw_b64_field(raw_json: &serde_json::Value) -> Vec<u8> {
+    let raw_field = raw_json
+        .get("raw_b64")
+        .or_else(|| raw_json.get("__raw_b64"))
+        .expect("raw output should include raw_b64");
+    let raw_field = raw_field
+        .as_str()
+        .expect("raw_b64 field should be a base64 string");
+    base64::engine::general_purpose::STANDARD
+        .decode(raw_field)
+        .expect("raw_b64 payload should decode")
 }
 
 // ===========================================================================
@@ -830,6 +844,164 @@ fn encode_rdw_threaded_deterministic() {
             &baseline, output,
             "RDW encode output differs for {threads} threads",
         );
+    }
+}
+
+#[test]
+fn raw_fidelity_threaded_fixed_and_rdw() {
+    let fixed_schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
+    let fixed_data = b"HELLOWORLD";
+    let fixed_raw_expectations = [b"HELLO".to_vec(), b"WORLD".to_vec()];
+
+    let rdw_schema = parse_copybook(RDW_SCHEMA).unwrap();
+    let rdw_data = build_rdw_records(&["ABCDE", "FGHIJ"]);
+    let rdw_raw_expectations: Vec<Vec<u8>> = [
+        vec![0x00, 0x05, 0x00, 0x00, b'A', b'B', b'C', b'D', b'E'],
+        vec![0x00, 0x05, 0x00, 0x00, b'F', b'G', b'H', b'I', b'J'],
+    ]
+    .into_iter()
+    .map(|chunk| chunk.to_vec())
+    .collect();
+
+    let mut fixed_baseline: Option<(Vec<u8>, Vec<Vec<u8>>, u64, u64)> = None;
+    for threads in [1_usize, 2, 4] {
+        let opts = ascii_decode_opts()
+            .with_emit_raw(RawMode::Record)
+            .with_threads(threads);
+        let mut output = Vec::new();
+        let summary =
+            decode_file_to_jsonl(&fixed_schema, Cursor::new(&fixed_data), &mut output, &opts)
+                .unwrap();
+        assert_eq!(summary.records_processed, 2);
+        assert_eq!(summary.bytes_processed, 10);
+
+        let lines: Vec<_> = String::from_utf8(output.clone())
+            .unwrap()
+            .lines()
+            .map(|line| {
+                serde_json::from_str::<serde_json::Value>(line).expect("json line should parse")
+            })
+            .collect();
+        assert_eq!(lines.len(), 2);
+
+        let decoded_raws: Vec<Vec<u8>> = lines.iter().map(parse_raw_b64_field).collect();
+        let expected = fixed_raw_expectations
+            .iter()
+            .map(|value| value.to_vec())
+            .collect::<Vec<_>>();
+        assert_eq!(decoded_raws, expected);
+
+        match &fixed_baseline {
+            Some((baseline_output, baseline_raws, baseline_records, baseline_bytes)) => {
+                assert_eq!(output, *baseline_output);
+                assert_eq!(decoded_raws, *baseline_raws);
+                assert_eq!(summary.records_processed, *baseline_records);
+                assert_eq!(summary.bytes_processed, *baseline_bytes);
+            }
+            None => {
+                fixed_baseline = Some((
+                    output,
+                    decoded_raws,
+                    summary.records_processed,
+                    summary.bytes_processed,
+                ));
+            }
+        }
+    }
+
+    let mut rdw_baseline: Option<(Vec<u8>, Vec<Vec<u8>>, u64, u64, u64)> = None;
+    for threads in [1_usize, 2, 4] {
+        let opts = ascii_decode_opts()
+            .with_format(RecordFormat::RDW)
+            .with_emit_raw(RawMode::RecordRDW)
+            .with_threads(threads);
+        let mut output = Vec::new();
+        let summary =
+            decode_file_to_jsonl(&rdw_schema, Cursor::new(&rdw_data), &mut output, &opts).unwrap();
+        assert_eq!(summary.records_processed, 2);
+        assert_eq!(summary.bytes_processed, 10);
+
+        let lines: Vec<_> = String::from_utf8(output.clone())
+            .unwrap()
+            .lines()
+            .map(|line| {
+                serde_json::from_str::<serde_json::Value>(line).expect("json line should parse")
+            })
+            .collect();
+        assert_eq!(lines.len(), 2);
+
+        let decoded_raws: Vec<Vec<u8>> = lines.iter().map(parse_raw_b64_field).collect();
+        assert_eq!(decoded_raws, rdw_raw_expectations);
+
+        match &rdw_baseline {
+            Some((
+                baseline_output,
+                baseline_raws,
+                baseline_records,
+                baseline_bytes,
+                baseline_warnings,
+            )) => {
+                assert_eq!(output, *baseline_output);
+                assert_eq!(decoded_raws, *baseline_raws);
+                assert_eq!(summary.records_processed, *baseline_records);
+                assert_eq!(summary.bytes_processed, *baseline_bytes);
+                assert_eq!(summary.warnings, *baseline_warnings);
+            }
+            None => {
+                rdw_baseline = Some((
+                    output,
+                    decoded_raws,
+                    summary.records_processed,
+                    summary.bytes_processed,
+                    summary.warnings,
+                ));
+            }
+        }
+    }
+}
+
+#[test]
+fn decode_rdw_reserved_warning_threaded_raw_mode() {
+    let schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
+    let data = b"\x00\x05\x12\x34HELLO";
+    let mut warned_baseline: Option<u64> = None;
+
+    for threads in [1_usize, 2, 4] {
+        let opts = ascii_decode_opts()
+            .with_format(RecordFormat::RDW)
+            .with_emit_raw(RawMode::RecordRDW)
+            .with_threads(threads)
+            .with_strict_mode(false);
+        let mut output = Vec::new();
+        let summary = decode_file_to_jsonl(&schema, Cursor::new(data), &mut output, &opts).unwrap();
+        assert_eq!(summary.records_processed, 1);
+        assert_eq!(summary.records_with_errors, 0);
+        assert!(
+            summary.has_warnings(),
+            "non-zero reserved bytes should warn"
+        );
+        let output_text = String::from_utf8(output.clone()).unwrap();
+        assert!(
+            output_text.contains("HELLO"),
+            "decode output should include decoded record payload"
+        );
+
+        let decoded_raws: Vec<_> = output_text
+            .lines()
+            .map(|line| {
+                let value: serde_json::Value = serde_json::from_str(line).unwrap();
+                parse_raw_b64_field(&value)
+            })
+            .collect();
+        assert_eq!(
+            decoded_raws,
+            vec![vec![0x00, 0x05, 0x12, 0x34, b'H', b'E', b'L', b'L', b'O']]
+        );
+
+        match warned_baseline {
+            Some(warnings) => assert_eq!(summary.warnings, warnings),
+            None => warned_baseline = Some(summary.warnings),
+        }
     }
 }
 

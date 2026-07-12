@@ -60,12 +60,28 @@ const MULTI_FIELD_SCHEMA: &str = r"
        05 AMOUNT     PIC 9(5).
 ";
 
+/// Small RDW schema for record-framed deterministic checks.
+const RDW_SCHEMA: &str = "01 FIELD PIC X(5).";
+
 fn build_multi_field_data(n: usize) -> Vec<u8> {
     let mut data = Vec::with_capacity(n * 20);
     for i in 0..n {
         data.extend_from_slice(format!("{:05}", i % 100_000).as_bytes());
         data.extend_from_slice(format!("{:<10}", format!("NAME{i}")).as_bytes());
         data.extend_from_slice(format!("{:05}", (i * 100) % 100_000).as_bytes());
+    }
+    data
+}
+
+/// Build one or more RDW records from fixed-length payload values.
+fn build_rdw_records(payloads: &[&str]) -> Vec<u8> {
+    let mut data = Vec::new();
+    for value in payloads {
+        let bytes = value.as_bytes();
+        let rdw_len = bytes.len() as u16;
+        data.extend_from_slice(&rdw_len.to_be_bytes());
+        data.extend_from_slice(&[0x00, 0x00]);
+        data.extend_from_slice(bytes);
     }
     data
 }
@@ -354,6 +370,44 @@ fn iter_records_error_recovery() {
     assert_eq!(err_count, 0);
 }
 
+#[test]
+fn iter_records_state_recovery_single_thread() {
+    let schema = parse_copybook(SIMPLE_SCHEMA).unwrap();
+    let data = [
+        b"00001".as_slice(),
+        b"AB12C".as_slice(),
+        b"00003".as_slice(),
+        b"00004".as_slice(),
+    ]
+    .concat();
+    let opts = ascii_decode_opts();
+    let mut iter = iter_records(Cursor::new(data), &schema, &opts).unwrap();
+
+    let first = iter.next().unwrap().unwrap();
+    assert_eq!(first["TEST-FIELD"], "00001");
+    assert_eq!(iter.current_record_index(), 1);
+    assert!(!iter.is_eof());
+
+    let second = iter.next().unwrap();
+    assert!(second.is_err());
+    assert_eq!(iter.current_record_index(), 2);
+    assert!(!iter.is_eof());
+
+    let third = iter.next().unwrap().unwrap();
+    assert_eq!(third["TEST-FIELD"], "00003");
+    assert_eq!(iter.current_record_index(), 3);
+    assert!(!iter.is_eof());
+
+    let fourth = iter.next().unwrap().unwrap();
+    assert_eq!(fourth["TEST-FIELD"], "00004");
+    assert_eq!(iter.current_record_index(), 4);
+    assert!(!iter.is_eof());
+
+    assert!(iter.next().is_none());
+    assert!(iter.is_eof());
+    assert_eq!(iter.current_record_index(), 4);
+}
+
 // ===========================================================================
 // 7. Partial record at end of file
 // ===========================================================================
@@ -364,12 +418,19 @@ fn iter_records_partial_record_at_eof() {
     // 2 full records (10 bytes) + 3 extra bytes = partial
     let data = b"0000100002XYZ";
     let opts = ascii_decode_opts();
-    let records: Vec<_> = iter_records(Cursor::new(data.as_slice()), &schema, &opts)
-        .unwrap()
-        .filter_map(Result::ok)
-        .collect();
-    // Partial trailing record should be silently dropped
-    assert_eq!(records.len(), 2);
+    let mut iter = iter_records(Cursor::new(data.as_slice()), &schema, &opts).unwrap();
+    let first = iter.next().unwrap().unwrap();
+    assert_eq!(first["TEST-FIELD"], "00001");
+    assert_eq!(iter.current_record_index(), 1);
+    assert!(!iter.is_eof());
+
+    let second = iter.next().unwrap().unwrap();
+    assert_eq!(second["TEST-FIELD"], "00002");
+    assert_eq!(iter.current_record_index(), 2);
+
+    assert!(iter.next().is_none());
+    assert!(iter.is_eof());
+    assert_eq!(iter.current_record_index(), 2);
 }
 
 #[test]
@@ -378,15 +439,67 @@ fn decode_file_partial_record_at_eof() {
     let data = b"00001AB"; // 1 full record + 2 trailing bytes
     let opts = ascii_decode_opts();
     let mut output = Vec::new();
-    // Partial trailing record may produce an error or be handled gracefully
     let result = decode_file_to_jsonl(&schema, Cursor::new(data.as_slice()), &mut output, &opts);
-    // Verify no panic; at least 1 record decoded before the partial
+    let text = String::from_utf8(output).unwrap();
+    assert_eq!(text.lines().count(), 1);
+
     match result {
-        Ok(summary) => assert!(summary.records_processed >= 1),
-        Err(_) => {
-            // Error on partial record is acceptable; verify first record decoded
-            let _text = String::from_utf8(output).unwrap();
-            // Partial record error is acceptable
+        Ok(summary) => {
+            assert_eq!(summary.records_processed, 1);
+            assert_eq!(summary.records_with_errors, 0);
+            assert_eq!(summary.bytes_processed, 5);
+        }
+        Err(error) => {
+            assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+            assert!(!error.message.is_empty());
+        }
+    }
+}
+
+#[test]
+fn decode_fixed_threaded_recovery_summary() {
+    let schema = parse_copybook(SIMPLE_SCHEMA).unwrap();
+    let data = [
+        b"00001".as_slice(),
+        b"AB12C".as_slice(),
+        b"00003".as_slice(),
+        b"00004".as_slice(),
+    ]
+    .concat();
+
+    let mut baseline: Option<(Vec<u8>, u64, u64, u64)> = None;
+
+    for threads in [1_usize, 2, 4] {
+        let opts = ascii_decode_opts().with_threads(threads);
+        let mut output = Vec::new();
+        let summary =
+            copybook_codec::decode_file_to_jsonl(&schema, Cursor::new(&data), &mut output, &opts)
+                .unwrap();
+
+        assert_eq!(summary.records_processed, 3);
+        assert_eq!(summary.records_with_errors, 1);
+        assert_eq!(summary.total_records(), 4);
+        assert_eq!(summary.bytes_processed, 20);
+        assert_eq!(
+            String::from_utf8(output.clone()).unwrap().lines().count(),
+            3
+        );
+
+        match &baseline {
+            Some((baseline_output, baseline_processed, baseline_errors, baseline_bytes)) => {
+                assert_eq!(output, *baseline_output);
+                assert_eq!(summary.records_processed, *baseline_processed);
+                assert_eq!(summary.records_with_errors, *baseline_errors);
+                assert_eq!(summary.bytes_processed, *baseline_bytes);
+            }
+            None => {
+                baseline = Some((
+                    output,
+                    summary.records_processed,
+                    summary.records_with_errors,
+                    summary.bytes_processed,
+                ));
+            }
         }
     }
 }
@@ -568,6 +681,115 @@ fn decode_thread_count_in_summary() {
     // threads_used should be populated in single-threaded path
     // The exact value depends on implementation; just verify it exists
     assert!(summary.threads_used <= 1 || summary.threads_used > 0);
+}
+
+#[test]
+fn decode_fixed_threaded_deterministic() {
+    let schema = parse_copybook(SIMPLE_SCHEMA).unwrap();
+    let data = build_pic9_5_data(50);
+
+    let mut outputs = Vec::new();
+    for threads in [1_usize, 2, 4] {
+        let opts = ascii_decode_opts().with_threads(threads);
+        let mut output = Vec::new();
+        copybook_codec::decode_file_to_jsonl(&schema, Cursor::new(&data), &mut output, &opts)
+            .unwrap();
+        outputs.push((threads, output));
+    }
+
+    let baseline = outputs[0].1.clone();
+    for (threads, output) in &outputs[1..] {
+        assert_eq!(
+            &baseline, output,
+            "Fixed decode output differs for {threads} threads",
+        );
+    }
+}
+
+#[test]
+fn encode_fixed_threaded_deterministic() {
+    let schema = parse_copybook(SIMPLE_SCHEMA).unwrap();
+    let jsonl = build_pic9_5_jsonl(50);
+
+    let mut outputs = Vec::new();
+    for threads in [1_usize, 2, 4] {
+        let opts = ascii_encode_opts().with_threads(threads);
+        let mut output = Vec::new();
+        copybook_codec::encode_jsonl_to_file(
+            &schema,
+            Cursor::new(jsonl.as_bytes()),
+            &mut output,
+            &opts,
+        )
+        .unwrap();
+        outputs.push((threads, output));
+    }
+
+    let baseline = outputs[0].1.clone();
+    for (threads, output) in &outputs[1..] {
+        assert_eq!(
+            &baseline, output,
+            "Fixed encode output differs for {threads} threads",
+        );
+    }
+}
+
+#[test]
+fn decode_rdw_threaded_deterministic() {
+    let schema = parse_copybook(RDW_SCHEMA).unwrap();
+    let data = build_rdw_records(&["HELLO", "WORLD", "ABCDE", "FGHIJ"]);
+
+    let mut outputs = Vec::new();
+    for threads in [1_usize, 2, 4] {
+        let opts = ascii_decode_opts()
+            .with_format(RecordFormat::RDW)
+            .with_threads(threads);
+        let mut output = Vec::new();
+        copybook_codec::decode_file_to_jsonl(&schema, Cursor::new(&data), &mut output, &opts)
+            .unwrap();
+        outputs.push((threads, output));
+    }
+
+    let baseline = outputs[0].1.clone();
+    for (threads, output) in &outputs[1..] {
+        assert_eq!(
+            &baseline, output,
+            "RDW decode output differs for {threads} threads",
+        );
+    }
+}
+
+#[test]
+fn encode_rdw_threaded_deterministic() {
+    let schema = parse_copybook(RDW_SCHEMA).unwrap();
+    let mut jsonl = String::new();
+    for value in ["HELLO", "WORLD", "ABCDE", "FGHIJ"] {
+        jsonl.push_str(&format!("{{\"FIELD\": \"{value}\"}}\n"));
+    }
+
+    let mut outputs = Vec::new();
+    for threads in [1_usize, 2, 4] {
+        let opts = ascii_encode_opts()
+            .with_format(RecordFormat::RDW)
+            .with_threads(threads);
+        let mut output = Vec::new();
+        copybook_codec::encode_jsonl_to_file(
+            &schema,
+            Cursor::new(jsonl.as_bytes()),
+            &mut output,
+            &opts,
+        )
+        .unwrap();
+        outputs.push((threads, output));
+    }
+
+    let baseline = outputs[0].1.clone();
+    for (threads, output) in &outputs[1..] {
+        assert_eq!(
+            &baseline, output,
+            "RDW encode output differs for {threads} threads",
+        );
+    }
 }
 
 // ===========================================================================

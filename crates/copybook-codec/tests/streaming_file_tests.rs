@@ -1005,6 +1005,80 @@ fn decode_rdw_reserved_warning_threaded_raw_mode() {
     }
 }
 
+#[test]
+fn decode_fixed_threaded_rejection_missing_lrecl() {
+    let mut schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
+    // Fixed decoding requires an explicit fixed length in the schema.
+    schema.lrecl_fixed = None;
+
+    for threads in [1_usize, 2, 4] {
+        let opts = ascii_decode_opts().with_threads(threads);
+        let mut output = Vec::new();
+        let result = decode_file_to_jsonl(&schema, Cursor::new(b"ABCDE"), &mut output, &opts);
+        let error = result.expect_err("fixed decode should fail when lrecl is missing");
+        assert_eq!(
+            error.code,
+            ErrorCode::CBKI001_INVALID_STATE,
+            "threads={threads} should return CBKI001_INVALID_STATE"
+        );
+    }
+}
+
+#[test]
+fn decode_rdw_threaded_header_ascii_corruption_is_fatal() {
+    let schema = parse_copybook(
+        r#"
+01 TEST-RECORD.
+   05 TEST-FIELD PIC X(5).
+"#,
+    )
+    .unwrap();
+
+    let data = vec![b'1', b'2', 0x00, 0x00, b'H', b'E', b'L', b'L', b'O'];
+    for threads in [1_usize, 2, 4] {
+        let opts = ascii_decode_opts()
+            .with_format(RecordFormat::RDW)
+            .with_threads(threads);
+        let mut output = Vec::new();
+        let result = decode_file_to_jsonl(&schema, Cursor::new(&data), &mut output, &opts);
+        let error = result.expect_err("RDW decode should fail on suspect ASCII-corrupted header");
+        assert_eq!(
+            error.code,
+            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+            "threads={threads} should return CBKF104_RDW_SUSPECT_ASCII"
+        );
+    }
+}
+
+#[test]
+fn decode_rdw_threaded_reserved_warning_is_deterministic() {
+    let schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
+    let data = vec![0x00, 0x05, 0x12, 0x34, b'H', b'E', b'L', b'L', b'O'];
+
+    let mut baseline: Option<u64> = None;
+    for threads in [1_usize, 2, 4] {
+        let opts = ascii_decode_opts()
+            .with_format(RecordFormat::RDW)
+            .with_threads(threads)
+            .with_strict_mode(false);
+        let mut output = Vec::new();
+        let summary = decode_file_to_jsonl(&schema, Cursor::new(&data), &mut output, &opts)
+            .expect("lenient decode with non-zero reserved should continue");
+
+        assert_eq!(summary.records_processed, 1);
+        assert_eq!(summary.records_with_errors, 0);
+        assert!(summary.has_warnings());
+
+        let output_text = String::from_utf8(output).unwrap();
+        assert!(output_text.contains("HELLO"));
+
+        match baseline {
+            Some(baseline_warnings) => assert_eq!(summary.warnings, baseline_warnings),
+            None => baseline = Some(summary.warnings),
+        }
+    }
+}
+
 // ===========================================================================
 // 12. Streaming with field projection
 // ===========================================================================

@@ -408,6 +408,47 @@ fn iter_records_state_recovery_single_thread() {
     assert_eq!(iter.current_record_index(), 4);
 }
 
+#[test]
+fn iter_records_state_recovery_threaded() {
+    let schema = parse_copybook(SIMPLE_SCHEMA).unwrap();
+    let data = [
+        b"00001".as_slice(),
+        b"AB12C".as_slice(),
+        b"00003".as_slice(),
+        b"00004".as_slice(),
+    ]
+    .concat();
+
+    for threads in [1_usize, 2, 4] {
+        let opts = ascii_decode_opts().with_threads(threads);
+        let mut iter = iter_records(Cursor::new(&data), &schema, &opts).unwrap();
+
+        let first = iter.next().unwrap().unwrap();
+        assert_eq!(first["TEST-FIELD"], "00001");
+        assert_eq!(iter.current_record_index(), 1);
+        assert!(!iter.is_eof());
+
+        let second = iter.next().unwrap();
+        assert!(second.is_err());
+        assert_eq!(iter.current_record_index(), 2);
+        assert!(!iter.is_eof());
+
+        let third = iter.next().unwrap().unwrap();
+        assert_eq!(third["TEST-FIELD"], "00003");
+        assert_eq!(iter.current_record_index(), 3);
+        assert!(!iter.is_eof());
+
+        let fourth = iter.next().unwrap().unwrap();
+        assert_eq!(fourth["TEST-FIELD"], "00004");
+        assert_eq!(iter.current_record_index(), 4);
+        assert!(!iter.is_eof());
+
+        assert!(iter.next().is_none());
+        assert!(iter.is_eof());
+        assert_eq!(iter.current_record_index(), 4);
+    }
+}
+
 // ===========================================================================
 // 7. Partial record at end of file
 // ===========================================================================

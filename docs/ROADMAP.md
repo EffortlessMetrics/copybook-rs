@@ -137,14 +137,14 @@ and evidence remain governed by the support matrix and tests:
 
 ## Phase 2 — Define the stable product contract
 
-**Status**: Queued
+**Status**: Completed
 
-- [ ] [#541](https://github.com/EffortlessMetrics/copybook-rs/issues/541) —
+- [x] [#541](https://github.com/EffortlessMetrics/copybook-rs/issues/541) —
       classify every package and public feature as stable, beta, experimental,
       or internal/dev-only
-- [ ] [#542](https://github.com/EffortlessMetrics/copybook-rs/issues/542) —
+- [x] [#542](https://github.com/EffortlessMetrics/copybook-rs/issues/542) —
       baseline and audit the complete stable Rust/CLI/schema/error surface
-- [ ] [#543](https://github.com/EffortlessMetrics/copybook-rs/issues/543) —
+- [x] [#543](https://github.com/EffortlessMetrics/copybook-rs/issues/543) —
       complete the pre-v1 deprecation and migration audit
 
 ### Exit criteria
@@ -175,6 +175,13 @@ layers:
 6. boundary and negative behavior
 7. CLI integration
 8. relevant record formats and codepages
+
+Issue-compilation guardrail:
+
+- Scenario-level evidence packets are owned by #551 only while they are still on the
+  scenario-inventory seam.
+- A child issue is only allowed after a specific scenario, concrete existing tests,
+  and an exact current-main claim are documented in a single issue body.
 
 The umbrella includes dedicated stable-error tests, iterator/memory unit
 coverage, property/fuzz/mutation lanes, cross-codepage fixtures, hostile and
@@ -267,6 +274,9 @@ performance regression is a blocker.
       enforce the four-week freeze across the actual stable surface
 - [ ] [#545](https://github.com/EffortlessMetrics/copybook-rs/issues/545) —
       prove a release candidate through registry-only installs and dogfood
+
+      Keep this blocked on correctness evidence program completion (#551),
+      freeze authorization, and release-policy sign-off.
 
 ### Exit criteria
 

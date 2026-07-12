@@ -373,7 +373,7 @@ fn iter_records_error_recovery() {
 #[test]
 fn iter_records_state_recovery_single_thread() {
     let schema = parse_copybook(SIMPLE_SCHEMA).unwrap();
-    let data = vec![
+    let data = [
         b"00001".as_slice(),
         b"AB12C".as_slice(),
         b"00003".as_slice(),
@@ -459,7 +459,7 @@ fn decode_file_partial_record_at_eof() {
 #[test]
 fn decode_fixed_threaded_recovery_summary() {
     let schema = parse_copybook(SIMPLE_SCHEMA).unwrap();
-    let data = vec![
+    let data = [
         b"00001".as_slice(),
         b"AB12C".as_slice(),
         b"00003".as_slice(),

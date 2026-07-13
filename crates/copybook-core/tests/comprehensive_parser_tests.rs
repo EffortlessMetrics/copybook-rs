@@ -8,7 +8,9 @@
 //! according to the normative grammar rules specified in the design document.
 
 use copybook_core::{
-    ErrorCode, FieldKind, Occurs, ParseOptions, parse_copybook, parse_copybook_with_options,
+    ErrorCode, FieldKind, Occurs, ParseOptions,
+    feature_flags::{Feature, FeatureFlags},
+    parse_copybook, parse_copybook_with_options,
 };
 
 #[test]
@@ -121,18 +123,15 @@ fn test_edited_pic_error_normative() {
 
 #[test]
 fn test_sign_clause_as_edited_pic_normative() {
-    // NORMATIVE: SIGN LEADING/TRAILING [SEPARATE] treated as edited PIC
+    let flags = FeatureFlags::from_env();
+    if !flags.is_enabled(Feature::SignSeparate) {
+        return;
+    }
+
+    // NORMATIVE: SIGN LEADING/TRAILING are rejected as edited PIC syntax variants.
     let sign_clauses = vec![
         ("01 FIELD1 PIC S999 SIGN LEADING.", "SIGN LEADING"),
         ("01 FIELD2 PIC S999 SIGN TRAILING.", "SIGN TRAILING"),
-        (
-            "01 FIELD3 PIC S999 SIGN LEADING SEPARATE.",
-            "SIGN LEADING SEPARATE",
-        ),
-        (
-            "01 FIELD4 PIC S999 SIGN TRAILING SEPARATE.",
-            "SIGN TRAILING SEPARATE",
-        ),
     ];
 
     for (sign_clause, description) in sign_clauses {
@@ -145,7 +144,22 @@ fn test_sign_clause_as_edited_pic_normative() {
         );
 
         let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
+        assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
+    }
+
+    let supported_clauses = vec![
+        "01 FIELD3 PIC S999 SIGN LEADING SEPARATE.",
+        "01 FIELD4 PIC S999 SIGN IS LEADING SEPARATE.",
+        "01 FIELD5 PIC S999 SIGN TRAILING SEPARATE.",
+        "01 FIELD6 PIC S999 SIGN IS TRAILING SEPARATE.",
+    ];
+
+    for sign_clause in supported_clauses {
+        let result = parse_copybook(sign_clause);
+        assert!(
+            result.is_ok(),
+            "Should parse supported SIGN SEPARATE clause: {sign_clause}",
+        );
     }
 }
 

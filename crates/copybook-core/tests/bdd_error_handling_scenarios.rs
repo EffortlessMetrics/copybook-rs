@@ -118,12 +118,18 @@ fn bdd_scenario_sign_separate_handling() {
 
     let copybook = "01 SIGNED-FIELD PIC S9(5) SIGN IS SEPARATE.";
     let result = parse_copybook(copybook);
-
-    assert!(result.is_err());
-    let err = result.unwrap_err();
+    let schema = result.expect("SIGN IS SEPARATE should parse");
+    let field = schema
+        .all_fields()
+        .into_iter()
+        .find(|field| field.name == "SIGNED-FIELD")
+        .expect("signed field should be present");
     assert!(matches!(
-        err.code(),
-        ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+        field.kind,
+        FieldKind::ZonedDecimal {
+            sign_separate: Some(_),
+            ..
+        }
     ));
 }
 
@@ -547,7 +553,19 @@ fn bdd_scenario_enterprise_sign_separate() {
     let copybook = "01 FIELD PIC S9(5) SIGN IS SEPARATE LEADING.";
     let result = parse_copybook(copybook);
 
-    assert!(result.is_err());
+    let schema = result.expect("enterprise SIGN IS SEPARATE LEADING should parse");
+    let field = schema
+        .all_fields()
+        .into_iter()
+        .find(|field| field.name == "FIELD")
+        .expect("signed field should be present");
+    assert!(matches!(
+        field.kind,
+        FieldKind::ZonedDecimal {
+            sign_separate: Some(_),
+            ..
+        }
+    ));
 }
 
 #[test]

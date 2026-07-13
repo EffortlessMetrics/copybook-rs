@@ -169,19 +169,27 @@ fn test_edited_pic_error_detection() -> TestResult {
 
 #[test]
 fn test_sign_clause_as_edited_pic() -> TestResult {
-    // NORMATIVE: SIGN LEADING/TRAILING [SEPARATE] treated as edited PIC
+    // NORMATIVE: SIGN LEADING/TRAILING are parse-rejected syntax variants.
+    // SIGN SEPARATE forms are accepted when sign-separate support is enabled.
     let sign_clauses = vec![
         "01 FIELD1 PIC S999 SIGN LEADING.",
         "01 FIELD2 PIC S999 SIGN TRAILING.",
-        "01 FIELD3 PIC S999 SIGN LEADING SEPARATE.",
-        "01 FIELD4 PIC S999 SIGN TRAILING SEPARATE.",
     ];
 
     for sign_clause in sign_clauses {
         let Err(error) = parse_copybook(sign_clause) else {
             bail!("Should fail for: {sign_clause}");
         };
-        assert_eq!(error.code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
+        assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
+    }
+
+    let supported_clauses = vec![
+        "01 FIELD3 PIC S999 SIGN LEADING SEPARATE.",
+        "01 FIELD4 PIC S999 SIGN TRAILING SEPARATE.",
+    ];
+    for sign_clause in supported_clauses {
+        parse_copybook(sign_clause)
+            .with_context(|| format!("Supported SIGN SEPARATE should parse: {sign_clause}"))?;
     }
     Ok(())
 }

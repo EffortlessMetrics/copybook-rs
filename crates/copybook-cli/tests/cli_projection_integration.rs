@@ -15,6 +15,20 @@ use std::fs;
 use tempfile::TempDir;
 use test_utils::TestResult;
 
+fn encode_rdw_record(payload: &[u8]) -> Vec<u8> {
+    let rdw_len = u16::try_from(payload.len()).expect("payload length must fit in u16");
+    let mut record = Vec::with_capacity(payload.len() + 4);
+    record.extend_from_slice(&rdw_len.to_be_bytes());
+    record.extend_from_slice(&[0x00, 0x00]);
+    record.extend_from_slice(payload);
+    record
+}
+
+fn parse_first_projection(json_lines: &str) -> TestResult<Value> {
+    let line = json_lines.lines().next().ok_or("decode output was empty")?;
+    Ok(serde_json::from_str(line)?)
+}
+
 /// Test decode with simple field selection
 #[test]
 fn test_cli_decode_with_select_simple_fields() -> TestResult<()> {
@@ -198,9 +212,17 @@ fn test_cli_decode_with_select_invalid_field() -> TestResult<()> {
         .arg("NONEXISTENT-FIELD");
 
     // Should fail with error about field not found
-    cmd.assert().failure().stderr(predicate::str::contains(
-        "CBKS703_PROJECTION_FIELD_NOT_FOUND",
-    ));
+    let stderr = cmd.assert().failure().get_output().stderr.clone();
+    let stderr = String::from_utf8_lossy(&stderr);
+    let has_exact_code = stderr
+        .split(&[
+            ' ', '\n', '\r', '\t', '[', ']', '(', ')', '{', '}', ':', ',', '.', ';',
+        ])
+        .any(|token| token == "CBKS703_PROJECTION_FIELD_NOT_FOUND");
+    assert!(
+        has_exact_code,
+        "expected exact CBKS703_PROJECTION_FIELD_NOT_FOUND token, got: {stderr}"
+    );
 
     Ok(())
 }
@@ -330,6 +352,264 @@ fn test_cli_decode_group_selection_includes_children() -> TestResult<()> {
     assert!(group_a.get("FIELD-A2").is_some());
     // GROUP-B fields should not be present
     assert!(fields.get("GROUP-B").is_none());
+
+    Ok(())
+}
+
+#[test]
+fn test_cli_decode_with_rdw_single_select_field() -> TestResult<()> {
+    let temp_dir = TempDir::new()?;
+    let copybook_path = temp_dir.path().join("test.cpy");
+    fs::write(
+        &copybook_path,
+        r#"
+           01  RECORD.
+               05  FIELD-A PIC X(3).
+               05  FIELD-B PIC X(3).
+        "#,
+    )?;
+
+    let input = encode_rdw_record(b"AAABBB");
+    let data_path = temp_dir.path().join("data.bin");
+    fs::write(&data_path, input)?;
+
+    let output_path = temp_dir.path().join("output.jsonl");
+    let mut cmd = cargo_bin_cmd!("copybook");
+    cmd.arg("decode")
+        .arg(&copybook_path)
+        .arg(&data_path)
+        .arg("--output")
+        .arg(&output_path)
+        .arg("--format")
+        .arg("rdw")
+        .arg("--codepage")
+        .arg("ascii")
+        .arg("--select")
+        .arg("FIELD-B");
+
+    cmd.assert().success();
+
+    let json = parse_first_projection(&fs::read_to_string(output_path)?)?;
+    let record = json.get("fields").ok_or("missing fields object")?;
+    assert!(record.get("FIELD-A").is_none());
+    assert_eq!(
+        record.get("FIELD-B"),
+        Some(&Value::String("BBB".to_string()))
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_cli_encode_with_projection_rdw_roundtrip_selected_fields() -> TestResult<()> {
+    let temp_dir = TempDir::new()?;
+    let copybook_path = temp_dir.path().join("test.cpy");
+    fs::write(
+        &copybook_path,
+        r#"
+           01  CUSTOMER-RECORD.
+               05  CUSTOMER-ID      PIC X(3).
+               05  CUSTOMER-NAME    PIC X(2).
+        "#,
+    )?;
+
+    let input_path = temp_dir.path().join("input.jsonl");
+    fs::write(&input_path, r#"{"CUSTOMER-ID":"123","CUSTOMER-NAME":"AB"}"#)?;
+
+    let encoded_path = temp_dir.path().join("encoded.bin");
+    let mut encode = cargo_bin_cmd!("copybook");
+    encode
+        .arg("encode")
+        .arg(&copybook_path)
+        .arg(&input_path)
+        .arg("--output")
+        .arg(&encoded_path)
+        .arg("--format")
+        .arg("rdw")
+        .arg("--codepage")
+        .arg("ascii")
+        .arg("--select")
+        .arg("CUSTOMER-ID");
+
+    encode.assert().success();
+
+    let encoded = fs::read(&encoded_path)?;
+    assert!(
+        encoded.len() >= 4,
+        "encoded RDW record must include RDW header"
+    );
+    assert_eq!(&encoded[2..4], &[0x00, 0x00]);
+    let declared_len = usize::from(u16::from_be_bytes([encoded[0], encoded[1]]));
+    assert_eq!(declared_len, encoded.len() - 4);
+
+    let output_path = temp_dir.path().join("output.jsonl");
+    let mut decode = cargo_bin_cmd!("copybook");
+    decode
+        .arg("decode")
+        .arg(&copybook_path)
+        .arg(&encoded_path)
+        .arg("--output")
+        .arg(&output_path)
+        .arg("--format")
+        .arg("rdw")
+        .arg("--codepage")
+        .arg("ascii")
+        .arg("--select")
+        .arg("CUSTOMER-ID");
+
+    decode.assert().success();
+
+    let json = parse_first_projection(&fs::read_to_string(output_path)?)?;
+    let fields = json.get("fields").ok_or("missing fields object")?;
+    assert_eq!(
+        fields.get("CUSTOMER-ID"),
+        Some(&Value::String("123".to_string()))
+    );
+    assert!(fields.get("CUSTOMER-NAME").is_none());
+
+    Ok(())
+}
+
+#[test]
+fn test_cli_encode_with_flat_projection_input_shape() -> TestResult<()> {
+    let temp_dir = TempDir::new()?;
+    let copybook_path = temp_dir.path().join("test.cpy");
+    fs::write(
+        &copybook_path,
+        r#"
+           01  RECORD.
+               05 FIELD-A PIC X(3).
+               05 FIELD-B PIC X(3).
+        "#,
+    )?;
+
+    let input_path = temp_dir.path().join("input.jsonl");
+    fs::write(&input_path, r#"{"FIELD-A":"ABC","FIELD-B":"DEF"}"#)?;
+
+    let output_path = temp_dir.path().join("output.bin");
+    let mut cmd = cargo_bin_cmd!("copybook");
+    cmd.arg("encode")
+        .arg(&copybook_path)
+        .arg(&input_path)
+        .arg("--output")
+        .arg(&output_path)
+        .arg("--format")
+        .arg("fixed")
+        .arg("--codepage")
+        .arg("ascii")
+        .arg("--select")
+        .arg("FIELD-A");
+
+    cmd.assert().success();
+    let output = fs::read(&output_path)?;
+    assert_eq!(output.len(), 6);
+
+    let decoded_path = temp_dir.path().join("decoded.jsonl");
+    let mut decode_cmd = cargo_bin_cmd!("copybook");
+    decode_cmd
+        .arg("decode")
+        .arg(&copybook_path)
+        .arg(&output_path)
+        .arg("--output")
+        .arg(&decoded_path)
+        .arg("--format")
+        .arg("fixed")
+        .arg("--codepage")
+        .arg("ascii")
+        .arg("--select")
+        .arg("FIELD-A");
+
+    decode_cmd.assert().success();
+
+    let decoded = parse_first_projection(&fs::read_to_string(decoded_path)?)?;
+    let fields = decoded.get("fields").ok_or("missing fields object")?;
+    assert_eq!(
+        fields.get("FIELD-A"),
+        Some(&Value::String("ABC".to_string()))
+    );
+    assert!(
+        fields.get("FIELD-B").is_none()
+            || fields.get("FIELD-B") == Some(&Value::String("DEF".to_string()))
+            || fields.get("FIELD-B") == Some(&Value::String("".to_string())),
+        "unexpected projection-fill output for unselected FIELD-B: {:?}",
+        fields.get("FIELD-B")
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_cli_decode_with_rdw_zero_reserved_bytes() -> TestResult<()> {
+    let temp_dir = TempDir::new()?;
+    let copybook_path = temp_dir.path().join("test.cpy");
+    fs::write(
+        &copybook_path,
+        r#"
+           01  RECORD.
+               05  FIELD PIC X(3).
+        "#,
+    )?;
+
+    let output = encode_rdw_record(b"ABC");
+    let input_path = temp_dir.path().join("data.bin");
+    fs::write(&input_path, &output)?;
+    assert_eq!(&output[2..4], &[0x00, 0x00]);
+
+    let output_path = temp_dir.path().join("decoded.jsonl");
+    let mut cmd = cargo_bin_cmd!("copybook");
+    cmd.arg("decode")
+        .arg(&copybook_path)
+        .arg(&input_path)
+        .arg("--output")
+        .arg(&output_path)
+        .arg("--format")
+        .arg("rdw")
+        .arg("--codepage")
+        .arg("ascii")
+        .arg("--select")
+        .arg("FIELD");
+
+    cmd.assert().success();
+    let lines = fs::read_to_string(output_path)?;
+    let json: Value = serde_json::from_str(lines.lines().next().ok_or("decode output was empty")?)?;
+    let fields = json.get("fields").ok_or("missing fields object")?;
+    assert_eq!(fields.get("FIELD"), Some(&Value::String("ABC".to_string())));
+
+    Ok(())
+}
+
+#[test]
+fn test_cli_projection_unknown_field_returns_cbks703() -> TestResult<()> {
+    let temp_dir = TempDir::new()?;
+    let copybook_path = temp_dir.path().join("test.cpy");
+    fs::write(
+        &copybook_path,
+        r#"
+           01  RECORD.
+              05 FIELD PIC X(3).
+        "#,
+    )?;
+
+    let input_path = temp_dir.path().join("input.jsonl");
+    fs::write(&input_path, r#"{"RECORD":{"FIELD":"ABC"}}"#)?;
+    let output_path = temp_dir.path().join("output.jsonl");
+
+    let mut cmd = cargo_bin_cmd!("copybook");
+    cmd.arg("encode")
+        .arg(&copybook_path)
+        .arg(&input_path)
+        .arg("--output")
+        .arg(&output_path)
+        .arg("--format")
+        .arg("fixed")
+        .arg("--codepage")
+        .arg("ascii")
+        .arg("--select")
+        .arg("DOES_NOT_EXIST");
+
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "CBKS703_PROJECTION_FIELD_NOT_FOUND",
+    ));
 
     Ok(())
 }

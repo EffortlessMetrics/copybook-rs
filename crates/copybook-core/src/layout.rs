@@ -71,6 +71,14 @@ impl LayoutContext {
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn resolve_layout(schema: &mut Schema, dialect: Dialect) -> Result<()> {
+    resolve_layout_with_feature_flags(schema, dialect, FeatureFlags::global())
+}
+
+pub(crate) fn resolve_layout_with_feature_flags(
+    schema: &mut Schema,
+    dialect: Dialect,
+    feature_flags: &FeatureFlags,
+) -> Result<()> {
     let mut context = LayoutContext::new();
 
     // First pass: collect all REDEFINES relationships
@@ -91,7 +99,7 @@ pub fn resolve_layout(schema: &mut Schema, dialect: Dialect) -> Result<()> {
     detect_tail_odo(schema, &context, dialect);
 
     // Resolve RENAMES (level-66) aliases
-    resolve_renames_aliases(&mut schema.fields)?;
+    resolve_renames_aliases(&mut schema.fields, feature_flags)?;
 
     // Check for record size overflow
     if context.current_offset > MAX_RECORD_SIZE {
@@ -769,17 +777,20 @@ fn count_redefines_alternatives(
 /// Resolve RENAMES (level-66) aliases (post-order).
 /// Current implementation: same-scope resolution + contiguous slice → (offset, length, members).
 /// Extended to detect and reject R4-R6 patterns unless feature flag is enabled.
-fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
+fn resolve_renames_aliases(
+    fields: &mut [crate::schema::Field],
+    feature_flags: &FeatureFlags,
+) -> Result<()> {
     use crate::error::ErrorCode;
     use crate::schema::{FieldKind, ResolvedRenames};
 
     // Check if R4-R6 feature flag is enabled
-    let r4_r6_enabled = FeatureFlags::global().is_enabled(Feature::RenamesR4R6);
+    let r4_r6_enabled = feature_flags.is_enabled(Feature::RenamesR4R6);
 
     // 1) Recurse first (post-order)
     for f in fields.iter_mut() {
         if !f.children.is_empty() {
-            resolve_renames_aliases(&mut f.children)?;
+            resolve_renames_aliases(&mut f.children, feature_flags)?;
         }
     }
 

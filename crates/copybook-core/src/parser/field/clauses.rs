@@ -1,5 +1,5 @@
 use crate::error::ErrorCode;
-use crate::feature_flags::{Feature, FeatureFlags};
+use crate::feature_flags::Feature;
 use crate::lexer::Token;
 use crate::schema::{Field, FieldKind};
 use crate::{Error, Result};
@@ -96,7 +96,7 @@ impl Parser {
 
     fn parse_sign_field_clause(&mut self, field: &mut Field) -> Result<()> {
         self.advance();
-        if FeatureFlags::global().is_enabled(Feature::SignSeparate) {
+        if self.feature_flags.is_enabled(Feature::SignSeparate) {
             return self.parse_sign_clause(field);
         }
 

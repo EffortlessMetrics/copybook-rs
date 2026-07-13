@@ -7,11 +7,14 @@
 
 use base64::Engine;
 use copybook_codec::{
-    decode_file_to_jsonl, encode_jsonl_to_file, iter_records, Codepage, DecodeOptions,
-    EncodeOptions, JsonNumberMode, RawMode, RecordFormat, RunSummary,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, RunSummary,
+    decode_file_to_jsonl, encode_jsonl_to_file, iter_records,
 };
-use copybook_core::{parse_copybook, project_schema, ErrorCode};
+use copybook_core::{ErrorCode, parse_copybook, project_schema};
 use std::io::Cursor;
+
+type RawModeSummary = (Vec<u8>, Vec<Vec<u8>>, u64, u64);
+type RdwModeSummary = (Vec<u8>, Vec<Vec<u8>>, u64, u64, u64);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -863,7 +866,7 @@ fn raw_fidelity_threaded_fixed_and_rdw() {
     .map(|chunk| chunk.to_vec())
     .collect();
 
-    let mut fixed_baseline: Option<(Vec<u8>, Vec<Vec<u8>>, u64, u64)> = None;
+    let mut fixed_baseline: Option<RawModeSummary> = None;
     for threads in [1_usize, 2, 4] {
         let opts = ascii_decode_opts()
             .with_emit_raw(RawMode::Record)
@@ -909,7 +912,7 @@ fn raw_fidelity_threaded_fixed_and_rdw() {
         }
     }
 
-    let mut rdw_baseline: Option<(Vec<u8>, Vec<Vec<u8>>, u64, u64, u64)> = None;
+    let mut rdw_baseline: Option<RdwModeSummary> = None;
     for threads in [1_usize, 2, 4] {
         let opts = ascii_decode_opts()
             .with_format(RecordFormat::RDW)

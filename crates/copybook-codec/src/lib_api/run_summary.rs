@@ -18,6 +18,9 @@ pub struct RunSummary {
     /// Wall-clock processing time in milliseconds.
     pub processing_time_ms: u64,
     /// Total bytes read from input.
+    ///
+    /// Fixed records count payload bytes; RDW records count header-plus-payload
+    /// physical bytes.
     pub bytes_processed: u64,
     /// SHA-256 fingerprint of the schema used for processing.
     pub schema_fingerprint: String,

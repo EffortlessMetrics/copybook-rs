@@ -2535,8 +2535,9 @@ fn process_rdw_records<R: Read, W: Write>(
 
     while let Some(rdw_record) = reader.read_record()? {
         record_index += 1;
-        summary.bytes_processed += rdw_record.payload.len() as u64;
-        telemetry::record_read(rdw_record.payload.len(), options);
+        let record_bytes = rdw_record.header.len() + rdw_record.payload.len();
+        summary.bytes_processed += record_bytes as u64;
+        telemetry::record_read(record_bytes, options);
         if rdw_record.reserved() != 0 {
             increment_warning_counter();
         }

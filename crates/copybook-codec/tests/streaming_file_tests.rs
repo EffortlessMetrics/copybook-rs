@@ -5,6 +5,7 @@
 //! Covers: `iter_records`, `iter_records_from_file`, `decode_file_to_jsonl`,
 //! `encode_jsonl_to_file`, `RecordIterator`, and `RunSummary`.
 
+use base64::Engine;
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, RunSummary,
     decode_file_to_jsonl, encode_jsonl_to_file, iter_records,
@@ -84,6 +85,23 @@ fn build_rdw_records(payloads: &[&str]) -> Vec<u8> {
         data.extend_from_slice(bytes);
     }
     data
+}
+
+fn parse_raw_b64_field(raw_json: &serde_json::Value) -> Vec<u8> {
+    parse_raw_b64_field_from_any(raw_json, "raw_b64")
+}
+
+fn parse_raw_b64_field_from_any(raw_json: &serde_json::Value, canonical_key: &str) -> Vec<u8> {
+    let raw_field = raw_json
+        .get(canonical_key)
+        .or_else(|| raw_json.get("__raw_b64"))
+        .expect("raw output should include raw bytes");
+    let raw_field = raw_field
+        .as_str()
+        .expect("raw_b64 field should be a base64 string");
+    base64::engine::general_purpose::STANDARD
+        .decode(raw_field)
+        .expect("raw_b64 payload should decode")
 }
 
 // ===========================================================================
@@ -833,6 +851,171 @@ fn encode_rdw_threaded_deterministic() {
     }
 }
 
+#[test]
+fn decode_file_to_jsonl_raw_mode_records_emit_fixed_raw_payload() {
+    let fixed_schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
+    let fixed_data = b"HELLOWORLD";
+    let fixed_raw_expectations = [b"HELLO".to_vec(), b"WORLD".to_vec()];
+
+    let opts = ascii_decode_opts().with_emit_raw(RawMode::Record);
+    let mut output = Vec::new();
+    let summary =
+        decode_file_to_jsonl(&fixed_schema, Cursor::new(&fixed_data), &mut output, &opts).unwrap();
+    assert_eq!(summary.records_processed, 2);
+    assert_eq!(summary.bytes_processed, 10);
+    assert_eq!(summary.warnings, 0);
+
+    let lines: Vec<_> = String::from_utf8(output)
+        .unwrap()
+        .lines()
+        .map(|line| {
+            serde_json::from_str::<serde_json::Value>(line).expect("json line should parse")
+        })
+        .collect();
+    assert_eq!(lines.len(), 2);
+
+    let decoded_raws: Vec<Vec<u8>> = lines.iter().map(parse_raw_b64_field).collect();
+    let expected = fixed_raw_expectations
+        .iter()
+        .map(|value| value.to_vec())
+        .collect::<Vec<_>>();
+    assert_eq!(decoded_raws, expected);
+
+    for decoded in lines.iter() {
+        assert!(decoded.get("raw_b64").is_some());
+        assert_eq!(
+            parse_raw_b64_field_from_any(decoded, "raw_b64"),
+            parse_raw_b64_field(decoded),
+            "raw_b64 should be the canonical raw payload bytes"
+        );
+    }
+}
+
+#[test]
+fn decode_file_to_jsonl_raw_mode_rdw_emits_header_and_payload() {
+    let rdw_schema = parse_copybook(RDW_SCHEMA).unwrap();
+    let rdw_data = build_rdw_records(&["ABCDE", "FGHIJ"]);
+    let rdw_raw_expectations: Vec<Vec<u8>> = [
+        vec![0x00, 0x05, 0x00, 0x00, b'A', b'B', b'C', b'D', b'E'],
+        vec![0x00, 0x05, 0x00, 0x00, b'F', b'G', b'H', b'I', b'J'],
+    ]
+    .into_iter()
+    .map(|chunk| chunk.to_vec())
+    .collect();
+
+    let opts = ascii_decode_opts()
+        .with_format(RecordFormat::RDW)
+        .with_emit_raw(RawMode::RecordRDW);
+    let mut output = Vec::new();
+    let summary =
+        decode_file_to_jsonl(&rdw_schema, Cursor::new(&rdw_data), &mut output, &opts).unwrap();
+    assert_eq!(summary.records_processed, 2);
+    assert_eq!(summary.bytes_processed, 18);
+    assert_eq!(summary.warnings, 0);
+
+    let lines: Vec<_> = String::from_utf8(output)
+        .unwrap()
+        .lines()
+        .map(|line| {
+            serde_json::from_str::<serde_json::Value>(line).expect("json line should parse")
+        })
+        .collect();
+    assert_eq!(lines.len(), 2);
+
+    let decoded_raws: Vec<Vec<u8>> = lines.iter().map(parse_raw_b64_field).collect();
+    assert_eq!(decoded_raws, rdw_raw_expectations);
+    for decoded in lines.iter() {
+        assert!(decoded.get("raw_b64").is_some());
+    }
+}
+
+#[test]
+fn decode_file_to_jsonl_raw_mode_rdw_strict_reserved_rejects_nonzero() {
+    let schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
+    let data = b"\x00\x05\x12\x34HELLO";
+    let opts = ascii_decode_opts()
+        .with_format(RecordFormat::RDW)
+        .with_emit_raw(RawMode::RecordRDW)
+        .with_strict_mode(true);
+    let mut output = Vec::new();
+    let result = decode_file_to_jsonl(&schema, Cursor::new(data), &mut output, &opts);
+    let error = result.expect_err("strict decode should reject non-zero reserved bytes");
+    assert_eq!(error.code, ErrorCode::CBKR211_RDW_RESERVED_NONZERO);
+}
+
+#[test]
+fn decode_rdw_reserved_warning_is_a_lenient_warning() {
+    let schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
+    let data = b"\x00\x05\x12\x34HELLO";
+    let opts = ascii_decode_opts()
+        .with_format(RecordFormat::RDW)
+        .with_emit_raw(RawMode::RecordRDW)
+        .with_strict_mode(false);
+    let mut output = Vec::new();
+    let summary = decode_file_to_jsonl(&schema, Cursor::new(data), &mut output, &opts)
+        .expect("lenient decode with non-zero reserved should continue");
+
+    assert_eq!(summary.records_processed, 1);
+    assert_eq!(summary.records_with_errors, 0);
+    assert_eq!(summary.warnings, 1);
+    let output_text = String::from_utf8(output).unwrap();
+    assert_eq!(summary.bytes_processed, 9);
+    assert!(output_text.contains("HELLO"));
+    let decoded: serde_json::Value =
+        serde_json::from_str(output_text.lines().next().unwrap()).unwrap();
+    assert_eq!(
+        parse_raw_b64_field(&decoded),
+        vec![0x00, 0x05, 0x12, 0x34, b'H', b'E', b'L', b'L', b'O']
+    );
+}
+
+#[test]
+fn decode_fixed_missing_lrecl_fixed_invalid_state() {
+    let mut schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
+    // Fixed decoding requires an explicit fixed length in the schema.
+    schema.lrecl_fixed = None;
+
+    let opts = ascii_decode_opts();
+    let mut output = Vec::new();
+    let result = decode_file_to_jsonl(&schema, Cursor::new(b"ABCDE"), &mut output, &opts);
+    let error = result.expect_err("fixed decode should fail when lrecl is missing");
+    assert_eq!(error.code, ErrorCode::CBKI001_INVALID_STATE);
+}
+
+#[test]
+fn decode_rdw_suspect_ascii_header_is_fatal() {
+    let schema = parse_copybook(
+        r#"
+01 TEST-RECORD.
+   05 TEST-FIELD PIC X(5).
+"#,
+    )
+    .unwrap();
+
+    let data = vec![b'1', b'2', 0x00, 0x00, b'H', b'E', b'L', b'L', b'O'];
+    let opts = ascii_decode_opts().with_format(RecordFormat::RDW);
+    let mut output = Vec::new();
+    let result = decode_file_to_jsonl(&schema, Cursor::new(&data), &mut output, &opts);
+    let error = result.expect_err("RDW decode should fail on suspect ASCII-corrupted header");
+    assert_eq!(error.code, ErrorCode::CBKF104_RDW_SUSPECT_ASCII);
+}
+
+#[test]
+fn decode_rdw_legacy_raw_mode_key_alias_is_accepted_in_encode() {
+    let schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
+    let encoded = base64::engine::general_purpose::STANDARD.encode(b"HELLO");
+    let jsonl = format!("{{\"__raw_b64\":\"{encoded}\"}}\n");
+    let mut output = Vec::new();
+    let opts = ascii_encode_opts()
+        .with_format(RecordFormat::Fixed)
+        .with_use_raw(true);
+
+    encode_jsonl_to_file(&schema, Cursor::new(jsonl.as_bytes()), &mut output, &opts)
+        .expect("encoding should accept legacy __raw_b64");
+
+    assert_eq!(output, b"HELLO");
+}
+
 // ===========================================================================
 // 12. Streaming with field projection
 // ===========================================================================
@@ -1004,9 +1187,10 @@ fn decode_file_with_raw_mode() {
     let text = String::from_utf8(output).unwrap();
     for line in text.lines() {
         let val: serde_json::Value = serde_json::from_str(line).unwrap();
-        assert!(
-            val.get("__raw_b64").is_some() || val.get("raw_b64").is_some(),
-            "Raw mode should emit raw_b64"
+        assert!(val.get("raw_b64").is_some(), "Raw mode should emit raw_b64");
+        assert_eq!(
+            parse_raw_b64_field_from_any(&val, "raw_b64"),
+            parse_raw_b64_field(&val),
         );
     }
 }

@@ -292,7 +292,7 @@ Becomes: `05 LONG-FIELD-NAME PIC X(100).`
 
 ### 7.5 SIGN Clause Handling
 
-**Rule**: SIGN LEADING/TRAILING [SEPARATE] is fully supported (promoted in v0.4.3).
+**Rule**: SIGN LEADING and SIGN TRAILING without SEPARATE are rejected with `CBKP001_SYNTAX`; SIGN LEADING SEPARATE and SIGN TRAILING SEPARATE are supported (promoted in v0.4.3). When placement is omitted from SIGN SEPARATE, TRAILING is the default.
 
 **Implementation**:
 - Parse SIGN clauses and record sign position (leading/trailing) and encoding (embedded/separate)

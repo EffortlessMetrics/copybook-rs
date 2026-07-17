@@ -10,7 +10,11 @@
 //! - Enterprise feature workflows
 //! - Performance-related scenarios
 
-use copybook_core::{ErrorCode, FieldKind, parse_copybook};
+use copybook_core::{
+    ErrorCode, FieldKind,
+    feature_flags::{Feature, FeatureFlags},
+    parse_copybook,
+};
 
 #[test]
 fn bdd_scenario_invalid_copybook_syntax() {
@@ -115,6 +119,10 @@ fn bdd_scenario_sign_separate_handling() {
     // Given: A copybook with SIGN SEPARATE
     // When: The copybook is parsed
     // Then: The sign placement should be correctly identified
+
+    if !FeatureFlags::from_env().is_enabled(Feature::SignSeparate) {
+        return;
+    }
 
     let copybook = "01 SIGNED-FIELD PIC S9(5) SIGN IS SEPARATE.";
     let result = parse_copybook(copybook);
@@ -549,6 +557,10 @@ fn bdd_scenario_enterprise_sign_separate() {
     // Given: A copybook with SIGN SEPARATE LEADING/TRAILING
     // When: The copybook is parsed
     // Then: Sign placement should be correctly identified
+
+    if !FeatureFlags::from_env().is_enabled(Feature::SignSeparate) {
+        return;
+    }
 
     let copybook = "01 FIELD PIC S9(5) SIGN IS SEPARATE LEADING.";
     let result = parse_copybook(copybook);

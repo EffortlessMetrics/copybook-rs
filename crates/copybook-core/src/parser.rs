@@ -988,7 +988,8 @@ impl Parser {
         // Parse SIGN clause components in either order:
         //   SIGN [IS] [SEPARATE] [LEADING|TRAILING]
         //   SIGN [IS] [LEADING|TRAILING] [SEPARATE]
-        let mut placement = SignPlacement::Leading;
+        // COBOL's standard action for an omitted placement is trailing.
+        let mut placement = SignPlacement::Trailing;
         let mut saw_placement = false;
         let mut saw_separate = false;
 

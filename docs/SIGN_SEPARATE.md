@@ -68,21 +68,21 @@ Digits are stored as standard display characters:
 
 ### IBM Enterprise COBOL
 
-- Default behavior: SIGN SEPARATE uses LEADING placement
+- Omitted placement uses TRAILING, the standard action
 - Supports both LEADING and TRAILING SEPARATE
 - Sign byte uses EBCDIC encoding
 - Unsigned fields may have space (0x40) or zero (0xF0) in sign position
 
 ### Micro Focus COBOL
 
-- Default behavior: SIGN SEPARATE uses LEADING placement
+- copybook-rs uses TRAILING when placement is omitted
 - Supports both LEADING and TRAILING SEPARATE
 - Sign byte uses ASCII encoding
 - Unsigned fields typically use space (0x20) in sign position
 
 ### Fujitsu COBOL
 
-- Default behavior: SIGN SEPARATE uses LEADING placement
+- copybook-rs uses TRAILING when placement is omitted
 - Supports both LEADING and TRAILING SEPARATE
 - Sign byte encoding matches system codepage
 
@@ -101,7 +101,7 @@ If the `sign_separate` feature flag is explicitly disabled (e.g., `COPYBOOK_FF_S
 The following validation rules apply:
 
 1. **Field Type**: SIGN SEPARATE can only be used with numeric display fields (PIC 9 or PIC S9)
-2. **Placement**: Must specify LEADING or TRAILING (defaults to LEADING if omitted)
+2. **Placement**: LEADING or TRAILING may be specified; omitted placement defaults to TRAILING
 3. **Scale**: V (implied decimal) is supported
 4. **Blank When Zero**: Cannot be combined with SIGN SEPARATE
 
@@ -170,7 +170,7 @@ Decoded value: `1234`
 ### Parser Changes
 
 1. When `sign_separate` flag is enabled, accept SIGN SEPARATE clause
-2. Parse placement (LEADING/TRAILING) - default to LEADING
+2. Parse placement (LEADING/TRAILING) - default to TRAILING
 3. Store sign information in field metadata
 
 ### Layout Changes

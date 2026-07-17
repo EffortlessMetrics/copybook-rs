@@ -8,7 +8,11 @@
 //! and syntax variations according to the normative grammar rules.
 
 use anyhow::{Context as _, Result, bail};
-use copybook_core::{ErrorCode, parse_copybook};
+use copybook_core::{
+    ErrorCode,
+    feature_flags::{Feature, FeatureFlags},
+    parse_copybook,
+};
 
 type TestResult<T = ()> = Result<T>;
 
@@ -169,6 +173,10 @@ fn test_edited_pic_error_detection() -> TestResult {
 
 #[test]
 fn test_sign_clause_as_edited_pic() -> TestResult {
+    if !FeatureFlags::from_env().is_enabled(Feature::SignSeparate) {
+        return Ok(());
+    }
+
     // NORMATIVE: SIGN LEADING/TRAILING are parse-rejected syntax variants.
     // SIGN SEPARATE forms are accepted when sign-separate support is enabled.
     let sign_clauses = vec![

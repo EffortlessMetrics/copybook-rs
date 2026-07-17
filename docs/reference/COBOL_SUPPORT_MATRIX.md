@@ -48,9 +48,9 @@
 
 | Feature | Status | Test Evidence | Notes |
 |---------|--------|---------------|-------|
-| SIGN LEADING clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_feature_enabled_tests.rs` | SIGN IS LEADING SEPARATE supported; enabled by default |
-| SIGN TRAILING clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_feature_enabled_tests.rs` | SIGN TRAILING SEPARATE supported; enabled by default |
-| SIGN SEPARATE (`sign-separate`) | ✅ **Fully Supported** | `copybook-core/tests/sign_separate_feature_enabled_tests.rs`, `copybook-core/tests/schema_validation_edge_cases.rs`, `copybook-codec/tests/numeric_sign_separate_comprehensive.rs`, `copybook-codec/tests/sign_separate_golden_tests.rs`, `copybook-codec/tests/sign_separate_tests.rs` | Enabled by default (promoted from experimental); encode + decode + round-trip |
+| SIGN LEADING SEPARATE clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_feature_enabled_tests.rs` | Explicit LEADING SEPARATE is supported; enabled by default |
+| SIGN TRAILING SEPARATE clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_feature_enabled_tests.rs` | Explicit TRAILING SEPARATE is supported; enabled by default |
+| SIGN SEPARATE (`sign-separate`) | ✅ **Fully Supported** | `copybook-core/tests/sign_separate_feature_enabled_tests.rs`, `copybook-core/tests/schema_validation_edge_cases.rs`, `copybook-codec/tests/numeric_sign_separate_comprehensive.rs`, `copybook-codec/tests/sign_separate_golden_tests.rs`, `copybook-codec/tests/sign_separate_tests.rs` | Enabled by default (promoted from experimental); omitted placement defaults to TRAILING; encode + decode + round-trip |
 | Overpunch (EBCDIC/ASCII) | ✅ Fully Supported | `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage`, `decimal_edge_cases.rs::test_zoned_overpunch_comprehensive`, `comprehensive_numeric_tests.rs::test_zoned_decimal_ascii_sign_zones_comprehensive` | Comprehensive overpunch with EBCDIC zones |
 
 ## Record Formats

@@ -2729,14 +2729,7 @@ fn process_rdw_records<R: Read, W: Write>(
         if let Some(schema_lrecl) = schema.lrecl_fixed
             && rdw_record.payload.len() < schema_lrecl as usize
         {
-            let error = Error::new(
-                ErrorCode::CBKF221_RDW_UNDERFLOW,
-                format!(
-                    "RDW payload too short: {} bytes, schema requires {} bytes",
-                    rdw_record.payload.len(),
-                    schema_lrecl
-                ),
-            );
+            let error = rdw_underflow_error(schema_lrecl, rdw_record.payload.len());
 
             summary.records_with_errors += 1;
             let family = error.family_prefix();
@@ -2747,17 +2740,7 @@ fn process_rdw_records<R: Read, W: Write>(
             continue;
         }
 
-        let full_raw_data = match options.emit_raw {
-            crate::options::RawMode::RecordRDW => {
-                let mut full_data =
-                    Vec::with_capacity(rdw_record.header.len() + rdw_record.payload.len());
-                full_data.extend_from_slice(&rdw_record.header);
-                full_data.extend_from_slice(&rdw_record.payload);
-                Some(full_data)
-            }
-            crate::options::RawMode::Record => Some(rdw_record.payload.clone()),
-            _ => None,
-        };
+        let full_raw_data = rdw_raw_data(&rdw_record, options.emit_raw);
 
         match decode_record_with_scratch_and_raw(
             schema,
@@ -2783,6 +2766,29 @@ fn process_rdw_records<R: Read, W: Write>(
     }
 
     Ok(())
+}
+
+fn rdw_underflow_error(schema_lrecl: u32, payload_len: usize) -> Error {
+    Error::new(
+        ErrorCode::CBKF221_RDW_UNDERFLOW,
+        format!("RDW payload too short: {payload_len} bytes, schema requires {schema_lrecl} bytes"),
+    )
+}
+
+fn rdw_raw_data(
+    record: &crate::record::RDWRecord,
+    raw_mode: crate::options::RawMode,
+) -> Option<Vec<u8>> {
+    match raw_mode {
+        crate::options::RawMode::RecordRDW => {
+            let mut full_data = Vec::with_capacity(record.header.len() + record.payload.len());
+            full_data.extend_from_slice(&record.header);
+            full_data.extend_from_slice(&record.payload);
+            Some(full_data)
+        }
+        crate::options::RawMode::Record => Some(record.payload.clone()),
+        _ => None,
+    }
 }
 
 fn process_rdw_records_parallel<R: Read, W: Write>(
@@ -2826,14 +2832,7 @@ fn process_rdw_records_parallel<R: Read, W: Write>(
         if let Some(schema_lrecl) = schema.lrecl_fixed
             && rdw_record.payload.len() < schema_lrecl as usize
         {
-            let error = Error::new(
-                ErrorCode::CBKF221_RDW_UNDERFLOW,
-                format!(
-                    "RDW payload too short: {} bytes, schema requires {} bytes",
-                    rdw_record.payload.len(),
-                    schema_lrecl
-                ),
-            );
+            let error = rdw_underflow_error(schema_lrecl, rdw_record.payload.len());
 
             summary.records_with_errors += 1;
             let family = error.family_prefix();
@@ -2851,17 +2850,7 @@ fn process_rdw_records_parallel<R: Read, W: Write>(
             continue;
         }
 
-        let full_raw_data = match options.emit_raw {
-            crate::options::RawMode::RecordRDW => {
-                let mut full_data =
-                    Vec::with_capacity(rdw_record.header.len() + rdw_record.payload.len());
-                full_data.extend_from_slice(&rdw_record.header);
-                full_data.extend_from_slice(&rdw_record.payload);
-                Some(full_data)
-            }
-            crate::options::RawMode::Record => Some(rdw_record.payload.clone()),
-            _ => None,
-        };
+        let full_raw_data = rdw_raw_data(&rdw_record, options.emit_raw);
 
         if let Err(error) = pool.submit(DecodeWork {
             payload: rdw_record.payload,

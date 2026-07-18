@@ -29,6 +29,8 @@ pub use run_summary::RunSummary;
 pub use warnings::increment_warning_counter;
 use warnings::{reset_warning_counter, warning_count};
 
+const MAX_DECODE_WORKERS: usize = 64;
+
 /// Decode one fixed-size COBOL record into the public JSON envelope.
 ///
 /// This uses the supplied schema and decode options, returning the same
@@ -2409,7 +2411,8 @@ fn encode_binary_int_field(
 ///
 /// When `options.threads` is greater than one, records are decoded through a
 /// bounded worker pool and emitted in input order. A zero thread setting uses
-/// one worker for a safe single-threaded fallback.
+/// one worker for a safe single-threaded fallback; requests above the safe
+/// worker limit are capped.
 ///
 /// # Examples
 ///
@@ -2439,7 +2442,7 @@ pub fn decode_file_to_jsonl(
     options: &DecodeOptions,
 ) -> Result<RunSummary> {
     let start_time = std::time::Instant::now();
-    let mut summary = RunSummary::with_threads(options.threads.max(1));
+    let mut summary = RunSummary::with_threads(effective_decode_workers(options.threads));
     summary.set_schema_fingerprint(schema.fingerprint.clone());
 
     reset_warning_counter();
@@ -2542,11 +2545,15 @@ struct DecodeOutcome {
     warnings: u64,
 }
 
+fn effective_decode_workers(requested: usize) -> usize {
+    requested.clamp(1, MAX_DECODE_WORKERS)
+}
+
 fn decode_worker_pool(
     schema: &Schema,
     options: &DecodeOptions,
 ) -> crate::memory::WorkerPool<DecodeWork, DecodeOutcome> {
-    let workers = options.threads.max(1);
+    let workers = effective_decode_workers(options.threads);
     let channel_capacity = workers.saturating_mul(4).max(1);
     let max_window_size = workers.saturating_mul(2).max(1);
     let schema = Arc::new(schema.clone());
@@ -2627,7 +2634,7 @@ fn process_fixed_records_parallel<R: Read, W: Write>(
     summary: &mut RunSummary,
 ) -> Result<()> {
     let mut reader = crate::record::FixedRecordReader::new(reader, schema.lrecl_fixed)?;
-    let workers = options.threads.max(1);
+    let workers = effective_decode_workers(options.threads);
     let batch_capacity = workers.saturating_mul(4).max(1);
     let mut pool = decode_worker_pool(schema, options);
     let mut record_index = 0_u64;
@@ -2799,7 +2806,7 @@ fn process_rdw_records_parallel<R: Read, W: Write>(
     summary: &mut RunSummary,
 ) -> Result<()> {
     let mut reader = crate::record::RDWRecordReader::new(reader, options.strict_mode);
-    let workers = options.threads.max(1);
+    let workers = effective_decode_workers(options.threads);
     let batch_capacity = workers.saturating_mul(4).max(1);
     let mut pool = decode_worker_pool(schema, options);
     let mut record_index = 0_u64;

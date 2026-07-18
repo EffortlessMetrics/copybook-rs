@@ -61,6 +61,10 @@ pub fn parse_with_feature_flags(
     parse_with_options_and_feature_flags(text, options, feature_flags)
 }
 
+/// Parse a COBOL copybook with explicit options and feature flags.
+///
+/// # Errors
+/// Returns an error if the copybook contains syntax errors or unsupported features.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn parse_with_options_and_feature_flags(

@@ -12,10 +12,13 @@
 //! * **decode** (`decode_record`) — data `CBKD*` / `CBKC*` rejections,
 //! * **encode** (`encode_record`) — `CBKE*` rejections.
 //!
-//! Each row carries a scenario id that matches `docs/reference/COBOL_SUPPORT_MATRIX.md`
-//! (e.g. `O4`/`O5`/`O6`, `renames-occurs`, `renames-redefines`) so the evidence
-//! plane is traceable back to the support matrix. The CLI command-context
-//! mapping (family → process exit code) lives in
+//! Each row carries a scenario id: the structural rows match a scenario in
+//! `docs/reference/COBOL_SUPPORT_MATRIX.md` (`O4`/`O5`/`O6`, `renames-occurs`,
+//! `renames-redefines`); the remaining rows are keyed by their stable error code
+//! as documented in `docs/reference/ERROR_CODES.md` (e.g. `renames-unknown-from`
+//! → `CBKS601`). The copybooks are independent reproductions, not copies of the
+//! scattered single-purpose negative tests they overlap with. The CLI
+//! command-context mapping (family → process exit code) lives in
 //! `copybook-cli/tests/rejection_exit_codes.rs`.
 
 use copybook_codec::{
@@ -37,28 +40,31 @@ const PARSE_REJECTIONS: &[(&str, &str, ErrorCode)] = &[
         "01 INV-REC.\n   05 ITEM-COUNT PIC 9(3).\n   05 ITEMS OCCURS 1 TO 10 TIMES DEPENDING ON ITEM-COUNT.\n      10 ITEM-CODE PIC X(4).\n   05 TRAILER PIC X(5).\n",
         ErrorCode::CBKP021_ODO_NOT_TAIL,
     ),
-    // O5 — ODO nested inside another ODO.
+    // O5 — ODO nested inside another ODO. (Independent reproduction, distinct
+    // from `nested_odo_negative_tests.rs`, to keep this row genuinely additive.)
     (
         "O5:nested-odo",
-        "01 OUTER-REC.\n   05 OUTER-COUNT PIC 9(2).\n   05 OUTER-GROUP OCCURS 1 TO 50 TIMES DEPENDING ON OUTER-COUNT.\n      10 INNER-COUNT PIC 9(2).\n      10 INNER-ARRAY OCCURS 1 TO 100 TIMES DEPENDING ON INNER-COUNT.\n         15 DATA-VALUE PIC X(10).\n",
+        "01 REPORT-REC.\n   05 SECTION-COUNT PIC 9(2).\n   05 SECTION OCCURS 1 TO 20 TIMES DEPENDING ON SECTION-COUNT.\n      10 LINE-COUNT PIC 9(2).\n      10 LINE-ITEM OCCURS 1 TO 40 TIMES DEPENDING ON LINE-COUNT.\n         15 LINE-TEXT PIC X(8).\n",
         ErrorCode::CBKP022_NESTED_ODO,
     ),
-    // O6 — ODO declared inside a REDEFINES region.
+    // O6 — ODO declared inside a REDEFINES region. (Independent reproduction.)
     (
         "O6:odo-over-redefines",
-        "01 TRANSACTION-REC.\n   05 TRANS-TYPE PIC X(1).\n   05 TRANS-COUNT PIC 9(2).\n   05 TRANS-DATA PIC X(100).\n   05 TRANS-DETAIL REDEFINES TRANS-DATA.\n      10 DETAIL-ITEM OCCURS 1 TO 100 TIMES DEPENDING ON TRANS-COUNT.\n         15 DETAIL-FIELD PIC X(10).\n",
+        "01 MSG-REC.\n   05 MSG-KIND PIC X(2).\n   05 ELEM-COUNT PIC 9(2).\n   05 MSG-BODY PIC X(80).\n   05 MSG-ELEMS REDEFINES MSG-BODY.\n      10 ELEM OCCURS 1 TO 40 TIMES DEPENDING ON ELEM-COUNT.\n         15 ELEM-VAL PIC X(2).\n",
         ErrorCode::CBKP023_ODO_REDEFINES,
     ),
-    // renames-occurs — RENAMES range crosses an OCCURS boundary.
+    // renames-occurs — RENAMES range crosses an OCCURS boundary. (Independent
+    // reproduction, distinct from `renames_resolver_negative_tests.rs`.)
     (
         "renames-occurs",
-        "01 ROOT-REC.\n   05 FIELD-A PIC X(5).\n   05 ARRAY-FIELD PIC 9(3) OCCURS 5 TIMES.\n   05 FIELD-B PIC X(2).\n   66 ALIAS RENAMES FIELD-A THRU FIELD-B.\n",
+        "01 ACCT-REC.\n   05 ACCT-HEAD PIC X(4).\n   05 BUCKET PIC 9(2) OCCURS 6 TIMES.\n   05 ACCT-TAIL PIC X(3).\n   66 ACCT-SPAN RENAMES ACCT-HEAD THRU ACCT-TAIL.\n",
         ErrorCode::CBKS607_RENAME_CROSSES_OCCURS,
     ),
-    // renames-redefines — RENAMES span includes a REDEFINES field.
+    // renames-redefines — RENAMES span includes a REDEFINES field. (Independent
+    // reproduction.)
     (
         "renames-redefines",
-        "01 ROOT-REC.\n   05 FIELD-A PIC X(5).\n   05 FIELD-B REDEFINES FIELD-A PIC X(5).\n   05 FIELD-C PIC 9(3).\n   66 ALIAS RENAMES FIELD-A THRU FIELD-C.\n",
+        "01 POLICY-REC.\n   05 PRIMARY PIC X(6).\n   05 SECONDARY REDEFINES PRIMARY PIC X(6).\n   05 SUFFIX PIC 9(4).\n   66 POLICY-SPAN RENAMES PRIMARY THRU SUFFIX.\n",
         ErrorCode::CBKS609_RENAME_OVER_REDEFINES,
     ),
     // RENAMES with an unknown FROM field.

@@ -64,11 +64,11 @@
 
 | Feature | Status | Test Evidence | Notes |
 |---------|--------|---------------|-------|
-| CP037 (US/Canada) | ✅ Fully Supported | Primary codepage across 35+ test files, `comprehensive_numeric_tests.rs::test_codepage_specific_behavior` | Default EBCDIC codepage |
-| CP273 (German) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage` | Full character conversion support |
-| CP500 (International) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage` | International variant support |
-| CP1047 (Latinized) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage` | Latin-1 based EBCDIC |
-| CP1140 (Euro) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage` | Euro currency support |
+| CP037 (US/Canada) | ✅ Fully Supported | Primary codepage across 35+ test files, `comprehensive_numeric_tests.rs::test_codepage_specific_behavior`, `codepage_evidence_matrix.rs` | Default EBCDIC codepage |
+| CP273 (German) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage`, `codepage_evidence_matrix.rs`, `codepage_precedence.rs::cli_decode_cp273_signature` | Full character conversion support |
+| CP500 (International) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage`, `codepage_evidence_matrix.rs`, `codepage_precedence.rs::cli_decode_cp500_signature` | International variant support |
+| CP1047 (Latinized) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage`, `codepage_evidence_matrix.rs`, `codepage_precedence.rs::cli_decode_cp1047_signature` | Latin-1 based EBCDIC |
+| CP1140 (Euro) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage`, `codepage_evidence_matrix.rs::encode_euro_is_specific_to_cp1140`, `codepage_precedence.rs::cli_decode_cp1140_signature` | Euro currency support |
 | ASCII (supplementary) | ✅ Fully Supported | `binary_roundtrip_fidelity_tests.rs::test_ascii_zoned_roundtrip_byte_identical`, `encode_options_zoned_encoding_tests.rs::test_encode_preserves_ascii_format` | For comparison/testing purposes |
 
 ## Edited PIC Clauses

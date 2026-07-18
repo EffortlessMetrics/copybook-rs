@@ -29,7 +29,7 @@ pub use run_summary::RunSummary;
 pub use warnings::increment_warning_counter;
 use warnings::{reset_warning_counter, warning_count};
 
-const MAX_DECODE_WORKERS: usize = 64;
+const MAX_WORKERS: usize = 64;
 
 /// Decode one fixed-size COBOL record into the public JSON envelope.
 ///
@@ -2442,7 +2442,7 @@ pub fn decode_file_to_jsonl(
     options: &DecodeOptions,
 ) -> Result<RunSummary> {
     let start_time = std::time::Instant::now();
-    let mut summary = RunSummary::with_threads(effective_decode_workers(options.threads));
+    let mut summary = RunSummary::with_threads(effective_worker_count(options.threads));
     summary.set_schema_fingerprint(schema.fingerprint.clone());
 
     reset_warning_counter();
@@ -2545,15 +2545,15 @@ struct DecodeOutcome {
     warnings: u64,
 }
 
-fn effective_decode_workers(requested: usize) -> usize {
-    requested.clamp(1, MAX_DECODE_WORKERS)
+fn effective_worker_count(requested: usize) -> usize {
+    requested.clamp(1, MAX_WORKERS)
 }
 
 fn decode_worker_pool(
     schema: &Schema,
     options: &DecodeOptions,
 ) -> crate::memory::WorkerPool<DecodeWork, DecodeOutcome> {
-    let workers = effective_decode_workers(options.threads);
+    let workers = effective_worker_count(options.threads);
     let channel_capacity = workers.saturating_mul(4).max(1);
     let max_window_size = workers.saturating_mul(2).max(1);
     let schema = Arc::new(schema.clone());
@@ -2634,7 +2634,7 @@ fn process_fixed_records_parallel<R: Read, W: Write>(
     summary: &mut RunSummary,
 ) -> Result<()> {
     let mut reader = crate::record::FixedRecordReader::new(reader, schema.lrecl_fixed)?;
-    let workers = effective_decode_workers(options.threads);
+    let workers = effective_worker_count(options.threads);
     let batch_capacity = workers.saturating_mul(4).max(1);
     let mut pool = decode_worker_pool(schema, options);
     let mut record_index = 0_u64;
@@ -2806,7 +2806,7 @@ fn process_rdw_records_parallel<R: Read, W: Write>(
     summary: &mut RunSummary,
 ) -> Result<()> {
     let mut reader = crate::record::RDWRecordReader::new(reader, options.strict_mode);
-    let workers = effective_decode_workers(options.threads);
+    let workers = effective_worker_count(options.threads);
     let batch_capacity = workers.saturating_mul(4).max(1);
     let mut pool = decode_worker_pool(schema, options);
     let mut record_index = 0_u64;
@@ -2921,6 +2921,239 @@ fn write_json_record<W: Write>(output: &mut W, value: &Value) -> Result<()> {
     Ok(())
 }
 
+fn encode_worker_pool(
+    schema: &Schema,
+    options: &EncodeOptions,
+) -> crate::memory::WorkerPool<Value, Result<Vec<u8>>> {
+    let workers = effective_worker_count(options.threads);
+    let channel_capacity = workers.saturating_mul(4).max(1);
+    let max_window_size = workers.saturating_mul(2).max(1);
+    let schema = Arc::new(schema.clone());
+    let options = Arc::new(options.clone());
+
+    crate::memory::WorkerPool::new(
+        workers,
+        channel_capacity,
+        max_window_size,
+        move |json_value: Value, _scratch: &mut crate::memory::ScratchBuffers| {
+            encode_record(&schema, &json_value, &options)
+        },
+    )
+}
+
+fn process_encode_batch<W: Write>(
+    pool: &mut crate::memory::WorkerPool<Value, Result<Vec<u8>>>,
+    batch_len: usize,
+    records_before_batch: u64,
+    output: &mut W,
+    options: &EncodeOptions,
+    summary: &mut RunSummary,
+) -> Result<bool> {
+    let mut first_error = None;
+
+    for position in 0..batch_len {
+        let result = pool
+            .recv_ordered()
+            .map_err(|error| Error::new(ErrorCode::CBKI001_INVALID_STATE, error.to_string()))?
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorCode::CBKI001_INVALID_STATE,
+                    "encode worker pool ended before the submitted batch completed",
+                )
+            })?;
+
+        if first_error.is_some() {
+            continue;
+        }
+
+        match result {
+            Ok(binary_data) => {
+                output.write_all(&binary_data).map_err(|error| {
+                    Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, error.to_string())
+                })?;
+                summary.bytes_processed += binary_data.len() as u64;
+            }
+            Err(error) => {
+                summary.records_with_errors += 1;
+                telemetry::record_error(error.family_prefix());
+                if options.strict_mode {
+                    first_error = Some((position as u64 + 1, error));
+                }
+            }
+        }
+    }
+
+    if let Some((position, _error)) = first_error {
+        summary.records_processed = records_before_batch + position;
+        return Ok(true);
+    }
+
+    Ok(false)
+}
+
+fn shutdown_encode_pool(pool: crate::memory::WorkerPool<Value, Result<Vec<u8>>>) -> Result<()> {
+    pool.shutdown().map_err(|error| {
+        Error::new(
+            ErrorCode::CBKI001_INVALID_STATE,
+            format!("encode worker pool shutdown failed: {error}"),
+        )
+    })
+}
+
+fn process_encode_jsonl_parallel<R: BufRead, W: Write>(
+    schema: &Schema,
+    reader: R,
+    output: &mut W,
+    options: &EncodeOptions,
+    summary: &mut RunSummary,
+) -> Result<u64> {
+    let workers = effective_worker_count(options.threads);
+    let batch_capacity = workers.saturating_mul(4).max(1);
+    let mut pool = encode_worker_pool(schema, options);
+    let mut records_seen = 0_u64;
+    let mut records_before_batch = 0_u64;
+    let mut batch_len = 0_usize;
+
+    for line in reader.lines() {
+        let line = match line {
+            Ok(line) => line,
+            Err(error) => {
+                let pending_result = if batch_len > 0 {
+                    process_encode_batch(
+                        &mut pool,
+                        batch_len,
+                        records_before_batch,
+                        output,
+                        options,
+                        summary,
+                    )
+                } else {
+                    Ok(false)
+                };
+                let shutdown_result = shutdown_encode_pool(pool);
+                let pending_stop = pending_result?;
+                shutdown_result?;
+                if pending_stop {
+                    return Ok(summary.records_processed);
+                }
+                return Err(Error::new(
+                    ErrorCode::CBKC201_JSON_WRITE_ERROR,
+                    error.to_string(),
+                ));
+            }
+        };
+
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        let json_value: Value = match serde_json::from_str(&line) {
+            Ok(json_value) => json_value,
+            Err(error) => {
+                let pending_result = if batch_len > 0 {
+                    process_encode_batch(
+                        &mut pool,
+                        batch_len,
+                        records_before_batch,
+                        output,
+                        options,
+                        summary,
+                    )
+                } else {
+                    Ok(false)
+                };
+                let shutdown_result = shutdown_encode_pool(pool);
+                let pending_stop = pending_result?;
+                shutdown_result?;
+                if pending_stop {
+                    return Ok(summary.records_processed);
+                }
+                return Err(Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    error.to_string(),
+                ));
+            }
+        };
+
+        records_seen += 1;
+        if let Err(error) = pool.submit(json_value) {
+            let pending_result = if batch_len > 0 {
+                process_encode_batch(
+                    &mut pool,
+                    batch_len,
+                    records_before_batch,
+                    output,
+                    options,
+                    summary,
+                )
+            } else {
+                Ok(false)
+            };
+            let shutdown_result = shutdown_encode_pool(pool);
+            let pending_stop = pending_result?;
+            shutdown_result?;
+            if pending_stop {
+                return Ok(summary.records_processed);
+            }
+            return Err(Error::new(
+                ErrorCode::CBKI001_INVALID_STATE,
+                error.to_string(),
+            ));
+        }
+        batch_len += 1;
+
+        if batch_len == batch_capacity {
+            let batch_result = process_encode_batch(
+                &mut pool,
+                batch_len,
+                records_before_batch,
+                output,
+                options,
+                summary,
+            );
+            let stop = match batch_result {
+                Ok(stop) => stop,
+                Err(error) => {
+                    let _ = shutdown_encode_pool(pool);
+                    return Err(error);
+                }
+            };
+            batch_len = 0;
+            records_before_batch = records_seen;
+            if stop {
+                shutdown_encode_pool(pool)?;
+                return Ok(summary.records_processed);
+            }
+        }
+    }
+
+    if batch_len > 0 {
+        let batch_result = process_encode_batch(
+            &mut pool,
+            batch_len,
+            records_before_batch,
+            output,
+            options,
+            summary,
+        );
+        let stop = match batch_result {
+            Ok(stop) => stop,
+            Err(error) => {
+                let _ = shutdown_encode_pool(pool);
+                return Err(error);
+            }
+        };
+        if stop {
+            shutdown_encode_pool(pool)?;
+            return Ok(summary.records_processed);
+        }
+    }
+
+    shutdown_encode_pool(pool)?;
+    summary.records_processed = records_seen;
+    Ok(records_seen)
+}
+
 /// Encode JSONL to binary file
 ///
 /// # Arguments
@@ -2929,6 +3162,10 @@ fn write_json_record<W: Write>(output: &mut W, value: &Value) -> Result<()> {
 /// * `input` - Input stream to read JSONL from
 /// * `output` - Output stream to write binary to
 /// * `options` - Encoding options
+///
+/// When `options.threads` is greater than one, records are encoded through a
+/// bounded worker pool and written in input order. Requested worker counts are
+/// capped at the repository's safe limit.
 ///
 /// # Examples
 ///
@@ -2962,39 +3199,45 @@ pub fn encode_jsonl_to_file(
     options: &EncodeOptions,
 ) -> Result<RunSummary> {
     let start_time = std::time::Instant::now();
-    let mut summary = RunSummary::new();
+    let mut summary = RunSummary::with_threads(effective_worker_count(options.threads));
     summary.set_schema_fingerprint(schema.fingerprint.clone());
 
     let reader = BufReader::new(input);
-    let mut record_count = 0u64;
+    let record_count = if options.threads > 1 {
+        process_encode_jsonl_parallel(schema, reader, &mut output, options, &mut summary)?
+    } else {
+        let mut record_count = 0u64;
 
-    for line in reader.lines() {
-        let line =
-            line.map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+        for line in reader.lines() {
+            let line =
+                line.map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
 
-        if line.trim().is_empty() {
-            continue;
-        }
+            if line.trim().is_empty() {
+                continue;
+            }
 
-        record_count += 1;
+            record_count += 1;
 
-        // Parse JSON
-        let json_value: Value = serde_json::from_str(&line)
-            .map_err(|e| Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, e.to_string()))?;
+            // Parse JSON
+            let json_value: Value = serde_json::from_str(&line)
+                .map_err(|e| Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, e.to_string()))?;
 
-        // Encode to binary
-        if let Ok(binary_data) = encode_record(schema, &json_value, options) {
-            output
-                .write_all(&binary_data)
-                .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-            summary.bytes_processed += binary_data.len() as u64;
-        } else {
-            summary.records_with_errors += 1;
-            if options.strict_mode {
-                break;
+            // Encode to binary
+            if let Ok(binary_data) = encode_record(schema, &json_value, options) {
+                output
+                    .write_all(&binary_data)
+                    .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+                summary.bytes_processed += binary_data.len() as u64;
+            } else {
+                summary.records_with_errors += 1;
+                if options.strict_mode {
+                    break;
+                }
             }
         }
-    }
+
+        record_count
+    };
 
     summary.records_processed = record_count;
     let elapsed_ms = start_time.elapsed().as_millis();

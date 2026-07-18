@@ -228,22 +228,9 @@ fn test_decode_multiple_redefines_variants() {
     let mut schema = parse_copybook(cpy).unwrap();
     let lrecl = record_len_from_schema(&schema);
     let mut data = vec![b'0'; lrecl];
-    // BASE-FIELD at offset 0
+    // Every view overlays BASE-FIELD, so the single 10-byte region carries all
+    // views. VIEW-B's children read the two halves of that same region.
     data[..10].copy_from_slice(b"1234567890");
-    // Write at children's actual offsets
-    let root = &schema.fields[0];
-    let view_b = root.children.iter().find(|c| c.name == "VIEW-B").unwrap();
-    for child in &view_b.children {
-        let off = child.offset as usize;
-        let end = off + child.len as usize;
-        if end <= lrecl {
-            match child.name.as_str() {
-                "B-PART1" => data[off..end].copy_from_slice(b"ABCDE"),
-                "B-PART2" => data[off..end].copy_from_slice(b"FGHIJ"),
-                _ => {}
-            }
-        }
-    }
     schema.lrecl_fixed = Some(u32::try_from(lrecl).unwrap());
 
     let env = copybook_codec::decode_record(&schema, &data, &ascii_decode_opts()).unwrap();
@@ -256,8 +243,8 @@ fn test_decode_multiple_redefines_variants() {
 
     assert_eq!(f["BASE-FIELD"], "1234567890");
     let vb = f["VIEW-B"].as_object().expect("VIEW-B group");
-    assert_eq!(vb["B-PART1"], "ABCDE");
-    assert_eq!(vb["B-PART2"], "FGHIJ");
+    assert_eq!(vb["B-PART1"], "12345");
+    assert_eq!(vb["B-PART2"], "67890");
 }
 
 // ===========================================================================

@@ -7,7 +7,7 @@
 use crate::dialect::{Dialect, effective_min_count};
 use crate::feature_flags::{Feature, FeatureFlags};
 use crate::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema, TailODO, error::error};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tracing::debug;
 
 /// Maximum theoretical record size (16 MiB by default)
@@ -24,6 +24,12 @@ struct LayoutContext {
     odo_arrays: Vec<OdoInfo>,
     /// Track field paths for validation
     field_paths: HashMap<String, u64>, // path -> offset
+    /// Cluster keys the current REDEFINES overlay chain is redefining *into*.
+    /// While laying out a redefining group's children, the "skip past completed
+    /// REDEFINES clusters" adjustment must ignore these outer target clusters
+    /// (the children overlay them), but must still honor clusters formed
+    /// *locally* by nested REDEFINES among the children.
+    overlay_targets: HashSet<String>,
 }
 
 /// Information about ODO arrays for validation
@@ -48,6 +54,7 @@ impl LayoutContext {
             redefines_clusters: HashMap::new(),
             odo_arrays: Vec::new(),
             field_paths: HashMap::new(),
+            overlay_targets: HashSet::new(),
         }
     }
 }
@@ -152,11 +159,19 @@ fn resolve_field_layout(
     let (alignment, base_size) =
         calculate_field_size_and_alignment(&field.kind, field.synchronized);
 
-    // Before calculating offset, ensure current_offset accounts for any completed REDEFINES clusters
-    for (cluster_start, cluster_size) in context.redefines_clusters.values() {
-        let cluster_end = cluster_start + cluster_size;
-        context.current_offset = context.current_offset.max(cluster_end);
+    // Before calculating offset, ensure current_offset accounts for any completed REDEFINES clusters.
+    // Outer target clusters that the current overlay chain is redefining *into*
+    // are excluded (a redefining group's children overlay them); clusters formed
+    // locally by nested REDEFINES among those children are still honored so a
+    // following sibling within the overlay is placed past them.
+    let mut floor = context.current_offset;
+    for (cluster_key, (cluster_start, cluster_size)) in &context.redefines_clusters {
+        if context.overlay_targets.contains(cluster_key) {
+            continue;
+        }
+        floor = floor.max(cluster_start + cluster_size);
     }
+    context.current_offset = floor;
 
     // Apply alignment padding if needed
     let aligned_offset = apply_alignment(context.current_offset, alignment);
@@ -404,9 +419,18 @@ fn resolve_redefines_field(
         let saved_offset = context.current_offset;
         context.current_offset = aligned_offset;
 
+        // Children overlay the redefined region: exclude this group's target
+        // cluster from the completed-cluster skip so the children are placed
+        // relative to the redefined offset, while clusters they form locally are
+        // still honored. `inserted` guards against removing a key an outer
+        // overlay already owns.
+        let inserted = context.overlay_targets.insert(target.to_string());
         for child in &mut field.children {
             let child_end_offset = resolve_field_layout(child, context, Some(field_path))?;
             group_size = group_size.max(child_end_offset - aligned_offset);
+        }
+        if inserted {
+            context.overlay_targets.remove(target);
         }
 
         field.len = copybook_overflow::safe_u64_to_u32(

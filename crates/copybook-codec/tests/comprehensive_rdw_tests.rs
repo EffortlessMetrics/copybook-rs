@@ -149,17 +149,24 @@ fn test_rdw_length_recomputation() {
     let copybook = "01 VARIABLE-RECORD PIC X(20).";
     let schema = parse_copybook(copybook).unwrap();
 
-    // Original data with length=8 (RDW supports variable-length records shorter than schema max)
-    let original_rdw = b"\x00\x08\x00\x00ORIGINAL";
+    // A fixed PIC X(20) schema requires a full 20-byte payload; an RDW record
+    // shorter than the fixed LRECL is a genuine underflow (CBKF221), covered by
+    // `test_rdw_underflow_error`. Here we start from a valid 20-byte record so
+    // the test can exercise its real purpose: RDW length recomputation on
+    // encode when the payload is replaced.
+    let original_rdw = b"\x00\x14\x00\x00ORIGINAL            ";
     let input = Cursor::new(original_rdw);
 
-    println!("DEBUG: Starting decode_file_to_jsonl with schema: {copybook}",);
+    println!("DEBUG: Starting decode_file_to_jsonl with schema: {copybook}");
     println!("DEBUG: Original RDW input: {original_rdw:?}");
 
     // Prepare output with newline-terminated JSONL
     let mut output = Vec::new();
 
-    let mut decode_options = create_rdw_decode_options(RawMode::RecordRDW, false);
+    // Decode without raw capture: this test rebuilds the payload from fields on
+    // encode, so a captured record-level `__raw_b64` (which takes precedence on
+    // encode) must not be present.
+    let mut decode_options = create_rdw_decode_options(RawMode::Off, false);
     decode_options.threads = 1; // Ensure single-threaded for consistent testing
 
     // Decode with direct error checking
@@ -195,18 +202,24 @@ fn test_rdw_length_recomputation() {
 
     let json_record: Value = serde_json::from_str(output_str.trim()).expect("Failed to parse JSON");
 
-    // Verify original record content
+    // Verify original record content (PIC X preserves trailing spaces).
     assert_eq!(
-        json_record["VARIABLE-RECORD"], "ORIGINAL",
+        json_record["VARIABLE-RECORD"], "ORIGINAL            ",
         "Original record should match input"
     );
 
-    // Modify the payload to different length
+    // Replace the payload. Encoding must rebuild from the modified field and
+    // recompute the RDW length header, so raw usage is disabled here: with
+    // `use_raw = true` the stale `__raw_b64` captured during decode would take
+    // precedence and the modified field would be ignored.
+    // The encoder reads field values from the nested `fields` envelope, so the
+    // authoritative entry must be updated (the flat top-level mirror is kept in
+    // sync for readability).
     let mut modified_record = json_record.clone();
     modified_record["VARIABLE-RECORD"] = json!("MODIFIED-LONGER-DATA");
+    modified_record["fields"]["VARIABLE-RECORD"] = json!("MODIFIED-LONGER-DATA");
 
-    // Encode with raw usage
-    let encode_options = create_rdw_encode_options(true, false);
+    let encode_options = create_rdw_encode_options(false, false);
     let result = copybook_codec::encode_record(&schema, &modified_record, &encode_options);
 
     assert!(result.is_ok(), "Encoding failed");

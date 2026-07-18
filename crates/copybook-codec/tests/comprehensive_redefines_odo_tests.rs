@@ -128,11 +128,29 @@ fn test_redefines_decode_all_views() {
         .and_then(|value| value.as_object())
         .unwrap();
 
-    // Views are flattened into the top-level field map
-    assert!(fields.get("ORIGINAL-FIELD").is_some());
-    assert!(fields.get("NUMERIC-VIEW").is_some());
-    assert!(fields.get("PART1").is_some());
-    assert!(fields.get("PART2").is_some());
+    // Scalar views appear at the top level of the fields map; the group view
+    // STRUCTURED-VIEW nests its children under its own name (consistent with
+    // how every group field is represented). All views overlay ORIGINAL-FIELD.
+    assert_eq!(
+        fields.get("ORIGINAL-FIELD").and_then(Value::as_str),
+        Some("12345678")
+    );
+    assert_eq!(
+        fields.get("NUMERIC-VIEW").and_then(Value::as_str),
+        Some("12345678")
+    );
+    let structured = fields
+        .get("STRUCTURED-VIEW")
+        .and_then(Value::as_object)
+        .expect("STRUCTURED-VIEW group view should be present");
+    assert_eq!(
+        structured.get("PART1").and_then(Value::as_str),
+        Some("1234")
+    );
+    assert_eq!(
+        structured.get("PART2").and_then(Value::as_str),
+        Some("5678")
+    );
 }
 
 #[test]
@@ -610,20 +628,24 @@ fn test_redefines_declaration_order() {
         .and_then(|value| value.as_object())
         .unwrap();
 
-    // Verify all views are present (group fields flatten to children)
+    // All views are present; the group view FIRST-REDEFINE nests its children
+    // under its own name (consistent with every group field).
     assert!(fields.get("ORIGINAL").is_some());
     assert!(fields.get("THIRD-REDEFINE").is_some());
-    assert!(fields.get("PART-A").is_some());
-    assert!(fields.get("PART-B").is_some());
     assert!(fields.get("SECOND-REDEFINE").is_some());
+    let first_redefine = fields
+        .get("FIRST-REDEFINE")
+        .and_then(Value::as_object)
+        .expect("FIRST-REDEFINE group view should be present");
+    assert!(first_redefine.get("PART-A").is_some());
+    assert!(first_redefine.get("PART-B").is_some());
 
     // JSON object should maintain insertion order (declaration order)
     let keys: Vec<&str> = fields.keys().map(std::string::String::as_str).collect();
     let expected_order = vec![
         "ORIGINAL",
         "THIRD-REDEFINE",
-        "PART-A",
-        "PART-B",
+        "FIRST-REDEFINE",
         "SECOND-REDEFINE",
     ];
 

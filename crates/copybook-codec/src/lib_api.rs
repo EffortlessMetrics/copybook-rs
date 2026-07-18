@@ -3000,6 +3000,38 @@ fn shutdown_encode_pool(pool: crate::memory::WorkerPool<Value, Result<Vec<u8>>>)
     })
 }
 
+fn finish_encode_input_error<W: Write>(
+    pool: crate::memory::WorkerPool<Value, Result<Vec<u8>>>,
+    batch_len: usize,
+    records_before_batch: u64,
+    output: &mut W,
+    options: &EncodeOptions,
+    summary: &mut RunSummary,
+    error: Error,
+) -> Result<u64> {
+    let mut pool = pool;
+    let pending_result = if batch_len > 0 {
+        process_encode_batch(
+            &mut pool,
+            batch_len,
+            records_before_batch,
+            output,
+            options,
+            summary,
+        )
+    } else {
+        Ok(false)
+    };
+    let shutdown_result = shutdown_encode_pool(pool);
+    let pending_stop = pending_result?;
+    shutdown_result?;
+    if pending_stop {
+        Ok(summary.records_processed)
+    } else {
+        Err(error)
+    }
+}
+
 fn process_encode_jsonl_parallel<R: BufRead, W: Write>(
     schema: &Schema,
     reader: R,
@@ -3018,28 +3050,15 @@ fn process_encode_jsonl_parallel<R: BufRead, W: Write>(
         let line = match line {
             Ok(line) => line,
             Err(error) => {
-                let pending_result = if batch_len > 0 {
-                    process_encode_batch(
-                        &mut pool,
-                        batch_len,
-                        records_before_batch,
-                        output,
-                        options,
-                        summary,
-                    )
-                } else {
-                    Ok(false)
-                };
-                let shutdown_result = shutdown_encode_pool(pool);
-                let pending_stop = pending_result?;
-                shutdown_result?;
-                if pending_stop {
-                    return Ok(summary.records_processed);
-                }
-                return Err(Error::new(
-                    ErrorCode::CBKC201_JSON_WRITE_ERROR,
-                    error.to_string(),
-                ));
+                return finish_encode_input_error(
+                    pool,
+                    batch_len,
+                    records_before_batch,
+                    output,
+                    options,
+                    summary,
+                    Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, error.to_string()),
+                );
             }
         };
 
@@ -3050,55 +3069,29 @@ fn process_encode_jsonl_parallel<R: BufRead, W: Write>(
         let json_value: Value = match serde_json::from_str(&line) {
             Ok(json_value) => json_value,
             Err(error) => {
-                let pending_result = if batch_len > 0 {
-                    process_encode_batch(
-                        &mut pool,
-                        batch_len,
-                        records_before_batch,
-                        output,
-                        options,
-                        summary,
-                    )
-                } else {
-                    Ok(false)
-                };
-                let shutdown_result = shutdown_encode_pool(pool);
-                let pending_stop = pending_result?;
-                shutdown_result?;
-                if pending_stop {
-                    return Ok(summary.records_processed);
-                }
-                return Err(Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    error.to_string(),
-                ));
-            }
-        };
-
-        records_seen += 1;
-        if let Err(error) = pool.submit(json_value) {
-            let pending_result = if batch_len > 0 {
-                process_encode_batch(
-                    &mut pool,
+                return finish_encode_input_error(
+                    pool,
                     batch_len,
                     records_before_batch,
                     output,
                     options,
                     summary,
-                )
-            } else {
-                Ok(false)
-            };
-            let shutdown_result = shutdown_encode_pool(pool);
-            let pending_stop = pending_result?;
-            shutdown_result?;
-            if pending_stop {
-                return Ok(summary.records_processed);
+                    Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, error.to_string()),
+                );
             }
-            return Err(Error::new(
-                ErrorCode::CBKI001_INVALID_STATE,
-                error.to_string(),
-            ));
+        };
+
+        records_seen += 1;
+        if let Err(error) = pool.submit(json_value) {
+            return finish_encode_input_error(
+                pool,
+                batch_len,
+                records_before_batch,
+                output,
+                options,
+                summary,
+                Error::new(ErrorCode::CBKI001_INVALID_STATE, error.to_string()),
+            );
         }
         batch_len += 1;
 

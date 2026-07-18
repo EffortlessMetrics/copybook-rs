@@ -10,7 +10,11 @@
 //! - Error handling in schema operations
 //! - Boundary conditions
 
-use copybook_core::{ErrorCode, parse_copybook};
+use copybook_core::{
+    FieldKind, SignPlacement,
+    feature_flags::{Feature, FeatureFlags},
+    parse_copybook,
+};
 
 #[test]
 fn test_schema_parse_simple_copybook() {
@@ -101,14 +105,29 @@ fn test_schema_parse_with_odo() {
 
 #[test]
 fn test_schema_parse_with_sign_separate() {
+    if !FeatureFlags::from_env().is_enabled(Feature::SignSeparate) {
+        return;
+    }
+
     // Test parsing with SIGN SEPARATE clause
     let copybook = "01 SIGNED-FIELD PIC S9(5) SIGN IS SEPARATE.";
     let result = parse_copybook(copybook);
-    assert!(result.is_err());
-    assert!(matches!(
-        result.unwrap_err().code(),
-        ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
-    ));
+    let schema = result.expect("SIGN SEPARATE should parse on stable form");
+
+    let field = schema
+        .all_fields()
+        .into_iter()
+        .find(|field| field.name == "SIGNED-FIELD")
+        .expect("parsed field should exist");
+    match &field.kind {
+        FieldKind::ZonedDecimal {
+            sign_separate: Some(sign),
+            ..
+        } => {
+            assert_eq!(sign.placement, SignPlacement::Trailing);
+        }
+        _ => panic!("Expected SIGN SEPARATE zoned decimal field"),
+    }
 }
 
 #[test]

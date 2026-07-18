@@ -309,3 +309,29 @@ pub fn parse_copybook(text: &str) -> Result<Schema> {
 pub fn parse_copybook_with_options(text: &str, options: &ParseOptions) -> Result<Schema> {
     parser::parse_with_options(text, options)
 }
+
+/// Parse a COBOL copybook with specific options and feature flags
+///
+/// # Examples
+///
+/// ```
+/// use copybook_core::{parse_copybook_with_feature_flags, ParseOptions, FeatureFlags, Feature};
+///
+/// let options = ParseOptions::default();
+/// let mut feature_flags = FeatureFlags::default();
+/// feature_flags.disable(Feature::SignSeparate);
+/// let source = "01 AMOUNT PIC S9(5) SIGN IS LEADING SEPARATE.";
+/// assert!(parse_copybook_with_feature_flags(source, &options, &feature_flags).is_err());
+/// ```
+///
+/// # Errors
+/// Returns an error if the copybook contains syntax errors or unsupported features.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
+pub fn parse_copybook_with_feature_flags(
+    text: &str,
+    options: &ParseOptions,
+    feature_flags: &FeatureFlags,
+) -> Result<Schema> {
+    parser::parse_with_feature_flags(text, options, feature_flags)
+}

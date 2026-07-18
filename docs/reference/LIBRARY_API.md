@@ -422,6 +422,36 @@ let schema_custom = parse_copybook_with_options(copybook, &parse_options)?;
 - `strict_comments: bool` - Whether to enforce strict comment parsing rules
 - `dialect: Dialect` - Dialect for ODO `min_count` interpretation
 
+### Parsing with Explicit Feature Flags
+
+```rust
+pub fn parse_copybook_with_feature_flags(
+    text: &str,
+    options: &ParseOptions,
+    feature_flags: &FeatureFlags,
+) -> Result<Schema, Error>
+```
+
+Parse a copybook using an explicit feature-flag snapshot instead of the process-global feature configuration. The supplied flags are used consistently during parser and layout resolution, which makes isolated tests and concurrent callers deterministic.
+
+```rust
+use copybook_core::{
+    parse_copybook_with_feature_flags, Feature, FeatureFlags, ParseOptions,
+};
+
+let mut feature_flags = FeatureFlags::default();
+feature_flags.disable(Feature::Comp1);
+
+let result = parse_copybook_with_feature_flags(
+    "01 VALUE-FIELD PIC S9(4) COMP-1.",
+    &ParseOptions::default(),
+    &feature_flags,
+);
+assert!(result.is_err());
+```
+
+This entry point returns the same structured parse errors as `parse_copybook` and `parse_copybook_with_options`, including stable unsupported-clause errors for disabled features. It does not mutate the global feature configuration.
+
 ### Enhanced Safe Operations Module
 
 The copybook-core crate provides comprehensive panic-safe operations in the `utils::safe_ops` module:

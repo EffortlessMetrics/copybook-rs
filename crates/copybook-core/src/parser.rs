@@ -53,14 +53,42 @@ pub fn parse(text: &str) -> Result<Schema> {
 /// Returns an error if the copybook contains syntax errors or unsupported features.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
-pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> {
+pub fn parse_with_feature_flags(
+    text: &str,
+    options: &ParseOptions,
+    feature_flags: &FeatureFlags,
+) -> Result<Schema> {
+    parse_with_options_and_feature_flags(text, options, feature_flags)
+}
+
+/// Parse a COBOL copybook with explicit options and feature flags.
+///
+/// # Errors
+/// Returns an error if the copybook contains syntax errors or unsupported features.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
+pub fn parse_with_options_and_feature_flags(
+    text: &str,
+    options: &ParseOptions,
+    feature_flags: &FeatureFlags,
+) -> Result<Schema> {
     if text.trim().is_empty() {
         return Err(error!(ErrorCode::CBKP001_SYNTAX, "Empty copybook text"));
     }
 
     let tokens = Lexer::new_with_options(text, options).tokenize();
-    let mut parser = Parser::with_options(tokens, options.clone());
+    let mut parser = Parser::with_options(tokens, options.clone(), feature_flags.clone());
     parser.parse_schema()
+}
+
+/// Parse a COBOL copybook text into a schema with specific options
+///
+/// # Errors
+/// Returns an error if the copybook contains syntax errors or unsupported features.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
+pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> {
+    parse_with_options_and_feature_flags(text, options, FeatureFlags::global())
 }
 
 /// Options for controlling COBOL copybook parsing behavior.
@@ -102,14 +130,20 @@ struct Parser {
     tokens: Vec<TokenPos>,
     current: usize,
     options: ParseOptions,
+    feature_flags: FeatureFlags,
 }
 
 impl Parser {
-    fn with_options(tokens: Vec<TokenPos>, options: ParseOptions) -> Self {
+    fn with_options(
+        tokens: Vec<TokenPos>,
+        options: ParseOptions,
+        feature_flags: FeatureFlags,
+    ) -> Self {
         Self {
             tokens,
             current: 0,
             options,
+            feature_flags,
         }
     }
 
@@ -120,7 +154,7 @@ impl Parser {
         feature_name: &str,
         syntax: &str,
     ) -> Result<()> {
-        if FeatureFlags::global().is_enabled(feature) {
+        if self.feature_flags.is_enabled(feature) {
             return Ok(());
         }
 
@@ -166,7 +200,11 @@ impl Parser {
         let mut schema = Schema::from_fields(hierarchical_fields);
 
         // Resolve field layouts and compute offsets (dialect affects ODO min_count)
-        crate::layout::resolve_layout(&mut schema, self.options.dialect)?;
+        crate::layout::resolve_layout_with_feature_flags(
+            &mut schema,
+            self.options.dialect,
+            &self.feature_flags,
+        )?;
 
         self.calculate_schema_fingerprint(&mut schema);
 

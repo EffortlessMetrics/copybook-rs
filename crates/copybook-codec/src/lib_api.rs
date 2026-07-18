@@ -212,6 +212,7 @@ fn process_fields_recursive(
     use copybook_core::FieldKind;
 
     let total_fields = fields.len();
+    let mut deferred_group_views = Vec::new();
 
     for (field_index, field) in fields.iter().enumerate() {
         match (&field.kind, &field.occurs) {
@@ -239,7 +240,17 @@ fn process_fields_recursive(
                     record_index,
                     encoding_acc,
                 )?;
-                json_obj.insert(field.name.clone(), Value::Object(group_obj));
+                if is_scalar_target_group_redefine(field, fields) {
+                    let group_value = Value::Object(group_obj);
+                    if let Value::Object(group_fields) = &group_value {
+                        for (name, value) in group_fields {
+                            json_obj.insert(name.clone(), value.clone());
+                        }
+                    }
+                    deferred_group_views.push((field.name.clone(), group_value));
+                } else if field.redefines_of.is_none() {
+                    json_obj.insert(field.name.clone(), Value::Object(group_obj));
+                }
             }
             (FieldKind::Group, None) => {
                 process_fields_recursive(
@@ -267,6 +278,10 @@ fn process_fields_recursive(
         }
     }
 
+    for (name, value) in deferred_group_views {
+        json_obj.insert(name, value);
+    }
+
     Ok(())
 }
 
@@ -282,6 +297,8 @@ fn process_fields_recursive_with_scratch(
     encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
     use copybook_core::FieldKind;
+
+    let mut deferred_group_views = Vec::new();
 
     for field in fields {
         if is_filler_field(field) && !options.emit_filler {
@@ -313,7 +330,17 @@ fn process_fields_recursive_with_scratch(
                     record_index,
                     encoding_acc,
                 )?;
-                json_obj.insert(field.name.clone(), Value::Object(group_obj));
+                if is_scalar_target_group_redefine(field, fields) {
+                    let group_value = Value::Object(group_obj);
+                    if let Value::Object(group_fields) = &group_value {
+                        for (name, value) in group_fields {
+                            json_obj.insert(name.clone(), value.clone());
+                        }
+                    }
+                    deferred_group_views.push((field.name.clone(), group_value));
+                } else if field.redefines_of.is_none() {
+                    json_obj.insert(field.name.clone(), Value::Object(group_obj));
+                }
             }
             (FieldKind::Group, None) => {
                 process_fields_recursive_with_scratch(
@@ -337,6 +364,10 @@ fn process_fields_recursive_with_scratch(
                 )?;
             }
         }
+    }
+
+    for (name, value) in deferred_group_views {
+        json_obj.insert(name, value);
     }
 
     Ok(())
@@ -1216,6 +1247,23 @@ fn decode_scalar_field_value_standard(
             }
         }
     }
+}
+
+/// Identify group views that redefine a scalar field.
+///
+/// These views are emitted both as flattened child fields and as a named group
+/// object. Group-over-group redefines retain their existing skip behavior.
+fn is_scalar_target_group_redefine(
+    field: &copybook_core::Field,
+    sibling_fields: &[copybook_core::Field],
+) -> bool {
+    let Some(target_path) = field.redefines_of.as_deref() else {
+        return false;
+    };
+
+    matches!(field.kind, copybook_core::FieldKind::Group)
+        && find_field_by_path(sibling_fields, target_path)
+            .is_ok_and(|target| !matches!(target.kind, copybook_core::FieldKind::Group))
 }
 
 /// Decode a scalar field value using shared scratch buffers

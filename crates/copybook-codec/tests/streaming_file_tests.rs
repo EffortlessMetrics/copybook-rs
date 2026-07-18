@@ -812,13 +812,14 @@ fn encode_fixed_threaded_deterministic() {
     for threads in [1_usize, 2, 4] {
         let opts = ascii_encode_opts().with_threads(threads);
         let mut output = Vec::new();
-        copybook_codec::encode_jsonl_to_file(
+        let summary = copybook_codec::encode_jsonl_to_file(
             &schema,
             Cursor::new(jsonl.as_bytes()),
             &mut output,
             &opts,
         )
         .unwrap();
+        assert_eq!(summary.threads_used, threads);
         outputs.push((threads, output));
     }
 
@@ -829,6 +830,34 @@ fn encode_fixed_threaded_deterministic() {
             "Fixed encode output differs for {threads} threads",
         );
     }
+}
+
+#[test]
+fn encode_parallel_strict_mode_stops_in_input_order() {
+    let schema = parse_copybook(SIMPLE_SCHEMA).unwrap();
+    let jsonl = concat!(
+        r#"{"TEST-FIELD": "00001"}"#,
+        "\n",
+        r#"{"TEST-FIELD": "BAD!!"}"#,
+        "\n",
+        r#"{"TEST-FIELD": "00003"}"#,
+        "\n",
+    );
+    let opts = ascii_encode_opts().with_threads(4).with_strict_mode(true);
+    let mut output = Vec::new();
+
+    let summary = copybook_codec::encode_jsonl_to_file(
+        &schema,
+        Cursor::new(jsonl.as_bytes()),
+        &mut output,
+        &opts,
+    )
+    .unwrap();
+
+    assert_eq!(summary.threads_used, 4);
+    assert_eq!(summary.records_processed, 2);
+    assert_eq!(summary.records_with_errors, 1);
+    assert_eq!(output, b"00001");
 }
 
 #[test]
@@ -872,13 +901,14 @@ fn encode_rdw_threaded_deterministic() {
             .with_format(RecordFormat::RDW)
             .with_threads(threads);
         let mut output = Vec::new();
-        copybook_codec::encode_jsonl_to_file(
+        let summary = copybook_codec::encode_jsonl_to_file(
             &schema,
             Cursor::new(jsonl.as_bytes()),
             &mut output,
             &opts,
         )
         .unwrap();
+        assert_eq!(summary.threads_used, threads);
         outputs.push((threads, output));
     }
 

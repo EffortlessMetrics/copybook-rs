@@ -2542,7 +2542,15 @@ fn process_rdw_records<R: Read, W: Write>(
             increment_warning_counter();
         }
 
+        // The fixed-length underflow guard only applies to genuinely
+        // fixed-length schemas. For variable-length records driven by a tail
+        // OCCURS DEPENDING ON, `lrecl_fixed` holds the *maximum* allocation
+        // (base prefix + max occurrences), so a valid record shorter than that
+        // maximum must not be rejected here. The ODO-aware record decoder below
+        // resolves the actual length from the counter and still raises
+        // `CBKD301_RECORD_TOO_SHORT` when the payload is genuinely too short.
         if let Some(schema_lrecl) = schema.lrecl_fixed
+            && schema.tail_odo.is_none()
             && rdw_record.payload.len() < schema_lrecl as usize
         {
             let error = Error::new(

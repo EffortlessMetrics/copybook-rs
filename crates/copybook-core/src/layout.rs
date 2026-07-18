@@ -24,6 +24,11 @@ struct LayoutContext {
     odo_arrays: Vec<OdoInfo>,
     /// Track field paths for validation
     field_paths: HashMap<String, u64>, // path -> offset
+    /// Depth of the REDEFINES overlay currently being laid out. While > 0 the
+    /// "skip past completed REDEFINES clusters" adjustment is suppressed, so a
+    /// redefining group's children overlay the redefined region instead of
+    /// being pushed past it.
+    overlay_depth: usize,
 }
 
 /// Information about ODO arrays for validation
@@ -48,6 +53,7 @@ impl LayoutContext {
             redefines_clusters: HashMap::new(),
             odo_arrays: Vec::new(),
             field_paths: HashMap::new(),
+            overlay_depth: 0,
         }
     }
 }
@@ -152,10 +158,15 @@ fn resolve_field_layout(
     let (alignment, base_size) =
         calculate_field_size_and_alignment(&field.kind, field.synchronized);
 
-    // Before calculating offset, ensure current_offset accounts for any completed REDEFINES clusters
-    for (cluster_start, cluster_size) in context.redefines_clusters.values() {
-        let cluster_end = cluster_start + cluster_size;
-        context.current_offset = context.current_offset.max(cluster_end);
+    // Before calculating offset, ensure current_offset accounts for any completed REDEFINES clusters.
+    // Suppressed while inside a REDEFINES overlay: a redefining group's children
+    // must overlay the redefined region, not be pushed past the cluster the
+    // parent group itself is redefining into.
+    if context.overlay_depth == 0 {
+        for (cluster_start, cluster_size) in context.redefines_clusters.values() {
+            let cluster_end = cluster_start + cluster_size;
+            context.current_offset = context.current_offset.max(cluster_end);
+        }
     }
 
     // Apply alignment padding if needed
@@ -404,10 +415,14 @@ fn resolve_redefines_field(
         let saved_offset = context.current_offset;
         context.current_offset = aligned_offset;
 
+        // Children overlay the redefined region: suppress the completed-cluster
+        // skip so they are placed relative to this group's (redefined) offset.
+        context.overlay_depth += 1;
         for child in &mut field.children {
             let child_end_offset = resolve_field_layout(child, context, Some(field_path))?;
             group_size = group_size.max(child_end_offset - aligned_offset);
         }
+        context.overlay_depth -= 1;
 
         field.len = copybook_overflow::safe_u64_to_u32(
             group_size,

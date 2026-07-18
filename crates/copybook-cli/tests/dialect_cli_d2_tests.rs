@@ -6,6 +6,7 @@ mod common;
 
 use common::{TestResult, bin, write_file};
 use predicates::str::contains;
+use std::path::Path;
 use tempfile::TempDir;
 
 const CBKE: i32 = 3;
@@ -70,6 +71,19 @@ fn verify_args<'a>(
     cmd.args(["verify", "--format", "fixed", "--codepage", "ascii"])
         .arg(copybook_path)
         .arg(data_path)
+}
+
+fn parsed_tail_min_count(cmd: &mut assert_cmd::Command, copybook_path: &Path) -> TestResult<u64> {
+    let output = cmd.arg("parse").arg(copybook_path).output()?;
+    assert!(
+        output.status.success(),
+        "parse failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let schema: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    schema["tail_odo"]["min_count"]
+        .as_u64()
+        .ok_or_else(|| "parse output did not contain tail_odo.min_count".into())
 }
 
 #[test]
@@ -195,6 +209,52 @@ fn cli_flag_overrides_env_var() -> TestResult<()> {
         .arg("1")
         .assert()
         .success();
+
+    Ok(())
+}
+
+#[test]
+fn dialect_cli_precedence_is_observable() -> TestResult<()> {
+    let tmp = TempDir::new()?;
+    let copybook_path = tmp.path().join("schema.cpy");
+    write_file(
+        &copybook_path,
+        "01 RECORD.\n  05 COUNT PIC 9(2).\n  05 ITEMS OCCURS 5 TO 9 TIMES DEPENDING ON COUNT PIC X.\n",
+    )?;
+
+    let mut default_cmd = bin();
+    assert_eq!(parsed_tail_min_count(&mut default_cmd, &copybook_path)?, 5);
+
+    let mut env_cmd = bin();
+    env_cmd.env("COPYBOOK_DIALECT", "0");
+    assert_eq!(parsed_tail_min_count(&mut env_cmd, &copybook_path)?, 0);
+
+    let mut invalid_env_cmd = bin();
+    invalid_env_cmd.env("COPYBOOK_DIALECT", "unsupported");
+    assert_eq!(
+        parsed_tail_min_count(&mut invalid_env_cmd, &copybook_path)?,
+        5
+    );
+
+    let zero_min_copybook = tmp.path().join("zero-min-schema.cpy");
+    write_file(
+        &zero_min_copybook,
+        "01 RECORD.\n  05 COUNT PIC 9(2).\n  05 ITEMS OCCURS 0 TO 9 TIMES DEPENDING ON COUNT PIC X.\n",
+    )?;
+    let mut cli_cmd = bin();
+    cli_cmd.env("COPYBOOK_DIALECT", "0");
+    cli_cmd
+        .arg("parse")
+        .arg(&zero_min_copybook)
+        .args(["--dialect", "1"]);
+    let output = cli_cmd.output()?;
+    assert!(
+        output.status.success(),
+        "parse failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let schema: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(schema["tail_odo"]["min_count"].as_u64(), Some(1));
 
     Ok(())
 }

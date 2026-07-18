@@ -16,6 +16,7 @@ use copybook_core::{Error, ErrorCode, Result, Schema};
 use serde_json::Value;
 use std::convert::TryFrom;
 use std::io::{BufRead, BufReader, Read, Write};
+use std::sync::Arc;
 use tracing::info;
 
 mod envelope;
@@ -2406,6 +2407,10 @@ fn encode_binary_int_field(
 ///
 /// Reads records from `input` using the configured [`RecordFormat`]
 ///
+/// When `options.threads` is greater than one, records are decoded through a
+/// bounded worker pool and emitted in input order. A zero thread setting uses
+/// one worker for a safe single-threaded fallback.
+///
 /// # Examples
 ///
 /// ```
@@ -2434,7 +2439,7 @@ pub fn decode_file_to_jsonl(
     options: &DecodeOptions,
 ) -> Result<RunSummary> {
     let start_time = std::time::Instant::now();
-    let mut summary = RunSummary::new();
+    let mut summary = RunSummary::with_threads(options.threads.max(1));
     summary.set_schema_fingerprint(schema.fingerprint.clone());
 
     reset_warning_counter();
@@ -2482,6 +2487,10 @@ fn process_fixed_records<R: Read, W: Write>(
     options: &DecodeOptions,
     summary: &mut RunSummary,
 ) -> Result<()> {
+    if options.threads > 1 {
+        return process_fixed_records_parallel(schema, reader, output, options, summary);
+    }
+
     let mut reader = crate::record::FixedRecordReader::new(reader, schema.lrecl_fixed)?;
     let mut scratch = crate::memory::ScratchBuffers::new();
     let mut record_index = 0u64;
@@ -2522,6 +2531,177 @@ fn process_fixed_records<R: Read, W: Write>(
     Ok(())
 }
 
+struct DecodeWork {
+    payload: Vec<u8>,
+    raw_data: Option<Vec<u8>>,
+    record_index: u64,
+}
+
+struct DecodeOutcome {
+    result: Result<Value>,
+    warnings: u64,
+}
+
+fn decode_worker_pool(
+    schema: &Schema,
+    options: &DecodeOptions,
+) -> crate::memory::WorkerPool<DecodeWork, DecodeOutcome> {
+    let workers = options.threads.max(1);
+    let channel_capacity = workers.saturating_mul(4).max(1);
+    let max_window_size = workers.saturating_mul(2).max(1);
+    let schema = Arc::new(schema.clone());
+    let options = Arc::new(options.clone());
+
+    crate::memory::WorkerPool::new(
+        workers,
+        channel_capacity,
+        max_window_size,
+        move |work: DecodeWork, scratch: &mut crate::memory::ScratchBuffers| {
+            let warning_count_before = warning_count();
+            let result = decode_record_with_scratch_and_raw(
+                &schema,
+                &work.payload,
+                &options,
+                work.raw_data,
+                work.record_index,
+                scratch,
+            );
+            let warnings = warning_count().saturating_sub(warning_count_before);
+            DecodeOutcome { result, warnings }
+        },
+    )
+}
+
+fn process_decode_batch<W: Write>(
+    pool: &mut crate::memory::WorkerPool<DecodeWork, DecodeOutcome>,
+    batch_len: usize,
+    output: &mut W,
+    options: &DecodeOptions,
+    summary: &mut RunSummary,
+) -> Result<()> {
+    let mut first_error = None;
+
+    for _ in 0..batch_len {
+        let outcome = pool
+            .recv_ordered()
+            .map_err(|error| Error::new(ErrorCode::CBKI001_INVALID_STATE, error.to_string()))?
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorCode::CBKI001_INVALID_STATE,
+                    "decode worker pool ended before the submitted batch completed",
+                )
+            })?;
+
+        for _ in 0..outcome.warnings {
+            increment_warning_counter();
+        }
+
+        if first_error.is_some() {
+            continue;
+        }
+
+        match outcome.result {
+            Ok(json_value) => {
+                write_json_record(output, &json_value)?;
+                summary.records_processed += 1;
+            }
+            Err(error) => {
+                summary.records_with_errors += 1;
+                let family = error.family_prefix();
+                telemetry::record_error(family);
+                if options.strict_mode {
+                    first_error = Some(error);
+                }
+            }
+        }
+    }
+
+    first_error.map_or(Ok(()), Err)
+}
+
+fn process_fixed_records_parallel<R: Read, W: Write>(
+    schema: &Schema,
+    reader: R,
+    output: &mut W,
+    options: &DecodeOptions,
+    summary: &mut RunSummary,
+) -> Result<()> {
+    let mut reader = crate::record::FixedRecordReader::new(reader, schema.lrecl_fixed)?;
+    let workers = options.threads.max(1);
+    let batch_capacity = workers.saturating_mul(4).max(1);
+    let mut pool = decode_worker_pool(schema, options);
+    let mut record_index = 0_u64;
+    let mut batch_len = 0_usize;
+
+    loop {
+        let record = match reader.read_record() {
+            Ok(record) => record,
+            Err(error) => {
+                let pending_result = if batch_len > 0 {
+                    process_decode_batch(&mut pool, batch_len, output, options, summary)
+                } else {
+                    Ok(())
+                };
+                let _ = pool.shutdown();
+                pending_result?;
+                return Err(error);
+            }
+        };
+        let Some(record_data) = record else { break };
+
+        record_index += 1;
+        summary.bytes_processed += record_data.len() as u64;
+        telemetry::record_read(record_data.len(), options);
+        let raw_data = match options.emit_raw {
+            crate::options::RawMode::Record => Some(record_data.clone()),
+            _ => None,
+        };
+
+        if let Err(error) = pool.submit(DecodeWork {
+            payload: record_data,
+            raw_data,
+            record_index,
+        }) {
+            let pending_result = if batch_len > 0 {
+                process_decode_batch(&mut pool, batch_len, output, options, summary)
+            } else {
+                Ok(())
+            };
+            let _ = pool.shutdown();
+            pending_result?;
+            return Err(Error::new(
+                ErrorCode::CBKI001_INVALID_STATE,
+                error.to_string(),
+            ));
+        }
+        batch_len += 1;
+
+        if batch_len == batch_capacity {
+            let result = process_decode_batch(&mut pool, batch_len, output, options, summary);
+            batch_len = 0;
+            if let Err(error) = result {
+                let _ = pool.shutdown();
+                return Err(error);
+            }
+        }
+    }
+
+    if batch_len > 0 {
+        let result = process_decode_batch(&mut pool, batch_len, output, options, summary);
+        if let Err(error) = result {
+            let _ = pool.shutdown();
+            return Err(error);
+        }
+    }
+
+    pool.shutdown().map_err(|error| {
+        Error::new(
+            ErrorCode::CBKI001_INVALID_STATE,
+            format!("decode worker pool shutdown failed: {error}"),
+        )
+    })
+}
+
 fn process_rdw_records<R: Read, W: Write>(
     schema: &Schema,
     reader: R,
@@ -2529,6 +2709,10 @@ fn process_rdw_records<R: Read, W: Write>(
     options: &DecodeOptions,
     summary: &mut RunSummary,
 ) -> Result<()> {
+    if options.threads > 1 {
+        return process_rdw_records_parallel(schema, reader, output, options, summary);
+    }
+
     let mut reader = crate::record::RDWRecordReader::new(reader, options.strict_mode);
     let mut scratch = crate::memory::ScratchBuffers::new();
     let mut record_index = 0u64;
@@ -2599,6 +2783,129 @@ fn process_rdw_records<R: Read, W: Write>(
     }
 
     Ok(())
+}
+
+fn process_rdw_records_parallel<R: Read, W: Write>(
+    schema: &Schema,
+    reader: R,
+    output: &mut W,
+    options: &DecodeOptions,
+    summary: &mut RunSummary,
+) -> Result<()> {
+    let mut reader = crate::record::RDWRecordReader::new(reader, options.strict_mode);
+    let workers = options.threads.max(1);
+    let batch_capacity = workers.saturating_mul(4).max(1);
+    let mut pool = decode_worker_pool(schema, options);
+    let mut record_index = 0_u64;
+    let mut batch_len = 0_usize;
+
+    loop {
+        let rdw_record = match reader.read_record() {
+            Ok(record) => record,
+            Err(error) => {
+                let pending_result = if batch_len > 0 {
+                    process_decode_batch(&mut pool, batch_len, output, options, summary)
+                } else {
+                    Ok(())
+                };
+                let _ = pool.shutdown();
+                pending_result?;
+                return Err(error);
+            }
+        };
+        let Some(rdw_record) = rdw_record else { break };
+
+        record_index += 1;
+        let record_bytes = rdw_record.header.len() + rdw_record.payload.len();
+        summary.bytes_processed += record_bytes as u64;
+        telemetry::record_read(record_bytes, options);
+        if rdw_record.reserved() != 0 {
+            increment_warning_counter();
+        }
+
+        if let Some(schema_lrecl) = schema.lrecl_fixed
+            && rdw_record.payload.len() < schema_lrecl as usize
+        {
+            let error = Error::new(
+                ErrorCode::CBKF221_RDW_UNDERFLOW,
+                format!(
+                    "RDW payload too short: {} bytes, schema requires {} bytes",
+                    rdw_record.payload.len(),
+                    schema_lrecl
+                ),
+            );
+
+            summary.records_with_errors += 1;
+            let family = error.family_prefix();
+            telemetry::record_error(family);
+            if options.strict_mode {
+                let pending_result = if batch_len > 0 {
+                    process_decode_batch(&mut pool, batch_len, output, options, summary)
+                } else {
+                    Ok(())
+                };
+                let _ = pool.shutdown();
+                pending_result?;
+                return Err(error);
+            }
+            continue;
+        }
+
+        let full_raw_data = match options.emit_raw {
+            crate::options::RawMode::RecordRDW => {
+                let mut full_data =
+                    Vec::with_capacity(rdw_record.header.len() + rdw_record.payload.len());
+                full_data.extend_from_slice(&rdw_record.header);
+                full_data.extend_from_slice(&rdw_record.payload);
+                Some(full_data)
+            }
+            crate::options::RawMode::Record => Some(rdw_record.payload.clone()),
+            _ => None,
+        };
+
+        if let Err(error) = pool.submit(DecodeWork {
+            payload: rdw_record.payload,
+            raw_data: full_raw_data,
+            record_index,
+        }) {
+            let pending_result = if batch_len > 0 {
+                process_decode_batch(&mut pool, batch_len, output, options, summary)
+            } else {
+                Ok(())
+            };
+            let _ = pool.shutdown();
+            pending_result?;
+            return Err(Error::new(
+                ErrorCode::CBKI001_INVALID_STATE,
+                error.to_string(),
+            ));
+        }
+        batch_len += 1;
+
+        if batch_len == batch_capacity {
+            let result = process_decode_batch(&mut pool, batch_len, output, options, summary);
+            batch_len = 0;
+            if let Err(error) = result {
+                let _ = pool.shutdown();
+                return Err(error);
+            }
+        }
+    }
+
+    if batch_len > 0 {
+        let result = process_decode_batch(&mut pool, batch_len, output, options, summary);
+        if let Err(error) = result {
+            let _ = pool.shutdown();
+            return Err(error);
+        }
+    }
+
+    pool.shutdown().map_err(|error| {
+        Error::new(
+            ErrorCode::CBKI001_INVALID_STATE,
+            format!("decode worker pool shutdown failed: {error}"),
+        )
+    })
 }
 
 #[inline]

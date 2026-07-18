@@ -539,6 +539,7 @@ fn decode_fixed_threaded_recovery_summary() {
         assert_eq!(summary.records_with_errors, 1);
         assert_eq!(summary.total_records(), 4);
         assert_eq!(summary.bytes_processed, 20);
+        assert_eq!(summary.threads_used, threads);
         assert_eq!(
             String::from_utf8(output.clone()).unwrap().lines().count(),
             3
@@ -737,9 +738,44 @@ fn decode_thread_count_in_summary() {
     let opts = ascii_decode_opts().with_threads(1);
     let mut output = Vec::new();
     let summary = decode_file_to_jsonl(&schema, Cursor::new(data), &mut output, &opts).unwrap();
-    // threads_used should be populated in single-threaded path
-    // The exact value depends on implementation; just verify it exists
-    assert!(summary.threads_used <= 1 || summary.threads_used > 0);
+    assert_eq!(summary.threads_used, 1);
+}
+
+#[test]
+fn decode_parallel_strict_mode_stops_in_input_order() {
+    let schema = parse_copybook(SIMPLE_SCHEMA).unwrap();
+    let data = [
+        b"00001".as_slice(),
+        b"AB12C".as_slice(),
+        b"00003".as_slice(),
+        b"00004".as_slice(),
+    ]
+    .concat();
+    let opts = ascii_decode_opts().with_threads(4).with_strict_mode(true);
+    let mut output = Vec::new();
+
+    let error = decode_file_to_jsonl(&schema, Cursor::new(data), &mut output, &opts)
+        .expect_err("strict parallel decode should return the first record error");
+
+    assert_eq!(error.code, ErrorCode::CBKD411_ZONED_BAD_SIGN);
+    assert_eq!(String::from_utf8(output).unwrap().lines().count(), 1);
+}
+
+#[test]
+fn decode_parallel_rdw_strict_mode_emits_prior_records() {
+    let schema = parse_copybook(RDW_SCHEMA).unwrap();
+    let data = build_rdw_records(&["HELLO", "ABC"]);
+    let opts = ascii_decode_opts()
+        .with_format(RecordFormat::RDW)
+        .with_threads(4)
+        .with_strict_mode(true);
+    let mut output = Vec::new();
+
+    let error = decode_file_to_jsonl(&schema, Cursor::new(data), &mut output, &opts)
+        .expect_err("strict parallel RDW decode should reject the short record");
+
+    assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(String::from_utf8(output).unwrap().lines().count(), 1);
 }
 
 #[test]
@@ -751,8 +787,10 @@ fn decode_fixed_threaded_deterministic() {
     for threads in [1_usize, 2, 4] {
         let opts = ascii_decode_opts().with_threads(threads);
         let mut output = Vec::new();
-        copybook_codec::decode_file_to_jsonl(&schema, Cursor::new(&data), &mut output, &opts)
-            .unwrap();
+        let summary =
+            copybook_codec::decode_file_to_jsonl(&schema, Cursor::new(&data), &mut output, &opts)
+                .unwrap();
+        assert_eq!(summary.threads_used, threads);
         outputs.push((threads, output));
     }
 
@@ -804,8 +842,10 @@ fn decode_rdw_threaded_deterministic() {
             .with_format(RecordFormat::RDW)
             .with_threads(threads);
         let mut output = Vec::new();
-        copybook_codec::decode_file_to_jsonl(&schema, Cursor::new(&data), &mut output, &opts)
-            .unwrap();
+        let summary =
+            copybook_codec::decode_file_to_jsonl(&schema, Cursor::new(&data), &mut output, &opts)
+                .unwrap();
+        assert_eq!(summary.threads_used, threads);
         outputs.push((threads, output));
     }
 

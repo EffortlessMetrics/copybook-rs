@@ -23,8 +23,10 @@ fn path_str(p: &std::path::Path) -> String {
 }
 
 /// Decode a single `byte` through `copybook decode`, optionally passing
-/// `--codepage`, and return the JSONL written to `--output`.
-fn decode_single_byte(byte: u8, codepage: Option<&str>) -> String {
+/// `--codepage`, then parse the JSONL output and return the decoded `SIG` field.
+/// Parsing (rather than a substring match) keeps the assertion exact and robust
+/// to any future change in the JSONL envelope.
+fn decode_sig(byte: u8, codepage: Option<&str>) -> String {
     let dir = assert_fs::TempDir::new().unwrap();
     let cpy = dir.child("sig.cpy");
     cpy.write_str(SIG_CPY).unwrap();
@@ -47,7 +49,14 @@ fn decode_single_byte(byte: u8, codepage: Option<&str>) -> String {
     }
     cmd.assert().success();
 
-    std::fs::read_to_string(out.path()).unwrap()
+    let contents = std::fs::read_to_string(out.path()).unwrap();
+    let line = contents.lines().next().expect("at least one JSONL record");
+    let value: serde_json::Value = serde_json::from_str(line).expect("valid JSON line");
+    value
+        .get("SIG")
+        .and_then(serde_json::Value::as_str)
+        .expect("SIG field present")
+        .to_owned()
 }
 
 // ====================================================================
@@ -58,35 +67,25 @@ fn decode_single_byte(byte: u8, codepage: Option<&str>) -> String {
 #[test]
 fn cli_decode_cp273_signature() {
     // CP273 0x4A = Ä (German A-umlaut).
-    let out = decode_single_byte(0x4A, Some("cp273"));
-    assert!(out.contains('Ä'), "CP273 decode should yield Ä, got: {out}");
+    assert_eq!(decode_sig(0x4A, Some("cp273")), "Ä");
 }
 
 #[test]
 fn cli_decode_cp500_signature() {
     // CP500 0x4F = ! (where CP037 has |).
-    let out = decode_single_byte(0x4F, Some("cp500"));
-    assert!(out.contains('!'), "CP500 decode should yield !, got: {out}");
+    assert_eq!(decode_sig(0x4F, Some("cp500")), "!");
 }
 
 #[test]
 fn cli_decode_cp1047_signature() {
     // CP1047 0xBA = Ý (where CP037 has [) — the z/OS-Unix bracket swap.
-    let out = decode_single_byte(0xBA, Some("cp1047"));
-    assert!(
-        out.contains('Ý'),
-        "CP1047 decode should yield Ý, got: {out}"
-    );
+    assert_eq!(decode_sig(0xBA, Some("cp1047")), "Ý");
 }
 
 #[test]
 fn cli_decode_cp1140_signature() {
     // CP1140 0xFF = € (Euro), the single byte that differs from CP037.
-    let out = decode_single_byte(0xFF, Some("cp1140"));
-    assert!(
-        out.contains('€'),
-        "CP1140 decode should yield €, got: {out}"
-    );
+    assert_eq!(decode_sig(0xFF, Some("cp1140")), "€");
 }
 
 // ====================================================================
@@ -98,30 +97,14 @@ fn cli_decode_cp1140_signature() {
 #[test]
 fn cli_codepage_flag_changes_decoded_character() {
     // Byte 0x4A is ¢ in CP037 but Ä in CP273 — same bytes, different flag.
-    let as_cp037 = decode_single_byte(0x4A, Some("cp037"));
-    let as_cp273 = decode_single_byte(0x4A, Some("cp273"));
-
-    assert!(as_cp037.contains('¢'), "CP037 should decode 0x4A as ¢");
-    assert!(as_cp273.contains('Ä'), "CP273 should decode 0x4A as Ä");
-    assert!(
-        !as_cp037.contains('Ä'),
-        "CP037 output must not contain the CP273 character"
-    );
+    assert_eq!(decode_sig(0x4A, Some("cp037")), "¢");
+    assert_eq!(decode_sig(0x4A, Some("cp273")), "Ä");
 }
 
 #[test]
 fn cli_explicit_codepage_overrides_default() {
     // With no --codepage the CP037 default applies (0x4A → ¢); an explicit
     // --codepage cp273 overrides that default (0x4A → Ä).
-    let default_out = decode_single_byte(0x4A, None);
-    let explicit_out = decode_single_byte(0x4A, Some("cp273"));
-
-    assert!(
-        default_out.contains('¢'),
-        "default codepage (CP037) should decode 0x4A as ¢, got: {default_out}"
-    );
-    assert!(
-        explicit_out.contains('Ä'),
-        "explicit CP273 should decode 0x4A as Ä, got: {explicit_out}"
-    );
+    assert_eq!(decode_sig(0x4A, None), "¢");
+    assert_eq!(decode_sig(0x4A, Some("cp273")), "Ä");
 }

@@ -379,9 +379,9 @@ See `docs/design/NESTED_ODO_BEHAVIOR.md` (Issue #164) for complete design specif
 | O1  | Simple tail ODO                         | ✅     | -                     | `golden_fixtures_ac3_child_inside_odo.rs::test_ac3_basic_child_inside_odo_pass` |
 | O2  | Tail ODO with DYNAMIC (AC1/AC2)         | ✅     | -                     | `odo_comprehensive.rs` (21 tests), `odo_counter_types.rs`        |
 | O3  | Group-with-ODO tail (AC3)               | ✅     | -                     | `golden_fixtures_ac3_child_inside_odo.rs::test_ac3_nested_groups_inside_odo_pass` |
-| O4  | ODO with sibling after (AC4)            | 🚫     | CBKP021_ODO_NOT_TAIL  | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (8 negative tests)|
-| O5  | Nested ODO (ODO inside ODO)             | 🚫     | CBKP022_NESTED_ODO    | Phase N1: reject; Phase N2: review if user demand emerges        |
-| O6  | ODO over REDEFINES                      | 🚫     | CBKP023_ODO_REDEFINES | Phase N1: reject; Phase N3: dedicated design required            |
+| O4  | ODO with sibling after (AC4)            | 🚫     | CBKP021_ODO_NOT_TAIL  | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (8 negative tests); `rejection_evidence_matrix.rs::parse_rejections_map_to_stable_codes` (`O4`)|
+| O5  | Nested ODO (ODO inside ODO)             | 🚫     | CBKP022_NESTED_ODO    | Phase N1: reject; Phase N2: review if user demand emerges; `rejection_evidence_matrix.rs::parse_rejections_map_to_stable_codes` (`O5`) |
+| O6  | ODO over REDEFINES                      | 🚫     | CBKP023_ODO_REDEFINES | Phase N1: reject; Phase N3: dedicated design required; `rejection_evidence_matrix.rs::parse_rejections_map_to_stable_codes` (`O6`) |
 | O7  | ODO over RENAMES span (R4/R5 scenarios) | 🚫     | Out of scope          | RENAMES R4-R6 explicitly deferred (see RENAMES section)          |
 
 **Evidence:**
@@ -465,8 +465,8 @@ See `docs/design/RENAMES_NESTED_GROUPS.md` for complete design specification.
 | `renames-same-scope-group`  | 66-level – group alias       | ✅      | Parser + resolver (R2) with correct tree building; codec decode ✅ |
 | `renames-nested-group`      | 66-level – nested group      | ✅      | Parser + resolver (R3) with recursive target lookup; codec decode ✅ |
 | `renames-codec-projection`  | 66-level – codec projection  | ✅      | Schema provides `find_field_or_alias` and `resolve_alias_to_target` for codec integration |
-| `renames-redefines`         | 66-level – over REDEFINES    | 🚫      | Out of scope; requires separate design for interaction semantics |
-| `renames-occurs`            | 66-level – over OCCURS       | 🚫      | Out of scope; requires separate design for array aliasing        |
+| `renames-redefines`         | 66-level – over REDEFINES    | 🚫      | Out of scope; `CBKS609_RENAME_OVER_REDEFINES`; `rejection_evidence_matrix.rs::parse_rejections_map_to_stable_codes` (`renames-redefines`) |
+| `renames-occurs`            | 66-level – over OCCURS       | 🚫      | Out of scope; `CBKS607_RENAME_CROSSES_OCCURS`; `rejection_evidence_matrix.rs::parse_rejections_map_to_stable_codes` (`renames-occurs`) |
 
 **Evidence:**
 

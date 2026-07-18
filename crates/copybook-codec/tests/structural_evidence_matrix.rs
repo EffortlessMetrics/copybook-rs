@@ -148,6 +148,50 @@ fn redefines_group_overlays_original() {
     assert_eq!(parts.get("RIGHT").and_then(Value::as_str), Some("5678"));
 }
 
+/// Supported (regression guard): a REDEFINES nested *inside* a REDEFINES group
+/// forms a local cluster that must still push a following sibling within the
+/// overlay. `TAIL` must land after the larger `INNER-ALT` (offset 15), not
+/// overlap it — while the outer group still overlays `ORIG`.
+#[test]
+fn redefines_nested_local_cluster_advances_sibling() {
+    let schema = parse_copybook(
+        "01 R.\n   05 ORIG PIC X(20).\n   05 OUTER REDEFINES ORIG.\n      10 INNER-ORIG PIC X(10).\n      10 INNER-ALT REDEFINES INNER-ORIG PIC X(15).\n      10 TAIL PIC X(5).",
+    )
+    .expect("nested REDEFINES copybook parses");
+    assert_eq!(
+        schema.lrecl_fixed,
+        Some(20),
+        "OUTER overlays ORIG's 20 bytes"
+    );
+
+    // bytes 0-9 = "0123456789", 10-14 = "ABCDE", 15-19 = "XYZ12"
+    let json = decode_record(
+        &schema,
+        b"0123456789ABCDEXYZ12",
+        &decode_opts(RecordFormat::Fixed),
+    )
+    .expect("record decodes");
+    let outer = json
+        .get("fields")
+        .and_then(|f| f.get("OUTER"))
+        .and_then(Value::as_object)
+        .expect("OUTER group view");
+    assert_eq!(
+        outer.get("INNER-ORIG").and_then(Value::as_str),
+        Some("0123456789")
+    );
+    assert_eq!(
+        outer.get("INNER-ALT").and_then(Value::as_str),
+        Some("0123456789ABCDE"),
+        "INNER-ALT overlays INNER-ORIG (offset 0, 15 bytes)"
+    );
+    assert_eq!(
+        outer.get("TAIL").and_then(Value::as_str),
+        Some("XYZ12"),
+        "TAIL must start at offset 15 (after INNER-ALT), not overlap it"
+    );
+}
+
 /// Rejection: encoding with two non-null REDEFINES views is ambiguous.
 #[test]
 fn redefines_encode_ambiguity_is_rejected() {

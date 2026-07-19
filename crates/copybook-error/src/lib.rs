@@ -208,9 +208,13 @@ pub enum ErrorCode {
     CBKD422_EDITED_PIC_SIGN_MISMATCH,
     /// CBKD423: Edited PIC blank when zero handling error
     CBKD423_EDITED_PIC_BLANK_WHEN_ZERO,
-    /// CBKD431: Floating-point field contains NaN (decoded as null)
+    /// CBKD431: Floating-point field contains NaN. Reserved — not currently
+    /// emitted; the decode path converts NaN to JSON `null` instead of raising
+    /// this code. See `docs/reference/ERROR_CODES.md`.
     CBKD431_FLOAT_NAN,
-    /// CBKD432: Floating-point field contains infinity (decoded as null)
+    /// CBKD432: Floating-point field contains infinity. Reserved — not
+    /// currently emitted; the decode path converts ±Infinity to JSON `null`
+    /// instead of raising this code. See `docs/reference/ERROR_CODES.md`.
     CBKD432_FLOAT_INFINITY,
 
     // =============================================================================

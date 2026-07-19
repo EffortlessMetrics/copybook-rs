@@ -512,15 +512,17 @@ All spaces decoded as "0"
 
 #### CBKD431_FLOAT_NAN
 **Description**: Floating-point field (COMP-1/COMP-2) contains NaN; the value is decoded as JSON null
-**Severity**: Error
+**Severity**: Reserved — not currently emitted (see note)
 **Context**: Record number, field path
 **Resolution**: Check upstream data generation for uninitialized float fields; null output is the documented behavior
+**Note**: The current decode path converts NaN to JSON `null` and does **not** raise this code — it is reserved in the taxonomy for a future strict float-handling policy. The null-decode contract is pinned by `crates/copybook-codec/tests/numeric_evidence_matrix.rs::float_special_values_decode_to_null`.
 
 #### CBKD432_FLOAT_INFINITY
 **Description**: Floating-point field (COMP-1/COMP-2) contains infinity; the value is decoded as JSON null
-**Severity**: Error
+**Severity**: Reserved — not currently emitted (see note)
 **Context**: Record number, field path
 **Resolution**: Check upstream data generation for overflowed float values; null output is the documented behavior
+**Note**: The current decode path converts ±Infinity to JSON `null` and does **not** raise this code — it is reserved in the taxonomy for a future strict float-handling policy. The null-decode contract is pinned by `crates/copybook-codec/tests/numeric_evidence_matrix.rs::float_special_values_decode_to_null`.
 
 ### Data Encoding Errors (CBKE*)
 
@@ -915,8 +917,8 @@ All 63 stable error codes across 10 families:
 | CBKD421 | Decode | Fatal | Edited PIC: Invalid format (Phase E2) |
 | CBKD422 | Decode | Fatal | Edited PIC: Sign mismatch (Phase E2) |
 | CBKD423 | Decode | Warning | Edited PIC: Blank when zero (Phase E2) |
-| CBKD431 | Decode | Error | Float NaN (decoded as null) |
-| CBKD432 | Decode | Error | Float infinity (decoded as null) |
+| CBKD431 | Decode | Reserved | Float NaN (decoded as null; code not currently emitted) |
+| CBKD432 | Decode | Reserved | Float infinity (decoded as null; code not currently emitted) |
 | CBKI001 | Infrastructure | Fatal | Invalid iterator/internal state |
 | CBKE501 | Encode | Fatal | JSON type mismatch |
 | CBKE505 | Encode | Fatal | Decimal scale mismatch |

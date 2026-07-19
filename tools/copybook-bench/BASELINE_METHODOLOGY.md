@@ -334,8 +334,60 @@ Measurements beyond 2 standard deviations from the mean are flagged as outliers.
 - `docs/archived/issue-49-tdd-handoff-package.md`: TDD specification and acceptance criteria
 - Criterion.rs documentation: https://bheisler.github.io/criterion.rs/book/
 
+## Supplementary Native-Linux Measurement (Issue #546)
+
+> **Scope note.** The measurement below is a *supplementary reproducibility datapoint*
+> captured on ephemeral cloud Linux hardware. It is **not** the canonical current metric
+> and MUST NOT be cited as one — canonical receipts live in
+> [`scripts/bench/perf.json`](../../scripts/bench/perf.json) and are produced on documented
+> reference hardware per [`docs/PERFORMANCE_GOVERNANCE.md`](../../docs/PERFORMANCE_GOVERNANCE.md).
+> This artifact exists so the profiling *method* is reproducible off the reference machine,
+> and to rank the #188 optimization experiments by measured cost. It does **not** overwrite
+> `perf.json` and does **not** move any CI floor.
+
+The full receipt is committed at
+[`scripts/bench/perf-linux-native.json`](../../scripts/bench/perf-linux-native.json)
+(`artifact_class: supplementary-native-linux`).
+
+### Reproduce
+
+```bash
+# 1. Throughput (2+ runs for run-to-run variance)
+RUSTFLAGS="-C target-cpu=native" PERF=1 cargo bench -p copybook-bench -- slo_validation --quiet
+#    Read target/criterion/slo_validation/*/new/estimates.json for mean + confidence interval.
+
+# 2. Peak RSS (getrusage on a real decode of a generated mixed workload)
+python3 -c "import subprocess,resource;subprocess.run(['target/release/copybook','decode',CPY,BIN,'--output','/dev/null','--format','fixed','--codepage','cp037']);print(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss/1024,'MiB')"
+
+# 3. Hot paths (bounded callgrind over the decode-to-JSONL path)
+valgrind --tool=callgrind --callgrind-out-file=cg.out target/release/copybook decode CPY BIN --output /dev/null --format fixed --codepage cp037
+callgrind_annotate cg.out
+```
+
+### Observed (Intel Xeon @ 2.10 GHz, 4 cores, Linux 6.18.5, release, `target-cpu=native`)
+
+| Workload | Run 1 | Run 2 | Mean | Spread | CI floor | Floor ratio |
+|---|---|---|---|---|---|---|
+| DISPLAY-heavy | 1747.84 | 1758.51 | 1753.2 MiB/s | 0.3% | 80 MiB/s | 21.9× |
+| COMP-3-heavy | 12.25 | 11.54 | 11.9 MiB/s | 3.0% | 8 MiB/s | 1.5× |
+
+Peak RSS decoding 50,000 mixed fixed records to JSONL: **10.0 MiB** (governed ceiling 256 MiB).
+DISPLAY intra-run confidence interval is ±0.5%; COMP-3 shows higher run-to-run variance (~3%),
+so COMP-3 experiments need ≥5 runs to clear the noise floor.
+
+### Hot-path ranking → recommended #188 experiment order
+
+Callgrind over the end-to-end CLI decode-to-JSONL path shows output I/O (~32%), JSON
+serialization (~20%), and allocation/dealloc (~20%) dominate; the copybook decode logic itself
+is minor (codepage conversion 2.3%, packed-decimal decode 1.6%, scalar field decode 1.8%).
+Implication: **I/O buffering/batching (#547) and hot-path allocation reduction (#548) are the
+material end-to-end limiters**, while portable SIMD for codepage conversion (#549) has limited
+payoff on the full CLI pipeline and should be gated on a *pure-decode* profile rather than this
+end-to-end path.
+
 ## Revision History
 
 | Date | Version | Changes |
 |------|---------|---------|
 | 2025-09-30 | 1.0 | Initial methodology documentation (Issue #49 AC2) |
+| 2026-07-19 | 1.1 | Supplementary native-Linux measurement + hot-path ranking (Issue #546) |

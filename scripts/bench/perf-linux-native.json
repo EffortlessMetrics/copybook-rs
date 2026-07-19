@@ -1,0 +1,103 @@
+{
+  "format_version": "1.0.0",
+  "artifact_class": "supplementary-native-linux",
+  "canonical_receipt": "scripts/bench/perf.json",
+  "note": "Supplementary reproducibility datapoint measured on ephemeral cloud Linux hardware. This is NOT the canonical current metric and MUST NOT be cited as one (see docs/PERFORMANCE_GOVERNANCE.md). Canonical receipts remain in scripts/bench/perf.json (reference hardware). A maintainer may promote a measurement to canonical only from documented reference hardware.",
+  "timestamp": "2026-07-19T00:00:00Z",
+  "commit": "13b4251",
+  "build_profile": "release",
+  "target_cpu": "native",
+  "toolchain": "cargo bench (criterion, slo_validation) + valgrind callgrind",
+  "environment": {
+    "os": "Linux",
+    "kernel": "6.18.5",
+    "cpu_model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "cpu_cores": 4,
+    "memory_total_mib": 16075,
+    "ephemeral_cloud": true
+  },
+  "runs": 2,
+  "status": "pass",
+  "workloads": {
+    "display_heavy": {
+      "runs_mibps": [
+        1747.84,
+        1758.51
+      ],
+      "mean_mibps": 1753.17,
+      "min_mibps": 1747.84,
+      "max_mibps": 1758.51,
+      "spread_pct": 0.61,
+      "floor_mibps": 80,
+      "floor_ratio": 21.9
+    },
+    "comp3_heavy": {
+      "runs_mibps": [
+        12.25,
+        11.54
+      ],
+      "mean_mibps": 11.89,
+      "min_mibps": 11.54,
+      "max_mibps": 12.25,
+      "spread_pct": 5.97,
+      "floor_mibps": 8,
+      "floor_ratio": 1.5
+    }
+  },
+  "memory": {
+    "peak_rss_mib": 10.0,
+    "workload": "decode 50,000 mixed fixed records (LRECL 22: PIC X, COMP-3, zoned, COMP) to JSONL",
+    "governed_ceiling_mib": 256
+  },
+  "hot_paths_cli_decode_to_jsonl": [
+    {
+      "rank": 1,
+      "ir_pct": 26.55,
+      "symbol": "std::fs::File::write_all (output I/O)"
+    },
+    {
+      "rank": 2,
+      "ir_pct": 14.82,
+      "symbol": "serde_json Serializer::serialize_str"
+    },
+    {
+      "rank": 3,
+      "ir_pct": 12.81,
+      "symbol": "NamedTempFile::write_all (atomic output)"
+    },
+    {
+      "rank": 4,
+      "ir_pct": 17.61,
+      "symbol": "libc malloc _int_free + free (allocation/dealloc)"
+    },
+    {
+      "rank": 5,
+      "ir_pct": 5.18,
+      "symbol": "libc write (syscall)"
+    },
+    {
+      "rank": 6,
+      "ir_pct": 5.64,
+      "symbol": "serde_json Value::serialize"
+    },
+    {
+      "rank": 7,
+      "ir_pct": 2.34,
+      "symbol": "copybook_charset::ebcdic_to_utf8 (codepage conversion)"
+    },
+    {
+      "rank": 8,
+      "ir_pct": 1.78,
+      "symbol": "copybook_codec decode_scalar_field_value_with_scratch"
+    },
+    {
+      "rank": 9,
+      "ir_pct": 1.6,
+      "symbol": "copybook_codec decode_packed_decimal_with_scratch"
+    }
+  ],
+  "hot_path_findings": "On the end-to-end CLI decode-to-JSONL path, output I/O (write_all + write, ~32%), JSON serialization (serialize_str + Value::serialize, ~20%), and allocation/dealloc (malloc/free/drop_glue, ~20%) dominate. The copybook decode logic itself is a minor fraction: codepage conversion 2.3%, packed-decimal decode 1.6%, scalar field decode 1.8%. Implication for the #188 experiment order: I/O buffering/batching (#547) and hot-path allocation reduction (#548) are the material end-to-end limiters; portable SIMD for codepage conversion (#549) has limited payoff on the full CLI pipeline and should be gated on a pure-decode profile rather than the end-to-end path.",
+  "integrity": {
+    "sha256": "3734a8f8ebb485fb5a05d51d143aad9d54de4a4390e727d134dab55576716d61"
+  }
+}

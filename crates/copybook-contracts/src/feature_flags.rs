@@ -108,7 +108,16 @@ pub enum Feature {
 }
 
 impl Feature {
-    /// Get the category this feature belongs to.
+    /// Get the toggle-group category this feature belongs to.
+    ///
+    /// `category()` is a **grouping mechanism** used by `enable_category` /
+    /// `enabled_in_category` to toggle related flags together; it is **not** a
+    /// stability class. In particular, `FeatureCategory::Experimental` names a
+    /// toggle group, not a claim that every member is unstable — the stability
+    /// class of a feature is reported by [`Feature::lifecycle`]. For example,
+    /// `Comp1`/`Comp2` are in the `Experimental` toggle group but have
+    /// `lifecycle() == FeatureLifecycle::Stable` (they are fully supported and
+    /// enabled by default; see `docs/reference/COBOL_SUPPORT_MATRIX.md`).
     #[inline]
     #[must_use]
     pub const fn category(self) -> FeatureCategory {
@@ -134,6 +143,42 @@ impl Feature {
             | Feature::FuzzingIntegration
             | Feature::CoverageInstrumentation
             | Feature::PropertyBasedTesting => FeatureCategory::Testing,
+        }
+    }
+
+    /// Get the stability lifecycle class of this feature.
+    ///
+    /// This is the authoritative stability signal (distinct from the
+    /// toggle-group [`Feature::category`]). `SignSeparate`, `Comp1`, and
+    /// `Comp2` are promoted COBOL-language features that are fully supported
+    /// and enabled by default, so they report [`FeatureLifecycle::Stable`];
+    /// every other flag (advanced RENAMES R4-R6, enterprise/compliance,
+    /// performance, debug, and testing hooks) is opt-in and reports
+    /// [`FeatureLifecycle::Experimental`].
+    #[inline]
+    #[must_use]
+    pub const fn lifecycle(self) -> FeatureLifecycle {
+        match self {
+            Feature::SignSeparate | Feature::Comp1 | Feature::Comp2 => FeatureLifecycle::Stable,
+            Feature::RenamesR4R6
+            | Feature::AuditSystem
+            | Feature::SoxCompliance
+            | Feature::HipaaCompliance
+            | Feature::GdprCompliance
+            | Feature::PciDssCompliance
+            | Feature::SecurityMonitoring
+            | Feature::AdvancedOptimization
+            | Feature::LruCache
+            | Feature::ParallelDecode
+            | Feature::ZeroCopy
+            | Feature::VerboseLogging
+            | Feature::DiagnosticOutput
+            | Feature::Profiling
+            | Feature::MemoryTracking
+            | Feature::MutationTesting
+            | Feature::FuzzingIntegration
+            | Feature::CoverageInstrumentation
+            | Feature::PropertyBasedTesting => FeatureLifecycle::Experimental,
         }
     }
 
@@ -651,6 +696,36 @@ mod tests {
         assert!(Feature::Comp2.default_enabled());
         assert!(Feature::LruCache.default_enabled());
         assert!(!Feature::VerboseLogging.default_enabled());
+    }
+
+    #[test]
+    fn lifecycle_reconciles_comp1_comp2_with_support_matrix() {
+        // Promoted COBOL-language features report a Stable lifecycle and are
+        // enabled by default, matching docs/reference/COBOL_SUPPORT_MATRIX.md
+        // ("Fully Supported"), even though category() groups them under the
+        // Experimental toggle group. lifecycle() is the authoritative class.
+        for feat in [Feature::Comp1, Feature::Comp2, Feature::SignSeparate] {
+            assert_eq!(
+                feat.lifecycle(),
+                FeatureLifecycle::Stable,
+                "{feat} should report a Stable lifecycle"
+            );
+            assert!(feat.default_enabled(), "{feat} should be default-enabled");
+        }
+
+        // category() stays a toggle group, orthogonal to the stability class.
+        assert_eq!(Feature::Comp1.category(), FeatureCategory::Experimental);
+        assert_eq!(Feature::Comp2.category(), FeatureCategory::Experimental);
+
+        // Opt-in / advanced flags remain Experimental in lifecycle.
+        assert_eq!(
+            Feature::RenamesR4R6.lifecycle(),
+            FeatureLifecycle::Experimental
+        );
+        assert_eq!(
+            Feature::AuditSystem.lifecycle(),
+            FeatureLifecycle::Experimental
+        );
     }
 
     #[test]

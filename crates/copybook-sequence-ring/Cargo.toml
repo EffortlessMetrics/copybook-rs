@@ -13,7 +13,7 @@ documentation = "https://docs.rs/copybook-sequence-ring"
 readme = "README.md"
 keywords = ["cobol", "sequence", "ordering", "parallelism"]
 categories = ["concurrency", "data-structures"]
-include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE", "!**/claude.md"]
 
 [package.metadata.docs.rs]
 all-features = false

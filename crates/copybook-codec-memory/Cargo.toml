@@ -13,7 +13,7 @@ documentation = "https://docs.rs/copybook-codec-memory"
 readme = "README.md"
 keywords = ["cobol", "copybook", "ebcdic", "codec", "memory"]
 categories = ["encoding", "concurrency", "data-structures"]
-include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE", "!**/claude.md"]
 
 [package.metadata.docs.rs]
 all-features = false

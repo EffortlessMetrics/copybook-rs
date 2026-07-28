@@ -15,7 +15,7 @@ keywords = ["copybook", "cobol", "mainframe", "ebcdic", "fixed-width"]
 categories = ["parsing", "encoding", "data-structures"]
 
 # Keep the root facade tarball focused on the public crate surface.
-include = ["src/**", "Cargo.toml", "README.md"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE", "!**/claude.md"]
 
 [package.metadata.docs.rs]
 all-features = false

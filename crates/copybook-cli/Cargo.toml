@@ -16,7 +16,7 @@ categories = ["command-line-utilities", "encoding"]
 build = "build.rs"
 
 # Keep tarballs slim; whitelist essential files
-include = ["src/**", "Cargo.toml", "README.md", "LICENSE", "build.rs"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE", "build.rs", "!**/claude.md"]
 
 [package.metadata.docs.rs]
 all-features = false

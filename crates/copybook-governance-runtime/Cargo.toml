@@ -11,7 +11,7 @@ homepage.workspace = true
 description = "Runtime governance state evaluation for support-matrix and feature-flag interoperability."
 documentation = "https://docs.rs/copybook-governance-runtime"
 readme = "README.md"
-include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE", "!**/claude.md"]
 keywords = ["cobol", "copybook", "feature-flags", "support-matrix", "runtime"]
 categories = ["config", "development-tools"]
 

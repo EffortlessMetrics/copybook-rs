@@ -44,32 +44,32 @@ jobs:
 
       - name: Run baseline benchmarks
         run: |
-          RUSTFLAGS="-C target-cpu=native" PERF=1 \
+          RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 \
             cargo bench -p copybook-bench -- enterprise_baseline --quiet
 
       - name: Run audit benchmarks
         run: |
-          RUSTFLAGS="-C target-cpu=native" PERF=1 \
+          RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 \
             cargo bench -p copybook-bench -- enterprise_audit --quiet
 
       - name: Run compliance benchmarks
         run: |
-          RUSTFLAGS="-C target-cpu=native" PERF=1 \
+          RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 \
             cargo bench -p copybook-bench -- enterprise_compliance --quiet
 
       - name: Run security benchmarks
         run: |
-          RUSTFLAGS="-C target-cpu=native" PERF=1 \
+          RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 \
             cargo bench -p copybook-bench -- enterprise_security --quiet
 
       - name: Run combined benchmarks
         run: |
-          RUSTFLAGS="-C target-cpu=native" PERF=1 \
+          RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 \
             cargo bench -p copybook-bench -- enterprise_combined --quiet
 
       - name: Run enterprise SLO benchmarks
         run: |
-          RUSTFLAGS="-C target-cpu=native" PERF=1 \
+          RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 \
             cargo bench -p copybook-bench -- enterprise_slo_validation --quiet
 
       - name: Calculate enterprise overhead

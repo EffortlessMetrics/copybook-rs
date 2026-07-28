@@ -5,7 +5,9 @@ set -euo pipefail
 echo "==> Running benchmark suite"
 # Bench receipts: small JSON artifact; no HTML, no lcov
 
-export RUSTFLAGS="-C target-cpu=native"
+# Pin x86-64-v3 instead of native: cached artifacts compiled for one runner
+# CPU SIGILL when restored and executed on a different CPU generation.
+export RUSTFLAGS="-C target-cpu=x86-64-v3"
 export PERF=1
 
 # Ensure target directory exists

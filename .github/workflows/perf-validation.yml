@@ -41,7 +41,7 @@ jobs:
         run: |
           # Use enhanced benchmark script
           chmod +x scripts/bench-enhanced.sh
-          BUILD_PROFILE=release TARGET_CPU=native ./scripts/bench-enhanced.sh
+          BUILD_PROFILE=release ./scripts/bench-enhanced.sh
 
       - name: Check for performance receipt
         id: check-receipt

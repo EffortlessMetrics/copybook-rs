@@ -90,7 +90,9 @@ jobs:
 
       - name: Run enterprise benches
         run: |
-          RUSTFLAGS="-C target-cpu=native" PERF=1 \
+          # x86-64-v3 (not native): cached artifacts must be portable across
+          # heterogeneous runner CPUs; native-compiled cache hits SIGILL.
+          RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 \
             cargo bench -p copybook-bench -- "enterprise_(baseline|audit|compliance|security|combined|slo)" --quiet
 
       - name: Annotate perf with host info

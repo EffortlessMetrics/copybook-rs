@@ -37,7 +37,9 @@ RUN git config --global user.email "bench@copybook-rs.container" && \
 # Environment variables for benchmark configuration
 ENV BENCH_FILTER="slo_validation"
 ENV PERF=1
-ENV RUSTFLAGS="-C target-cpu=native"
+# Match CI bench builds (x86-64-v3, see scripts/bench.sh); native-compiled
+# image artifacts SIGILL when the container runs on a different CPU generation.
+ENV RUSTFLAGS="-C target-cpu=x86-64-v3"
 
 # Create output directory
 RUN mkdir -p /workspace/output

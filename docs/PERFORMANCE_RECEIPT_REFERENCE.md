@@ -18,7 +18,7 @@ This is the single source of truth for all performance metrics in copybook-rs. A
   "timestamp": "2025-12-16T17:05:22Z",
   "commit": "85b9f07",
   "build_profile": "release",
-  "target_cpu": "native",
+  "target_cpu": "x86-64-v3",
   "environment": {
     "os": "Linux",
     "kernel": "6.6.87.2-microsoft-standard-WSL2",

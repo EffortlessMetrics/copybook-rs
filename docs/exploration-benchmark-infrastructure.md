@@ -102,7 +102,7 @@ diagnostics = []              # AC5: Infrastructure overhead (opt-in)
 **Execution**:
 ```bash
 BENCH_FILTER="${BENCH_FILTER:-slo_validation}" \
-RUSTFLAGS="-C target-cpu=native" PERF=1 \
+RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 \
   cargo bench -p copybook-bench -- "${BENCH_FILTER}" --quiet
 ```
 
@@ -446,7 +446,7 @@ Max RSS: ≤256 MiB (current: 4 MiB)
 **Environment**:
 ```bash
 BENCH_FILTER="${BENCH_FILTER:-slo_validation}"
-RUSTFLAGS="-C target-cpu=native" PERF=1 cargo bench -p copybook-bench
+RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 cargo bench -p copybook-bench
 ```
 
 #### scripts/perf-annotate-host.sh

@@ -226,7 +226,7 @@ jobs:
 env:
   RUST_BACKTRACE: 1
   CARGO_INCREMENTAL: 0
-  RUSTFLAGS: "-C target-cpu=native"
+  RUSTFLAGS: "-C target-cpu=x86-64-v3"
   PERF: 1
 ```
 

@@ -353,7 +353,7 @@ The full receipt is committed at
 
 ```bash
 # 1. Throughput (2+ runs for run-to-run variance)
-RUSTFLAGS="-C target-cpu=native" PERF=1 cargo bench -p copybook-bench -- slo_validation --quiet
+RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 cargo bench -p copybook-bench -- slo_validation --quiet
 #    Read target/criterion/slo_validation/*/new/estimates.json for mean + confidence interval.
 
 # 2. Peak RSS (getrusage on a real decode of a generated mixed workload)

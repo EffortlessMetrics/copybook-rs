@@ -157,7 +157,8 @@ impl PerformanceRegressionDetector {
                     OptimizationLevel::Release
                 },
                 debug_info: cfg!(debug_assertions),
-                target_cpu: std::env::var("TARGET_CPU").unwrap_or_else(|_| "native".to_string()),
+                target_cpu: std::env::var("TARGET_CPU")
+                    .unwrap_or_else(|_| "x86-64-v3".to_string()),
                 features_enabled: Vec::new(),
             },
         })

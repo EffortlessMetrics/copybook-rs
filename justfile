@@ -133,18 +133,20 @@ perf:
     @just bench-json
 
 # Run baseline benchmarks only (no enterprise features)
+# x86-64-v3 matches CI bench builds (#610); native risks SIGILL when cached
+# artifacts move between CPU generations.
 bench-baseline:
-    BENCH_FILTER=enterprise_baseline RUSTFLAGS="-C target-cpu=native" PERF=1 \
+    BENCH_FILTER=enterprise_baseline RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 \
       cargo bench -p copybook-bench -- enterprise_baseline --quiet
 
 # Run enterprise benchmarks only (audit, compliance, security, combined)
 bench-enterprise:
-    RUSTFLAGS="-C target-cpu=native" PERF=1 \
+    RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 \
       cargo bench -p copybook-bench -- "enterprise_(audit|compliance|security|combined)" --quiet
 
 # Run all enterprise SLO validation benchmarks
 bench-enterprise-slo:
-    RUSTFLAGS="-C target-cpu=native" PERF=1 \
+    RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 \
       cargo bench -p copybook-bench -- enterprise_slo_validation --quiet
 
 # Compare baseline vs enterprise performance

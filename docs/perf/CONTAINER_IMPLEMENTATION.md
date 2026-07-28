@@ -34,7 +34,7 @@ This document describes the implementation of the copybook-rs benchmark containe
 **Environment Variables**:
 - `BENCH_FILTER="slo_validation"` - Default to SLO benchmarks
 - `PERF=1` - Enable performance mode
-- `RUSTFLAGS="-C target-cpu=native"` - Optimize for host CPU
+- `RUSTFLAGS="-C target-cpu=x86-64-v3"` - Portable optimization level matching CI (native SIGILLs when image artifacts run on a different CPU generation)
 
 **Entry Point**: `/usr/local/bin/bench-entrypoint.sh`
 - Runs `scripts/bench.sh`
@@ -255,7 +255,7 @@ jq -r '"DISPLAY: \(.display_mibps) MiB/s\nCOMP-3: \(.comp3_mibps) MiB/s"' output
 
 ### 5. No ARM Support Yet
 
-**Limitation**: Dockerfile uses `target-cpu=native`, untested on ARM
+**Limitation**: Dockerfile pins `target-cpu=x86-64-v3` (x86-only), untested on ARM
 
 **Impact**: May not work on ARM-based systems (Apple Silicon, AWS Graviton)
 

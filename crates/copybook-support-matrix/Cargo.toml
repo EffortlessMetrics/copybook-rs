@@ -11,7 +11,7 @@ homepage.workspace = true
 description = "COBOL feature support matrix contract and status registry."
 documentation = "https://docs.rs/copybook-support-matrix"
 readme = "README.md"
-include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE", "!**/claude.md"]
 keywords = ["cobol", "copybook", "support-matrix"]
 categories = ["config", "development-tools"]
 

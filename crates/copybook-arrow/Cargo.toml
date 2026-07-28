@@ -15,7 +15,7 @@ keywords = ["cobol", "copybook", "arrow", "parquet", "mainframe"]
 categories = ["encoding", "data-structures", "parsing"]
 
 # Keep tarballs slim; whitelist essential files
-include = ["src/**", "examples/**", "Cargo.toml", "README.md", "LICENSE"]
+include = ["src/**", "examples/**", "Cargo.toml", "README.md", "LICENSE", "!**/claude.md"]
 
 [package.metadata.docs.rs]
 all-features = false

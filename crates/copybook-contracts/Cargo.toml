@@ -11,7 +11,7 @@ homepage.workspace = true
 description = "Shared contracts for copybook-rs feature-flag governance and runtime control."
 documentation = "https://docs.rs/copybook-contracts"
 readme = "README.md"
-include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE", "!**/claude.md"]
 keywords = ["cobol", "copybook", "feature-flags", "governance"]
 categories = ["config", "development-tools"]
 

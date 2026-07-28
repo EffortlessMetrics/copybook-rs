@@ -162,8 +162,9 @@ fn test_cbke515_string_length_exceeds_capacity() {
             err.code
         );
         assert!(
-            err.message.contains("String length") && err.message.contains("exceeds"),
-            "Error should mention string length exceeds capacity: {}",
+            (err.message.contains("Encoded byte length") || err.message.contains("String length"))
+                && err.message.contains("exceeds"),
+            "Error should mention length exceeds capacity: {}",
             err.message
         );
     }

@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # COBOL Feature Support Matrix
 
-**Last Updated**: 2026-02-15
+**Last Updated**: 2026-07-25
 **Version**: copybook-rs v0.4.3
 **Canonical Reference**: This document is the authoritative source for COBOL feature support
 
@@ -69,6 +69,7 @@
 | CP500 (International) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage`, `codepage_evidence_matrix.rs`, `codepage_precedence.rs::cli_decode_cp500_signature` | International variant support |
 | CP1047 (Latinized) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage`, `codepage_evidence_matrix.rs`, `codepage_precedence.rs::cli_decode_cp1047_signature` | Latin-1 based EBCDIC |
 | CP1140 (Euro) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage`, `codepage_evidence_matrix.rs::encode_euro_is_specific_to_cp1140`, `codepage_precedence.rs::cli_decode_cp1140_signature` | Euro currency support |
+| CLI codepage handling | ✅ Fully Supported | `cli_args.rs::decode_defaults_codepage_cp037`, `cli_args.rs::invalid_codepage_rejected`, `codepage_precedence.rs::cli_codepage_flag_changes_decoded_character`, `codepage_precedence.rs::cli_explicit_codepage_overrides_default` | `--codepage` default behavior, explicit override semantics, and invalid-codepage rejection |
 | ASCII (supplementary) | ✅ Fully Supported | `binary_roundtrip_fidelity_tests.rs::test_ascii_zoned_roundtrip_byte_identical`, `encode_options_zoned_encoding_tests.rs::test_encode_preserves_ascii_format` | For comparison/testing purposes |
 
 ## Edited PIC Clauses
@@ -301,12 +302,12 @@ copybook determinism decode --output json --format fixed --codepage cp037 schema
 | **Total** | | **63** |
 
 ### Parse Errors (CBKP*)
-- `CBKP001_SYNTAX`: Copybook syntax errors — `comprehensive_parser_tests.rs::test_error_context_with_line_numbers`
-- `CBKP011_UNSUPPORTED_CLAUSE`: Unsupported COBOL clause — `comprehensive_parser_tests.rs::test_sign_clause_as_edited_pic_normative`
+- `CBKP001_SYNTAX`: Copybook syntax errors — `comprehensive_parser_tests.rs::test_error_context_with_line_numbers`, `comprehensive_parser_tests.rs::test_sign_clause_as_edited_pic_normative`
+- `CBKP011_UNSUPPORTED_CLAUSE`: Unsupported COBOL clause (feature-disabled path) — `feature_gating_disabled_tests.rs::test_disabled_comp_features_reject_comp1_comp2_clauses`
 - `CBKP021_ODO_NOT_TAIL`: ODO not at tail — `golden_fixtures_ac4_sibling_after_odo_fail.rs::test_ac4_basic_storage_after_odo_fail`
 - `CBKP022_NESTED_ODO`: Nested ODO rejected — `nested_odo_negative_tests.rs::test_o5_nested_odo_basic_rejection`
 - `CBKP023_ODO_REDEFINES`: ODO over REDEFINES rejected — `nested_odo_negative_tests.rs::test_o6_odo_over_redefines_basic`
-- `CBKP051_UNSUPPORTED_EDITED_PIC`: Unsupported edited PIC token (Space `B` insertion only; all other patterns supported)
+- `CBKP051_UNSUPPORTED_EDITED_PIC`: Unsupported edited PIC token (Space `B` insertion only; all other patterns supported) — `e2e_error_codes.rs::cbkp051_unsupported_edited_pic`
 
 ### Schema Validation Errors (CBKS*)
 - `CBKS121_COUNTER_NOT_FOUND`: ODO counter not found — `odo_comprehensive.rs::test_odo_driver_in_redefines_rejection`
@@ -379,9 +380,9 @@ See `docs/design/NESTED_ODO_BEHAVIOR.md` (Issue #164) for complete design specif
 | O1  | Simple tail ODO                         | ✅     | -                     | `golden_fixtures_ac3_child_inside_odo.rs::test_ac3_basic_child_inside_odo_pass` |
 | O2  | Tail ODO with DYNAMIC (AC1/AC2)         | ✅     | -                     | `odo_comprehensive.rs` (21 tests), `odo_counter_types.rs`        |
 | O3  | Group-with-ODO tail (AC3)               | ✅     | -                     | `golden_fixtures_ac3_child_inside_odo.rs::test_ac3_nested_groups_inside_odo_pass` |
-| O4  | ODO with sibling after (AC4)            | 🚫     | CBKP021_ODO_NOT_TAIL  | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (8 negative tests); `rejection_evidence_matrix.rs::parse_rejections_map_to_stable_codes` (`O4`)|
-| O5  | Nested ODO (ODO inside ODO)             | 🚫     | CBKP022_NESTED_ODO    | Phase N1: reject; Phase N2: review if user demand emerges; `rejection_evidence_matrix.rs::parse_rejections_map_to_stable_codes` (`O5`) |
-| O6  | ODO over REDEFINES                      | 🚫     | CBKP023_ODO_REDEFINES | Phase N1: reject; Phase N3: dedicated design required; `rejection_evidence_matrix.rs::parse_rejections_map_to_stable_codes` (`O6`) |
+| O4  | ODO with sibling after (AC4)            | 🚫     | CBKP021_ODO_NOT_TAIL  | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (`test_ac4_basic_storage_after_odo_fail`, 8 cases); `nested_odo_negative_tests.rs::test_regression_o4_odo_with_sibling_still_fails` |
+| O5  | Nested ODO (ODO inside ODO)             | 🚫     | CBKP022_NESTED_ODO    | Rejected by design; `nested_odo_negative_tests.rs::test_o5_nested_odo_basic_rejection` |
+| O6  | ODO over REDEFINES                      | 🚫     | CBKP023_ODO_REDEFINES | Rejected by design; `nested_odo_negative_tests.rs::test_o6_odo_over_redefines_basic` |
 | O7  | ODO over RENAMES span (R4/R5 scenarios) | 🚫     | Out of scope          | RENAMES R4-R6 explicitly deferred (see RENAMES section)          |
 
 **Evidence:**
@@ -465,8 +466,8 @@ See `docs/design/RENAMES_NESTED_GROUPS.md` for complete design specification.
 | `renames-same-scope-group`  | 66-level – group alias       | ✅      | Parser + resolver (R2) with correct tree building; codec decode ✅ |
 | `renames-nested-group`      | 66-level – nested group      | ✅      | Parser + resolver (R3) with recursive target lookup; codec decode ✅ |
 | `renames-codec-projection`  | 66-level – codec projection  | ✅      | Schema provides `find_field_or_alias` and `resolve_alias_to_target` for codec integration |
-| `renames-redefines`         | 66-level – over REDEFINES    | 🚫      | Out of scope; `CBKS609_RENAME_OVER_REDEFINES`; `rejection_evidence_matrix.rs::parse_rejections_map_to_stable_codes` (`renames-redefines`) |
-| `renames-occurs`            | 66-level – over OCCURS       | 🚫      | Out of scope; `CBKS607_RENAME_CROSSES_OCCURS`; `rejection_evidence_matrix.rs::parse_rejections_map_to_stable_codes` (`renames-occurs`) |
+| `renames-redefines`         | 66-level – over REDEFINES    | 🚫      | Out of scope; `CBKS609_RENAME_OVER_REDEFINES`; `renames_r4_r6_bdd_tests.rs::test_r4_renames_over_redefines_rejected_when_flag_disabled` |
+| `renames-occurs`            | 66-level – over OCCURS       | 🚫      | Out of scope; `CBKS607_RENAME_CROSSES_OCCURS`; `renames_r4_r6_bdd_tests.rs::test_r5_renames_over_occurs_rejected_when_flag_disabled` |
 
 **Evidence:**
 

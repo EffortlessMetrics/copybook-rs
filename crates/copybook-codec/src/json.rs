@@ -1684,21 +1684,25 @@ impl JsonEncoder {
         match &field.kind {
             FieldKind::Alphanum { len: _ } => {
                 if let Value::String(text) = value {
-                    // Validate string length doesn't exceed field capacity
-                    if text.len() > field.len as usize {
+                    // Validate encoded byte length doesn't exceed field capacity.
+                    let encoded = crate::charset::utf8_to_ebcdic(text, self.options.codepage)?;
+                    if encoded.len() > field.len as usize {
                         return Err(Error::new(
                             ErrorCode::CBKE515_STRING_LENGTH_VIOLATION,
-                            format!("String length {} exceeds field capacity {} for alphanumeric field {}",
-                                text.len(), field.len, field.path),
-                        ).with_field(field.path.clone()));
+                            format!(
+                                "Encoded byte length {} exceeds field capacity {} for alphanumeric field {}",
+                                encoded.len(),
+                                field.len,
+                                field.path
+                            ),
+                        )
+                        .with_field(field.path.clone()));
                     }
 
-                    let encoded = crate::numeric::encode_alphanumeric(
-                        text,
-                        field.len as usize,
-                        self.options.codepage,
-                    )?;
-                    field_data.copy_from_slice(&encoded);
+                    let space = crate::charset::space_byte(self.options.codepage);
+                    let field_len = field.len as usize;
+                    field_data[..encoded.len()].copy_from_slice(&encoded);
+                    field_data[encoded.len()..field_len].fill(space);
                 } else {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
@@ -1858,13 +1862,14 @@ impl JsonEncoder {
         field_data: &mut [u8],
     ) -> Result<()> {
         if let Value::String(text) = value {
-            // Validate string length doesn't exceed field capacity
-            if text.len() > field.len as usize {
+            // Validate encoded byte length doesn't exceed field capacity.
+            let encoded = crate::charset::utf8_to_ebcdic(text, self.options.codepage)?;
+            if encoded.len() > field.len as usize {
                 return Err(Error::new(
                     ErrorCode::CBKE515_STRING_LENGTH_VIOLATION,
                     format!(
-                        "String length {} exceeds field capacity {} for alphanumeric field {}",
-                        text.len(),
+                        "Encoded byte length {} exceeds field capacity {} for alphanumeric field {}",
+                        encoded.len(),
                         field.len,
                         field.path
                     ),
@@ -1872,12 +1877,10 @@ impl JsonEncoder {
                 .with_field(field.path.clone()));
             }
 
-            let encoded = crate::numeric::encode_alphanumeric(
-                text,
-                field.len as usize,
-                self.options.codepage,
-            )?;
-            field_data.copy_from_slice(&encoded);
+            let space = crate::charset::space_byte(self.options.codepage);
+            let field_len = field.len as usize;
+            field_data[..encoded.len()].copy_from_slice(&encoded);
+            field_data[encoded.len()..field_len].fill(space);
         } else {
             return Err(Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
@@ -2416,6 +2419,46 @@ impl<W: Write> OrderedJsonWriter<W> {
 mod tests {
     use super::*;
     use std::io::Cursor;
+    use crate::options::Codepage;
+
+    fn direct_path_schema(field_len: u32) -> Schema {
+        let field = Field {
+            path: "ROOT.SHORT-FIELD".to_string(),
+            name: "SHORT-FIELD".to_string(),
+            level: 5,
+            kind: FieldKind::Alphanum { len: field_len },
+            offset: 0,
+            len: field_len,
+            redefines_of: None,
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            children: Vec::new(),
+        };
+
+        let root = Field {
+            path: "ROOT".to_string(),
+            name: "ROOT".to_string(),
+            level: 1,
+            kind: FieldKind::Group,
+            offset: 0,
+            len: field_len,
+            redefines_of: None,
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            children: vec![field],
+        };
+
+        Schema {
+            fields: vec![root],
+            lrecl_fixed: Some(field_len),
+            tail_odo: None,
+            fingerprint: String::new(),
+        }
+    }
 
     fn build_test_schema() -> Schema {
         let field_a = Field {
@@ -2520,5 +2563,39 @@ mod tests {
         assert_eq!(names.len(), 2);
         assert!(names.contains(&"FIELD-B"));
         assert!(names.contains(&"FIELD-C"));
+    }
+
+    #[test]
+    fn test_json_encoder_valid_encoded_length_is_accepted() {
+        let schema = direct_path_schema(1);
+        let encoder = JsonEncoder::new(EncodeOptions::new().with_codepage(Codepage::CP037));
+        let payload = serde_json::json!({
+            "ROOT": {
+                "SHORT-FIELD": "¢",
+            },
+        });
+        let encoded = encoder
+            .encode_record(&schema, &payload)
+            .unwrap_or_else(|e| panic!("single-byte symbol should fit after encoding: {e}"));
+        let expected = crate::charset::utf8_to_ebcdic("¢", Codepage::CP037)
+            .expect("symbol should encode under CP037");
+
+        assert_eq!(encoded, expected);
+    }
+
+    #[test]
+    fn test_json_encoder_encoded_length_violation_for_wide_input() {
+        let schema = direct_path_schema(1);
+        let encoder = JsonEncoder::new(EncodeOptions::new().with_codepage(Codepage::CP037));
+        let payload = serde_json::json!({
+            "ROOT": {
+                "SHORT-FIELD": "¢¢",
+            },
+        });
+        let result = encoder
+            .encode_record(&schema, &payload)
+            .expect_err("double-byte field value should violate length check");
+
+        assert_eq!(result.code, ErrorCode::CBKE515_STRING_LENGTH_VIOLATION);
     }
 }

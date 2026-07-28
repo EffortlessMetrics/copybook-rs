@@ -18,11 +18,7 @@
 //!   to a *different* character (`probe_ch`) under each codepage (e.g. byte
 //!   `0x4A` is `¢` in CP037 but `Ä` in CP273 and `[` in CP500).
 //! * **Round-trip discriminator** — the ASCII character `[` (`RT_CH`), which
-//!   maps to a *different* EBCDIC byte (`rt_byte`) under each codepage. `[` is a
-//!   single UTF-8 byte, so it also round-trips cleanly through the encode
-//!   capacity check for a one-byte `PIC X(1)` field (unlike a national
-//!   character such as `¢`, which is two UTF-8 bytes — see
-//!   `encode_capacity_is_measured_in_utf8_bytes`).
+//!   maps to a *different* EBCDIC byte (`rt_byte`) under each codepage.
 
 use copybook_codec::charset::{ebcdic_to_utf8, utf8_to_ebcdic};
 use copybook_codec::{
@@ -425,22 +421,38 @@ fn encode_euro_is_specific_to_cp1140() {
 }
 
 // ===========================================================================
-// Documented asymmetry: the encode capacity check counts UTF-8 bytes, not
-// characters, so a single-byte alphanumeric field cannot hold a national
-// character that occupies more than one UTF-8 byte even though it maps to a
-// single EBCDIC byte. This pins the current, observed contract.
+// Capacity is enforced after codepage encoding, so a field size is measured
+// in encoded bytes (e.g. EBCDIC bytes), not UTF-8 source bytes.
 // ===========================================================================
 
 #[test]
-fn encode_capacity_is_measured_in_utf8_bytes() {
+fn encode_capacity_is_measured_after_codepage_encoding() {
     let schema = parse_copybook(SIG_COPYBOOK).expect("copybook parses");
-    // "¢" is one character but two UTF-8 bytes; PIC X(1) has capacity one byte.
-    let json = serde_json::json!({ "SIG": "¢" });
-    let err = encode_record(
-        &schema,
-        &json,
-        &encode_opts(Codepage::CP037, RecordFormat::Fixed),
-    )
-    .expect_err("2-byte UTF-8 char must not fit a 1-byte field");
-    assert_eq!(err.code, ErrorCode::CBKE515_STRING_LENGTH_VIOLATION);
+
+    // Multi-byte UTF-8 characters that can be represented as one EBCDIC byte.
+    let samples = [
+        (Codepage::CP037, "¢"),
+        (Codepage::CP273, "Ä"),
+        (Codepage::CP500, "["),
+        (Codepage::CP1047, "Ý"),
+        (Codepage::CP1140, "€"),
+    ];
+
+    for (cp, symbol) in samples {
+        let encoded = utf8_to_ebcdic(symbol, cp).expect("symbol must encode");
+        assert_eq!(encoded.len(), 1, "sample must be one byte under {cp}");
+
+        let ok = serde_json::json!({ "SIG": symbol });
+        let encoded_value = encode_record(&schema, &ok, &encode_opts(cp, RecordFormat::Fixed))
+            .unwrap_or_else(|e| panic!("{cp}: '{symbol}' should fit after conversion: {e}"));
+        assert_eq!(
+            encoded_value, encoded,
+            "one-byte field must retain single-byte codepage encoding"
+        );
+
+        let too_long = serde_json::json!({ "SIG": format!("{symbol}{symbol}") });
+        let err = encode_record(&schema, &too_long, &encode_opts(cp, RecordFormat::Fixed))
+            .expect_err("double character should exceed one-byte field");
+        assert_eq!(err.code, ErrorCode::CBKE515_STRING_LENGTH_VIOLATION);
+    }
 }

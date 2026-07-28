@@ -2233,13 +2233,14 @@ fn encode_alphanum_field(
     let field_len = field.len as usize;
 
     if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
-        // Validate string length doesn't exceed field capacity
-        if text.len() > field_len {
+        // Validate encoded byte length doesn't exceed field capacity.
+        let bytes = crate::charset::utf8_to_ebcdic(text, options.codepage)?;
+        if bytes.len() > field_len {
             return Err(Error::new(
                 ErrorCode::CBKE515_STRING_LENGTH_VIOLATION,
                 format!(
-                    "String length {} exceeds field capacity {} for alphanumeric field {}",
-                    text.len(),
+                    "Encoded byte length {} exceeds field capacity {} for alphanumeric field {}",
+                    bytes.len(),
                     field_len,
                     field.path
                 ),
@@ -2247,11 +2248,10 @@ fn encode_alphanum_field(
             .with_field(field.path.clone()));
         }
 
-        let bytes = crate::charset::utf8_to_ebcdic(text, options.codepage)?;
-        let copy_len = bytes.len().min(field_len);
+        let copy_len = bytes.len();
 
         if current_offset + field_len <= buffer.len() {
-            buffer[current_offset..current_offset + copy_len].copy_from_slice(&bytes[..copy_len]);
+            buffer[current_offset..current_offset + copy_len].copy_from_slice(&bytes);
             // Pad with codepage-aware space (0x40 for EBCDIC, 0x20 for ASCII)
             let space = crate::charset::space_byte(options.codepage);
             buffer[current_offset + copy_len..current_offset + field_len].fill(space);

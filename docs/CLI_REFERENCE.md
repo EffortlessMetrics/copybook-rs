@@ -570,15 +570,13 @@ copybook decode legacy-schema.cpy data.bin --format fixed --strict-comments --ou
 | Code | Tag | Meaning |
 |-----:|:---:|---------|
 | 0 | OK | Success |
-| 1 | CBK? | Unhandled failure (panic, unknown errors) |
+| 1 | CBK? | Unknown/unclassified failure (e.g. unknown `support --check` feature ID) |
 | 2 | CBKD | Data quality failure |
-| 3 | CBKE | Encode/validation failure |
+| 3 | CBKE | Encode/validation failure (including structural parse/schema rejections) |
 | 4 | CBKF | Record format/RDW failure |
-| 5 | CBKI | Internal orchestration error |
+| 5 | CBKI | Internal orchestration error (including panics and otherwise unmapped errors) |
 
 Some subcommands document additional command-specific semantics: `verify` reports 3 for validation errors and 2 for fatal I/O/schema errors; `determinism` reports 0 for deterministic, 2 for drift detected, and 3 for codec/usage errors.
-
-> **Note (current behavior):** only the `CBKD`/`CBKE`/`CBKF`/`CBKI` families have a dedicated exit-code mapping. Structural parse/schema rejections in the `CBKP*` and `CBKS*` families (e.g. `CBKP021_ODO_NOT_TAIL`, `CBKP022_NESTED_ODO`, `CBKP023_ODO_REDEFINES`, `CBKS607_RENAME_CROSSES_OCCURS`, `CBKS609_RENAME_OVER_REDEFINES`) currently fall through to exit code **5**, the same code a panic produces. The library API always reports the precise, stable code regardless. This behavior is pinned by `copybook-cli/tests/rejection_exit_codes.rs`; assigning these families a dedicated, non-`Internal` exit code is a potential future stability-contract change.
 
 ## Character Encodings
 

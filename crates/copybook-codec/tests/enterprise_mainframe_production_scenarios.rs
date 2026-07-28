@@ -34,6 +34,14 @@ use copybook_core::parse_copybook;
 use std::io::Cursor;
 use std::time::Instant;
 
+/// Absolute-throughput assertions in debug builds flake on shared CI runners,
+/// and throughput gating belongs to the canonical bench gate
+/// (`bench-report gate`, docs/PERFORMANCE_GOVERNANCE.md). Measurements are
+/// always printed; floors are enforced only when `COPYBOOK_TEST_PERF_ASSERT=1`.
+fn perf_assert_enabled() -> bool {
+    std::env::var_os("COPYBOOK_TEST_PERF_ASSERT").is_some()
+}
+
 /// Enterprise Banking Transaction Processing Scenario
 ///
 /// Simulates high-volume daily transaction processing with complex record structures
@@ -169,12 +177,14 @@ fn test_enterprise_banking_transaction_processing() -> Result<(), Box<dyn std::e
     // Threshold lowered on Windows to account for shared CI runner variance while
     // still failing major throughput regressions.
     let minimum_banking_throughput_mib_per_s = if cfg!(windows) { 0.40 } else { 0.45 };
-    assert!(
-        throughput_mb_per_s > minimum_banking_throughput_mib_per_s,
-        "Banking transaction processing should exceed {:.2} MiB/s: {:.2} MiB/s",
-        minimum_banking_throughput_mib_per_s,
-        throughput_mb_per_s
-    );
+    if perf_assert_enabled() {
+        assert!(
+            throughput_mb_per_s > minimum_banking_throughput_mib_per_s,
+            "Banking transaction processing should exceed {:.2} MiB/s: {:.2} MiB/s",
+            minimum_banking_throughput_mib_per_s,
+            throughput_mb_per_s
+        );
+    }
 
     // Memory usage validation
     assert!(
@@ -317,11 +327,13 @@ fn test_enterprise_insurance_claims_processing() -> Result<(), Box<dyn std::erro
         summary.records_with_errors, 0,
         "Should have no processing failures"
     );
-    assert!(
-        throughput_records_per_s > 50.0,
-        "Insurance processing should exceed 50 records/s: {:.1} records/s",
-        throughput_records_per_s
-    );
+    if perf_assert_enabled() {
+        assert!(
+            throughput_records_per_s > 50.0,
+            "Insurance processing should exceed 50 records/s: {:.1} records/s",
+            throughput_records_per_s
+        );
+    }
 
     Ok(())
 }
@@ -469,19 +481,20 @@ fn test_enterprise_retail_pos_processing() -> Result<(), Box<dyn std::error::Err
         summary.records_with_errors, 0,
         "Should have no processing failures"
     );
-    // Threshold lowered to account for shared CI runner variance while
+    // Thresholds lowered to account for shared CI runner variance while
     // still catching major throughput regressions.
-    assert!(
-        throughput_records_per_s > 3000.0,
-        "POS processing should exceed 3000 records/s: {:.0} records/s",
-        throughput_records_per_s
-    );
-    // Threshold lowered to 0.25 MiB/s to account for debug-build and shared CI runner variance
-    assert!(
-        throughput_mb_per_s > 0.25,
-        "POS throughput should exceed 0.25 MiB/s: {:.2} MiB/s",
-        throughput_mb_per_s
-    );
+    if perf_assert_enabled() {
+        assert!(
+            throughput_records_per_s > 3000.0,
+            "POS processing should exceed 3000 records/s: {:.0} records/s",
+            throughput_records_per_s
+        );
+        assert!(
+            throughput_mb_per_s > 0.25,
+            "POS throughput should exceed 0.25 MiB/s: {:.2} MiB/s",
+            throughput_mb_per_s
+        );
+    }
 
     Ok(())
 }
@@ -633,11 +646,13 @@ fn test_enterprise_manufacturing_quality_control() -> Result<(), Box<dyn std::er
         summary.records_with_errors, 0,
         "Should have no processing failures"
     );
-    assert!(
-        throughput_records_per_s > 100.0,
-        "QC processing should exceed 100 records/s: {:.1} records/s",
-        throughput_records_per_s
-    );
+    if perf_assert_enabled() {
+        assert!(
+            throughput_records_per_s > 100.0,
+            "QC processing should exceed 100 records/s: {:.1} records/s",
+            throughput_records_per_s
+        );
+    }
 
     // Validate output contains precision values
     let output_str = String::from_utf8_lossy(&output);

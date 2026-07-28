@@ -11,7 +11,7 @@ Use `copybook` directly in new projects:
 
 ```toml
 [dependencies]
-copybook = "0.4"
+copybook = "0.5"
 ```
 
 Use `copybook-core` and `copybook-codec` directly only when you need the

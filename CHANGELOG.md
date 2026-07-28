@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-07-28
+
 ### Added
 
 - **ci**: Add blocking performance regression gate (`perf-gate.yml`) enforcing absolute floors (DISPLAY ≥80, COMP-3 ≥8 MiB/s) and >5% relative regression vs committed baseline; ships `bench-report gate` subcommand, `scripts/bench/baseline.json`, and canonical SLO constants in `copybook-bench::slo`. COMP-3 floor is CI-grounded (12–14 MiB/s observed on `ubuntu-latest`; throughput decreases with larger payloads, so 8 MiB/s gives ~35% headroom).
@@ -28,6 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **docs**: Add explicit pre-v1 migration/retention decision notes for deprecated Rust, CLI/schema/output surfaces in `docs/reports/deprecation-audit.json` and `docs/reports/surface-deprecation-audit.json`
 
 ### Fixed
+
+- **cli**: Map CBKP*/CBKS* structural parse/schema rejections to exit code 3 (CBKE) instead of 5 (#600)
+- **codec**: Check PIC X encode capacity in codepage output bytes instead of UTF-8 bytes, fixing false `CBKE515` rejections for non-ASCII input (#601)
+- **contracts**: Include `Internal`/CBKI in the stable-surface exit-code contract (#605)
+- **docs**: Correct panic exit-status mapping in the CLI reference (panics exit 5/CBKI, not 1/CBK?)
+- **test**: Gate debug-build throughput floor assertions behind `COPYBOOK_TEST_PERF_ASSERT=1`; they flaked on shared CI runners and blocked main (perf gating remains with the canonical bench gate)
+- **ci**: Pin bench builds to `x86-64-v3` instead of `target-cpu=native`; cached native-compiled artifacts SIGILLed on heterogeneous runner CPUs. Regression-gate baseline re-grounded for the v3 toolchain
+- **deps**: Routine minor/patch dependency group updates
 
 - **codec**: Reject ODO (OCCURS DEPENDING ON) encode input where the JSON counter value disagrees with the array length instead of silently writing extra elements that are unrecoverable on decode (`CBKE521_ARRAY_LEN_OOB`)
 - **codec**: Keep `RawMode::Field` output scoped to `<field>_raw_b64` values instead of also emitting whole-record `raw_b64` and `__raw_b64` payloads

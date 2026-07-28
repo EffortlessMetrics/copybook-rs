@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-07-11T03:15:43.621899+00:00",
+  "generated_at": "2026-07-25T19:21:28.602743586+00:00",
   "generated_by": "cargo run -p xtask -- docs contracts generate",
-  "source_revision": "efafd101255fd163abf486346e1ae9527bab24a9",
+  "source_revision": "46613ace970ed3fb8ad5ed2a7302a2e65c9f64bd",
   "source_paths": [
     "crates/copybook-cli/src/main.rs",
     "crates/copybook-cli/src/exit_codes.rs",
@@ -147,13 +147,15 @@
       "Data",
       "Encode",
       "Format",
+      "Internal",
       "Ok",
       "Unknown"
     ],
     "tags": [
       "CBKD",
       "CBKE",
-      "CBKF"
+      "CBKF",
+      "CBKI"
     ]
   },
   "jsonl": {

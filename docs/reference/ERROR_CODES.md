@@ -568,13 +568,13 @@ Value: 12345 exceeds 3-digit capacity
 #### CBKE515_STRING_LENGTH_VIOLATION
 **Description**: String value exceeds the field's declared size during encoding
 **Severity**: Fatal
-**Context**: Field path, field size, string length
+**Context**: Field path, field size, encoded byte length
 **Resolution**: Truncate the string or widen the PIC X(n) field size
 
-```
+```text
 Error: CBKE515_STRING_LENGTH_VIOLATION
 Field: ROOT.CUSTOMER.NAME (PIC X(20))
-String length: 27 exceeds field size 20
+Encoded byte length: 27 exceeds field capacity 20
 ```
 
 #### CBKE521_ARRAY_LEN_OOB

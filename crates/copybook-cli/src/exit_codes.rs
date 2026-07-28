@@ -134,7 +134,9 @@ impl ExitCode {
     pub fn from_family_prefix(prefix: &str) -> Option<Self> {
         match prefix {
             "CBKD" => Some(ExitCode::Data),
-            "CBKE" => Some(ExitCode::Encode),
+            "CBKE" | "CBKP" | "CBKS" => Some(ExitCode::Encode),
+            // Parse/schema rejections (syntax + validation families).
+            // Map to Encode/validation at the process boundary for stable CLI UX.
             "CBKF" => Some(ExitCode::Format),
             "CBKI" => Some(ExitCode::Internal),
             _ => None,

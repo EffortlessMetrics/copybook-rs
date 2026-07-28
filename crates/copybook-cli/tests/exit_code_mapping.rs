@@ -21,6 +21,17 @@ fn run_and_status(args: &[OsString]) -> TestResult<i32> {
     Ok(status.code().unwrap_or(1))
 }
 
+fn run_and_status_with_stderr(args: &[OsString]) -> TestResult<(i32, String)> {
+    let bin = env!("CARGO_BIN_EXE_copybook");
+    let output = Command::new(bin)
+        .args(args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .output()?;
+    let code = output.status.code().unwrap_or(1);
+    Ok((code, String::from_utf8_lossy(&output.stderr).into_owned()))
+}
+
 #[test]
 #[serial]
 fn exit_code_cbkf_is_4() -> TestResult<()> {
@@ -117,7 +128,7 @@ fn exit_code_cbke_is_3() -> TestResult<()> {
 
 #[test]
 #[serial]
-fn exit_code_cbki_is_5() -> TestResult<()> {
+fn decode_empty_input_with_determined_lrecl_succeeds() -> TestResult<()> {
     // ODO + fixed now works (lrecl_fixed computed from max_count).
     // Empty input → 0 records → success.
     let copybook = NamedTempFile::new()?;
@@ -153,7 +164,33 @@ fn exit_code_cbki_is_5() -> TestResult<()> {
 
 #[test]
 #[serial]
-fn panic_is_mapped_to_internal_exit_code() -> TestResult<()> {
+fn exit_code_cbkp_is_3() -> TestResult<()> {
+    let copybook = NamedTempFile::new()?;
+    write_file(
+        copybook.path(),
+        "01 OUTER-REC.\n   05 OUTER-COUNT PIC 9(2).\n   05 OUTER-GROUP OCCURS 1 TO 50 TIMES DEPENDING ON OUTER-COUNT.\n      10 INNER-COUNT PIC 9(2).\n      10 INNER-ARRAY OCCURS 1 TO 100 TIMES DEPENDING ON INNER-COUNT.\n         15 DATA-VALUE PIC X(10).\n",
+    )?;
+
+    let args = vec![
+        OsString::from("parse"),
+        copybook.path().as_os_str().to_owned(),
+    ];
+    let (code, stderr) = run_and_status_with_stderr(&args)?;
+
+    assert_eq!(
+        code, 3,
+        "Nested ODO parse rejection (CBKP022) should map to CBKE exit code 3"
+    );
+    assert!(
+        stderr.contains("CBKP022"),
+        "stderr should contain CBKP022 family code: {stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+#[serial]
+fn exit_code_cbki_is_5() -> TestResult<()> {
     let bin = env!("CARGO_BIN_EXE_copybook");
     let status = Command::new(bin)
         .env("COPYBOOK_TEST_PANIC", "1")

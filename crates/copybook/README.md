@@ -49,5 +49,5 @@ Add `copybook` in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-copybook = "0.4"
+copybook = "0.5"
 ```

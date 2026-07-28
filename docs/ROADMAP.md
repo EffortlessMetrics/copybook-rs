@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Roadmap
 
-**Status**: Engineering Preview (v0.4.3)
+**Status**: Engineering Preview (v0.5.0)
 **Release target**: v1.0.0 after the product-readiness gates below pass; there is no calendar-only release promise.
 **Program tracker**: [#535 — v1 Product Readiness](https://github.com/EffortlessMetrics/copybook-rs/issues/535)
 

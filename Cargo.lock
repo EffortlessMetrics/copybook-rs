@@ -734,7 +734,7 @@ dependencies = [
 
 [[package]]
 name = "copybook"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-charset",
  "copybook-codec",
@@ -757,7 +757,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-arrow"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "arrow",
  "copybook-codec",
@@ -771,7 +771,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-bdd"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "base64",
@@ -802,7 +802,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-bench"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -819,7 +819,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-charset"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-codepage",
  "copybook-error",
@@ -828,7 +828,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-cli"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -860,7 +860,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-cli-determinism"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -874,7 +874,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-codec"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -906,7 +906,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-codec-memory"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "copybook-sequence-ring",
@@ -917,7 +917,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-codepage"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "clap",
  "serde",
@@ -926,7 +926,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-contracts"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -935,7 +935,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-core"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -963,7 +963,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-corruption"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-core",
  "copybook-corruption-detectors",
@@ -972,7 +972,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-corruption-detectors"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-core",
  "copybook-corruption-predicates",
@@ -981,11 +981,11 @@ dependencies = [
 
 [[package]]
 name = "copybook-corruption-predicates"
-version = "0.4.3"
+version = "0.5.0"
 
 [[package]]
 name = "copybook-corruption-rdw"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-core",
  "copybook-corruption",
@@ -996,7 +996,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-determinism"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "blake3",
  "copybook-codec",
@@ -1008,7 +1008,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-dialect"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1016,7 +1016,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-e2e"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "assert_cmd",
  "base64",
@@ -1033,7 +1033,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-error"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1042,7 +1042,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-error-reporter"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-error",
  "serde_json",
@@ -1051,7 +1051,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-fixed"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-core",
  "copybook-error",
@@ -1061,7 +1061,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-gen"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "chrono",
  "copybook-codec",
@@ -1075,7 +1075,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-governance"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-governance-grid",
  "copybook-governance-runtime",
@@ -1084,7 +1084,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-governance-contracts"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-contracts",
  "copybook-support-matrix",
@@ -1092,7 +1092,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-governance-grid"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-governance-contracts",
  "serde_plain",
@@ -1100,7 +1100,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-governance-runtime"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-governance-grid",
  "serde",
@@ -1108,7 +1108,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-lexer"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "logos",
  "proptest",
@@ -1116,7 +1116,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-options"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "clap",
  "copybook-charset",
@@ -1128,14 +1128,14 @@ dependencies = [
 
 [[package]]
 name = "copybook-overflow"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-error",
 ]
 
 [[package]]
 name = "copybook-overpunch"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-codepage",
  "copybook-error",
@@ -1144,7 +1144,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-proptest"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "copybook-charset",
@@ -1181,7 +1181,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-rdw"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-core",
  "copybook-error",
@@ -1192,7 +1192,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-rdw-predicates"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-corruption",
  "copybook-corruption-rdw",
@@ -1201,7 +1201,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-record-io"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-error",
  "copybook-fixed",
@@ -1212,14 +1212,14 @@ dependencies = [
 
 [[package]]
 name = "copybook-rs"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook",
 ]
 
 [[package]]
 name = "copybook-safe-index"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-error",
  "proptest",
@@ -1227,7 +1227,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-safe-ops"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-error",
  "copybook-overflow",
@@ -1238,7 +1238,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-safe-text"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-error",
  "copybook-safe-ops",
@@ -1246,7 +1246,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-scripts"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1259,7 +1259,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-sequence-ring"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "crossbeam-channel",
  "tracing",
@@ -1267,7 +1267,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-support-matrix"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1276,7 +1276,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-utils"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "copybook-error",
  "copybook-safe-ops",
@@ -1284,7 +1284,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-zoned-format"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "clap",
  "proptest",
@@ -4797,7 +4797,7 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 
 [[package]]
 name = "xtask"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "assert_cmd",

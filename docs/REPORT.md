@@ -3,9 +3,9 @@
 
 ---
 
-**Status**: ⚠️ **Engineering Preview (v0.4.3)** - See
+**Status**: ⚠️ **Engineering Preview (v0.5.0)** - See
 [ROADMAP.md](ROADMAP.md) for adoption guidance
-**Last Updated**: 2026-06-16
+**Last Updated**: 2026-07-28
 
 **Readiness**: Cautious Adoption Recommended - See
 [Readiness Assessment](#readiness-assessment) below

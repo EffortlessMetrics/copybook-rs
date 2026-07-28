@@ -7,9 +7,11 @@ set -euo pipefail
 # Allow callers to widen scope by exporting BENCH_FILTER.
 BENCH_FILTER="${BENCH_FILTER:-slo_validation}"
 
-# Capture build profile and target CPU flags
+# Capture build profile and target CPU flags. Default is x86-64-v3 (not
+# native): cached CI artifacts compiled for one runner CPU SIGILL when
+# restored on a different CPU generation; override via TARGET_CPU locally.
 BUILD_PROFILE="${BUILD_PROFILE:-release}"
-TARGET_CPU="${TARGET_CPU:-native}"
+TARGET_CPU="${TARGET_CPU:-x86-64-v3}"
 RUSTFLAGS="-C target-cpu=${TARGET_CPU}" PERF=1 \
   cargo bench -p copybook-bench -- "${BENCH_FILTER}" --quiet
 

@@ -1,7 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
 set PERF=1
-set RUSTFLAGS=-C target-cpu=native
+REM Pin x86-64-v3 (not native) so cached artifacts stay portable across runner CPUs
+set RUSTFLAGS=-C target-cpu=x86-64-v3
 if "%BENCH_FILTER%"=="" (
   set "BENCH_FILTER=slo_validation"
 )

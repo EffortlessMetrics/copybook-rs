@@ -6,7 +6,11 @@ set -euo pipefail
 # tripwire: no-op change to trigger perf workflow without affecting behavior.
 # Allow callers to widen scope by exporting BENCH_FILTER.
 BENCH_FILTER="${BENCH_FILTER:-slo_validation}"
-RUSTFLAGS="-C target-cpu=native" PERF=1 \
+# Pin x86-64-v3 instead of native: CI restores rust-cache artifacts across
+# heterogeneous runner CPUs, and native-compiled cached proc macros/binaries
+# SIGILL when executed on a different CPU generation. v3 (AVX2) is supported
+# by all GitHub-hosted runners and keeps receipts cache-safe and comparable.
+RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 \
   cargo bench -p copybook-bench -- "${BENCH_FILTER}" --quiet
 
 python3 <<'PY'

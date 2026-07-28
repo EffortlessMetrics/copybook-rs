@@ -93,14 +93,14 @@ git tag -a "${RELEASE_TAG}" -m "copybook-rs ${RELEASE_TAG}"
 git push origin "${RELEASE_TAG}"
 ```
 
-2. Publish via workflow dispatch to the protected `release` environment:
+2. Publish via workflow dispatch to the protected `production` environment:
 
 ```bash
 gh workflow run publish.yml -f tag="${RELEASE_TAG}"
 ```
 
 `publish.yml` uses `tools/xtask` plan output for publish order and count. Keep approval required by the
-GitHub environment guardrails before publishing starts.
+GitHub `production` environment guardrails before publishing starts.
 
 ---
 

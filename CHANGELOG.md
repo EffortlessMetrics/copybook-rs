@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.0] — 2026-07-28
 
+**Highlights**: v0.5.0 makes the canonical `copybook` facade crate the default
+onboarding path, with `copybook-rs` retained as a redirect-only compatibility
+package that mirrors the facade. Decode and encode run multi-threaded with
+byte-identical output across worker counts, and this cycle lands parsing and
+codec corrections spanning fixed and RDW record formats, ODO, and REDEFINES
+(including the ODO encode-length validation below), the CLI exit-code and
+codepage fixes delivered in #607 (issues #600, #601, #605), and a blocking CI
+performance-regression gate with machine-readable receipts.
+
 ### Added
 
 - **ci**: Add blocking performance regression gate (`perf-gate.yml`) enforcing absolute floors (DISPLAY ≥80, COMP-3 ≥8 MiB/s) and >5% relative regression vs committed baseline; ships `bench-report gate` subcommand, `scripts/bench/baseline.json`, and canonical SLO constants in `copybook-bench::slo`. COMP-3 floor is CI-grounded (12–14 MiB/s observed on `ubuntu-latest`; throughput decreases with larger payloads, so 8 MiB/s gives ~35% headroom).

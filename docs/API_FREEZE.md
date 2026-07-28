@@ -218,11 +218,12 @@ bash scripts/api-baseline.sh check
    git push origin main --tags
    ```
 
-5. **Publish**:
-   ```bash
-   cargo publish -p copybook-core
-   cargo publish -p copybook-codec
-   ```
+5. **Publish** via the automated release pipeline: pushing the `vX.Y.Z` tag
+   triggers `.github/workflows/publish.yml`, which publishes every crate in the
+   generated `xtask publish plan` order and runs the registry smoke gates. See
+   [RELEASE_RUNBOOK.md](RELEASE_RUNBOOK.md) (execution) and
+   [RELEASE_PROCESS.md](RELEASE_PROCESS.md) (overview). Do not publish crates
+   manually with `cargo publish -p`.
 
 6. **Re-establish freeze**:
    ```bash

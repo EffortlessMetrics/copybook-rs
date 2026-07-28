@@ -137,7 +137,11 @@ mod numeric_preservation {
     proptest! {
         #[test]
         fn prop_numeric_roundtrip_preserves_value(
-            value in -999999999999999999i64..999999999999999999i64,
+            // PIC 9(15)V99 holds at most 15 integer digits plus 2 fractional
+            // digits, i.e. |value| <= 99_999_999_999_999_999 cents. Drawing
+            // from a wider i64 range makes almost every case unrepresentable
+            // and the test aborts on global rejects at high case counts.
+            value in -99_999_999_999_999_999i64..=99_999_999_999_999_999i64,
             signed in proptest::bool::ANY,
         ) {
             // Unsigned fields cannot represent negatives.

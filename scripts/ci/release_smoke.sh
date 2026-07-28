@@ -123,6 +123,7 @@ run_with_binary() {
   local data_file="$4"
   local format="$5"
   local output_dir="$6"
+  local threads="$7"
 
   local decode_out="${output_dir}/decode.jsonl"
   local encode_out="${output_dir}/encode.bin"
@@ -135,11 +136,13 @@ run_with_binary() {
   "${copybook_cli}" decode "${copybook}" "${data_file}" \
     --format "${format}" \
     --codepage cp037 \
+    --threads "${threads}" \
     --output "${decode_out}"
 
   "${copybook_cli}" encode "${copybook}" "${decode_out}" \
     --format "${format}" \
     --codepage cp037 \
+    --threads "${threads}" \
     --output "${encode_out}"
 
   "${copybook_cli}" verify "${copybook}" "${encode_out}" \
@@ -209,6 +212,24 @@ if [ "${SMOKE_MODE}" != "local" ] && [ "${SMOKE_MODE}" != "registry" ]; then
   exit 1
 fi
 
+if [ "${RELEASE_SMOKE_ADVISORY:-0}" = "1" ]; then
+  # Advisory experimental-adapter smoke only. Arrow/Parquet is in the
+  # experimental adapter track and is not part of the stable-core promise,
+  # so this mode is run from a non-blocking workflow job.
+  if [ "${SMOKE_MODE}" = "local" ]; then
+    echo "Advisory Arrow smoke requires registry mode (RELEASE_SMOKE_DEPS=registry)." >&2
+    exit 1
+  fi
+
+  INSTALL_ARROW="${RUN_DIR}/copybook-arrow"
+  echo "Installing copybook-cli@${VERSION} (arrow feature, advisory)"
+  install_copybook_cli "arrow" "${INSTALL_ARROW}"
+  "${INSTALL_ARROW}/bin/copybook" --version
+
+  echo "Advisory experimental-adapter smoke completed successfully."
+  exit 0
+fi
+
 if [ -n "${COPYBOOK_CLI_BIN:-}" ]; then
   COPYBOOK_CLI_BIN="$(readlink_f "${COPYBOOK_CLI_BIN}")"
   if [ ! -x "${COPYBOOK_CLI_BIN}" ]; then
@@ -218,15 +239,10 @@ if [ -n "${COPYBOOK_CLI_BIN:-}" ]; then
   echo "Using local copybook CLI: ${COPYBOOK_CLI_BIN}"
 else
   INSTALL_DEFAULT="${RUN_DIR}/copybook-default"
-  INSTALL_ARROW="${RUN_DIR}/copybook-arrow"
 
   echo "Installing copybook-cli@${VERSION} (default features)"
   install_copybook_cli "" "${INSTALL_DEFAULT}"
   COPYBOOK_CLI_BIN="${INSTALL_DEFAULT}/bin/copybook"
-
-  echo "Installing copybook-cli@${VERSION} (arrow feature)"
-  install_copybook_cli "arrow" "${INSTALL_ARROW}"
-  "${INSTALL_ARROW}/bin/copybook" --version
 fi
 
 "${COPYBOOK_CLI_BIN}" --version
@@ -234,20 +250,63 @@ fi
 
 emit_smoke_manifest "${PROJECT_DIR}/Cargo.toml" "${SMOKE_MODE}"
 
-cat > "${PROJECT_DIR}/src/main.rs" <<EOF
-fn main() {}
+# The clean-room project must exercise the facade, not merely resolve it:
+# parse a small copybook through copybook::core, decode/encode through
+# copybook::codec, repeat through the copybook-rs redirect surface, and prove
+# the redirect produces byte-identical behavior.
+cat > "${PROJECT_DIR}/src/main.rs" <<'EOF'
+use copybook::codec::{DecodeOptions, EncodeOptions};
+use copybook::core::parse_copybook;
+
+const COPYBOOK: &str = "       01  SMOKE-RECORD.\n           05  SMOKE-ID     PIC 9(5).\n           05  SMOKE-NAME   PIC X(5).\n";
+// CP037 bytes for "12345" followed by "AB   ".
+const RECORD: [u8; 10] = [0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xC1, 0xC2, 0x40, 0x40, 0x40];
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let schema = parse_copybook(COPYBOOK)?;
+    let decoded = copybook::codec::decode_record(&schema, &RECORD, &DecodeOptions::default())?;
+    let encoded = copybook::codec::encode_record(&schema, &decoded, &EncodeOptions::default())?;
+    assert_eq!(encoded, RECORD, "copybook facade round-trip diverged");
+
+    let rs_schema = copybook_rs::core::parse_copybook(COPYBOOK)?;
+    let rs_decoded =
+        copybook_rs::codec::decode_record(&rs_schema, &RECORD, &copybook_rs::codec::DecodeOptions::default())?;
+    let rs_encoded =
+        copybook_rs::codec::encode_record(&rs_schema, &rs_decoded, &copybook_rs::codec::EncodeOptions::default())?;
+    assert_eq!(rs_encoded, encoded, "copybook-rs redirect diverged from copybook facade");
+
+    println!(
+        "facade smoke ok: {} bytes round-tripped identically via copybook and copybook-rs",
+        encoded.len()
+    );
+    Ok(())
+}
 EOF
 
-echo "Validating copybook and copybook-rs dependency resolution"
-cargo build --manifest-path "${PROJECT_DIR}/Cargo.toml"
+echo "Building and running clean-room facade smoke project"
+cargo run --manifest-path "${PROJECT_DIR}/Cargo.toml"
 
-echo "Running smoke fixed workflow"
-run_with_binary "${COPYBOOK_CLI_BIN}" fixed "${FIXTURE_COPYBOOK}" "${FIXTURE_FIXED}" fixed "${FIXTURE_DIR}/fixed"
+echo "Running smoke fixed workflow (single worker)"
+run_with_binary "${COPYBOOK_CLI_BIN}" fixed "${FIXTURE_COPYBOOK}" "${FIXTURE_FIXED}" fixed "${FIXTURE_DIR}/fixed/t1" 1
+
+echo "Running smoke fixed workflow (multi-worker)"
+run_with_binary "${COPYBOOK_CLI_BIN}" fixed "${FIXTURE_COPYBOOK}" "${FIXTURE_FIXED}" fixed "${FIXTURE_DIR}/fixed/t4" 4
+
+echo "Comparing fixed output across worker settings"
+compare_bytes "${FIXTURE_DIR}/fixed/t1/decode.jsonl" "${FIXTURE_DIR}/fixed/t4/decode.jsonl"
+compare_bytes "${FIXTURE_DIR}/fixed/t1/encode.bin" "${FIXTURE_DIR}/fixed/t4/encode.bin"
 
 RDW_FIXTURE="${FIXTURE_DIR}/simple.rdw.bin"
 make_rdw_fixture "${FIXTURE_FIXED}" "${RDW_FIXTURE}"
 
-echo "Running smoke RDW workflow"
-run_with_binary "${COPYBOOK_CLI_BIN}" rdw "${FIXTURE_COPYBOOK}" "${RDW_FIXTURE}" rdw "${FIXTURE_DIR}/rdw"
+echo "Running smoke RDW workflow (single worker)"
+run_with_binary "${COPYBOOK_CLI_BIN}" rdw "${FIXTURE_COPYBOOK}" "${RDW_FIXTURE}" rdw "${FIXTURE_DIR}/rdw/t1" 1
+
+echo "Running smoke RDW workflow (multi-worker)"
+run_with_binary "${COPYBOOK_CLI_BIN}" rdw "${FIXTURE_COPYBOOK}" "${RDW_FIXTURE}" rdw "${FIXTURE_DIR}/rdw/t4" 4
+
+echo "Comparing RDW output across worker settings"
+compare_bytes "${FIXTURE_DIR}/rdw/t1/decode.jsonl" "${FIXTURE_DIR}/rdw/t4/decode.jsonl"
+compare_bytes "${FIXTURE_DIR}/rdw/t1/encode.bin" "${FIXTURE_DIR}/rdw/t4/encode.bin"
 
 echo "Release smoke completed successfully."

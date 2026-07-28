@@ -19,16 +19,51 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # Single source of truth for the release tag. For manual dispatch the input
+  # wins; github.ref_name is the branch the dispatch was launched from, not
+  # the entered tag, so it must not take precedence.
+  RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     environment: production
+    outputs:
+      plan_json: ${{ steps.publish-plan.outputs.plan_json }}
+      plan_count: ${{ steps.publish-plan.outputs.plan_count }}
+      plan_sha256: ${{ steps.publish-plan.outputs.plan_sha256 }}
     steps:
     - uses: actions/checkout@v7
       with:
         fetch-depth: 0
-        ref: ${{ github.event.inputs.tag || github.ref }}
+        ref: ${{ env.RELEASE_TAG }}
+
+    - name: Validate release tag identity
+      run: |
+        set -euo pipefail
+
+        TAG="${{ env.RELEASE_TAG }}"
+        if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+          echo "Malformed release tag: '${TAG}' (expected vMAJOR.MINOR.PATCH[-prerelease])"
+          exit 1
+        fi
+
+        TAG_VERSION="${TAG#v}"
+        WS_VERSION=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')
+        if [[ "${TAG_VERSION}" != "${WS_VERSION}" ]]; then
+          echo "Tag '${TAG}' does not match [workspace.package].version '${WS_VERSION}'"
+          exit 1
+        fi
+
+        git fetch --tags --force origin >/dev/null 2>&1 || true
+        TAG_COMMIT=$(git rev-list -n 1 "${TAG}")
+        HEAD_COMMIT=$(git rev-parse HEAD)
+        if [[ "${TAG_COMMIT}" != "${HEAD_COMMIT}" ]]; then
+          echo "Checked-out commit ${HEAD_COMMIT} is not the tagged commit ${TAG_COMMIT}"
+          exit 1
+        fi
+
+        echo "Release tag identity verified: ${TAG} -> ${HEAD_COMMIT} (workspace ${WS_VERSION})"
 
     - uses: dtolnay/rust-toolchain@stable
     - uses: Swatinem/rust-cache@v2
@@ -37,7 +72,7 @@ jobs:
 
     - name: Preflight checks
       run: |
-        echo "Publishing for tag: ${{ github.ref_name || github.event.inputs.tag }}"
+        echo "Publishing for tag: ${{ env.RELEASE_TAG }}"
 
         # Verify workspace builds cleanly
         cargo build --workspace --release -j 2
@@ -124,12 +159,12 @@ jobs:
         cargo run -p xtask -- publish plan --format json > "${PLAN_JSON}"
 
         PLAN_COUNT=$(python - "${PLAN_JSON}" <<'PY'
-import json
-import sys
+        import json
+        import sys
 
-with open(sys.argv[1], encoding="utf-8") as handle:
-    print(len(json.load(handle)))
-PY
+        with open(sys.argv[1], encoding="utf-8") as handle:
+            print(len(json.load(handle)))
+        PY
         )
 
         if [ "${PLAN_COUNT}" -le 0 ]; then
@@ -137,8 +172,26 @@ PY
           exit 1
         fi
 
+        PLAN_SHA256=$(sha256sum "${PLAN_JSON}" | cut -d' ' -f1)
+
         echo "plan_json=${PLAN_JSON}" >> "${GITHUB_OUTPUT}"
         echo "plan_count=${PLAN_COUNT}" >> "${GITHUB_OUTPUT}"
+        echo "plan_sha256=${PLAN_SHA256}" >> "${GITHUB_OUTPUT}"
+
+        {
+          echo "### Publish plan"
+          echo ""
+          echo "- packages: ${PLAN_COUNT}"
+          echo "- sha256: \`${PLAN_SHA256}\`"
+        } >> "${GITHUB_STEP_SUMMARY}"
+
+    - name: Upload publish plan
+      uses: actions/upload-artifact@v4
+      with:
+        name: publish-plan-${{ env.RELEASE_TAG }}
+        path: ${{ steps.publish-plan.outputs.plan_json }}
+        if-no-files-found: error
+        retention-days: 90
 
     - name: Publish all crates in dependency order
       env:
@@ -216,13 +269,13 @@ PY
         PLAN_JSON="${{ steps.publish-plan.outputs.plan_json }}"
         PLAN_COUNT="${{ steps.publish-plan.outputs.plan_count }}"
         mapfile -t PUBLISH_CRATES < <(python - "$PLAN_JSON" <<'PY'
-import json
-import sys
+        import json
+        import sys
 
-with open(sys.argv[1], encoding="utf-8") as handle:
-    for crate in json.load(handle):
-        print(crate)
-PY
+        with open(sys.argv[1], encoding="utf-8") as handle:
+            for crate in json.load(handle):
+                print(crate)
+        PY
         )
 
         if [ "${#PUBLISH_CRATES[@]}" -le 0 ]; then
@@ -246,42 +299,92 @@ PY
         echo ""
         echo "All ${PLAN_COUNT} publishable crates published successfully!"
 
+  smoke-test:
+    runs-on: ubuntu-latest
+    needs: publish
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+        ref: ${{ env.RELEASE_TAG }}
+    - uses: dtolnay/rust-toolchain@stable
+    - name: Run blocking stable-core registry smoke
+      run: |
+        VERSION="${RELEASE_TAG#v}"
+        chmod +x scripts/ci/release_smoke.sh
+        scripts/ci/release_smoke.sh "${VERSION}"
+
+  smoke-test-experimental:
+    # Advisory only: Arrow and other experimental adapters are not part of the
+    # v0.5 stable-core promise. A failure here must produce a follow-up issue,
+    # not retroactively fail an already-correct stable-core release.
+    runs-on: ubuntu-latest
+    needs: publish
+    continue-on-error: true
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+        ref: ${{ env.RELEASE_TAG }}
+    - uses: dtolnay/rust-toolchain@stable
+    - name: Run advisory experimental-adapter smoke
+      run: |
+        VERSION="${RELEASE_TAG#v}"
+        chmod +x scripts/ci/release_smoke.sh
+        RELEASE_SMOKE_ADVISORY=1 scripts/ci/release_smoke.sh "${VERSION}"
+
+  github-release:
+    # The user-facing release is created only after crates.io publication and
+    # the blocking stable-core registry smoke have both succeeded. crates.io
+    # publication is irreversible; the GitHub release is not, so it comes last.
+    runs-on: ubuntu-latest
+    needs: [publish, smoke-test]
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+        ref: ${{ env.RELEASE_TAG }}
+    - name: Download publish plan
+      uses: actions/download-artifact@v4
+      with:
+        name: publish-plan-${{ env.RELEASE_TAG }}
+        path: ${{ runner.temp }}
     - name: Create GitHub Release
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
 
-        tag="${{ github.ref_name || github.event.inputs.tag }}"
+        tag="${RELEASE_TAG}"
         version="${tag#v}"
         repo_url="https://github.com/${{ github.repository }}"
 
-        PLAN_JSON="${{ steps.publish-plan.outputs.plan_json }}"
+        PLAN_JSON="${{ runner.temp }}/publish-plan.json"
         python - "${PLAN_JSON}" "${version}" "${repo_url}" "${tag}" <<'PY' > release-notes.md
-import json
-import sys
+        import json
+        import sys
 
-plan_path, version, repo_url, tag = sys.argv[1:]
+        plan_path, version, repo_url, tag = sys.argv[1:]
 
-with open(plan_path, encoding="utf-8") as handle:
-    crates = json.load(handle)
+        with open(plan_path, encoding="utf-8") as handle:
+            crates = json.load(handle)
 
-print(f"## copybook-rs {version}")
-print("")
-print("**Installation:**")
-print("```bash")
-print(f"cargo install copybook-cli@{version}")
-print("```")
-print("")
-print(f"**Published Crates ({len(crates)}):**")
-print("")
-print("| Crate | crates.io | docs.rs |")
-print("|-------|-----------|---------|")
-for crate in crates:
-    print(f"| {crate} | [{version}](https://crates.io/crates/{crate}/{version}) | [docs](https://docs.rs/{crate}/{version}) |")
-print("")
-print(f"See [CHANGELOG.md]({repo_url}/blob/{tag}/CHANGELOG.md) for details.")
-PY
+        print(f"## copybook-rs {version}")
+        print("")
+        print("**Installation:**")
+        print("```bash")
+        print(f"cargo install copybook-cli@{version}")
+        print("```")
+        print("")
+        print(f"**Published Crates ({len(crates)}):**")
+        print("")
+        print("| Crate | crates.io | docs.rs |")
+        print("|-------|-----------|---------|")
+        for crate in crates:
+            print(f"| {crate} | [{version}](https://crates.io/crates/{crate}/{version}) | [docs](https://docs.rs/{crate}/{version}) |")
+        print("")
+        print(f"See [CHANGELOG.md]({repo_url}/blob/{tag}/CHANGELOG.md) for details.")
+        PY
 
         if gh release view "${tag}" >/dev/null 2>&1; then
           gh release edit "${tag}" --title "copybook-rs ${version}" --notes-file release-notes.md
@@ -294,45 +397,23 @@ PY
           echo "Created release ${tag}"
         fi
 
-  smoke-test:
-    runs-on: ubuntu-latest
-    needs: publish
-    steps:
-    - uses: dtolnay/rust-toolchain@stable
-    - name: Run release smoke from registry artifacts
+    - name: Print docs.rs links (informational)
       run: |
-        VERSION="${{ github.ref_name || github.event.inputs.tag }}"
-        VERSION="${VERSION#v}"
-        chmod +x scripts/ci/release_smoke.sh
-        scripts/ci/release_smoke.sh "${VERSION}"
+        VERSION="${RELEASE_TAG#v}"
 
-    - name: Validate docs.rs builds
-      run: |
-        VERSION="${{ github.ref_name || github.event.inputs.tag }}"
-        VERSION=${VERSION#v}
-
-        echo "Checking docs.rs availability (may take a few minutes to build)..."
-
-        # Give docs.rs some time to start building
-        sleep 300
-
-        # Check if docs are available (docs.rs builds asynchronously)
+        echo "docs.rs builds asynchronously; links below become valid as builds complete."
         for crate in copybook copybook-rs copybook-core copybook-codec copybook-arrow copybook-cli; do
-          url="https://docs.rs/${crate}/${VERSION}"
-          echo "Docs will be available at: ${url}"
+          echo "https://docs.rs/${crate}/${VERSION}"
         done
-
-        echo "Documentation links generated. docs.rs builds asynchronously."
 
   notify-success:
     runs-on: ubuntu-latest
-    needs: [publish, smoke-test]
+    needs: [publish, smoke-test, github-release]
     if: success()
     steps:
     - name: Success notification
       run: |
-        VERSION="${{ github.ref_name || github.event.inputs.tag }}"
-        VERSION=${VERSION#v}
+        VERSION="${RELEASE_TAG#v}"
 
         echo "Successfully published copybook-rs ${VERSION}!"
         echo ""

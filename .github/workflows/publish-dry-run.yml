@@ -48,12 +48,12 @@ jobs:
         cargo run -p xtask -- publish plan --format json > "${PLAN_JSON}"
 
         PLAN_COUNT=$(python - "${PLAN_JSON}" <<'PY'
-import json
-import sys
+        import json
+        import sys
 
-with open(sys.argv[1], encoding="utf-8") as handle:
-    print(len(json.load(handle)))
-PY
+        with open(sys.argv[1], encoding="utf-8") as handle:
+            print(len(json.load(handle)))
+        PY
         )
 
         if [ "${PLAN_COUNT}" -le 0 ]; then
@@ -71,13 +71,13 @@ PY
         echo "=== Dry-run publish for all publishable crates ==="
         PLAN_JSON="${{ steps.publish-plan.outputs.plan_json }}"
         mapfile -t PUBLISH_CRATES < <(python - "$PLAN_JSON" <<'PY'
-import json
-import sys
+        import json
+        import sys
 
-with open(sys.argv[1], encoding="utf-8") as handle:
-    for crate in json.load(handle):
-        print(crate)
-PY
+        with open(sys.argv[1], encoding="utf-8") as handle:
+            for crate in json.load(handle):
+                print(crate)
+        PY
         )
 
         if [ "${#PUBLISH_CRATES[@]}" -ne "${{ steps.publish-plan.outputs.plan_count }}" ]; then
@@ -98,13 +98,13 @@ PY
         echo "=== Package manifest check for all publishable crates ==="
         PLAN_JSON="${{ steps.publish-plan.outputs.plan_json }}"
         mapfile -t PUBLISH_CRATES < <(python - "$PLAN_JSON" <<'PY'
-import json
-import sys
+        import json
+        import sys
 
-with open(sys.argv[1], encoding="utf-8") as handle:
-    for crate in json.load(handle):
-        print(crate)
-PY
+        with open(sys.argv[1], encoding="utf-8") as handle:
+            for crate in json.load(handle):
+                print(crate)
+        PY
         )
 
         for crate in "${PUBLISH_CRATES[@]}"; do
@@ -120,13 +120,13 @@ PY
         echo ""
         echo "Validated ${{ steps.publish-plan.outputs.plan_count }} publishable crates:"
         mapfile -t PUBLISH_CRATES < <(python - "${{ steps.publish-plan.outputs.plan_json }}" <<'PY'
-import json
-import sys
+        import json
+        import sys
 
-with open(sys.argv[1], encoding="utf-8") as handle:
-    for crate in json.load(handle):
-        print(crate)
-PY
+        with open(sys.argv[1], encoding="utf-8") as handle:
+            for crate in json.load(handle):
+                print(crate)
+        PY
         )
         for crate in "${PUBLISH_CRATES[@]}"; do
           echo "  - ${crate}"

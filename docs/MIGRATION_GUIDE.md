@@ -229,16 +229,24 @@ copybook decode customer.cpy data.bin \
 ```
 
 **After (copybook-rs Rust API):**
+
+Add the canonical `copybook` facade crate:
+
+```toml
+[dependencies]
+copybook = "0.5"
+```
+
 ```rust
-use copybook_core::parse_copybook;
-use copybook_codec::{iter_records_from_file, DecodeOptions, Codepage};
+use copybook::core::parse_copybook;
+use copybook::codec::{iter_records_from_file, Codepage, DecodeOptions};
 
 let copybook_text = std::fs::read_to_string("customer.cpy")?;
 let schema = parse_copybook(&copybook_text)?;
 
 let opts = DecodeOptions {
-    codepage: Codepage::Cp037,
-    strict: true,
+    codepage: Codepage::CP037,
+    strict_mode: true,
     ..Default::default()
 };
 
@@ -248,6 +256,10 @@ for record_result in iterator {
     println!("{}", serde_json::to_string(&json)?);
 }
 ```
+
+The granular `copybook-core` and `copybook-codec` crates remain intentional,
+supported crates for advanced users who need a narrower dependency; they are
+not the default onboarding path.
 
 ## Migration from Python Tools
 
@@ -469,7 +481,7 @@ copybook encode customer.cpy transformed.jsonl \
 
 ```rust
 // Rust streaming integration
-use copybook_codec::decode_record;
+use copybook::codec::decode_record;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 #[tokio::main]

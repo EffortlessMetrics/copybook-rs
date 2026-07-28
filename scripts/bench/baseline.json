@@ -1,10 +1,10 @@
 {
   "branch": "main",
-  "commit": "078767f",
-  "timestamp": "2026-03-07T02:42:48Z",
-  "display_mibps": 1579.31,
-  "comp3_mibps": 12.33,
+  "commit": "2f61ea4",
+  "timestamp": "2026-07-28T12:30:00Z",
+  "display_mibps": 1479.6,
+  "comp3_mibps": 13.24,
   "source_receipt": "scripts/bench/perf.json",
   "runner": "ubuntu-latest (canonical CI runner)",
-  "note": "Committed regression-gate baseline. Measured on the canonical GitHub-hosted Linux runner (ubuntu-latest). Both metrics enforce an absolute floor (DISPLAY >=80, COMP-3 >=8 MiB/s) plus a >5% relative-regression gate vs this baseline. COMP-3 packed-decimal decode is throughput-bound at ~12-14 MiB/s on CI; the 8 MiB/s floor is CI-grounded, not reference-hardware. Update this file via a PR after intentional algorithmic or dependency-driven performance changes, or quarterly per docs/BASELINE_METHODOLOGY.md re-baseline triggers."
+  "note": "Committed regression-gate baseline. Measured on the canonical GitHub-hosted Linux runner (ubuntu-latest). Both metrics enforce an absolute floor (DISPLAY >=80, COMP-3 >=8 MiB/s) plus a >5% relative-regression gate vs this baseline. COMP-3 packed-decimal decode is throughput-bound at ~12-14 MiB/s on CI; the 8 MiB/s floor is CI-grounded, not reference-hardware. Re-baselined 2026-07-28 after the intentional bench toolchain change to -C target-cpu=x86-64-v3 (#610): values are the worst observed v3 measurements across canonical runs (DISPLAY 1479.6/1635.6, COMP-3 13.24/13.4 MiB/s), so the -5% gate absorbs runner-pool variance. Update this file via a PR after intentional algorithmic or dependency-driven performance changes, or quarterly per docs/BASELINE_METHODOLOGY.md re-baseline triggers."
 }

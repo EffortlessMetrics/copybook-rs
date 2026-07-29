@@ -60,14 +60,23 @@ jobs:
           cargo nextest run \
             -p "${{ matrix.package }}" \
             --features comprehensive-tests \
-            --no-fail-fast
+            --profile ci \
+            --no-fail-fast \
+            --failure-output=immediate \
+            --status-level=fail
 
       - name: Report ${{ matrix.capability }} test status
         if: always()
         run: |
+          {
+            echo "### ${{ matrix.capability }} comprehensive tests"
+            echo ""
+            echo "- owner package: \`${{ matrix.package }}\`"
+            echo "- outcome: \`${{ steps.comprehensive_tests.outcome }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
           if [ "${{ steps.comprehensive_tests.outcome }}" = "failure" ]; then
             echo "::warning::${{ matrix.capability }} comprehensive tests failed — advisory evidence recorded"
-            echo "::notice::Owner package: ${{ matrix.package }}"
           else
             echo "::notice::${{ matrix.capability }} comprehensive tests passed"
           fi
@@ -80,5 +89,5 @@ jobs:
           path: |
             target/nextest/**/*.xml
             target/nextest/**/*.log
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 7

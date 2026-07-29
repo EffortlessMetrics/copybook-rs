@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Align issue 641 fixed disposition
+
+on:
+  push:
+    branches:
+      - codex/641-package-roles
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: codex/641-package-roles
+          fetch-depth: 0
+
+      - name: Mark copybook-fixed as conditional pending boundary proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          path = Path('docs/stability/surface-registry.json')
+          registry = json.loads(path.read_text(encoding='utf-8'))
+          package = next(item for item in registry['packages'] if item['name'] == 'copybook-fixed')
+          boundary = package['boundary']
+          boundary['target_disposition'] = 'conditional'
+          boundary['compatibility_plan'] = 'retain-only-if-schema-independent-direct-use-proof-passes-issue-650'
+          path.write_text(json.dumps(registry, indent=2) + '\n', encoding='utf-8')
+          PY
+          python3 -m json.tool docs/stability/surface-registry.json >/dev/null
+          git diff --check
+
+      - name: Commit semantic correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "EffortlessSteven"
+          git config user.email "git@effortlesssteven.com"
+          git add docs/stability/surface-registry.json
+          git commit -m "docs(architecture): keep fixed framing disposition conditional"
+          git push origin HEAD:codex/641-package-roles

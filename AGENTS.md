@@ -13,7 +13,7 @@ fixed-length and RDW records) and JSON. It is currently at Engineering Preview
 (v0.5.0): stable CLI and library APIs, preview-level feature completeness.
 
 - **Repository**: https://github.com/EffortlessMetrics/copybook-rs
-- **Language / toolchain**: Rust, edition 2024, MSRV 1.92 (enforced in CI and
+- **Language / toolchain**: Rust, edition 2024, MSRV 1.95 (enforced in CI and
   `Cargo.toml`); license AGPL-3.0-or-later.
 - **Deliverables**: the `copybook` CLI binary (crate `copybook-cli`), the
   `copybook` facade library crate, and granular published crates
@@ -128,7 +128,7 @@ just lint                  # clippy, pedantic; tests get panic-family allows
 just fmt / just fmt-check  # rustfmt
 just deny                  # cargo-deny (licenses, advisories, bans)
 just docs                  # cargo doc --workspace --no-deps
-just check-msrv            # cargo +1.92.0 check --workspace
+just check-msrv            # cargo +1.95.0 check --workspace
 just bench-json            # perf receipts via scripts/bench.sh (SLO suite)
 just coverage              # cargo llvm-cov -> lcov.info
 ```
@@ -168,12 +168,12 @@ CI (`.github/workflows/`) has many lanes beyond the PR gate: quick CI,
 coverage, proptest, ripr test-oracle reports (advisory), fuzzing,
 perf gates/benchmarks with receipts, determinism smoke, docs-truth, SBOM,
 security scans, API-freeze checks, and publish dry-runs. Mutation testing
-(`mutants.toml`) is local-only via `just mutants`. Scheduled lanes can be
+(`mutants.toml`) is local-only via `just mutants`. Test capabilities are owner-specific; do not add no-op Cargo features for uniform CI loops (see `docs/architecture/TEST_CAPABILITIES.md`). Scheduled lanes can be
 sampled locally via `just scheduled`.
 
 ## Code style and data rules
 
-- The workspace uses Rust 2024 with MSRV 1.92. Preserve MSRV unless the change
+- The workspace uses Rust 2024 with MSRV 1.95. Preserve MSRV unless the change
   explicitly updates the compatibility contract.
 - Keep shipped code safe and fallible: no new `unsafe` (workspace lints forbid
   `unsafe_code`), no panic-family calls (`unwrap`/`expect`/`panic!`/

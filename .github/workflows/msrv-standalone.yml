@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Standalone MSRV
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "examples/kafka_pipeline/**"
+      - "examples/kafka_streaming/**"
+      - "fuzz/**"
+      - ".github/workflows/msrv-standalone.yml"
+  push:
+    branches: [main, develop]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "examples/kafka_pipeline/**"
+      - "examples/kafka_streaming/**"
+      - "fuzz/**"
+      - ".github/workflows/msrv-standalone.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Rust 1.95 — ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: fuzz
+            label: fuzz workspace
+            manifest: fuzz/Cargo.toml
+            kafka_system_deps: false
+          - id: kafka-pipeline
+            label: Kafka pipeline example
+            manifest: examples/kafka_pipeline/Cargo.toml
+            kafka_system_deps: true
+          - id: kafka-streaming
+            label: Kafka streaming example
+            manifest: examples/kafka_streaming/Cargo.toml
+            kafka_system_deps: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+      - name: Install Kafka system dependencies
+        if: matrix.kafka_system_deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: standalone-${{ matrix.id }}
+      - name: Check ${{ matrix.label }}
+        run: cargo check --locked --manifest-path "${{ matrix.manifest }}"

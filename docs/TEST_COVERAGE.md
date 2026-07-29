@@ -102,8 +102,7 @@ cargo tarpaulin \
   --exclude-files 'xtask/*' \
   --out Html \
   --output-dir ./coverage \
-  --verbose \
-  --all-features
+  --verbose
 ```
 
 Run coverage for a specific crate:
@@ -120,7 +119,9 @@ cargo tarpaulin -p copybook-core --out Html --output-dir ./coverage
 - `--out Html`: Generate HTML coverage report
 - `--out Xml`: Generate XML coverage report (for CI)
 - `--output-dir <dir>`: Directory for coverage reports
-- `--all-features`: Test with all features enabled
+- Coverage uses the default product feature set; run owner-specific
+  `comprehensive-tests` lanes separately as documented in
+  [`TEST_CAPABILITIES.md`](architecture/TEST_CAPABILITIES.md)
 - `--test-threads <n>`: Number of test threads to use
 
 ### View Coverage Report
@@ -273,7 +274,7 @@ Coverage runs automatically in CI:
 
 The CI coverage workflow (`.github/workflows/ci-coverage.yml`):
 1. Installs cargo-tarpaulin
-2. Runs coverage with all features
+2. Runs coverage with the default product feature set
 3. Uploads results to Codecov
 4. Generates coverage summary
 5. Comments coverage on pull requests

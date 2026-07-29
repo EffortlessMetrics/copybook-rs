@@ -41,9 +41,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.92.0
+          toolchain: 1.95.0
 
       - name: Cache dependencies
         uses: actions/cache@v3
@@ -332,7 +332,7 @@ performance-report-{sha}/
   },
   "environment": {
     "runner_os": "ubuntu-latest",
-    "rust_version": "1.92.0",
+    "rust_version": "1.95.0",
     "cpu_model": "Intel Xeon E5-2673 v4"
   }
 }

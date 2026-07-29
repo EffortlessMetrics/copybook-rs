@@ -378,9 +378,9 @@ scheduled:
 clean:
     cargo clean
 
-# Check MSRV compatibility (Rust 1.92)
+# Check MSRV compatibility (Rust 1.95)
 check-msrv:
-    cargo +1.92.0 check --workspace
+    cargo +1.95.0 check --workspace
 
 # Run a specific crate's tests
 test-crate crate:
@@ -392,7 +392,7 @@ bench-crate crate:
 
 # Generate test coverage report
 coverage:
-    cargo llvm-cov --all-features --workspace --exclude copybook-bench --exclude copybook-bdd --lcov --output-path lcov.info
+    cargo llvm-cov --workspace --exclude copybook-bench --exclude copybook-bdd --lcov --output-path lcov.info
 
 # Watch for changes and run tests
 watch:

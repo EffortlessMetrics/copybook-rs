@@ -6,6 +6,7 @@
 use anyhow::Result;
 use std::{fs, path::Path, path::PathBuf};
 
+pub mod architecture;
 pub mod perf;
 pub mod publish;
 

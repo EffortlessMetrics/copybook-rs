@@ -235,7 +235,7 @@ Health check validation, verbose logging, and resource monitoring test data.
 
 | File | Description | Status | Details |
 |------|-------------|--------|---------|
-| `health_check_pass.json` | All checks passed | ✅ PASS | Rust 1.92+, 28GB RAM, performance governor |
+| `health_check_pass.json` | All checks passed | ✅ PASS | Rust 1.95+, 28GB RAM, performance governor |
 | `health_check_warning.json` | Warnings present | ⚠️ WARNING | Low memory (1.2GB), powersave governor |
 | `health_check_failure.json` | Critical failures | ❌ FAILURE | Old Rust (1.85), insufficient memory (512MB) |
 | `verbose_logging_output.json` | Detailed calculation steps | N/A | Regression calculation breakdown |
@@ -244,7 +244,7 @@ Health check validation, verbose logging, and resource monitoring test data.
 
 ### Health Check Components
 
-1. **Rust Version**: >= 1.92.0 required
+1. **Rust Version**: >= 1.95.0 required
 2. **Available Memory**: > 1 GB required
 3. **CPU Governor**: "performance" recommended
 4. **Baseline Exists**: Check baseline file presence

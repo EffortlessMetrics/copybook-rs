@@ -9,8 +9,8 @@
         "icon": "✅",
         "message": "Rust version: 1.90.0",
         "details": {
-          "installed": "1.92.0",
-          "required": "1.92.0",
+          "installed": "1.95.0",
+          "required": "1.95.0",
           "toolchain": "stable"
         }
       },

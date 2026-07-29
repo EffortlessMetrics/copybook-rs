@@ -53,6 +53,12 @@ jobs:
           tool: nextest@0.9.11
           checksum: true
 
+      - name: Build CLI for codec integration tests
+        if: matrix.package == 'copybook-codec'
+        run: |
+          cargo build --locked -p copybook-cli --bin copybook
+          echo "CARGO_BIN_EXE_copybook=${{ github.workspace }}/target/debug/copybook" >> "$GITHUB_ENV"
+
       - name: Run ${{ matrix.capability }} comprehensive tests
         id: comprehensive_tests
         continue-on-error: true

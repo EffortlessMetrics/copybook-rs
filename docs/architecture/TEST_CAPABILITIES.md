@@ -31,6 +31,6 @@ cargo nextest run -p copybook-codec \
   --no-fail-fast
 ```
 
-`.github/workflows/ci-comprehensive.yml` runs those packages as separate, non-fail-fast matrix jobs on nightly schedule, manual dispatch, or a pull request carrying the `comprehensive` label. Each job records its advisory outcome in the step summary and uploads its own nextest receipt; parser and codec failures cannot cancel one another.
+`.github/workflows/ci-comprehensive.yml` runs those packages as separate, non-fail-fast matrix jobs on nightly schedule, manual dispatch, or a pull request carrying the `comprehensive` label. The codec entry also builds and exposes the `copybook` binary because one codec integration test exercises the CLI boundary. Each job records its advisory outcome in the step summary and uploads its own nextest receipt; parser and codec failures cannot cancel one another.
 
 Removing a no-op feature from a publishable package is an intentional next-release surface cleanup. It must not be represented as a 0.5 patch-release compatibility promise.

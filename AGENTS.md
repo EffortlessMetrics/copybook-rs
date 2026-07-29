@@ -165,9 +165,10 @@ Report checks as pass, fail, or not run. A skipped policy lane is not a pass,
 and a green CI run proves only the checks that ran against that commit.
 
 CI (`.github/workflows/`) has many lanes beyond the PR gate: quick CI,
-coverage, proptest, mutation testing (`mutants.toml`, scheduled), fuzzing,
+coverage, proptest, ripr test-oracle reports (advisory), fuzzing,
 perf gates/benchmarks with receipts, determinism smoke, docs-truth, SBOM,
-security scans, API-freeze checks, and publish dry-runs. Scheduled lanes can be
+security scans, API-freeze checks, and publish dry-runs. Mutation testing
+(`mutants.toml`) is local-only via `just mutants`. Scheduled lanes can be
 sampled locally via `just scheduled`.
 
 ## Code style and data rules

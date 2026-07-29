@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 name: Apply 667 review corrections
 
+# One-shot branch workflow; removed after the permanent review fixes are committed.
 on:
   push:
     branches:

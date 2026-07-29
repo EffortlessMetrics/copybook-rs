@@ -788,8 +788,8 @@
         "external_user_story": "Read and write fixed-LRECL streams independently if the schema-independent boundary is proven.",
         "invariant_owned": "bounded correct fixed-LRECL framing",
         "preferred_facade_path": "copybook::framing::fixed",
-        "target_disposition": "keep",
-        "compatibility_plan": "retained-primary-package",
+        "target_disposition": "conditional",
+        "compatibility_plan": "retain-only-if-schema-independent-direct-use-proof-passes-issue-650",
         "consumer_data": "generated-from-cargo-metadata-by-issue-644"
       }
     },

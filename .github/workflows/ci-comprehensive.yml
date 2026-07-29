@@ -10,49 +10,75 @@ on:
     # Manual opt-in via label
     types: [labeled]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
 jobs:
   comprehensive:
-    name: Comprehensive Tests
+    name: Comprehensive ${{ matrix.capability }} tests
     runs-on: ubuntu-latest
-    # Skip if not labeled with 'comprehensive' (for PR triggers)
+    timeout-minutes: 60
+    # Skip if not labeled with 'comprehensive' (for PR triggers).
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
       contains(github.event.pull_request.labels.*.name, 'comprehensive')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - capability: parser
+            package: copybook-core
+          - capability: codec
+            package: copybook-codec
 
     steps:
       - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: comprehensive-${{ matrix.package }}
 
-      - name: Run comprehensive REDEFINES/ODO tests
+      - name: Install nextest (pinned)
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest@0.9.11
+          checksum: true
+
+      - name: Run ${{ matrix.capability }} comprehensive tests
+        id: comprehensive_tests
+        continue-on-error: true
         run: |
           cargo nextest run \
-            -p copybook-codec \
-            --test comprehensive_redefines_odo_tests \
+            -p "${{ matrix.package }}" \
             --features comprehensive-tests \
             --no-fail-fast
-        continue-on-error: true
-        id: comprehensive_tests
 
-      - name: Report test status
+      - name: Report ${{ matrix.capability }} test status
         if: always()
         run: |
           if [ "${{ steps.comprehensive_tests.outcome }}" = "failure" ]; then
-            echo "::warning::Comprehensive tests failed - this is expected and non-blocking"
-            echo "::notice::See https://github.com/${{ github.repository }}/issues for tracking"
+            echo "::warning::${{ matrix.capability }} comprehensive tests failed — advisory evidence recorded"
+            echo "::notice::Owner package: ${{ matrix.package }}"
           else
-            echo "::notice::Comprehensive tests passed!"
+            echo "::notice::${{ matrix.capability }} comprehensive tests passed"
           fi
 
-      - name: Upload test results
+      - name: Upload ${{ matrix.capability }} test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: comprehensive-test-results
+          name: comprehensive-test-results-${{ matrix.package }}-${{ github.sha }}
           path: |
             target/nextest/**/*.xml
             target/nextest/**/*.log
+          if-no-files-found: ignore
           retention-days: 7

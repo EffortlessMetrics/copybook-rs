@@ -157,6 +157,11 @@ jobs:
       - name: Install jq
         run: sudo apt-get install -y jq bc
 
+      # copybook-codec tests invoke the `copybook` CLI via assert_cmd::cargo_bin,
+      # which resolves to target/debug/copybook; build it before the baseline run.
+      - name: Build copybook CLI binary
+        run: cargo build --package copybook-cli
+
       - name: Run baseline tests
         run: |
           cargo nextest run \

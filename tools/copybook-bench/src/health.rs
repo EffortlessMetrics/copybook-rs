@@ -94,7 +94,10 @@ fn rust_version_health(version_str: &str) -> HealthCheck {
 }
 
 fn rust_version_meets_msrv(version_str: &str) -> bool {
-    let Some(version) = version_str.split_whitespace().nth(1) else {
+    let Some(version) = version_str
+        .strip_prefix("rustc ")
+        .and_then(|value| value.split_whitespace().next())
+    else {
         return false;
     };
     let mut parts = version.split('.');
@@ -260,6 +263,7 @@ mod tests {
     fn malformed_rust_version_fails_closed() {
         assert!(!rust_version_meets_msrv("rustc unknown"));
         assert!(!rust_version_meets_msrv("not-rustc"));
+        assert!(!rust_version_meets_msrv("not-rustc 1.95.0"));
     }
 
     #[test]

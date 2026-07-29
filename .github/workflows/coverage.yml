@@ -60,7 +60,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.92"
+          toolchain: "1.95"
           components: llvm-tools-preview
 
       - name: Use larger target dir

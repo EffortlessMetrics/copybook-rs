@@ -127,6 +127,32 @@ jobs:
               text = text[:insert] + helpers + text[insert:]
               path.write_text(text, encoding='utf-8')
           PY
+      - name: Fix bounded xtask test-target lints
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('tools/xtask/src/docs_verify.rs')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              '    fn ok() -> Result<()> {\n',
+              '    #[expect(clippy::unnecessary_wraps, reason = "Verifier callbacks share the Result-returning function signature")]\n    fn ok() -> Result<()> {\n',
+              1,
+          )
+          text = text.replace(
+              '    fn record_order(name: &\'static str) -> Result<()> {\n',
+              '    #[expect(clippy::unnecessary_wraps, reason = "Order probes share the Result-returning verifier signature")]\n    fn record_order(name: &\'static str) -> Result<()> {\n',
+              1,
+          )
+          text = text.replace(
+              '.map(|path| path.to_string())',
+              '.map(ToString::to_string)',
+              1,
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
       - name: Normalize and prove architecture controls
         shell: bash
         run: |
@@ -150,6 +176,7 @@ jobs:
             docs/architecture/package-boundary-debt.json \
             scripts/ci/quick.sh \
             tools/xtask/src/architecture.rs \
+            tools/xtask/src/docs_verify.rs \
             tools/xtask/src/lib.rs \
             tools/xtask/src/main.rs
           if git diff --cached --quiet; then

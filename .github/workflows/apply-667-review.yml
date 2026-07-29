@@ -38,11 +38,12 @@ jobs:
 
           cicd = Path('docs/specifications/cicd-integration.md')
           text = cicd.read_text(encoding='utf-8')
-          old = '''      - name: Setup Rust toolchain
-                  uses: dtolnay/rust-toolchain@stable
-                  with:
-                    toolchain: 1.95.0
-          '''.replace('          ', '')
+          old = (
+              '      - name: Setup Rust toolchain\n'
+              '        uses: dtolnay/rust-toolchain@stable\n'
+              '        with:\n'
+              '          toolchain: 1.95.0\n'
+          )
           new = old.replace('@stable', '@master')
           if text.count(old) != 1:
               raise SystemExit('unexpected canonical CI toolchain example')
@@ -50,19 +51,21 @@ jobs:
 
           audit = Path('docs/specifications/enterprise-audit.md')
           text = audit.read_text(encoding='utf-8')
-          environment_old = '''    operating_system: "Red Hat Enterprise Linux 8.9"
-              rust_version: "1.95.0"
-              copybook_rs_version: "1.0.0"
-          '''.replace('          ', '')
+          environment_old = (
+              '    operating_system: "Red Hat Enterprise Linux 8.9"\n'
+              '    rust_version: "1.95.0"\n'
+              '    copybook_rs_version: "1.0.0"\n'
+          )
           environment_new = environment_old.replace('1.95.0', '1.92.0')
           if text.count(environment_old) != 1:
               raise SystemExit('unexpected historical enterprise environment receipt')
           text = text.replace(environment_old, environment_new, 1)
 
-          receipt_old = '''        "system_info": "Ubuntu 22.04, Intel Xeon E5-2673 v4",
-                  "rust_version": "1.95.0",
-                  "git_commit": "abc123def456",
-          '''.replace('          ', '')
+          receipt_old = (
+              '        "system_info": "Ubuntu 22.04, Intel Xeon E5-2673 v4",\n'
+              '        "rust_version": "1.95.0",\n'
+              '        "git_commit": "abc123def456",\n'
+          )
           receipt_new = receipt_old.replace('1.95.0', '1.92.0')
           if text.count(receipt_old) != 1:
               raise SystemExit('unexpected historical performance receipt')

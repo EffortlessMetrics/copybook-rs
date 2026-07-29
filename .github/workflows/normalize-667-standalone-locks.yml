@@ -25,6 +25,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.95.0
+      - name: Install Kafka system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
       - name: Restore and minimally update standalone lockfiles
         shell: bash
         run: |

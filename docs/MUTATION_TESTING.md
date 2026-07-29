@@ -432,7 +432,7 @@ To enable additional mutation operators:
 **Symptom**: Mutation tests pass locally but fail in CI
 
 **Solutions**:
-- Check Rust version matches (1.92.0)
+- Check Rust version matches (1.95.0)
 - Verify configuration files are committed
 - Check for environment-specific behavior
 - Review CI logs for specific failures

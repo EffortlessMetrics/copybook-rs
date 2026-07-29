@@ -45,6 +45,12 @@ All public packages and public Cargo features are declared in this registry.
 - non-placeholder stability statements and non-empty beta/experimental criteria
 - source-of-truth path checks
 
+
+
+## Package-boundary metadata
+
+The surface registry also records each package's architectural role, true semantic owner, preferred facade path, target disposition, and 0.5 compatibility policy. See [Package boundaries](architecture/PACKAGE_BOUNDARIES.md). These fields describe the v0.6 convergence target; the existing package-level stability class remains authoritative until the corresponding ownership PR merges.
+
 ## What May Change
 
 **Internal APIs**

@@ -11,7 +11,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "primary",
+        "seam_type": "facade",
+        "true_owner": "copybook",
+        "external_user_story": "Use the canonical copybook-rs library API without learning the workspace topology.",
+        "invariant_owned": "curated canonical API composition",
+        "preferred_facade_path": "copybook",
+        "target_disposition": "keep",
+        "compatibility_plan": "retained-primary-package",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-arrow",
@@ -48,7 +59,18 @@
             "Feature remains stable through a full compatibility evidence cycle and no public break without migration docs."
           ]
         }
-      ]
+      ],
+      "boundary": {
+        "role": "adapter",
+        "seam_type": "adapter",
+        "true_owner": "copybook-arrow",
+        "external_user_story": "Opt into Arrow and Parquet conversion without imposing those dependencies on core users.",
+        "invariant_owned": "isolated Arrow/Parquet adapter behavior",
+        "preferred_facade_path": null,
+        "target_disposition": "keep",
+        "compatibility_plan": "retained-primary-package",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-bdd",
@@ -73,7 +95,18 @@
           ],
           "graduation_criteria": []
         }
-      ]
+      ],
+      "boundary": {
+        "role": "internal-tool",
+        "seam_type": "harness",
+        "true_owner": "copybook-bdd",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "keep-internal",
+        "compatibility_plan": "not-published",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-bench",
@@ -125,7 +158,18 @@
           ],
           "graduation_criteria": []
         }
-      ]
+      ],
+      "boundary": {
+        "role": "internal-tool",
+        "seam_type": "harness",
+        "true_owner": "copybook-bench",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "keep-internal",
+        "compatibility_plan": "not-published",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-charset",
@@ -159,7 +203,18 @@
           ],
           "graduation_criteria": []
         }
-      ]
+      ],
+      "boundary": {
+        "role": "primary",
+        "seam_type": "external-format",
+        "true_owner": "copybook-charset",
+        "external_user_story": "Convert supported EBCDIC codepages and Unicode without pulling in parser or codec layers.",
+        "invariant_owned": "exact codepage conversion and policy",
+        "preferred_facade_path": "copybook::charset",
+        "target_disposition": "keep",
+        "compatibility_plan": "retained-primary-package",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-cli",
@@ -222,7 +277,18 @@
           ],
           "graduation_criteria": []
         }
-      ]
+      ],
+      "boundary": {
+        "role": "primary",
+        "seam_type": "application",
+        "true_owner": "copybook-cli",
+        "external_user_story": "Install and run the copybook command-line application.",
+        "invariant_owned": "documented command, output, and process-exit behavior",
+        "preferred_facade_path": null,
+        "target_disposition": "keep",
+        "compatibility_plan": "retained-primary-package",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-cli-determinism",
@@ -234,7 +300,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "utility",
+        "true_owner": "copybook-cli",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-codec",
@@ -297,7 +374,18 @@
             "Stability of metrics hooks is proven across release evidence and documented."
           ]
         }
-      ]
+      ],
+      "boundary": {
+        "role": "primary",
+        "seam_type": "engine",
+        "true_owner": "copybook-codec",
+        "external_user_story": "Decode and encode COBOL records through an embeddable deterministic runtime.",
+        "invariant_owned": "byte-faithful deterministic bidirectional record processing",
+        "preferred_facade_path": "copybook::codec",
+        "target_disposition": "keep",
+        "compatibility_plan": "retained-primary-package",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-codec-memory",
@@ -312,7 +400,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "utility",
+        "true_owner": "copybook-codec",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-codepage",
@@ -346,7 +445,18 @@
           ],
           "graduation_criteria": []
         }
-      ]
+      ],
+      "boundary": {
+        "role": "compat",
+        "seam_type": "utility",
+        "true_owner": "copybook-charset",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-contracts",
@@ -358,7 +468,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "compat",
+        "seam_type": "utility",
+        "true_owner": "split:copybook-core,copybook-codec,copybook-cli,copybook-governance",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-core",
@@ -392,7 +513,18 @@
           ],
           "graduation_criteria": []
         }
-      ]
+      ],
+      "boundary": {
+        "role": "primary",
+        "seam_type": "engine",
+        "true_owner": "copybook-core",
+        "external_user_story": "Parse, validate, inspect, project, and lay out COBOL copybooks without processing record files.",
+        "invariant_owned": "validated deterministic schema and layout construction",
+        "preferred_facade_path": "copybook::core",
+        "target_disposition": "keep",
+        "compatibility_plan": "retained-primary-package",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-corruption",
@@ -406,7 +538,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "utility",
+        "true_owner": "split:copybook-codec,copybook-rdw",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-corruption-detectors",
@@ -420,7 +563,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "utility",
+        "true_owner": "copybook-codec",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-corruption-predicates",
@@ -434,7 +588,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "utility",
+        "true_owner": "split:copybook-codec,copybook-rdw",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-corruption-rdw",
@@ -448,7 +613,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "utility",
+        "true_owner": "copybook-rdw",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-determinism",
@@ -462,7 +638,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "compat",
+        "seam_type": "utility",
+        "true_owner": "copybook-codec",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-dialect",
@@ -486,7 +673,18 @@
           ],
           "graduation_criteria": []
         }
-      ]
+      ],
+      "boundary": {
+        "role": "compat",
+        "seam_type": "utility",
+        "true_owner": "copybook-core",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-e2e",
@@ -500,7 +698,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "internal-tool",
+        "seam_type": "harness",
+        "true_owner": "copybook-e2e",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "keep-internal",
+        "compatibility_plan": "not-published",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-error",
@@ -513,7 +722,18 @@
         "docs/reference/ERROR_CODES.md",
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "primary",
+        "seam_type": "shared-leaf",
+        "true_owner": "copybook-error",
+        "external_user_story": "Share stable error identities and structured context across independent public packages.",
+        "invariant_owned": "stable machine-readable error identity",
+        "preferred_facade_path": "copybook::error",
+        "target_disposition": "keep",
+        "compatibility_plan": "retained-primary-package",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-error-reporter",
@@ -525,7 +745,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "compat",
+        "seam_type": "orchestration",
+        "true_owner": "split:copybook-error,copybook-core,copybook-codec,copybook-cli",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-fixed",
@@ -549,7 +780,18 @@
           ],
           "graduation_criteria": []
         }
-      ]
+      ],
+      "boundary": {
+        "role": "primary",
+        "seam_type": "external-format",
+        "true_owner": "copybook-fixed",
+        "external_user_story": "Read and write fixed-LRECL streams independently if the schema-independent boundary is proven.",
+        "invariant_owned": "bounded correct fixed-LRECL framing",
+        "preferred_facade_path": "copybook::framing::fixed",
+        "target_disposition": "keep",
+        "compatibility_plan": "retained-primary-package",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-gen",
@@ -573,7 +815,18 @@
           ],
           "graduation_criteria": []
         }
-      ]
+      ],
+      "boundary": {
+        "role": "internal-tool",
+        "seam_type": "tooling",
+        "true_owner": "copybook-gen",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "keep-internal",
+        "compatibility_plan": "not-published",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-governance",
@@ -591,7 +844,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "adapter",
+        "seam_type": "adapter",
+        "true_owner": "copybook-governance",
+        "external_user_story": "Consume governance/support policy as one optional beta integration surface if external adopters need it.",
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "conditional",
+        "compatibility_plan": "retain-only-if-external-contract-is-proven",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-governance-contracts",
@@ -608,7 +872,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "orchestration",
+        "true_owner": "copybook-governance",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-governance-grid",
@@ -624,7 +899,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "orchestration",
+        "true_owner": "copybook-governance",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-governance-runtime",
@@ -640,7 +926,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "orchestration",
+        "true_owner": "copybook-governance",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-lexer",
@@ -664,7 +961,18 @@
           ],
           "graduation_criteria": []
         }
-      ]
+      ],
+      "boundary": {
+        "role": "compat",
+        "seam_type": "utility",
+        "true_owner": "copybook-core",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-options",
@@ -678,7 +986,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "compat",
+        "seam_type": "utility",
+        "true_owner": "split:copybook-codec,copybook-charset,copybook-cli",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-overflow",
@@ -692,7 +1011,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "utility",
+        "true_owner": "split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-overpunch",
@@ -706,7 +1036,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "compat",
+        "seam_type": "utility",
+        "true_owner": "copybook-codec",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-proptest",
@@ -730,7 +1071,18 @@
           ],
           "graduation_criteria": []
         }
-      ]
+      ],
+      "boundary": {
+        "role": "internal-tool",
+        "seam_type": "harness",
+        "true_owner": "copybook-proptest",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "keep-internal",
+        "compatibility_plan": "not-published",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-rdw",
@@ -754,7 +1106,18 @@
           ],
           "graduation_criteria": []
         }
-      ]
+      ],
+      "boundary": {
+        "role": "primary",
+        "seam_type": "external-format",
+        "true_owner": "copybook-rdw",
+        "external_user_story": "Read and write RDW-framed streams independently after schema coupling is removed.",
+        "invariant_owned": "bounded correct RDW framing",
+        "preferred_facade_path": "copybook::framing::rdw",
+        "target_disposition": "keep",
+        "compatibility_plan": "retained-primary-package",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-rdw-predicates",
@@ -768,7 +1131,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "utility",
+        "true_owner": "copybook-rdw",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-record-io",
@@ -792,7 +1166,18 @@
           ],
           "graduation_criteria": []
         }
-      ]
+      ],
+      "boundary": {
+        "role": "compat",
+        "seam_type": "orchestration",
+        "true_owner": "copybook-codec",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-rs",
@@ -807,7 +1192,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "alias",
+        "seam_type": "facade",
+        "true_owner": "copybook",
+        "external_user_story": "Find the project by its repository name and receive the canonical copybook API unchanged.",
+        "invariant_owned": "exact redirect parity with copybook",
+        "preferred_facade_path": "copybook",
+        "target_disposition": "keep",
+        "compatibility_plan": "permanent-alias",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-safe-index",
@@ -821,7 +1217,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "utility",
+        "true_owner": "split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-safe-ops",
@@ -835,7 +1242,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "utility",
+        "true_owner": "split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-safe-text",
@@ -849,7 +1267,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "utility",
+        "true_owner": "split:copybook-core,copybook-codec",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-scripts",
@@ -863,7 +1292,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "internal-tool",
+        "seam_type": "tooling",
+        "true_owner": "copybook-scripts",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "keep-internal",
+        "compatibility_plan": "not-published",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-sequence-ring",
@@ -877,7 +1317,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "utility",
+        "true_owner": "copybook-codec",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-support-matrix",
@@ -896,7 +1347,18 @@
         "docs/ROADMAP.md",
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "contract",
+        "seam_type": "contract",
+        "true_owner": "copybook-support-matrix",
+        "external_user_story": "Consume a complete authoritative machine-readable support contract if that external use case is proven.",
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "conditional",
+        "compatibility_plan": "retain-only-if-external-contract-is-proven",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-utils",
@@ -910,7 +1372,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "utility",
+        "true_owner": "split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "copybook-zoned-format",
@@ -924,7 +1397,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "retiring",
+        "seam_type": "utility",
+        "true_owner": "copybook-codec",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "collapse",
+        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     },
     {
       "name": "xtask",
@@ -938,7 +1422,18 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": []
+      "features": [],
+      "boundary": {
+        "role": "internal-tool",
+        "seam_type": "tooling",
+        "true_owner": "xtask",
+        "external_user_story": null,
+        "invariant_owned": null,
+        "preferred_facade_path": null,
+        "target_disposition": "keep-internal",
+        "compatibility_plan": "not-published",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+      }
     }
   ]
 }

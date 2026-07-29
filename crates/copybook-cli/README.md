@@ -77,10 +77,18 @@ copybook determinism decode --output json --format fixed --codepage cp037 schema
 ## Installation
 
 ```bash
-cargo install --path . -p copybook-cli
-# Or build locally:
+cargo install copybook-cli@0.5.0 --locked
+```
+
+For source builds:
+
+```bash
 cargo build -p copybook-cli --release
 ```
+
+## Documentation
+
+`copybook-cli` is intentionally a binary-only package, so it does not expose a library rustdoc target on docs.rs. Use the maintained [CLI reference](../../docs/CLI_REFERENCE.md) for commands, flags, environment/config precedence, outputs, and exit behavior. Rust library users should depend on the canonical [`copybook`](../copybook/README.md) facade instead of CLI internals.
 
 ## License
 

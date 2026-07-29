@@ -69,6 +69,7 @@ jobs:
           audit.write_text(text.replace(receipt_old, receipt_new, 1), encoding='utf-8')
           PY
 
+          cargo fmt --all
           cargo fmt --all -- --check
           cargo test -p copybook-bench health
           git diff --check
@@ -82,7 +83,8 @@ jobs:
           git config user.email "git@effortlesssteven.com"
           git add \
             docs/specifications/cicd-integration.md \
-            docs/specifications/enterprise-audit.md
+            docs/specifications/enterprise-audit.md \
+            tools/copybook-bench/src/health.rs
           echo "status:"
           git status --short
           echo "unstaged diff check: pass"
@@ -93,5 +95,5 @@ jobs:
             echo "review corrections already applied"
             exit 0
           fi
-          git commit -m "docs(msrv): preserve historical audit toolchains"
+          git commit -m "fix(msrv): align health checks and preserve audit receipts"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:codex/642-rust-1-95-v2

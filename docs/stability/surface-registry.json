@@ -31,13 +31,6 @@
       ],
       "features": [
         {
-          "name": "comprehensive-tests",
-          "class": "internal-dev-only",
-          "stability_statement": "Test-only feature entrypoint; not a user support guarantee.",
-          "limitations": [],
-          "graduation_criteria": []
-        },
-        {
           "name": "experimental",
           "class": "experimental",
           "stability_statement": "Opt-in feature gate that keeps the crate on the experimental track.",
@@ -90,15 +83,6 @@
       ],
       "features": [
         {
-          "name": "comprehensive-tests",
-          "class": "internal-dev-only",
-          "stability_statement": "Test coverage feature gate.",
-          "limitations": [
-            "Only used for internal validation paths."
-          ],
-          "graduation_criteria": []
-        },
-        {
           "name": "diagnostics",
           "class": "internal-dev-only",
           "stability_statement": "Internal diagnostics mode.",
@@ -149,15 +133,6 @@
             "Cross-version compatibility verification for downstream CLI integrations is added.",
             "Feature stability is validated in the API baseline run."
           ]
-        },
-        {
-          "name": "comprehensive-tests",
-          "class": "internal-dev-only",
-          "stability_statement": "Feature is for repository test matrix execution.",
-          "limitations": [
-            "Not part of user-facing support promises."
-          ],
-          "graduation_criteria": []
         }
       ]
     },
@@ -190,15 +165,6 @@
           "stability_statement": "Debug/audit mode for internal compliance-focused workflows.",
           "limitations": [
             "No downstream stability promise."
-          ],
-          "graduation_criteria": []
-        },
-        {
-          "name": "comprehensive-tests",
-          "class": "internal-dev-only",
-          "stability_statement": "Feature is for repository test coverage only.",
-          "limitations": [
-            "Not documented as supported behavior."
           ],
           "graduation_criteria": []
         },
@@ -336,15 +302,6 @@
           "graduation_criteria": [
             "Downstream CLI compatibility matrix includes this feature with migration steps."
           ]
-        },
-        {
-          "name": "comprehensive-tests",
-          "class": "internal-dev-only",
-          "stability_statement": "Internal test-only feature.",
-          "limitations": [
-            "No user-facing stability promise."
-          ],
-          "graduation_criteria": []
         }
       ]
     },
@@ -476,17 +433,7 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": [
-        {
-          "name": "comprehensive-tests",
-          "class": "internal-dev-only",
-          "stability_statement": "Internal fixture feature only.",
-          "limitations": [
-            "Test-only feature."
-          ],
-          "graduation_criteria": []
-        }
-      ]
+      "features": []
     },
     {
       "name": "copybook-e2e",
@@ -539,17 +486,7 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": [
-        {
-          "name": "comprehensive-tests",
-          "class": "internal-dev-only",
-          "stability_statement": "Test-only feature gate.",
-          "limitations": [
-            "No user-facing support promise."
-          ],
-          "graduation_criteria": []
-        }
-      ]
+      "features": []
     },
     {
       "name": "copybook-gen",
@@ -563,17 +500,7 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": [
-        {
-          "name": "comprehensive-tests",
-          "class": "internal-dev-only",
-          "stability_statement": "Fixture-focused feature for internal testing.",
-          "limitations": [
-            "No downstream API promise."
-          ],
-          "graduation_criteria": []
-        }
-      ]
+      "features": []
     },
     {
       "name": "copybook-governance",
@@ -654,17 +581,7 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": [
-        {
-          "name": "comprehensive-tests",
-          "class": "internal-dev-only",
-          "stability_statement": "Test-only fixture feature.",
-          "limitations": [
-            "Only for repository CI validation."
-          ],
-          "graduation_criteria": []
-        }
-      ]
+      "features": []
     },
     {
       "name": "copybook-options",
@@ -744,17 +661,7 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": [
-        {
-          "name": "comprehensive-tests",
-          "class": "internal-dev-only",
-          "stability_statement": "Test-only coverage feature.",
-          "limitations": [
-            "Internal usage only."
-          ],
-          "graduation_criteria": []
-        }
-      ]
+      "features": []
     },
     {
       "name": "copybook-rdw-predicates",
@@ -782,17 +689,7 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": [
-        {
-          "name": "comprehensive-tests",
-          "class": "internal-dev-only",
-          "stability_statement": "Test-only feature.",
-          "limitations": [
-            "Internal usage only."
-          ],
-          "graduation_criteria": []
-        }
-      ]
+      "features": []
     },
     {
       "name": "copybook-rs",

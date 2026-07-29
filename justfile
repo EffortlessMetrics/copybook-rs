@@ -392,7 +392,7 @@ bench-crate crate:
 
 # Generate test coverage report
 coverage:
-    cargo llvm-cov --all-features --workspace --exclude copybook-bench --exclude copybook-bdd --lcov --output-path lcov.info
+    cargo llvm-cov --workspace --exclude copybook-bench --exclude copybook-bdd --lcov --output-path lcov.info
 
 # Watch for changes and run tests
 watch:

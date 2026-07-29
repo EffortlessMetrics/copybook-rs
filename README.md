@@ -21,18 +21,17 @@ _Source: CI receipts (nextest/junit). This block is updated automatically._
 
 ## Try It Now
 
-The repo includes test fixtures. After building, run this to see it work:
+Install the CLI from crates.io and decode an EBCDIC file to JSON:
 
 ```bash
-git clone https://github.com/EffortlessMetrics/copybook-rs.git
-cd copybook-rs
-git checkout v0.4.3
-cargo build --release
+cargo install copybook-cli@0.5.0 --locked
 
-# Decode included EBCDIC fixture to JSON
-./target/release/copybook decode \
-  fixtures/copybooks/simple.cpy \
-  fixtures/data/simple.bin \
+# Fetch the example fixtures (or use your own copybook + data)
+curl -LO https://github.com/EffortlessMetrics/copybook-rs/raw/v0.5.0/fixtures/copybooks/simple.cpy
+curl -LO https://github.com/EffortlessMetrics/copybook-rs/raw/v0.5.0/fixtures/data/simple.bin
+
+# Decode EBCDIC fixture to JSON
+copybook decode simple.cpy simple.bin \
   --format fixed --codepage cp037 \
   --output demo.jsonl
 
@@ -42,6 +41,22 @@ cat demo.jsonl
 ```
 
 The included `simple.cpy` copybook and `simple.bin` data file demonstrate EBCDIC-to-JSON conversion with COMP-3 packed decimal fields.
+
+For Rust library use, depend on the canonical facade:
+
+```toml
+[dependencies]
+copybook = "=0.5.0"
+```
+
+```rust
+use copybook::core::parse_copybook;
+use copybook::codec::{decode_record, DecodeOptions};
+```
+
+(`copybook-rs` is a redirect/search alias for the same API; `copybook-core`/`copybook-codec` remain available as intentional granular crates.)
+
+To build from source instead, clone the repo, `git checkout v0.5.0`, and `cargo build --release`; the binary is `./target/release/copybook`.
 
 ## What It Supports
 

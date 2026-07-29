@@ -7,8 +7,8 @@ on:
     # Run nightly at 4 AM UTC
     - cron: '0 4 * * *'
   pull_request:
-    # Manual opt-in via label
-    types: [labeled]
+    # Manual opt-in via label; once selected, keep proof current with the head.
+    types: [labeled, synchronize, reopened]
 
 permissions:
   contents: read

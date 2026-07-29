@@ -31,16 +31,16 @@ jobs:
           from pathlib import Path
 
           raw = Path('/tmp/stability-main.md').read_bytes()
-          newline = b'\r\n' if b'\r\n' in raw else b'\n'
           marker = b'## What May Change'
           if marker not in raw:
               raise SystemExit('missing insertion marker')
-          section = newline.join([
-              b'## Package-boundary metadata',
-              b'',
-              b"The surface registry also records each package's architectural role, true semantic owner, preferred facade path, target disposition, and 0.5 compatibility policy. See [Package boundaries](architecture/PACKAGE_BOUNDARIES.md). These fields describe the v0.6 convergence target; the existing package-level stability class remains authoritative until the corresponding ownership PR merges.",
-              b'',
-          ])
+          # Keep the pre-existing blob bytes untouched. New lines use LF so the
+          # diff does not classify an added CR as trailing whitespace.
+          section = b'''## Package-boundary metadata
+
+The surface registry also records each package's architectural role, true semantic owner, preferred facade path, target disposition, and 0.5 compatibility policy. See [Package boundaries](architecture/PACKAGE_BOUNDARIES.md). These fields describe the v0.6 convergence target; the existing package-level stability class remains authoritative until the corresponding ownership PR merges.
+
+'''
           raw = raw.replace(marker, section + marker, 1)
           Path('docs/STABILITY_GUARANTEES.md').write_bytes(raw)
           PY

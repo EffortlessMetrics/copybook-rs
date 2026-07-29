@@ -25,6 +25,108 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt,clippy
+      - name: Split boundary validation into reviewable seams
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('tools/xtask/src/architecture.rs')
+          text = path.read_text(encoding='utf-8')
+          if 'fn validate_owner_contract(' not in text:
+              function = text.index('fn validate_boundary_contract(')
+              start = text.index(
+                  '    if !workspace_names.contains(&boundary.true_owner) {',
+                  function,
+              )
+              end = text.index('    if let Some(expected)', start)
+              calls = '''    validate_owner_contract(name, boundary, workspace_names, violations);
+              validate_publish_contract(package, registry_package, boundary, violations);
+
+          '''.replace('              ', '')
+              text = text[:start] + calls + text[end:]
+
+              insert = text.index('fn validate_stability_contract(')
+              helpers = '''fn validate_owner_contract(
+              name: &str,
+              boundary: &Boundary,
+              workspace_names: &BTreeSet<String>,
+              violations: &mut Vec<Violation>,
+          ) {
+              if !workspace_names.contains(&boundary.true_owner) {
+                  violations.push(Violation::for_package(
+                      format!("owner-missing:{name}:{}", boundary.true_owner),
+                      format!(
+                          "package {name} names non-workspace owner {}",
+                          boundary.true_owner
+                      ),
+                      name,
+                  ));
+              }
+              if matches!(boundary.role.as_str(), "compat" | "retiring")
+                  && boundary.true_owner == name
+              {
+                  violations.push(Violation::for_package(
+                      format!("owner-self:{name}"),
+                      format!("{name} cannot be its own owner while marked {}", boundary.role),
+                      name,
+                  ));
+              }
+          }
+
+          fn validate_publish_contract(
+              package: &MetadataPackage,
+              registry_package: &RegistryPackage,
+              boundary: &Boundary,
+              violations: &mut Vec<Violation>,
+          ) {
+              let name = package.name.as_str();
+              let manifest_publishable = is_publishable(package.publish.as_ref());
+              if manifest_publishable != registry_package.publish {
+                  violations.push(Violation::for_package(
+                      format!("publish-mismatch:{name}"),
+                      format!(
+                          "package {name} manifest publishability ({manifest_publishable}) disagrees with registry ({})",
+                          registry_package.publish
+                      ),
+                      name,
+                  ));
+              }
+              if registry_package.publish
+                  && (blank(boundary.external_user_story.as_deref())
+                      || blank(boundary.invariant_owned.as_deref()))
+              {
+                  violations.push(Violation::for_package(
+                      format!("published-contract-incomplete:{name}"),
+                      format!(
+                          "published package {name} must declare an external or migration story and owned invariant"
+                      ),
+                      name,
+                  ));
+              }
+              if boundary.role == "internal-tool" && registry_package.publish {
+                  violations.push(Violation::for_package(
+                      format!("internal-tool-published:{name}"),
+                      format!("internal tool package {name} must not be publishable"),
+                      name,
+                  ));
+              }
+              if boundary.role != "internal-tool" && !registry_package.publish {
+                  violations.push(Violation::for_package(
+                      format!("non-tool-unpublished:{name}"),
+                      format!(
+                          "non-tool package {name} must either be publishable or reclassified as internal-tool"
+                      ),
+                      name,
+                  ));
+              }
+          }
+
+          '''.replace('          ', '')
+              text = text[:insert] + helpers + text[insert:]
+              path.write_text(text, encoding='utf-8')
+          PY
       - name: Normalize and prove architecture controls
         shell: bash
         run: |

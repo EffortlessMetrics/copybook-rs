@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Refresh 668 architecture proof
+
+on:
+  push:
+    branches:
+      - codex/644-architecture-check
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  normalize-and-prove:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: codex/644-architecture-check
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
+      - name: Normalize and prove architecture controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --all
+          cargo run -p xtask -- architecture debt-generate
+          cargo fmt --all -- --check
+          cargo clippy -p xtask --all-targets -- -D warnings -W clippy::pedantic
+          cargo test -p xtask
+          cargo run -p xtask -- architecture check
+          cargo run -p xtask -- architecture report --format json > /tmp/architecture-report.json
+          python3 -m json.tool /tmp/architecture-report.json >/dev/null
+          git diff --check
+      - name: Commit normalized controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "EffortlessSteven"
+          git config user.email "git@effortlesssteven.com"
+          git add \
+            docs/architecture/package-boundary-debt.json \
+            scripts/ci/quick.sh \
+            tools/xtask/src/architecture.rs \
+            tools/xtask/src/lib.rs \
+            tools/xtask/src/main.rs
+          if git diff --cached --quiet; then
+            echo "Architecture controls already normalized."
+            exit 0
+          fi
+          git commit -m "feat(xtask): normalize package architecture controls"
+          git push origin HEAD:codex/644-architecture-check

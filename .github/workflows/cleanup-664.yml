@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Cleanup PR 664
+
+on:
+  push:
+    branches:
+      - codex/641-package-roles
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: codex/641-package-roles
+          fetch-depth: 0
+
+      - name: Rebuild the stability-doc edit without line-ending churn
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show origin/main:docs/STABILITY_GUARANTEES.md > /tmp/stability-main.md
+          python3 - <<'PY'
+          from pathlib import Path
+
+          raw = Path('/tmp/stability-main.md').read_bytes()
+          newline = b'\r\n' if b'\r\n' in raw else b'\n'
+          marker = b'## What May Change'
+          if marker not in raw:
+              raise SystemExit('missing insertion marker')
+          section = newline.join([
+              b'## Package-boundary metadata',
+              b'',
+              b"The surface registry also records each package's architectural role, true semantic owner, preferred facade path, target disposition, and 0.5 compatibility policy. See [Package boundaries](architecture/PACKAGE_BOUNDARIES.md). These fields describe the v0.6 convergence target; the existing package-level stability class remains authoritative until the corresponding ownership PR merges.",
+              b'',
+          ])
+          raw = raw.replace(marker, section + marker, 1)
+          Path('docs/STABILITY_GUARANTEES.md').write_bytes(raw)
+          PY
+          git diff --check
+
+      - name: Commit cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/cleanup-664.yml
+          git config user.name "EffortlessSteven"
+          git config user.email "git@effortlesssteven.com"
+          git add -A
+          git commit -m "docs(architecture): preserve stability document formatting"
+          git push origin HEAD:codex/641-package-roles

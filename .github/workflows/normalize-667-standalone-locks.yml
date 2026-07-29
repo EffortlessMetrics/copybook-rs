@@ -16,7 +16,7 @@ jobs:
   normalize:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
@@ -34,36 +34,15 @@ jobs:
             fuzz/Cargo.lock \
             examples/kafka_pipeline/Cargo.lock \
             examples/kafka_streaming/Cargo.lock
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          paths = [
-              Path('fuzz/Cargo.lock'),
-              Path('examples/kafka_pipeline/Cargo.lock'),
-              Path('examples/kafka_streaming/Cargo.lock'),
-          ]
-          for path in paths:
-              text = path.read_text(encoding='utf-8')
-              sections = text.split('[[package]]')
-              output = [sections[0]]
-              for section in sections[1:]:
-                  if re.search(r'^name = "copybook(?:-|\")', section, flags=re.MULTILINE):
-                      section = re.sub(
-                          r'^version = "0\.4\.3"$',
-                          'version = "0.5.0"',
-                          section,
-                          count=1,
-                          flags=re.MULTILINE,
-                      )
-                  output.append('[[package]]' + section)
-              path.write_text(''.join(output), encoding='utf-8')
-          PY
           for manifest in \
             fuzz/Cargo.toml \
             examples/kafka_pipeline/Cargo.toml \
             examples/kafka_streaming/Cargo.toml
           do
+            # Preserve the existing resolution wherever possible. Unlike
+            # generate-lockfile, cargo check updates only entries required by
+            # the current manifests and path-package versions.
+            cargo check --manifest-path "${manifest}"
             cargo check --locked --manifest-path "${manifest}"
           done
           git diff --check

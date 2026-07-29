@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "core-upward:copybook-core->copybook-governance-contracts",
+      "owner_issue": 656
+    },
+    {
+      "id": "edge-upward:copybook-fixed->copybook-core",
+      "owner_issue": 650
+    },
+    {
+      "id": "edge-upward:copybook-rdw->copybook-core",
+      "owner_issue": 651
+    },
+    {
+      "id": "library-cli-feature:copybook-charset:clap",
+      "owner_issue": 648
+    },
+    {
+      "id": "library-cli-feature:copybook-codepage:clap",
+      "owner_issue": 648
+    },
+    {
+      "id": "library-cli-framework:copybook-cli-determinism->clap",
+      "owner_issue": 649
+    },
+    {
+      "id": "library-cli-framework:copybook-codec->clap",
+      "owner_issue": 640
+    },
+    {
+      "id": "library-cli-framework:copybook-codepage->clap",
+      "owner_issue": 648
+    },
+    {
+      "id": "library-cli-framework:copybook-options->clap",
+      "owner_issue": 653
+    },
+    {
+      "id": "library-cli-framework:copybook-scripts->clap",
+      "owner_issue": 640
+    },
+    {
+      "id": "library-cli-framework:copybook-zoned-format->clap",
+      "owner_issue": 653
+    },
+    {
+      "id": "primary-dep:copybook->copybook-codepage",
+      "owner_issue": 648
+    },
+    {
+      "id": "primary-dep:copybook->copybook-contracts",
+      "owner_issue": 656
+    },
+    {
+      "id": "primary-dep:copybook->copybook-determinism",
+      "owner_issue": 654
+    },
+    {
+      "id": "primary-dep:copybook->copybook-error-reporter",
+      "owner_issue": 655
+    },
+    {
+      "id": "primary-dep:copybook->copybook-governance-contracts",
+      "owner_issue": 656
+    },
+    {
+      "id": "primary-dep:copybook->copybook-options",
+      "owner_issue": 653
+    },
+    {
+      "id": "primary-dep:copybook->copybook-overflow",
+      "owner_issue": 655
+    },
+    {
+      "id": "primary-dep:copybook->copybook-overpunch",
+      "owner_issue": 653
+    },
+    {
+      "id": "primary-dep:copybook->copybook-record-io",
+      "owner_issue": 652
+    },
+    {
+      "id": "primary-dep:copybook->copybook-utils",
+      "owner_issue": 655
+    },
+    {
+      "id": "primary-dep:copybook-charset->copybook-codepage",
+      "owner_issue": 648
+    },
+    {
+      "id": "primary-dep:copybook-cli->copybook-cli-determinism",
+      "owner_issue": 649
+    },
+    {
+      "id": "primary-dep:copybook-codec->copybook-codec-memory",
+      "owner_issue": 654
+    },
+    {
+      "id": "primary-dep:copybook-codec->copybook-corruption",
+      "owner_issue": 655
+    },
+    {
+      "id": "primary-dep:copybook-codec->copybook-determinism",
+      "owner_issue": 654
+    },
+    {
+      "id": "primary-dep:copybook-codec->copybook-options",
+      "owner_issue": 653
+    },
+    {
+      "id": "primary-dep:copybook-codec->copybook-overpunch",
+      "owner_issue": 653
+    },
+    {
+      "id": "primary-dep:copybook-codec->copybook-record-io",
+      "owner_issue": 652
+    },
+    {
+      "id": "primary-dep:copybook-core->copybook-dialect",
+      "owner_issue": 647
+    },
+    {
+      "id": "primary-dep:copybook-core->copybook-error-reporter",
+      "owner_issue": 655
+    },
+    {
+      "id": "primary-dep:copybook-core->copybook-governance-contracts",
+      "owner_issue": 656
+    },
+    {
+      "id": "primary-dep:copybook-core->copybook-lexer",
+      "owner_issue": 647
+    },
+    {
+      "id": "primary-dep:copybook-core->copybook-overflow",
+      "owner_issue": 655
+    },
+    {
+      "id": "primary-dep:copybook-core->copybook-utils",
+      "owner_issue": 655
+    },
+    {
+      "id": "primary-dep:copybook-rdw->copybook-rdw-predicates",
+      "owner_issue": 651
+    }
+  ]
+}

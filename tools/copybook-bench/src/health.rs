@@ -89,7 +89,7 @@ fn rust_version_health(version_str: &str) -> HealthCheck {
     HealthCheck {
         name: "Rust version".to_string(),
         status,
-        message: format!("{version_str} ({requirement} MSRV {MSRV_MAJOR}.{MSRV_MINOR}+)")
+        message: format!("{version_str} ({requirement} MSRV {MSRV_MAJOR}.{MSRV_MINOR}+)"),
     }
 }
 

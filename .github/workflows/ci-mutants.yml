@@ -99,15 +99,19 @@ jobs:
     needs: check-feature-flag
     if: needs.check-feature-flag.outputs.enabled == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # copybook-core/-codec are too large for a 60-minute full mutation run
+    # (they hit the cap exactly; see #626); give them the 6h job maximum.
+    timeout-minutes: ${{ matrix.timeout || 60 }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - crate: copybook-core
             threshold: 75
+            timeout: 360
           - crate: copybook-codec
             threshold: 75
+            timeout: 360
           - crate: copybook-error
             threshold: 70
           - crate: copybook-overpunch

@@ -29,7 +29,5 @@ copybook-rdw.workspace = true
 [dev-dependencies]
 proptest.workspace = true
 
-[features]
-
 [lints]
 workspace = true

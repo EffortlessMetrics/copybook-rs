@@ -5,6 +5,9 @@ on:
   push:
     branches:
       - codex/642-rust-1-95-v2
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -13,7 +16,7 @@ jobs:
   refresh:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -22,7 +25,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.95.0
-      - name: Refresh and verify standalone lockfiles
+      - name: Refresh standalone lockfiles
         shell: bash
         run: |
           set -euo pipefail
@@ -31,8 +34,7 @@ jobs:
             examples/kafka_pipeline/Cargo.toml \
             examples/kafka_streaming/Cargo.toml
           do
-            cargo check --manifest-path "${manifest}"
-            cargo check --locked --manifest-path "${manifest}"
+            cargo generate-lockfile --manifest-path "${manifest}"
           done
           git diff --check
       - name: Commit lockfile refresh

@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Bootstrap issue 642 v2
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: codex/642-rust-1-95-v2
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+          components: rustfmt,clippy
+
+      - name: Update authoritative non-workflow MSRV references
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          paths = [
+              'Cargo.toml',
+              'clippy.toml',
+              'justfile',
+              'README.md',
+              'CONTRIBUTING.md',
+              'AGENTS.md',
+              'CLAUDE.md',
+              'SECURITY.md',
+              'Dockerfile',
+              'fuzz/README.md',
+              'docs/FUZZING.md',
+              'docs/CI_GATING_POLICY.md',
+              'docs/VALIDATION_PROTOCOL.md',
+              'docs/REPORT.md',
+              'docs/MUTATION_TESTING.md',
+              'docs/tutorials/getting-started.md',
+              'docs/specifications/cicd-integration.md',
+              'docs/specifications/enterprise-audit.md',
+              'scripts/ci/README.md',
+          ]
+          changed = []
+          for name in paths:
+              path = Path(name)
+              if not path.exists():
+                  continue
+              text = path.read_text(encoding='utf-8')
+              if '1.92' not in text:
+                  continue
+              out = []
+              touched = False
+              for line in text.splitlines(keepends=True):
+                  lower = line.lower()
+                  if '1.92' in line and any(token in lower for token in ('rust', 'msrv', 'toolchain', 'cargo +1.92')):
+                      line = line.replace('1.92.0', '1.95.0').replace('1.92', '1.95')
+                      touched = True
+                  out.append(line)
+              if touched:
+                  path.write_text(''.join(out), encoding='utf-8')
+                  changed.append(name)
+
+          required = {'Cargo.toml', 'clippy.toml', 'justfile', 'README.md', 'CONTRIBUTING.md', 'AGENTS.md'}
+          missing = sorted(required.difference(changed))
+          if missing:
+              raise SystemExit(f'expected authoritative MSRV files were not updated: {missing}')
+
+          print('Updated:')
+          for name in changed:
+              print(f'  {name}')
+          PY
+          git diff --check
+
+      - name: Validate Rust 1.95 floor
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.95.0 fmt --all -- --check
+          cargo +1.95.0 check --workspace
+          cargo +1.95.0 test --workspace --exclude copybook-bench --exclude copybook-bdd -j 2
+          cargo +1.95.0 doc --workspace --no-deps
+
+      - name: Commit non-workflow transition
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "EffortlessSteven"
+          git config user.email "git@effortlesssteven.com"
+          git add -- ':!.github/workflows/bootstrap-642-v2.yml'
+          git commit -m "build(msrv): raise active metadata to Rust 1.95"
+          git push origin HEAD:codex/642-rust-1-95-v2

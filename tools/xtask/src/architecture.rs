@@ -229,11 +229,7 @@ fn analyze() -> Result<Report> {
 
     let mut violations = Vec::new();
     let registry_by_name = index_registry(&registry, &mut violations);
-    validate_registry_coverage(
-        &workspace_names,
-        &registry_by_name,
-        &mut violations,
-    );
+    validate_registry_coverage(&workspace_names, &registry_by_name, &mut violations);
     let consumers = build_consumers(&workspace_packages, &workspace_names);
 
     for package in &workspace_packages {
@@ -394,65 +390,8 @@ fn validate_boundary_contract(
     validate_stability_contract(name, registry_package, boundary, violations);
     validate_required_boundary_text(name, boundary, violations);
 
-    if !workspace_names.contains(&boundary.true_owner) {
-        violations.push(Violation::for_package(
-            format!("owner-missing:{name}:{}", boundary.true_owner),
-            format!(
-                "package {name} names non-workspace owner {}",
-                boundary.true_owner
-            ),
-            name,
-        ));
-    }
-    if matches!(boundary.role.as_str(), "compat" | "retiring")
-        && boundary.true_owner == name
-    {
-        violations.push(Violation::for_package(
-            format!("owner-self:{name}"),
-            format!("{name} cannot be its own owner while marked {}", boundary.role),
-            name,
-        ));
-    }
-
-    let manifest_publishable = is_publishable(package.publish.as_ref());
-    if manifest_publishable != registry_package.publish {
-        violations.push(Violation::for_package(
-            format!("publish-mismatch:{name}"),
-            format!(
-                "package {name} manifest publishability ({manifest_publishable}) disagrees with registry ({})",
-                registry_package.publish
-            ),
-            name,
-        ));
-    }
-    if registry_package.publish
-        && (blank(boundary.external_user_story.as_deref())
-            || blank(boundary.invariant_owned.as_deref()))
-    {
-        violations.push(Violation::for_package(
-            format!("published-contract-incomplete:{name}"),
-            format!(
-                "published package {name} must declare an external or migration story and owned invariant"
-            ),
-            name,
-        ));
-    }
-    if boundary.role == "internal-tool" && registry_package.publish {
-        violations.push(Violation::for_package(
-            format!("internal-tool-published:{name}"),
-            format!("internal tool package {name} must not be publishable"),
-            name,
-        ));
-    }
-    if boundary.role != "internal-tool" && !registry_package.publish {
-        violations.push(Violation::for_package(
-            format!("non-tool-unpublished:{name}"),
-            format!(
-                "non-tool package {name} must either be publishable or reclassified as internal-tool"
-            ),
-            name,
-        ));
-    }
+    validate_owner_contract(name, boundary, workspace_names, violations);
+    validate_publish_contract(package, registry_package, boundary, violations);
 
     if let Some(expected) = expected_dependency_direction(&boundary.role)
         && boundary.dependency_direction != expected
@@ -464,6 +403,82 @@ fn validate_boundary_contract(
                 boundary.role, boundary.dependency_direction
             ),
             name,
+        ));
+    }
+}
+
+fn validate_owner_contract(
+    name: &str,
+    boundary: &Boundary,
+    workspace_names: &BTreeSet<String>,
+    violations: &mut Vec<Violation>,
+) {
+    if !workspace_names.contains(&boundary.true_owner) {
+        violations.push(Violation::for_package(
+            format!("owner-missing:{name}:{}", boundary.true_owner),
+            format!(
+                "package {name} names non-workspace owner {}",
+                boundary.true_owner
+            ),
+            name,
+        ));
+    }
+    if matches!(boundary.role.as_str(), "compat" | "retiring") && boundary.true_owner == name {
+        violations.push(Violation::for_package(
+            format!("owner-self:{name}"),
+            format!(
+                "{name} cannot be its own owner while marked {}",
+                boundary.role
+            ),
+            name,
+        ));
+    }
+}
+
+fn validate_publish_contract(
+    package: &MetadataPackage,
+    registry_package: &RegistryPackage,
+    boundary: &Boundary,
+    violations: &mut Vec<Violation>,
+) {
+    let name = package.name.as_str();
+    let manifest_publishable = is_publishable(package.publish.as_ref());
+    if manifest_publishable != registry_package.publish {
+        violations.push(Violation::for_package(
+  format!("publish-mismatch:{name}"),
+  format!(
+      "package {name} manifest publishability ({manifest_publishable}) disagrees with registry ({})",
+      registry_package.publish
+  ),
+  name,
+        ));
+    }
+    if registry_package.publish
+        && (blank(boundary.external_user_story.as_deref())
+            || blank(boundary.invariant_owned.as_deref()))
+    {
+        violations.push(Violation::for_package(
+  format!("published-contract-incomplete:{name}"),
+  format!(
+      "published package {name} must declare an external or migration story and owned invariant"
+  ),
+  name,
+        ));
+    }
+    if boundary.role == "internal-tool" && registry_package.publish {
+        violations.push(Violation::for_package(
+            format!("internal-tool-published:{name}"),
+            format!("internal tool package {name} must not be publishable"),
+            name,
+        ));
+    }
+    if boundary.role != "internal-tool" && !registry_package.publish {
+        violations.push(Violation::for_package(
+  format!("non-tool-unpublished:{name}"),
+  format!(
+      "non-tool package {name} must either be publishable or reclassified as internal-tool"
+  ),
+  name,
         ));
     }
 }
@@ -510,7 +525,10 @@ fn validate_required_boundary_text(
         ("target_disposition", boundary.target_disposition.as_str()),
         ("compatibility_plan", boundary.compatibility_plan.as_str()),
         ("stability_class", boundary.stability_class.as_str()),
-        ("dependency_direction", boundary.dependency_direction.as_str()),
+        (
+            "dependency_direction",
+            boundary.dependency_direction.as_str(),
+        ),
         (
             "module_insufficiency_reason",
             boundary.module_insufficiency_reason.as_str(),
@@ -528,9 +546,7 @@ fn validate_required_boundary_text(
     if boundary.consumer_data.as_deref() != Some(GENERATED_CONSUMER_DATA) {
         violations.push(Violation::for_package(
             format!("consumer-data-invalid:{name}"),
-            format!(
-                "package {name} must declare consumer_data as {GENERATED_CONSUMER_DATA}"
-            ),
+            format!("package {name} must declare consumer_data as {GENERATED_CONSUMER_DATA}"),
             name,
         ));
     }
@@ -628,7 +644,10 @@ fn validate_edge_direction(
         {
             violations.push(Violation::for_packages(
                 format!("edge-upward:{}->{dependency}", package.name),
-                format!("edge package {} depends upward on {dependency}", package.name),
+                format!(
+                    "edge package {} depends upward on {dependency}",
+                    package.name
+                ),
                 [&package.name, dependency],
             ));
         }
@@ -690,13 +709,7 @@ fn build_report_rows(
 
 fn load_metadata() -> Result<Metadata> {
     let output = Command::new("cargo")
-        .args([
-            "metadata",
-            "--locked",
-            "--format-version",
-            "1",
-            "--no-deps",
-        ])
+        .args(["metadata", "--locked", "--format-version", "1", "--no-deps"])
         .output()
         .context("failed to execute cargo metadata")?;
     if !output.status.success() {
@@ -809,9 +822,7 @@ fn alias_source_is_redirect_only(source: &str) -> bool {
     let code = source
         .lines()
         .map(str::trim)
-        .filter(|line| {
-            !line.is_empty() && !line.starts_with("//") && !line.starts_with("#![")
-        })
+        .filter(|line| !line.is_empty() && !line.starts_with("//") && !line.starts_with("#!["))
         .collect::<Vec<_>>();
     code == ["pub use copybook::*;"]
 }
@@ -904,7 +915,10 @@ fn valid_disposition(disposition: &str) -> bool {
 }
 
 fn valid_stability_class(class: &str) -> bool {
-    matches!(class, "stable" | "beta" | "experimental" | "internal-dev-only")
+    matches!(
+        class,
+        "stable" | "beta" | "experimental" | "internal-dev-only"
+    )
 }
 
 fn role_disposition_is_valid(role: &str, disposition: &str) -> bool {
@@ -972,11 +986,7 @@ fn owner_issue(id: &str) -> u64 {
 }
 
 impl Violation {
-    fn for_package(
-        id: impl Into<String>,
-        message: impl Into<String>,
-        package: &str,
-    ) -> Self {
+    fn for_package(id: impl Into<String>, message: impl Into<String>, package: &str) -> Self {
         Self {
             id: id.into(),
             message: message.into(),

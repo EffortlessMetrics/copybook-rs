@@ -12,6 +12,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: refresh-668-architecture
+  cancel-in-progress: true
+
 jobs:
   normalize-and-prove:
     if: github.actor != 'github-actions[bot]'
@@ -127,6 +131,230 @@ jobs:
               text = text[:insert] + helpers + text[insert:]
               path.write_text(text, encoding='utf-8')
           PY
+      - name: Separate hard contracts from shrinking migration debt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('tools/xtask/src/architecture.rs')
+          text = path.read_text(encoding='utf-8')
+
+          old = '''pub fn run_check() -> Result<()> {
+              let report = analyze()?;
+              let debt = read_debt()?;
+              validate_debt_file(&debt)?;
+              validate_debt(&report.violations, &debt.entries)?;
+              println!(
+                  "architecture check passed: {} package(s), {} tracked violation(s)",
+                  report.packages.len(),
+                  report.violations.len()
+              );
+              Ok(())
+          }
+          '''.replace('          ', '')
+          new = '''pub fn run_check() -> Result<()> {
+              let report = analyze()?;
+              validate_hard_contracts(&report.violations)?;
+              let debt = read_debt()?;
+              validate_debt_file(&debt)?;
+              validate_debt(&report.violations, &debt.entries)?;
+              let tracked = report
+                  .violations
+                  .iter()
+                  .filter(|violation| is_debt_id(&violation.id))
+                  .count();
+              println!(
+                  "architecture check passed: {} package(s), {} tracked violation(s)",
+                  report.packages.len(),
+                  tracked
+              );
+              Ok(())
+          }
+          '''.replace('          ', '')
+          if old in text:
+              text = text.replace(old, new, 1)
+
+          old = '''    let mut entries = report
+                  .violations
+                  .iter()
+                  .map(|violation| DebtEntry {
+          '''.replace('              ', '')
+          new = '''    let mut entries = report
+                  .violations
+                  .iter()
+                  .filter(|violation| is_debt_id(&violation.id))
+                  .map(|violation| DebtEntry {
+          '''.replace('              ', '')
+          if old in text:
+              text = text.replace(old, new, 1)
+
+          if 'fn validate_hard_contracts(' not in text:
+              marker = 'fn validate_debt_file(debt: &DebtFile) -> Result<()> {'
+              helper = '''fn validate_hard_contracts(violations: &[Violation]) -> Result<()> {
+              let hard = violations
+                  .iter()
+                  .filter(|violation| !is_debt_id(&violation.id))
+                  .map(|violation| format!("{}: {}", violation.id, violation.message))
+                  .collect::<Vec<_>>();
+              if !hard.is_empty() {
+                  bail!(
+                      "package architecture contract is invalid; these findings cannot be baselined:\n  - {}",
+                      hard.join("\n  - ")
+                  );
+              }
+              Ok(())
+          }
+
+          '''.replace('          ', '')
+              text = text.replace(marker, helper + marker, 1)
+
+          old = '''    for entry in &debt.entries {
+                  if !seen.insert(entry.id.as_str()) {
+          '''.replace('              ', '')
+          new = '''    for entry in &debt.entries {
+                  if !is_debt_id(&entry.id) {
+                      bail!(
+                          "architecture debt entry {} is a hard contract finding and cannot be baselined",
+                          entry.id
+                      );
+                  }
+                  if !seen.insert(entry.id.as_str()) {
+          '''.replace('              ', '')
+          if old in text:
+              text = text.replace(old, new, 1)
+
+          old = '''    let current = violations
+                  .iter()
+                  .map(|violation| violation.id.clone())
+          '''.replace('              ', '')
+          new = '''    let current = violations
+                  .iter()
+                  .filter(|violation| is_debt_id(&violation.id))
+                  .map(|violation| violation.id.clone())
+          '''.replace('              ', '')
+          if old in text:
+              text = text.replace(old, new, 1)
+
+          if 'fn is_debt_id(' not in text:
+              marker = 'fn owner_issue(id: &str) -> u64 {'
+              helper = '''fn is_debt_id(id: &str) -> bool {
+              [
+                  "primary-dep:",
+                  "core-upward:",
+                  "edge-upward:",
+                  "library-cli-framework:",
+                  "library-cli-feature:",
+              ]
+              .iter()
+              .any(|prefix| id.starts_with(prefix))
+          }
+
+          '''.replace('          ', '')
+              text = text.replace(marker, helper + marker, 1)
+
+          start = text.index('    #[test]\n    fn debt_validation_rejects_new_and_stale_entries()')
+          end = text.index('    #[test]\n    fn alias_source_accepts_only_crate_metadata_and_redirect()', start)
+          tests = '''    #[test]
+              fn debt_validation_rejects_new_and_stale_entries() {
+                  let violations = vec![
+                      Violation::for_package(
+                          "primary-dep:copybook->copybook-utils",
+                          "a",
+                          "copybook",
+                      ),
+                      Violation::for_package(
+                          "library-cli-framework:copybook-options->clap",
+                          "b",
+                          "copybook-options",
+                      ),
+                  ];
+                  let exact = vec![
+                      DebtEntry {
+                          id: "library-cli-framework:copybook-options->clap".into(),
+                          owner_issue: 653,
+                      },
+                      DebtEntry {
+                          id: "primary-dep:copybook->copybook-utils".into(),
+                          owner_issue: 655,
+                      },
+                  ];
+                  assert!(validate_debt(&violations, &exact).is_ok());
+
+                  let stale = vec![DebtEntry {
+                      id: "primary-dep:copybook->copybook-utils".into(),
+                      owner_issue: 655,
+                  }];
+                  assert!(validate_debt(&violations, &stale).is_err());
+              }
+
+              #[test]
+              fn debt_file_requires_sorted_unique_owner_routed_entries() {
+                  let valid = DebtFile {
+                      schema_version: 1,
+                      entries: vec![
+                          DebtEntry {
+                              id: "library-cli-framework:copybook-options->clap".into(),
+                              owner_issue: 653,
+                          },
+                          DebtEntry {
+                              id: "primary-dep:copybook->copybook-utils".into(),
+                              owner_issue: 655,
+                          },
+                      ],
+                  };
+                  assert!(validate_debt_file(&valid).is_ok());
+
+                  let duplicate = DebtFile {
+                      schema_version: 1,
+                      entries: vec![
+                          DebtEntry {
+                              id: "primary-dep:copybook->copybook-utils".into(),
+                              owner_issue: 655,
+                          },
+                          DebtEntry {
+                              id: "primary-dep:copybook->copybook-utils".into(),
+                              owner_issue: 655,
+                          },
+                      ],
+                  };
+                  assert!(validate_debt_file(&duplicate).is_err());
+
+                  let hard_finding = DebtFile {
+                      schema_version: 1,
+                      entries: vec![DebtEntry {
+                          id: "registry-missing:copybook".into(),
+                          owner_issue: 640,
+                      }],
+                  };
+                  assert!(validate_debt_file(&hard_finding).is_err());
+
+                  let wrong_owner = DebtFile {
+                      schema_version: 1,
+                      entries: vec![DebtEntry {
+                          id: "primary-dep:copybook-core->copybook-lexer".into(),
+                          owner_issue: 640,
+                      }],
+                  };
+                  assert!(validate_debt_file(&wrong_owner).is_err());
+              }
+
+              #[test]
+              fn hard_contract_findings_fail_without_entering_debt() {
+                  let violations = vec![Violation::for_package(
+                      "registry-missing:copybook",
+                      "missing",
+                      "copybook",
+                  )];
+                  assert!(validate_hard_contracts(&violations).is_err());
+                  assert!(validate_debt(&violations, &[]).is_ok());
+              }
+
+          '''.replace('              ', '')
+          text = text[:start] + tests + text[end:]
+          path.write_text(text, encoding='utf-8')
+          PY
       - name: Fix bounded xtask test-target lints
         shell: bash
         run: |
@@ -136,16 +364,18 @@ jobs:
 
           path = Path('tools/xtask/src/docs_verify.rs')
           text = path.read_text(encoding='utf-8')
-          text = text.replace(
-              '    fn ok() -> Result<()> {\n',
-              '    #[expect(clippy::unnecessary_wraps, reason = "Verifier callbacks share the Result-returning function signature")]\n    fn ok() -> Result<()> {\n',
-              1,
-          )
-          text = text.replace(
-              '    fn record_order(name: &\'static str) -> Result<()> {\n',
-              '    #[expect(clippy::unnecessary_wraps, reason = "Order probes share the Result-returning verifier signature")]\n    fn record_order(name: &\'static str) -> Result<()> {\n',
-              1,
-          )
+          if 'reason = "Verifier callbacks share' not in text:
+              text = text.replace(
+                  '    fn ok() -> Result<()> {\n',
+                  '    #[expect(clippy::unnecessary_wraps, reason = "Verifier callbacks share the Result-returning function signature")]\n    fn ok() -> Result<()> {\n',
+                  1,
+              )
+          if 'reason = "Order probes share' not in text:
+              text = text.replace(
+                  '    fn record_order(name: &\'static str) -> Result<()> {\n',
+                  '    #[expect(clippy::unnecessary_wraps, reason = "Order probes share the Result-returning verifier signature")]\n    fn record_order(name: &\'static str) -> Result<()> {\n',
+                  1,
+              )
           text = text.replace(
               '.map(|path| path.to_string())',
               '.map(ToString::to_string)',
@@ -184,4 +414,5 @@ jobs:
             exit 0
           fi
           git commit -m "feat(xtask): normalize package architecture controls"
+          git pull --rebase origin codex/644-architecture-check
           git push origin HEAD:codex/644-architecture-check

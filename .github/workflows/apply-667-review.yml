@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Apply 667 review corrections
+
+on:
+  push:
+    branches:
+      - codex/642-rust-1-95-v2
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-667-review-corrections
+  cancel-in-progress: true
+
+jobs:
+  apply-and-prove:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: codex/642-rust-1-95-v2
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+          components: rustfmt
+      - name: Correct current examples and preserve historical receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          cicd = Path('docs/specifications/cicd-integration.md')
+          text = cicd.read_text(encoding='utf-8')
+          old = '''      - name: Setup Rust toolchain
+                  uses: dtolnay/rust-toolchain@stable
+                  with:
+                    toolchain: 1.95.0
+          '''.replace('          ', '')
+          new = old.replace('@stable', '@master')
+          if text.count(old) != 1:
+              raise SystemExit('unexpected canonical CI toolchain example')
+          cicd.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          audit = Path('docs/specifications/enterprise-audit.md')
+          text = audit.read_text(encoding='utf-8')
+          environment_old = '''    operating_system: "Red Hat Enterprise Linux 8.9"
+              rust_version: "1.95.0"
+              copybook_rs_version: "1.0.0"
+          '''.replace('          ', '')
+          environment_new = environment_old.replace('1.95.0', '1.92.0')
+          if text.count(environment_old) != 1:
+              raise SystemExit('unexpected historical enterprise environment receipt')
+          text = text.replace(environment_old, environment_new, 1)
+
+          receipt_old = '''        "system_info": "Ubuntu 22.04, Intel Xeon E5-2673 v4",
+                  "rust_version": "1.95.0",
+                  "git_commit": "abc123def456",
+          '''.replace('          ', '')
+          receipt_new = receipt_old.replace('1.95.0', '1.92.0')
+          if text.count(receipt_old) != 1:
+              raise SystemExit('unexpected historical performance receipt')
+          audit.write_text(text.replace(receipt_old, receipt_new, 1), encoding='utf-8')
+          PY
+
+          cargo fmt --all -- --check
+          cargo test -p copybook-bench health
+          git diff --check
+      - name: Commit bounded review fixes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "EffortlessSteven"
+          git config user.email "git@effortlesssteven.com"
+          git add \
+            docs/specifications/cicd-integration.md \
+            docs/specifications/enterprise-audit.md
+          echo "status:"
+          git status --short
+          echo "unstaged diff check: pass"
+          git diff --check
+          echo "staged diff:"
+          git diff --cached --
+          if git diff --cached --quiet; then
+            echo "review corrections already applied"
+            exit 0
+          fi
+          git commit -m "docs(msrv): preserve historical audit toolchains"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:codex/642-rust-1-95-v2

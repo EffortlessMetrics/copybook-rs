@@ -3,7 +3,7 @@ use anyhow::{Result, bail};
 use copybook_core::support_matrix;
 use std::{fs, path::Path};
 use xtask::publish::{PlanFormat, run_plan};
-use xtask::{Counts, counts, perf};
+use xtask::{Counts, architecture, counts, perf};
 
 mod docs_verify;
 mod pr_insights;
@@ -16,6 +16,10 @@ fn main() -> Result<()> {
         .collect::<Vec<_>>();
 
     match arg_refs.as_slice() {
+        ["architecture", "check"] => architecture::run_check(),
+        ["architecture", "report"] => architecture::run_report(false),
+        ["architecture", "report", "--format", "json"] => architecture::run_report(true),
+        ["architecture", "debt-generate"] => architecture::run_debt_generate(),
         ["docs", "sync-tests"] => sync(),
         ["docs", "verify-tests"] => verify(),
         ["docs", "verify-all"] => docs_verify::run(),
@@ -73,8 +77,12 @@ fn publish_plan(args: &[&str]) -> Result<()> {
 
 fn usage() {
     eprintln!(
-        "Usage: cargo run -p xtask -- [docs|perf|publish|pr-insights] <subcommand>\n\
+        "Usage: cargo run -p xtask -- [architecture|docs|perf|publish|pr-insights] <subcommand>\n\
          \n\
+         architecture check                  Validate package roles, dependency direction, registry fields, and exact debt\n\
+         architecture report                 Print the package ownership and dependency report\n\
+         architecture report --format json   Print the report as JSON\n\
+         architecture debt-generate          Explicitly regenerate the exact debt baseline\n\
          docs sync-tests                     Sync test status from junit.xml\n\
          docs verify-tests                   Verify test status is in sync\n\
          docs verify-all                     Verify all source-of-truth documentation invariants\n\

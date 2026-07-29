@@ -6,6 +6,9 @@
 
 use std::path::Path;
 
+const MSRV_MAJOR: u32 = 1;
+const MSRV_MINOR: u32 = 95;
+
 /// Status of an individual health check.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HealthStatus {
@@ -61,36 +64,7 @@ fn check_rust_version() -> HealthCheck {
     match output {
         Ok(out) => {
             let version_str = String::from_utf8_lossy(&out.stdout);
-            let version_str = version_str.trim();
-            // Parse version like "rustc 1.92.0 (..."
-            let meets_msrv = version_str
-                .split_whitespace()
-                .nth(1)
-                .and_then(|v| {
-                    let parts: Vec<&str> = v.split('.').collect();
-                    if parts.len() >= 2 {
-                        let major = parts[0].parse::<u32>().ok()?;
-                        let minor = parts[1].parse::<u32>().ok()?;
-                        Some(major > 1 || (major == 1 && minor >= 92))
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or(false);
-
-            if meets_msrv {
-                HealthCheck {
-                    name: "Rust version".to_string(),
-                    status: HealthStatus::Pass,
-                    message: format!("{version_str} (meets MSRV 1.92+)"),
-                }
-            } else {
-                HealthCheck {
-                    name: "Rust version".to_string(),
-                    status: HealthStatus::Fail,
-                    message: format!("{version_str} (requires MSRV 1.92+)"),
-                }
-            }
+            rust_version_health(version_str.trim())
         }
         Err(_) => HealthCheck {
             name: "Rust version".to_string(),
@@ -98,6 +72,40 @@ fn check_rust_version() -> HealthCheck {
             message: "Cannot run rustc --version".to_string(),
         },
     }
+}
+
+fn rust_version_health(version_str: &str) -> HealthCheck {
+    let status = if rust_version_meets_msrv(version_str) {
+        HealthStatus::Pass
+    } else {
+        HealthStatus::Fail
+    };
+    let requirement = if status == HealthStatus::Pass {
+        "meets"
+    } else {
+        "requires"
+    };
+
+    HealthCheck {
+        name: "Rust version".to_string(),
+        status,
+        message: format!("{version_str} ({requirement} MSRV {MSRV_MAJOR}.{MSRV_MINOR}+)")
+    }
+}
+
+fn rust_version_meets_msrv(version_str: &str) -> bool {
+    let Some(version) = version_str.split_whitespace().nth(1) else {
+        return false;
+    };
+    let mut parts = version.split('.');
+    let (Some(major), Some(minor)) = (parts.next(), parts.next()) else {
+        return false;
+    };
+    let (Ok(major), Ok(minor)) = (major.parse::<u32>(), minor.parse::<u32>()) else {
+        return false;
+    };
+
+    major > MSRV_MAJOR || (major == MSRV_MAJOR && minor >= MSRV_MINOR)
 }
 
 fn check_baseline_exists(path: &Path) -> HealthCheck {
@@ -229,8 +237,29 @@ mod tests {
     #[test]
     fn test_rust_version_check() {
         let check = check_rust_version();
-        // Should pass since we are running with Rust 1.92+
+        // This crate is built under the workspace's Rust 1.95+ contract.
         assert_eq!(check.status, HealthStatus::Pass);
+        assert!(check.message.contains("MSRV 1.95+"));
+    }
+
+    #[test]
+    fn rust_1_94_fails_msrv_boundary() {
+        let check = rust_version_health("rustc 1.94.0 (example)");
+        assert_eq!(check.status, HealthStatus::Fail);
+        assert!(check.message.contains("requires MSRV 1.95+"));
+    }
+
+    #[test]
+    fn rust_1_95_passes_msrv_boundary() {
+        let check = rust_version_health("rustc 1.95.0 (example)");
+        assert_eq!(check.status, HealthStatus::Pass);
+        assert!(check.message.contains("meets MSRV 1.95+"));
+    }
+
+    #[test]
+    fn malformed_rust_version_fails_closed() {
+        assert!(!rust_version_meets_msrv("rustc unknown"));
+        assert!(!rust_version_meets_msrv("not-rustc"));
     }
 
     #[test]

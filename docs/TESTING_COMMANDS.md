@@ -35,7 +35,7 @@ This document provides a canonical reference for all testing commands in copyboo
 | **Feature Flags** | Matrix of 22 flags × enabled/disabled states | PR-gate | 5-10 min | None |
 | **Full Proptest** | `PROPTEST_CASES=1024 PROPTEST_SEED=copybook-rs-proptest cargo test -p copybook-proptest --lib -- --test-threads=2 --nocapture` | Scheduled | 5-10 min | `copybook-core/tests/proptest-regressions/`, `copybook-codec/tests/proptest-regressions/`, `tests/proptest-regressions/` |
 | **Fuzzing** | `cargo fuzz run <target> -- -runs=0 -max_total_time=300` | Scheduled | 5-10 min per target | `fuzz/artifacts/<target>/`, `fuzz/corpus/<target>/` |
-| **Mutation Testing** | `cargo mutants --package <crate> --timeout <timeout> --test-tool nextest --in-place --json --file mutants.toml` | Scheduled | 15-60 min per crate | `mutants.out/outcomes.json`, `mutants-summary.csv` |
+| **Mutation Testing** | `cargo mutants --package <crate> --timeout <timeout> --test-tool nextest --in-place --json --file mutants.toml` | Local only (`just mutants`); CI uses the advisory RIPR lane instead | 15-60 min per crate | `mutants.out/outcomes.json`, `mutants-summary.csv` |
 | **Performance Benchmarks** | `BENCH_FILTER=slo_validation bash scripts/bench.sh` | Scheduled | 10-15 min | `target/perf.json` |
 | **Soak Tests** | `cargo test -p copybook-cli --features soak -- --ignored --test-threads=1 --nocapture` | Scheduled | 10-20 min | None |
 

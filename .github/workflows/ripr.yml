@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: RIPR
+
+# Test-oracle health signal: finds changed or weakly-tested code where nearby
+# tests may not actually catch the behavior. This lane replaces the scheduled
+# cargo-mutants lane (#626): it produces actionable, diff-scoped seam reports
+# in minutes instead of multi-hour mutation runs. cargo-mutants remains
+# available locally via `just mutants` (mutants.toml).
+#
+# Advisory by design: findings are reported as artifacts and step summaries,
+# not gate failures, until the project promotes a ripr gate mode.
+
+on:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 4 * * 1" # weekly, Monday 04:41 UTC
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pilot:
+    name: RIPR test-oracle pilot (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ripr
+
+      - name: Install ripr
+        run: cargo install ripr --locked
+
+      - name: Run RIPR pilot
+        run: |
+          ripr pilot \
+            --root . \
+            --out target/ripr/pilot \
+            --mode draft \
+            --max-seams 10 \
+            --timeout-ms 300000
+
+      - name: Summarize findings
+        if: always()
+        run: |
+          if [ -f target/ripr/pilot/pilot-summary.md ]; then
+            cat target/ripr/pilot/pilot-summary.md >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload RIPR reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ripr-pilot-${{ github.sha }}
+          path: target/ripr/pilot/
+          if-no-files-found: warn
+          retention-days: 30

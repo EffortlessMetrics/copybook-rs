@@ -378,9 +378,9 @@ scheduled:
 clean:
     cargo clean
 
-# Check MSRV compatibility (Rust 1.92)
+# Check MSRV compatibility (Rust 1.95)
 check-msrv:
-    cargo +1.92.0 check --workspace
+    cargo +1.95.0 check --workspace
 
 # Run a specific crate's tests
 test-crate crate:

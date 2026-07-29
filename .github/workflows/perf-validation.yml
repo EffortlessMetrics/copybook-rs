@@ -29,7 +29,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.92.0"
+          toolchain: "1.95.0"
 
       - name: Install dependencies
         run: |
@@ -78,13 +78,13 @@ jobs:
           # Internal benchmark/perf infrastructure docs are excluded since they
           # legitimately discuss throughput metrics.
           echo "🔍 Scanning user-facing docs for stray performance numbers..."
-          
+
           STRAY_NUMBERS=$(find docs -maxdepth 1 -name "*.md" \
             ! -name "HISTORICAL_PERFORMANCE.md" \
             ! -name "PERFORMANCE_GOVERNANCE.md" \
             ! -name "THROUGHPUT_OPTIMIZATIONS.md" \
             -exec grep -l "GiB/s\|MiB/s\|MB/s" {} \; | wc -l | tr -d ' ')
-          
+
           if [ "$STRAY_NUMBERS" -gt 0 ]; then
             echo "⚠️  Found $STRAY_NUMBERS user-facing docs with performance numbers"
             find docs -maxdepth 1 -name "*.md" \
@@ -112,21 +112,21 @@ jobs:
           DISPLAY_MIBPS=$(jq -r '.summary.display_mibps' scripts/bench/perf.json)
           COMP3_MIBPS=$(jq -r '.summary.comp3_mibps' scripts/bench/perf.json)
           COMMIT_HASH=$(jq -r '.commit' scripts/bench/perf.json)
-          
+
           cat > receipt-summary.md << EOF
           ## Performance Receipt Summary
-          
+
           **Latest Receipt**: \`$COMMIT_HASH\`
           - **DISPLAY Throughput**: ${DISPLAY_MIBPS} MiB/s
           - **COMP-3 Throughput**: ${COMP3_MIBPS} MiB/s
-          
+
           **Environment Details**:
           - **OS**: $(jq -r '.environment.os' scripts/bench/perf.json)
           - **Kernel**: $(jq -r '.environment.kernel' scripts/bench/perf.json)
           - **CPU**: $(jq -r '.environment.cpu_model' scripts/bench/perf.json)
           - **WSL2**: $(jq -r '.environment.wsl2_detected' scripts/bench/perf.json)
           - **Build**: $(jq -r '.build_profile' scripts/bench/perf.json)
-          
+
           **Integrity**: SHA-256 validated
           EOF
 
@@ -149,7 +149,7 @@ jobs:
         run: |
           # Verify governance policy is followed
           echo "🔍 Checking performance governance compliance..."
-          
+
           # Check if historical claims are properly quarantined
           if [ -f "docs/HISTORICAL_PERFORMANCE.md" ]; then
             echo "✅ Historical performance document exists"
@@ -157,7 +157,7 @@ jobs:
             echo "❌ Historical performance document missing"
             exit 1
           fi
-          
+
           # Check if governance policy exists
           if [ -f "docs/PERFORMANCE_GOVERNANCE.md" ]; then
             echo "✅ Performance governance policy exists"
@@ -165,7 +165,7 @@ jobs:
             echo "❌ Performance governance policy missing"
             exit 1
           fi
-          
+
           # Check if receipt schema exists
           if [ -f "schemas/perf-receipt-schema.json" ]; then
             echo "✅ Performance receipt schema exists"
@@ -173,7 +173,7 @@ jobs:
             echo "❌ Performance receipt schema missing"
             exit 1
           fi
-          
+
           # Check if validation script exists
           if [ -f "scripts/validate-perf-receipt.sh" ]; then
             echo "✅ Receipt validation script exists"
@@ -181,7 +181,7 @@ jobs:
             echo "❌ Receipt validation script missing"
             exit 1
           fi
-          
+
           # Check if enhanced benchmark script exists
           if [ -f "scripts/bench-enhanced.sh" ]; then
             echo "✅ Enhanced benchmark script exists"
@@ -189,5 +189,5 @@ jobs:
             echo "❌ Enhanced benchmark script missing"
             exit 1
           fi
-          
+
           echo "✅ All governance components are in place"

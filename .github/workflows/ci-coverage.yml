@@ -55,6 +55,12 @@ jobs:
       run: cargo install cargo-tarpaulin --version 0.31.5
 
     - name: Run tarpaulin coverage
+      # NOTE: do not pass --all-features here. It enables the opt-in
+      # `comprehensive-tests` feature, whose aspirational tests are known to
+      # fail and are explicitly non-blocking (see ci-comprehensive.yml).
+      # Tarpaulin exits non-zero on any test failure, so --all-features made
+      # this lane fail on every run (#626). Default features match the main
+      # CI test lane (ci.yml) and the llvm-cov lane (coverage.yml).
       run: |
         cargo tarpaulin \
           --workspace \
@@ -73,7 +79,6 @@ jobs:
           --output-dir ./coverage \
           --verbose \
           --timeout 300 \
-          --all-features \
           -- --test-threads 1
 
     - name: Generate coverage summary
@@ -110,7 +115,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "## Coverage Details" >> $GITHUB_STEP_SUMMARY
         echo "- **Tool**: cargo-tarpaulin 0.31.5" >> $GITHUB_STEP_SUMMARY
-        echo "- **Features**: All features enabled" >> $GITHUB_STEP_SUMMARY
+        echo "- **Features**: Default features (see note on the coverage step)" >> $GITHUB_STEP_SUMMARY
         echo "- **Excluded**: copybook-bench, examples, integration tests" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "View detailed coverage report on [Codecov](https://codecov.io/gh/${{ github.repository }})." >> $GITHUB_STEP_SUMMARY
@@ -159,8 +164,7 @@ jobs:
           --exclude-files 'crates/copybook-arrow/tests/*' \
           --out Xml \
           --output-dir ./coverage-base \
-          --timeout 300 \
-          --all-features
+          --timeout 300
 
         # Get PR branch coverage
         git checkout ${{ github.sha }}
@@ -179,8 +183,7 @@ jobs:
           --exclude-files 'crates/copybook-arrow/tests/*' \
           --out Xml \
           --output-dir ./coverage-pr \
-          --timeout 300 \
-          --all-features
+          --timeout 300
 
         echo "Coverage diff analysis complete"
         echo "Base branch: ${{ github.base_ref }}"

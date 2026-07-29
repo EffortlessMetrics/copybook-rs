@@ -124,13 +124,19 @@ struct DebtEntry {
 #[inline]
 pub fn run_check() -> Result<()> {
     let report = analyze()?;
+    validate_hard_contracts(&report.violations)?;
     let debt = read_debt()?;
     validate_debt_file(&debt)?;
     validate_debt(&report.violations, &debt.entries)?;
+    let tracked = report
+        .violations
+        .iter()
+        .filter(|violation| is_debt_id(&violation.id))
+        .count();
     println!(
         "architecture check passed: {} package(s), {} tracked violation(s)",
         report.packages.len(),
-        report.violations.len()
+        tracked
     );
     Ok(())
 }
@@ -184,9 +190,11 @@ pub fn run_report(json: bool) -> Result<()> {
 #[inline]
 pub fn run_debt_generate() -> Result<()> {
     let report = analyze()?;
+    validate_hard_contracts(&report.violations)?;
     let mut entries = report
         .violations
         .iter()
+        .filter(|violation| is_debt_id(&violation.id))
         .map(|violation| DebtEntry {
             id: violation.id.clone(),
             owner_issue: owner_issue(&violation.id),
@@ -201,7 +209,14 @@ pub fn run_debt_generate() -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(path, format!("{}\n", serde_json::to_string_pretty(&debt)?))?;
+    fs::write(
+        path,
+        format!(
+            "{}
+",
+            serde_json::to_string_pretty(&debt)?
+        ),
+    )?;
     println!(
         "wrote {} exact architecture debt entries to {DEBT_PATH}",
         debt.entries.len()
@@ -413,17 +428,40 @@ fn validate_owner_contract(
     workspace_names: &BTreeSet<String>,
     violations: &mut Vec<Violation>,
 ) {
-    if !workspace_names.contains(&boundary.true_owner) {
+    let owners = owner_packages(&boundary.true_owner);
+    if owners.is_empty() || (boundary.true_owner.starts_with("split:") && owners.len() < 2) {
         violations.push(Violation::for_package(
-            format!("owner-missing:{name}:{}", boundary.true_owner),
+            format!("owner-syntax:{name}:{}", boundary.true_owner),
             format!(
-                "package {name} names non-workspace owner {}",
+                "package {name} has invalid true_owner syntax {}",
                 boundary.true_owner
             ),
             name,
         ));
+        return;
     }
-    if matches!(boundary.role.as_str(), "compat" | "retiring") && boundary.true_owner == name {
+
+    let unique = owners.iter().copied().collect::<BTreeSet<_>>();
+    if unique.len() != owners.len() {
+        violations.push(Violation::for_package(
+            format!("owner-duplicate:{name}:{}", boundary.true_owner),
+            format!("package {name} repeats an owner in {}", boundary.true_owner),
+            name,
+        ));
+    }
+    for owner in &owners {
+        if !workspace_names.contains(*owner) {
+            violations.push(Violation::for_package(
+                format!("owner-missing:{name}:{owner}"),
+                format!("package {name} names non-workspace owner {owner}"),
+                name,
+            ));
+        }
+    }
+    if matches!(boundary.role.as_str(), "compat" | "retiring")
+        && owners.len() == 1
+        && owners[0] == name
+    {
         violations.push(Violation::for_package(
             format!("owner-self:{name}"),
             format!(
@@ -433,6 +471,19 @@ fn validate_owner_contract(
             name,
         ));
     }
+}
+
+fn owner_packages(value: &str) -> Vec<&str> {
+    value.strip_prefix("split:").map_or_else(
+        || vec![value],
+        |owners| {
+            owners
+                .split(',')
+                .map(str::trim)
+                .filter(|owner| !owner.is_empty())
+                .collect()
+        },
+    )
 }
 
 fn validate_publish_contract(
@@ -827,6 +878,25 @@ fn alias_source_is_redirect_only(source: &str) -> bool {
     code == ["pub use copybook::*;"]
 }
 
+fn validate_hard_contracts(violations: &[Violation]) -> Result<()> {
+    let hard = violations
+        .iter()
+        .filter(|violation| !is_debt_id(&violation.id))
+        .map(|violation| format!("{}: {}", violation.id, violation.message))
+        .collect::<Vec<_>>();
+    if !hard.is_empty() {
+        bail!(
+            "package architecture contract is invalid; these findings cannot be baselined:
+  - {}",
+            hard.join(
+                "
+  - "
+            )
+        );
+    }
+    Ok(())
+}
+
 fn validate_debt_file(debt: &DebtFile) -> Result<()> {
     if debt.schema_version != 1 {
         bail!(
@@ -838,6 +908,12 @@ fn validate_debt_file(debt: &DebtFile) -> Result<()> {
     let mut seen = BTreeSet::new();
     let mut previous: Option<&str> = None;
     for entry in &debt.entries {
+        if !is_debt_id(&entry.id) {
+            bail!(
+                "architecture debt entry {} is a hard contract finding and cannot be baselined",
+                entry.id
+            );
+        }
         if !seen.insert(entry.id.as_str()) {
             bail!("duplicate architecture debt id: {}", entry.id);
         }
@@ -862,6 +938,7 @@ fn validate_debt_file(debt: &DebtFile) -> Result<()> {
 fn validate_debt(violations: &[Violation], debt: &[DebtEntry]) -> Result<()> {
     let current = violations
         .iter()
+        .filter(|violation| is_debt_id(&violation.id))
         .map(|violation| violation.id.clone())
         .collect::<BTreeSet<_>>();
     let recorded = debt
@@ -874,12 +951,26 @@ fn validate_debt(violations: &[Violation], debt: &[DebtEntry]) -> Result<()> {
     if !added.is_empty() || !stale.is_empty() {
         let mut message = String::from("package architecture debt does not match current graph");
         if !added.is_empty() {
-            message.push_str("\nnew violations (do not refresh the baseline):\n  - ");
-            message.push_str(&added.join("\n  - "));
+            message.push_str(
+                "
+new violations (do not refresh the baseline):
+  - ",
+            );
+            message.push_str(&added.join(
+                "
+  - ",
+            ));
         }
         if !stale.is_empty() {
-            message.push_str("\nresolved/stale entries (remove them explicitly):\n  - ");
-            message.push_str(&stale.join("\n  - "));
+            message.push_str(
+                "
+resolved/stale entries (remove them explicitly):
+  - ",
+            );
+            message.push_str(&stale.join(
+                "
+  - ",
+            ));
         }
         bail!(message);
     }
@@ -944,6 +1035,18 @@ fn expected_dependency_direction(role: &str) -> Option<&'static str> {
 
 fn blank(value: Option<&str>) -> bool {
     value.is_none_or(|text| text.trim().is_empty())
+}
+
+fn is_debt_id(id: &str) -> bool {
+    [
+        "primary-dep:",
+        "core-upward:",
+        "edge-upward:",
+        "library-cli-framework:",
+        "library-cli-feature:",
+    ]
+    .iter()
+    .any(|prefix| id.starts_with(prefix))
 }
 
 fn owner_issue(id: &str) -> u64 {
@@ -1017,24 +1120,28 @@ mod tests {
     #[test]
     fn debt_validation_rejects_new_and_stale_entries() {
         let violations = vec![
-            Violation::for_package("a", "a", "copybook"),
-            Violation::for_package("b", "b", "copybook"),
+            Violation::for_package("primary-dep:copybook->copybook-utils", "a", "copybook"),
+            Violation::for_package(
+                "library-cli-framework:copybook-options->clap",
+                "b",
+                "copybook-options",
+            ),
         ];
         let exact = vec![
             DebtEntry {
-                id: "a".into(),
-                owner_issue: 640,
+                id: "library-cli-framework:copybook-options->clap".into(),
+                owner_issue: 653,
             },
             DebtEntry {
-                id: "b".into(),
-                owner_issue: 640,
+                id: "primary-dep:copybook->copybook-utils".into(),
+                owner_issue: 655,
             },
         ];
         assert!(validate_debt(&violations, &exact).is_ok());
 
         let stale = vec![DebtEntry {
-            id: "a".into(),
-            owner_issue: 640,
+            id: "primary-dep:copybook->copybook-utils".into(),
+            owner_issue: 655,
         }];
         assert!(validate_debt(&violations, &stale).is_err());
     }
@@ -1045,12 +1152,12 @@ mod tests {
             schema_version: 1,
             entries: vec![
                 DebtEntry {
-                    id: "a".into(),
-                    owner_issue: 640,
+                    id: "library-cli-framework:copybook-options->clap".into(),
+                    owner_issue: 653,
                 },
                 DebtEntry {
-                    id: "b".into(),
-                    owner_issue: 640,
+                    id: "primary-dep:copybook->copybook-utils".into(),
+                    owner_issue: 655,
                 },
             ],
         };
@@ -1060,16 +1167,25 @@ mod tests {
             schema_version: 1,
             entries: vec![
                 DebtEntry {
-                    id: "a".into(),
-                    owner_issue: 640,
+                    id: "primary-dep:copybook->copybook-utils".into(),
+                    owner_issue: 655,
                 },
                 DebtEntry {
-                    id: "a".into(),
-                    owner_issue: 640,
+                    id: "primary-dep:copybook->copybook-utils".into(),
+                    owner_issue: 655,
                 },
             ],
         };
         assert!(validate_debt_file(&duplicate).is_err());
+
+        let hard_finding = DebtFile {
+            schema_version: 1,
+            entries: vec![DebtEntry {
+                id: "registry-missing:copybook".into(),
+                owner_issue: 640,
+            }],
+        };
+        assert!(validate_debt_file(&hard_finding).is_err());
 
         let wrong_owner = DebtFile {
             schema_version: 1,
@@ -1079,6 +1195,26 @@ mod tests {
             }],
         };
         assert!(validate_debt_file(&wrong_owner).is_err());
+    }
+
+    #[test]
+    fn hard_contract_findings_fail_without_entering_debt() {
+        let violations = vec![Violation::for_package(
+            "registry-missing:copybook",
+            "missing",
+            "copybook",
+        )];
+        assert!(validate_hard_contracts(&violations).is_err());
+        assert!(validate_debt(&violations, &[]).is_ok());
+    }
+
+    #[test]
+    fn split_owner_syntax_preserves_all_named_owners() {
+        assert_eq!(
+            owner_packages("split:copybook-core,copybook-codec, copybook-cli"),
+            ["copybook-core", "copybook-codec", "copybook-cli"]
+        );
+        assert_eq!(owner_packages("copybook-core"), ["copybook-core"]);
     }
 
     #[test]

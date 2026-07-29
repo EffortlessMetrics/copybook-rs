@@ -46,46 +46,6 @@
       "owner_issue": 653
     },
     {
-      "id": "owner-missing:copybook-contracts:split:copybook-core,copybook-codec,copybook-cli,copybook-governance",
-      "owner_issue": 656
-    },
-    {
-      "id": "owner-missing:copybook-corruption-predicates:split:copybook-codec,copybook-rdw",
-      "owner_issue": 651
-    },
-    {
-      "id": "owner-missing:copybook-corruption:split:copybook-codec,copybook-rdw",
-      "owner_issue": 651
-    },
-    {
-      "id": "owner-missing:copybook-error-reporter:split:copybook-error,copybook-core,copybook-codec,copybook-cli",
-      "owner_issue": 655
-    },
-    {
-      "id": "owner-missing:copybook-options:split:copybook-codec,copybook-charset,copybook-cli",
-      "owner_issue": 648
-    },
-    {
-      "id": "owner-missing:copybook-overflow:split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
-      "owner_issue": 650
-    },
-    {
-      "id": "owner-missing:copybook-safe-index:split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
-      "owner_issue": 650
-    },
-    {
-      "id": "owner-missing:copybook-safe-ops:split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
-      "owner_issue": 650
-    },
-    {
-      "id": "owner-missing:copybook-safe-text:split:copybook-core,copybook-codec",
-      "owner_issue": 655
-    },
-    {
-      "id": "owner-missing:copybook-utils:split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
-      "owner_issue": 650
-    },
-    {
       "id": "primary-dep:copybook->copybook-codepage",
       "owner_issue": 648
     },

@@ -33,18 +33,29 @@ concurrency:
 
 jobs:
   check:
-    name: Rust 1.95 standalone manifests
+    name: Rust 1.95 — ${{ matrix.label }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: fuzz
+            label: fuzz workspace
+            manifest: fuzz/Cargo.toml
+          - id: kafka-pipeline
+            label: Kafka pipeline example
+            manifest: examples/kafka_pipeline/Cargo.toml
+          - id: kafka-streaming
+            label: Kafka streaming example
+            manifest: examples/kafka_streaming/Cargo.toml
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.95.0
       - uses: Swatinem/rust-cache@v2
-      - name: Check fuzz workspace
-        run: cargo check --locked --manifest-path fuzz/Cargo.toml
-      - name: Check Kafka pipeline example
-        run: cargo check --locked --manifest-path examples/kafka_pipeline/Cargo.toml
-      - name: Check Kafka streaming example
-        run: cargo check --locked --manifest-path examples/kafka_streaming/Cargo.toml
+        with:
+          key: standalone-${{ matrix.id }}
+      - name: Check ${{ matrix.label }}
+        run: cargo check --locked --manifest-path "${{ matrix.manifest }}"

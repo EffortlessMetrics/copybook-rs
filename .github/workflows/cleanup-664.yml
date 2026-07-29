@@ -5,6 +5,9 @@ on:
   push:
     branches:
       - codex/641-package-roles
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write

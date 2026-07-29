@@ -21,8 +21,11 @@ build_timeout_multiplier = 2.0
 cap_lints = true
 
 # --- Feature activation ---
-# Enable comprehensive-tests feature so all code paths are exercised
-features = ["comprehensive-tests"]
+# Default features only. The comprehensive-tests feature is defined only by
+# copybook-core and copybook-codec and includes aspirational known-failing
+# tests (see ci-comprehensive.yml), so enabling it here broke the baseline
+# for every other matrix crate (#626). Mutation runs against the same stable
+# test suite that gates main.
 
 # --- Source file targeting ---
 # Focus mutation testing on production-critical crates

@@ -161,8 +161,7 @@ jobs:
         run: |
           cargo nextest run \
             --package ${{ matrix.crate }} \
-            --failure-output=immediate \
-            --features comprehensive-tests
+            --failure-output=immediate
 
       - name: Run mutation testing
         id: mutants

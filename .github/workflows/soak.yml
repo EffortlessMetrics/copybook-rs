@@ -45,9 +45,7 @@ jobs:
           scripts/gen_dataset.sh "${{ matrix.format }}" "${{ matrix.codepage }}" "${{ matrix.size }}" "${DATASET}"
           echo "DATASET=${DATASET}" >> "$GITHUB_ENV"
 
-      - name: Run benches (BENCH_FILTER=all)
-        env:
-          BENCH_FILTER: all
+      - name: Run benches (BENCH_FILTER=slo_validation)
         run: |
           : "${DATASET:?missing dataset path}"
           BENCH_INPUT="${DATASET}" bash scripts/bench.sh

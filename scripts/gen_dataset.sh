@@ -73,7 +73,9 @@ CODEPAGE_CODECS = {
     "cp037": "cp037",
     "cp273": "cp273",
     "cp500": "cp500",
-    "cp1047": "cp1047",
+    # Python's codecs has no cp1047; cp037 is identical to cp1047 for the
+    # characters this generator emits (A-Z, 0-9, space).
+    "cp1047": "cp037",
     "cp1140": "cp1140",
 }
 

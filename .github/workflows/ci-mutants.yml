@@ -99,8 +99,8 @@ jobs:
     needs: check-feature-flag
     if: needs.check-feature-flag.outputs.enabled == 'true'
     runs-on: ubuntu-latest
-    # copybook-core/-codec are too large for a 60-minute full mutation run
-    # (they hit the cap exactly; see #626); give them the 6h job maximum.
+    # copybook-core/-codec are sharded 4 ways so no mutation job runs longer
+    # than ~90 minutes (full runs exceeded 2h and hit runner limits; #626).
     timeout-minutes: ${{ matrix.timeout || 60 }}
     strategy:
       fail-fast: false
@@ -108,10 +108,44 @@ jobs:
         include:
           - crate: copybook-core
             threshold: 75
-            timeout: 360
+            shard: 1/4
+            suffix: -shard1
+            timeout: 90
+          - crate: copybook-core
+            threshold: 75
+            shard: 2/4
+            suffix: -shard2
+            timeout: 90
+          - crate: copybook-core
+            threshold: 75
+            shard: 3/4
+            suffix: -shard3
+            timeout: 90
+          - crate: copybook-core
+            threshold: 75
+            shard: 4/4
+            suffix: -shard4
+            timeout: 90
           - crate: copybook-codec
             threshold: 75
-            timeout: 360
+            shard: 1/4
+            suffix: -shard1
+            timeout: 90
+          - crate: copybook-codec
+            threshold: 75
+            shard: 2/4
+            suffix: -shard2
+            timeout: 90
+          - crate: copybook-codec
+            threshold: 75
+            shard: 3/4
+            suffix: -shard3
+            timeout: 90
+          - crate: copybook-codec
+            threshold: 75
+            shard: 4/4
+            suffix: -shard4
+            timeout: 90
           - crate: copybook-error
             threshold: 70
           - crate: copybook-overpunch
@@ -179,13 +213,19 @@ jobs:
         run: |
           set +e
 
+          shard_args=()
+          if [ -n "${{ matrix.shard }}" ]; then
+            shard_args+=(--shard "${{ matrix.shard }}")
+          fi
+
           # Run cargo-mutants with configuration file
           cargo mutants \
             --package ${{ matrix.crate }} \
             --in-place \
             --json \
             --config mutants.toml \
-            -vV 2>&1 | tee mutants-${{ matrix.crate }}-output.log
+            "${shard_args[@]}" \
+            -vV 2>&1 | tee mutants-${{ matrix.crate }}${{ matrix.suffix }}-output.log
 
           MUTANTS_EXIT=$?
 
@@ -253,10 +293,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: mutants-results-${{ matrix.crate }}-${{ github.sha }}
+          name: mutants-results-${{ matrix.crate }}${{ matrix.suffix }}-${{ github.sha }}
           path: |
             mutants.out/
-            mutants-${{ matrix.crate }}-output.log
+            mutants-${{ matrix.crate }}${{ matrix.suffix }}-output.log
             mutants-summary.csv
           retention-days: 30
           if-no-files-found: warn

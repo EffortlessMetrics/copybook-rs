@@ -85,6 +85,8 @@ jobs:
 
           cargo llvm-cov nextest \
             --workspace \
+            --exclude copybook-bench \
+            --exclude copybook-bdd \
             --locked \
             --no-report
 

@@ -168,7 +168,7 @@ CI (`.github/workflows/`) has many lanes beyond the PR gate: quick CI,
 coverage, proptest, ripr test-oracle reports (advisory), fuzzing,
 perf gates/benchmarks with receipts, determinism smoke, docs-truth, SBOM,
 security scans, API-freeze checks, and publish dry-runs. Mutation testing
-(`mutants.toml`) is local-only via `just mutants`. Scheduled lanes can be
+(`mutants.toml`) is local-only via `just mutants`. Test capabilities are owner-specific; do not add no-op Cargo features for uniform CI loops (see `docs/architecture/TEST_CAPABILITIES.md`). Scheduled lanes can be
 sampled locally via `just scheduled`.
 
 ## Code style and data rules

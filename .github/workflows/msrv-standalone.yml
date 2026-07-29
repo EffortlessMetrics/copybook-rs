@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Standalone MSRV
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "examples/kafka_pipeline/**"
+      - "examples/kafka_streaming/**"
+      - "fuzz/**"
+      - ".github/workflows/msrv-standalone.yml"
+  push:
+    branches: [main, develop]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "examples/kafka_pipeline/**"
+      - "examples/kafka_streaming/**"
+      - "fuzz/**"
+      - ".github/workflows/msrv-standalone.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Rust 1.95 standalone manifests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Check fuzz workspace
+        run: cargo check --locked --manifest-path fuzz/Cargo.toml
+      - name: Check Kafka pipeline example
+        run: cargo check --locked --manifest-path examples/kafka_pipeline/Cargo.toml
+      - name: Check Kafka streaming example
+        run: cargo check --locked --manifest-path examples/kafka_streaming/Cargo.toml

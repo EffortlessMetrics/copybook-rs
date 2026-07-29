@@ -21,7 +21,10 @@
         "preferred_facade_path": "copybook",
         "target_disposition": "keep",
         "compatibility_plan": "retained-primary-package",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "stable",
+        "dependency_direction": "facade-depends-only-on-intentional-public-owners",
+        "module_insufficiency_reason": "A module cannot provide the canonical crates.io dependency, documentation front door, and stable assembly surface."
       }
     },
     {
@@ -69,7 +72,10 @@
         "preferred_facade_path": null,
         "target_disposition": "keep",
         "compatibility_plan": "retained-primary-package",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "experimental",
+        "dependency_direction": "outer-surface-depends-inward-never-owned-by-core",
+        "module_insufficiency_reason": "The optional Arrow/Parquet ecosystem and heavy dependency closure must remain isolated from normal users."
       }
     },
     {
@@ -105,7 +111,10 @@
         "preferred_facade_path": null,
         "target_disposition": "keep-internal",
         "compatibility_plan": "not-published",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "may-depend-on-product;never-consumed-by-product",
+        "module_insufficiency_reason": "A separate binary or test-harness dependency closure keeps tooling out of shipped product packages."
       }
     },
     {
@@ -168,7 +177,10 @@
         "preferred_facade_path": null,
         "target_disposition": "keep-internal",
         "compatibility_plan": "not-published",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "may-depend-on-product;never-consumed-by-product",
+        "module_insufficiency_reason": "A separate binary or test-harness dependency closure keeps tooling out of shipped product packages."
       }
     },
     {
@@ -213,7 +225,10 @@
         "preferred_facade_path": "copybook::charset",
         "target_disposition": "keep",
         "compatibility_plan": "retained-primary-package",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "stable",
+        "dependency_direction": "edge-leaf:no-core-codec-cli-framework-or-governance",
+        "module_insufficiency_reason": "Codepage conversion is an independently useful external-format boundary with a small dependency closure."
       }
     },
     {
@@ -287,7 +302,10 @@
         "preferred_facade_path": null,
         "target_disposition": "keep",
         "compatibility_plan": "retained-primary-package",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "stable",
+        "dependency_direction": "application-depends-inward-on-public-library-seams",
+        "module_insufficiency_reason": "The installable binary and process boundary requires its own Cargo package."
       }
     },
     {
@@ -305,12 +323,15 @@
         "role": "retiring",
         "seam_type": "utility",
         "true_owner": "copybook-cli",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to copybook-cli.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "stable",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -384,7 +405,10 @@
         "preferred_facade_path": "copybook::codec",
         "target_disposition": "keep",
         "compatibility_plan": "retained-primary-package",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "stable",
+        "dependency_direction": "facade-depends-only-on-intentional-public-owners",
+        "module_insufficiency_reason": "Embedded conversion users need the record runtime independently of the CLI and optional adapters."
       }
     },
     {
@@ -405,12 +429,15 @@
         "role": "retiring",
         "seam_type": "utility",
         "true_owner": "copybook-codec",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to copybook-codec.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -450,12 +477,15 @@
         "role": "compat",
         "seam_type": "utility",
         "true_owner": "copybook-charset",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "Migrate existing 0.5 users of copybook-codepage to copybook-charset without yanking the published package name.",
+        "invariant_owned": "Forwarding parity with the true owner and no independent implementation.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "stable",
+        "dependency_direction": "depends-only-on-true-owner;never-consumed-by-primary",
+        "module_insufficiency_reason": "Temporary package retention is required only because this crates.io name was already published; implementation belongs under the true owner."
       }
     },
     {
@@ -473,12 +503,15 @@
         "role": "compat",
         "seam_type": "utility",
         "true_owner": "split:copybook-core,copybook-codec,copybook-cli,copybook-governance",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "Migrate existing 0.5 users of copybook-contracts to split:copybook-core,copybook-codec,copybook-cli,copybook-governance without yanking the published package name.",
+        "invariant_owned": "Forwarding parity with the true owner and no independent implementation.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "stable",
+        "dependency_direction": "depends-only-on-true-owner;never-consumed-by-primary",
+        "module_insufficiency_reason": "Temporary package retention is required only because this crates.io name was already published; implementation belongs under the true owner."
       }
     },
     {
@@ -523,7 +556,10 @@
         "preferred_facade_path": "copybook::core",
         "target_disposition": "keep",
         "compatibility_plan": "retained-primary-package",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "stable",
+        "dependency_direction": "leafward-only:no-codec-cli-adapter-or-governance-runtime",
+        "module_insufficiency_reason": "Independent parser/schema adopters need this engine without the codec, CLI, or adapter dependency closure."
       }
     },
     {
@@ -543,12 +579,15 @@
         "role": "retiring",
         "seam_type": "utility",
         "true_owner": "split:copybook-codec,copybook-rdw",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to split:copybook-codec,copybook-rdw.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -568,12 +607,15 @@
         "role": "retiring",
         "seam_type": "utility",
         "true_owner": "copybook-codec",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to copybook-codec.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -593,12 +635,15 @@
         "role": "retiring",
         "seam_type": "utility",
         "true_owner": "split:copybook-codec,copybook-rdw",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to split:copybook-codec,copybook-rdw.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -618,12 +663,15 @@
         "role": "retiring",
         "seam_type": "utility",
         "true_owner": "copybook-rdw",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to copybook-rdw.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -643,12 +691,15 @@
         "role": "compat",
         "seam_type": "utility",
         "true_owner": "copybook-codec",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "Migrate existing 0.5 users of copybook-determinism to copybook-codec without yanking the published package name.",
+        "invariant_owned": "Forwarding parity with the true owner and no independent implementation.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "depends-only-on-true-owner;never-consumed-by-primary",
+        "module_insufficiency_reason": "Temporary package retention is required only because this crates.io name was already published; implementation belongs under the true owner."
       }
     },
     {
@@ -678,12 +729,15 @@
         "role": "compat",
         "seam_type": "utility",
         "true_owner": "copybook-core",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "Migrate existing 0.5 users of copybook-dialect to copybook-core without yanking the published package name.",
+        "invariant_owned": "Forwarding parity with the true owner and no independent implementation.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "depends-only-on-true-owner;never-consumed-by-primary",
+        "module_insufficiency_reason": "Temporary package retention is required only because this crates.io name was already published; implementation belongs under the true owner."
       }
     },
     {
@@ -708,7 +762,10 @@
         "preferred_facade_path": null,
         "target_disposition": "keep-internal",
         "compatibility_plan": "not-published",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "may-depend-on-product;never-consumed-by-product",
+        "module_insufficiency_reason": "A separate binary or test-harness dependency closure keeps tooling out of shipped product packages."
       }
     },
     {
@@ -732,7 +789,10 @@
         "preferred_facade_path": "copybook::error",
         "target_disposition": "keep",
         "compatibility_plan": "retained-primary-package",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "stable",
+        "dependency_direction": "shared-leaf:no-copybook-product-dependencies",
+        "module_insufficiency_reason": "Multiple independent public packages require one shared error type identity without depending upward on an engine."
       }
     },
     {
@@ -750,12 +810,15 @@
         "role": "compat",
         "seam_type": "orchestration",
         "true_owner": "split:copybook-error,copybook-core,copybook-codec,copybook-cli",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "Migrate existing 0.5 users of copybook-error-reporter to split:copybook-error,copybook-core,copybook-codec,copybook-cli without yanking the published package name.",
+        "invariant_owned": "Forwarding parity with the true owner and no independent implementation.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "stable",
+        "dependency_direction": "depends-only-on-true-owner;never-consumed-by-primary",
+        "module_insufficiency_reason": "Temporary package retention is required only because this crates.io name was already published; implementation belongs under the true owner."
       }
     },
     {
@@ -790,7 +853,10 @@
         "preferred_facade_path": "copybook::framing::fixed",
         "target_disposition": "conditional",
         "compatibility_plan": "retain-only-if-schema-independent-direct-use-proof-passes-issue-650",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "edge-leaf:no-core-codec-cli-framework-or-governance",
+        "module_insufficiency_reason": "Conditional: a package is justified only if schema-independent fixed-LRECL users and proof survive #650."
       }
     },
     {
@@ -825,7 +891,10 @@
         "preferred_facade_path": null,
         "target_disposition": "keep-internal",
         "compatibility_plan": "not-published",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "may-depend-on-product;never-consumed-by-product",
+        "module_insufficiency_reason": "A separate binary or test-harness dependency closure keeps tooling out of shipped product packages."
       }
     },
     {
@@ -850,11 +919,14 @@
         "seam_type": "adapter",
         "true_owner": "copybook-governance",
         "external_user_story": "Consume governance/support policy as one optional beta integration surface if external adopters need it.",
-        "invariant_owned": null,
+        "invariant_owned": "Outer contract remains isolated from core ownership and matches its documented stability class.",
         "preferred_facade_path": null,
         "target_disposition": "conditional",
         "compatibility_plan": "retain-only-if-external-contract-is-proven",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "beta",
+        "dependency_direction": "outer-surface-depends-inward-never-owned-by-core",
+        "module_insufficiency_reason": "Conditional: only a real external beta integration contract can justify a package rather than application modules."
       }
     },
     {
@@ -877,12 +949,15 @@
         "role": "retiring",
         "seam_type": "orchestration",
         "true_owner": "copybook-governance",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to copybook-governance.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "beta",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -904,12 +979,15 @@
         "role": "retiring",
         "seam_type": "orchestration",
         "true_owner": "copybook-governance",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to copybook-governance.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "beta",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -931,12 +1009,15 @@
         "role": "retiring",
         "seam_type": "orchestration",
         "true_owner": "copybook-governance",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to copybook-governance.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "beta",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -966,12 +1047,15 @@
         "role": "compat",
         "seam_type": "utility",
         "true_owner": "copybook-core",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "Migrate existing 0.5 users of copybook-lexer to copybook-core without yanking the published package name.",
+        "invariant_owned": "Forwarding parity with the true owner and no independent implementation.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "depends-only-on-true-owner;never-consumed-by-primary",
+        "module_insufficiency_reason": "Temporary package retention is required only because this crates.io name was already published; implementation belongs under the true owner."
       }
     },
     {
@@ -991,12 +1075,15 @@
         "role": "compat",
         "seam_type": "utility",
         "true_owner": "split:copybook-codec,copybook-charset,copybook-cli",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "Migrate existing 0.5 users of copybook-options to split:copybook-codec,copybook-charset,copybook-cli without yanking the published package name.",
+        "invariant_owned": "Forwarding parity with the true owner and no independent implementation.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "depends-only-on-true-owner;never-consumed-by-primary",
+        "module_insufficiency_reason": "Temporary package retention is required only because this crates.io name was already published; implementation belongs under the true owner."
       }
     },
     {
@@ -1016,12 +1103,15 @@
         "role": "retiring",
         "seam_type": "utility",
         "true_owner": "split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -1041,12 +1131,15 @@
         "role": "compat",
         "seam_type": "utility",
         "true_owner": "copybook-codec",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "Migrate existing 0.5 users of copybook-overpunch to copybook-codec without yanking the published package name.",
+        "invariant_owned": "Forwarding parity with the true owner and no independent implementation.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "depends-only-on-true-owner;never-consumed-by-primary",
+        "module_insufficiency_reason": "Temporary package retention is required only because this crates.io name was already published; implementation belongs under the true owner."
       }
     },
     {
@@ -1081,7 +1174,10 @@
         "preferred_facade_path": null,
         "target_disposition": "keep-internal",
         "compatibility_plan": "not-published",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "may-depend-on-product;never-consumed-by-product",
+        "module_insufficiency_reason": "A separate binary or test-harness dependency closure keeps tooling out of shipped product packages."
       }
     },
     {
@@ -1114,9 +1210,12 @@
         "external_user_story": "Read and write RDW-framed streams independently after schema coupling is removed.",
         "invariant_owned": "bounded correct RDW framing",
         "preferred_facade_path": "copybook::framing::rdw",
-        "target_disposition": "keep",
-        "compatibility_plan": "retained-primary-package",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "target_disposition": "conditional",
+        "compatibility_plan": "retain-only-if-schema-independent-direct-use-proof-passes-issue-651",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "edge-leaf:no-core-codec-cli-framework-or-governance",
+        "module_insufficiency_reason": "Conditional: a package is justified only if schema-independent RDW users and proof survive #651."
       }
     },
     {
@@ -1136,12 +1235,15 @@
         "role": "retiring",
         "seam_type": "utility",
         "true_owner": "copybook-rdw",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to copybook-rdw.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -1171,12 +1273,15 @@
         "role": "compat",
         "seam_type": "orchestration",
         "true_owner": "copybook-codec",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "Migrate existing 0.5 users of copybook-record-io to copybook-codec without yanking the published package name.",
+        "invariant_owned": "Forwarding parity with the true owner and no independent implementation.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "implementation-free-forwarder-through-0.6-with-finite-window",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "depends-only-on-true-owner;never-consumed-by-primary",
+        "module_insufficiency_reason": "Temporary package retention is required only because this crates.io name was already published; implementation belongs under the true owner."
       }
     },
     {
@@ -1202,7 +1307,10 @@
         "preferred_facade_path": "copybook",
         "target_disposition": "keep",
         "compatibility_plan": "permanent-alias",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "depends-only-on-copybook",
+        "module_insufficiency_reason": "A module cannot reserve the repository-name crates.io search path or preserve package-name compatibility."
       }
     },
     {
@@ -1222,12 +1330,15 @@
         "role": "retiring",
         "seam_type": "utility",
         "true_owner": "split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -1247,12 +1358,15 @@
         "role": "retiring",
         "seam_type": "utility",
         "true_owner": "split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -1272,12 +1386,15 @@
         "role": "retiring",
         "seam_type": "utility",
         "true_owner": "split:copybook-core,copybook-codec",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to split:copybook-core,copybook-codec.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -1302,7 +1419,10 @@
         "preferred_facade_path": null,
         "target_disposition": "keep-internal",
         "compatibility_plan": "not-published",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "may-depend-on-product;never-consumed-by-product",
+        "module_insufficiency_reason": "A separate binary or test-harness dependency closure keeps tooling out of shipped product packages."
       }
     },
     {
@@ -1322,12 +1442,15 @@
         "role": "retiring",
         "seam_type": "utility",
         "true_owner": "copybook-codec",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to copybook-codec.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -1353,11 +1476,14 @@
         "seam_type": "contract",
         "true_owner": "copybook-support-matrix",
         "external_user_story": "Consume a complete authoritative machine-readable support contract if that external use case is proven.",
-        "invariant_owned": null,
+        "invariant_owned": "Outer contract remains isolated from core ownership and matches its documented stability class.",
         "preferred_facade_path": null,
         "target_disposition": "conditional",
         "compatibility_plan": "retain-only-if-external-contract-is-proven",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "beta",
+        "dependency_direction": "outer-surface-depends-inward-never-owned-by-core",
+        "module_insufficiency_reason": "Conditional: only a complete externally consumed machine contract can justify a package rather than repository data."
       }
     },
     {
@@ -1377,12 +1503,15 @@
         "role": "retiring",
         "seam_type": "utility",
         "true_owner": "split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -1402,12 +1531,15 @@
         "role": "retiring",
         "seam_type": "utility",
         "true_owner": "copybook-codec",
-        "external_user_story": null,
-        "invariant_owned": null,
+        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to copybook-codec.",
+        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
         "preferred_facade_path": null,
         "target_disposition": "collapse",
         "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "no-primary-consumers-after-owner-migration",
+        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {
@@ -1432,7 +1564,10 @@
         "preferred_facade_path": null,
         "target_disposition": "keep-internal",
         "compatibility_plan": "not-published",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644"
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "internal-dev-only",
+        "dependency_direction": "may-depend-on-product;never-consumed-by-product",
+        "module_insufficiency_reason": "A separate binary or test-harness dependency closure keeps tooling out of shipped product packages."
       }
     }
   ]

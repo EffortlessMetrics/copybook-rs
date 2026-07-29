@@ -18,7 +18,7 @@ Single-owner implementation seams remain explicit module families under their tr
 
 ## Required package evidence
 
-A retained public package must name an external user story, its invariant, its dependency direction, its stability class, and why a module is insufficient. The authoritative decisions live in `docs/stability/surface-registry.json` under each package's `boundary` object. Consumer and publish-closure data are generated from Cargo metadata by the architecture checker tracked in #644.
+A retained public package must name an external user story, its invariant, its dependency direction, its stability class, and why a module is insufficient. Compatibility and retiring package names must instead state their finite migration story, forwarding/no-new-implementation invariant, and why package retention is temporary. The authoritative decisions live in `docs/stability/surface-registry.json` under each package's `boundary` object. Consumer and publish-closure data are generated from Cargo metadata by the architecture checker tracked in #644.
 
 ## Migration rules
 
@@ -31,4 +31,4 @@ A retained public package must name an external user story, its invariant, its d
 
 ## Working primary family for 0.6.0
 
-The current target is `copybook`, `copybook-rs`, `copybook-core`, `copybook-codec`, `copybook-error`, `copybook-charset`, `copybook-rdw`, `copybook-cli`, and `copybook-arrow`. `copybook-fixed` remains conditional on a schema-independent direct-use proof. Governance and support-matrix packages remain conditional rather than being promoted by topology alone.
+The current target is `copybook`, `copybook-rs`, `copybook-core`, `copybook-codec`, `copybook-error`, `copybook-charset`, `copybook-cli`, and `copybook-arrow`. Both `copybook-rdw` and `copybook-fixed` remain conditional on a schema-independent direct-use proof. Governance and support-matrix packages remain conditional rather than being promoted by topology alone.

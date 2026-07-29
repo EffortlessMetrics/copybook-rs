@@ -4,14 +4,21 @@ set -euo pipefail
 
 # Run only the SLO validation benchmarks to capture throughput receipts by default.
 # tripwire: no-op change to trigger perf workflow without affecting behavior.
-# Allow callers to widen scope by exporting BENCH_FILTER.
+# Allow callers to widen scope by exporting BENCH_FILTER. The documented value
+# "all" means every benchmark: criterion treats the filter as a substring
+# match, so passing the literal "all" would skip the slo_validation benches
+# and break the receipt step below. Translate it to an empty filter instead.
 BENCH_FILTER="${BENCH_FILTER:-slo_validation}"
+bench_filter_args=()
+if [ "${BENCH_FILTER}" != "all" ]; then
+  bench_filter_args+=("${BENCH_FILTER}")
+fi
 # Pin x86-64-v3 instead of native: CI restores rust-cache artifacts across
 # heterogeneous runner CPUs, and native-compiled cached proc macros/binaries
 # SIGILL when executed on a different CPU generation. v3 (AVX2) is supported
 # by all GitHub-hosted runners and keeps receipts cache-safe and comparable.
 RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 \
-  cargo bench -p copybook-bench -- "${BENCH_FILTER}" --quiet
+  cargo bench -p copybook-bench -- "${bench_filter_args[@]}" --quiet
 
 python3 <<'PY'
 import datetime

@@ -4,8 +4,15 @@ set -euo pipefail
 
 # Run only the SLO validation benchmarks to capture throughput receipts by default.
 # tripwire: no-op change to trigger perf workflow without affecting behavior.
-# Allow callers to widen scope by exporting BENCH_FILTER.
+# Allow callers to widen scope by exporting BENCH_FILTER. The documented value
+# "all" means every benchmark: criterion treats the filter as a substring
+# match, so passing the literal "all" would skip the slo_validation benches
+# and break the receipt step below. Translate it to an empty filter instead.
 BENCH_FILTER="${BENCH_FILTER:-slo_validation}"
+bench_filter_args=()
+if [ "${BENCH_FILTER}" != "all" ]; then
+  bench_filter_args+=("${BENCH_FILTER}")
+fi
 
 # Capture build profile and target CPU flags. Default is x86-64-v3 (not
 # native): cached CI artifacts compiled for one runner CPU SIGILL when
@@ -13,7 +20,7 @@ BENCH_FILTER="${BENCH_FILTER:-slo_validation}"
 BUILD_PROFILE="${BUILD_PROFILE:-release}"
 TARGET_CPU="${TARGET_CPU:-x86-64-v3}"
 RUSTFLAGS="-C target-cpu=${TARGET_CPU}" PERF=1 \
-  cargo bench -p copybook-bench -- "${BENCH_FILTER}" --quiet
+  cargo bench -p copybook-bench -- "${bench_filter_args[@]}" --quiet
 
 # Function to detect WSL2 environment
 detect_wsl2() {

@@ -274,7 +274,7 @@ jobs:
 
         with open(sys.argv[1], encoding="utf-8") as handle:
             for crate in json.load(handle):
-                print(crate)
+                print(crate["package"])
         PY
         )
 
@@ -381,7 +381,8 @@ jobs:
         print("| Crate | crates.io | docs.rs |")
         print("|-------|-----------|---------|")
         for crate in crates:
-            print(f"| {crate} | [{version}](https://crates.io/crates/{crate}/{version}) | [docs](https://docs.rs/{crate}/{version}) |")
+            package = crate["package"]
+            print(f"| {package} | [{version}](https://crates.io/crates/{package}/{version}) | [docs](https://docs.rs/{package}/{version}) |")
         print("")
         print(f"See [CHANGELOG.md]({repo_url}/blob/{tag}/CHANGELOG.md) for details.")
         PY

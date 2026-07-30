@@ -17,19 +17,35 @@ the generated publish plan win.
 | What the post-publish smoke proves | `scripts/ci/release_smoke.sh` |
 | Versioning and compatibility policy | [STABILITY_GUARANTEES.md](STABILITY_GUARANTEES.md) |
 
-The publish plan is generated from workspace metadata at release time. The
-number of publishable packages and their dependency order come from the plan
-output — never from a hand-maintained list in documentation. If documentation
-and the plan disagree, the plan is correct and the documentation is stale.
+The publish plan is generated from workspace metadata and
+`docs/stability/surface-registry.json` at release time. The number of
+publishable packages, their roles, compatibility status, and dependency order
+come from the plan output — never from a hand-maintained list in documentation.
+If documentation and the plan disagree, the plan is correct and the
+documentation is stale.
 
 Package roles in the plan:
 
-- Component crates (`copybook-core`, `copybook-codec`, and the rest of the
-  publishable workspace) publish first, in generated dependency order.
+- Primary crates publish in generated dependency order. Conditional primary,
+  adapter, and contract packages are omitted until their registry disposition
+  selects them.
+- Active compatibility packages publish only while their recorded 0.6
+  migration window remains active; retiring and internal-tool packages are
+  excluded.
 - `copybook` is the canonical facade crate: it re-exports the component crates
   and publishes after all of its component dependencies.
 - `copybook-rs` is a redirect-only compatibility package that points users at
   the `copybook` facade. It publishes last.
+
+The JSON form is a machine-readable array of objects containing `package`,
+`version`, `role`, `dependency_reason`, and `compatibility_status`. Workflow
+consumers extract `package` for publication while preserving the metadata for
+audit, release notes, and resumable recovery.
+
+The strict planner rejects a primary package that still depends on a
+compatibility or retiring package. This is an intentional release precondition:
+until the corresponding ownership PRs converge, `publish plan --check` reports
+the owning package and publication must not proceed.
 
 ## Pre-Release Validation Gates
 

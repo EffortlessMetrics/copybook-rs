@@ -76,7 +76,7 @@ jobs:
 
         with open(sys.argv[1], encoding="utf-8") as handle:
             for crate in json.load(handle):
-                print(crate)
+                print(crate["package"])
         PY
         )
 
@@ -103,7 +103,7 @@ jobs:
 
         with open(sys.argv[1], encoding="utf-8") as handle:
             for crate in json.load(handle):
-                print(crate)
+                print(crate["package"])
         PY
         )
 
@@ -125,7 +125,7 @@ jobs:
 
         with open(sys.argv[1], encoding="utf-8") as handle:
             for crate in json.load(handle):
-                print(crate)
+                print(crate["package"])
         PY
         )
         for crate in "${PUBLISH_CRATES[@]}"; do

@@ -66,7 +66,10 @@ If any step fails, do not proceed.
 
 ## 3) Capture release plan and evidence
 
-The runbook now uses the xtask-generated publish plan as the single publishable crate source of truth.
+The runbook now uses the xtask-generated, role-aware publish plan as the single
+publishable crate source of truth. Its JSON entries retain package role,
+version, dependency reason, and compatibility status for recovery and audit;
+the workflow publishes the `package` field from each entry.
 
 ```bash
 RELEASE_TAG="vX.Y.Z" # no leading whitespace

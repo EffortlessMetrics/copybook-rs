@@ -258,7 +258,7 @@ fn reexported_fixed_writer_rejects_oversized() {
     let mut wire = Vec::new();
     let mut writer = FixedRecordWriter::new(&mut wire, Some(4)).unwrap();
     let err = writer.write_record(b"TOOLONG").unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 // ====================================================================

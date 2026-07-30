@@ -140,7 +140,7 @@ fn dispatch_fixed_partial_record_propagates_underflow() {
     let data = b"SHORT"; // 5 bytes, LRECL=10
     let mut cursor = Cursor::new(data.to_vec());
     let err = read_record(&mut cursor, RecordFormat::Fixed, Some(10)).unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]

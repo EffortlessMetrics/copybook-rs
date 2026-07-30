@@ -293,7 +293,7 @@ fn error_fixed_read_missing_lrecl() {
 fn error_fixed_read_truncated_record() {
     let mut c = Cursor::new(b"AB".to_vec());
     let err = read_record(&mut c, RecordFormat::Fixed, Some(10)).unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
@@ -358,7 +358,7 @@ fn error_fixed_writer_rejects_oversized_data() {
     let mut buf = Vec::new();
     let mut w = FixedRecordWriter::new(&mut buf, Some(4)).unwrap();
     let err = w.write_record(b"TOOLONG").unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]

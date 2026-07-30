@@ -2,7 +2,8 @@
 # claude.md
 
 ## Scope
-- Integration tests for `copybook-lexer` (Parser layer).
+
+- Compatibility compile-contract tests for `copybook-lexer`.
 
 ## Navigation
 - Crate root: `../claude.md`

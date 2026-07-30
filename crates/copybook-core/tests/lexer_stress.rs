@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Stress tests for the copybook-lexer crate.
+//! Stress tests for the core-owned lexer.
 //!
 //! Exercises extreme, degenerate, and adversarial inputs to ensure the lexer
 //! never panics and handles edge cases gracefully.
 
-use copybook_lexer::{CobolFormat, Lexer, LexerOptions, Token};
+use copybook_core::lexer::{CobolFormat, Lexer, LexerOptions, Token};
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

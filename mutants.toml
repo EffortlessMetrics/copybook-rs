@@ -35,7 +35,6 @@ examine_globs = [
     "crates/copybook-error/src/**/*.rs",
     "crates/copybook-overpunch/src/**/*.rs",
     "crates/copybook-overflow/src/**/*.rs",
-    "crates/copybook-lexer/src/**/*.rs",
     "crates/copybook-rdw/src/**/*.rs",
     "crates/copybook-fixed/src/**/*.rs",
     "crates/copybook-charset/src/**/*.rs",

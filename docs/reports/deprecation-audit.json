@@ -200,6 +200,61 @@
       "planned_removal": "Retained as a compatibility wrapper through the 0.6 migration window; removal requires a future compatibility decision.",
       "compatibility_impact": "Existing calls continue to compile with a deprecation warning and preserve dialect-bound behavior.",
       "note": "The wrapper delegates directly to the core dialect owner."
+    },
+    {
+      "path": "crates/copybook-lexer/src/lib.rs",
+      "symbol": "CobolFormat",
+      "kind": "type",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook_core::lexer::CobolFormat",
+      "migration_example": "Replace `copybook_lexer::CobolFormat` with `copybook_core::lexer::CobolFormat`.",
+      "planned_removal": "Retained as a compatibility alias through the 0.6 migration window; removal requires a future compatibility decision.",
+      "compatibility_impact": "Existing imports continue to compile with a deprecation warning; new code should use the core-owned lexer type.",
+      "note": "The compatibility package forwards format detection without retaining an implementation."
+    },
+    {
+      "path": "crates/copybook-lexer/src/lib.rs",
+      "symbol": "Lexer",
+      "kind": "type",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook_core::lexer::Lexer",
+      "migration_example": "Replace `copybook_lexer::Lexer` with `copybook_core::lexer::Lexer`.",
+      "planned_removal": "Retained as a compatibility alias through the 0.6 migration window; removal requires a future compatibility decision.",
+      "compatibility_impact": "Existing lexer construction and tokenization continue to compile with a deprecation warning.",
+      "note": "The compatibility package forwards the core-owned lexer implementation."
+    },
+    {
+      "path": "crates/copybook-lexer/src/lib.rs",
+      "symbol": "LexerOptions",
+      "kind": "type",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook_core::lexer::LexerOptions",
+      "migration_example": "Replace `copybook_lexer::LexerOptions` with `copybook_core::lexer::LexerOptions`.",
+      "planned_removal": "Retained as a compatibility alias through the 0.6 migration window; removal requires a future compatibility decision.",
+      "compatibility_impact": "Existing lexer option construction continues to compile with a deprecation warning.",
+      "note": "The compatibility package forwards lexer configuration to the core owner."
+    },
+    {
+      "path": "crates/copybook-lexer/src/lib.rs",
+      "symbol": "Token",
+      "kind": "type",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook_core::lexer::Token",
+      "migration_example": "Replace `copybook_lexer::Token` with `copybook_core::lexer::Token`.",
+      "planned_removal": "Retained as a compatibility alias through the 0.6 migration window; removal requires a future compatibility decision.",
+      "compatibility_impact": "Existing token matching and display code continues to compile with a deprecation warning.",
+      "note": "The compatibility package forwards token identities to the core owner."
+    },
+    {
+      "path": "crates/copybook-lexer/src/lib.rs",
+      "symbol": "TokenPos",
+      "kind": "type",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook_core::lexer::TokenPos",
+      "migration_example": "Replace `copybook_lexer::TokenPos` with `copybook_core::lexer::TokenPos`.",
+      "planned_removal": "Retained as a compatibility alias through the 0.6 migration window; removal requires a future compatibility decision.",
+      "compatibility_impact": "Existing source-position consumers continue to compile with a deprecation warning.",
+      "note": "The compatibility package forwards token positions to the core owner."
     }
   ]
 }

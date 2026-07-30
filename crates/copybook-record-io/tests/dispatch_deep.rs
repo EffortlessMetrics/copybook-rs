@@ -327,7 +327,8 @@ fn error_fixed_read_io_failure() {
 #[test]
 fn error_rdw_read_io_failure() {
     let mut r = AlwaysFailReader;
-    assert!(read_record(&mut r, RecordFormat::RDW, None).is_err());
+    let err = read_record(&mut r, RecordFormat::RDW, None).unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKR201_RDW_READ_ERROR);
 }
 
 #[test]
@@ -337,7 +338,8 @@ fn error_rdw_truncated_payload() {
     data.extend_from_slice(&[0x00, 0x0A, 0x00, 0x00]);
     data.extend_from_slice(b"ABC");
     let mut c = Cursor::new(data);
-    assert!(read_record(&mut c, RecordFormat::RDW, None).is_err());
+    let err = read_record(&mut c, RecordFormat::RDW, None).unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
 }
 
 #[test]

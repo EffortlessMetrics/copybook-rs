@@ -157,7 +157,7 @@ version = "0.5.0"
 dependencies = [
  "copybook-core",
  "copybook-corruption-detectors",
- "copybook-corruption-rdw",
+ "copybook-rdw",
 ]
 
 [[package]]
@@ -176,9 +176,7 @@ version = "0.5.0"
 name = "copybook-corruption-rdw"
 version = "0.5.0"
 dependencies = [
- "copybook-core",
- "copybook-corruption-predicates",
- "copybook-rdw-predicates",
+ "copybook-rdw",
 ]
 
 [[package]]
@@ -293,13 +291,15 @@ name = "copybook-rdw"
 version = "0.5.0"
 dependencies = [
  "copybook-error",
- "copybook-rdw-predicates",
  "tracing",
 ]
 
 [[package]]
 name = "copybook-rdw-predicates"
 version = "0.5.0"
+dependencies = [
+ "copybook-rdw",
+]
 
 [[package]]
 name = "copybook-record-io"

@@ -131,7 +131,7 @@ mod tests {
         let mut output = Vec::new();
         let oversized = vec![0u8; usize::from(u16::MAX) + 1];
         let err = write_record(&mut output, &oversized, RecordFormat::RDW).unwrap_err();
-        assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+        assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
     }
 
     proptest! {

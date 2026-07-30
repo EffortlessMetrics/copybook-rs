@@ -274,14 +274,14 @@ mod tests {
     }
 
     #[test]
-    fn rdw_writer_payload_too_large_is_cbke501() {
+    fn rdw_writer_payload_too_large_is_cbkf102() {
         let mut output = Vec::new();
         let mut writer = RDWRecordWriter::new(&mut output);
         let large_payload = vec![0u8; usize::from(u16::MAX) + 1];
         let err = writer
             .write_record_from_payload(&large_payload, None)
             .unwrap_err();
-        assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+        assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
     }
 
     #[test]

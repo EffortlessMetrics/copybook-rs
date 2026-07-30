@@ -393,7 +393,7 @@ fn rdw_payload_exceeding_u16_max_rejected_by_writer() {
     let err = writer
         .write_record_from_payload(&payload, None)
         .unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
 }
 
 // ====================================================================

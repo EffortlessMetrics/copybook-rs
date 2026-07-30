@@ -301,7 +301,7 @@ fn error_rdw_write_oversized_payload() {
     let mut out = Vec::new();
     let big = vec![0u8; usize::from(u16::MAX) + 1];
     let err = write_record(&mut out, &big, RecordFormat::RDW).unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
 }
 
 #[test]

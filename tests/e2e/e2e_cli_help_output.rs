@@ -35,7 +35,7 @@ fn run_help(args: &[&str]) -> Output {
         .unwrap()
         .args(args)
         .output()
-        .unwrap_or_else(|e| panic!("failed to run copybook {args:?}: {e}"));
+        .unwrap();
     assert_eq!(
         output.status.code(),
         Some(0),

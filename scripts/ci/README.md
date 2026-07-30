@@ -26,7 +26,7 @@ Runs fmt, clippy, build, tests, governance microcrate checks, BDD smoke, and doc
 # What it does:
 # 1. cargo fmt --all --check
 # 2. cargo clippy (pedantic, libs/bins/examples, -D warnings)
-# 3. cargo clippy (tests, allows unwrap/expect/panic/dbg/print, still -D warnings)
+# 3. cargo clippy (tests, denies panic and allows selected test-only lints)
 # 4. cargo build --workspace --release
 # 5. cargo nextest run (bounded parallelism)
 # 6. scripts/ci/governance-bdd-smoke.sh

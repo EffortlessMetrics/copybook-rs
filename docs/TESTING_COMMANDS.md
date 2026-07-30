@@ -23,7 +23,7 @@ This document provides a canonical reference for all testing commands in copyboo
 |------------|---------------|----------------|------------------|-------------------|
 | **Format Check** | `cargo fmt --all --check` | PR-gate | < 1 min | None |
 | **Clippy (Libs/Bins/Examples)** | `cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -W clippy::pedantic` | PR-gate | 2-3 min | None |
-| **Clippy (Tests)** | `cargo clippy --workspace --tests --all-features -- -D warnings -A clippy::unwrap_used -A clippy::expect_used -A clippy::panic -A clippy::dbg_macro -A clippy::print_stdout -A clippy::print_stderr -A clippy::duplicated_attributes` | PR-gate | 1-2 min | None |
+| **Clippy (Tests)** | `cargo clippy --workspace --tests --all-features -- -D warnings -A clippy::unwrap_used -A clippy::expect_used -D clippy::panic -A clippy::dbg_macro -A clippy::print_stdout -A clippy::print_stderr -A clippy::duplicated_attributes` | PR-gate | 1-2 min | None |
 | **Clippy (Panic Prevention)** | `cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unreachable -D clippy::todo -D clippy::unimplemented` | PR-gate | 2-3 min | None |
 | **Unit Tests (nextest)** | `cargo nextest run --workspace --exclude copybook-bench --profile ci --failure-output=immediate --status-level=fail` | PR-gate | 3-5 min | None |
 | **Doctests** | `RUSTDOCFLAGS="--deny warnings" cargo test --doc --workspace --exclude copybook-bench` | PR-gate | 1-2 min | None |
@@ -104,7 +104,7 @@ cargo clippy --workspace --tests --all-features \
   -- -D warnings \
   -A clippy::unwrap_used \
   -A clippy::expect_used \
-  -A clippy::panic \
+  -D clippy::panic \
   -A clippy::dbg_macro \
   -A clippy::print_stdout \
   -A clippy::print_stderr \
@@ -122,7 +122,7 @@ cargo clippy --workspace --tests --all-features \
   -- -D warnings \
   -A clippy::unwrap_used \
   -A clippy::expect_used \
-  -A clippy::panic \
+  -D clippy::panic \
   -A clippy::dbg_macro \
   -A clippy::print_stdout \
   -A clippy::print_stderr \
@@ -859,7 +859,7 @@ cargo clippy --workspace --tests --all-features \
   -- -D warnings \
   -A clippy::unwrap_used \
   -A clippy::expect_used \
-  -A clippy::panic \
+  -D clippy::panic \
   -A clippy::dbg_macro \
   -A clippy::print_stdout \
   -A clippy::print_stderr \

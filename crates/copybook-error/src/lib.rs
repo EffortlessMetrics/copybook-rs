@@ -168,7 +168,8 @@ pub enum ErrorCode {
     CBKR101_FIXED_RECORD_ERROR,
     /// CBKR201: Error reading an RDW (Record Descriptor Word) header or payload
     CBKR201_RDW_READ_ERROR,
-    /// CBKR202: Error writing an RDW (Record Descriptor Word) header or payload
+    /// CBKR202: Error writing or flushing an RDW (Record Descriptor Word)
+    /// header or payload
     CBKR202_RDW_WRITE_ERROR,
     /// CBKR211: RDW reserved bytes contain non-zero values
     CBKR211_RDW_RESERVED_NONZERO,

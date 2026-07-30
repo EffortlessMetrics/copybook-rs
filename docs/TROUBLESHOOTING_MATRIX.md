@@ -193,9 +193,11 @@ copybook decode schema.cpy data.bin --emit-meta --verbose 2>&1 | grep ODO
 - "I/O error writing RDW payload" or "I/O error flushing output"
 
 **Diagnosis:**
+
 ```bash
-# Verify the destination is writable and has sufficient space.
-test -w output.bin && df -h output.bin
+# Verify the destination directory is writable and has sufficient space.
+output_dir=$(dirname output.bin)
+test -w "$output_dir" && df -h "$output_dir"
 ```
 
 **Solutions:**

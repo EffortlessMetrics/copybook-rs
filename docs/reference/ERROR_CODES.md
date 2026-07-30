@@ -335,14 +335,15 @@ Failed to read RDW header: Unexpected end of file
 ```
 
 #### CBKR202_RDW_WRITE_ERROR
-**Description**: Error writing Record Descriptor Word (RDW) header or payload
+
+**Description**: Error writing or flushing Record Descriptor Word (RDW) header or payload
 **Severity**: Fatal
 **Context**: Record number, byte offset when available, I/O error details
 **Resolution**: Check output integrity, permissions, and available disk space
 
 ```text
 Error: CBKR202_RDW_WRITE_ERROR at record 100
-Failed to write RDW payload: Broken pipe
+Failed to write or flush RDW output: Broken pipe
 ```
 
 #### CBKR211_RDW_RESERVED_NONZERO

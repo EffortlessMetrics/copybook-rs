@@ -619,6 +619,16 @@ fn validate_dependency_rules(
             .as_ref()
             .map(|value| value.role.as_str())
             .unwrap_or_default();
+        if dependency_role == "internal-tool" && boundary.role != "internal-tool" {
+            violations.push(Violation::for_packages(
+                format!("internal-tool-consumer:{}->{dependency}", package.name),
+                format!(
+                    "product package {} depends on internal-tool package {dependency}",
+                    package.name
+                ),
+                [&package.name, dependency],
+            ));
+        }
         if boundary.role == "primary" && matches!(dependency_role, "compat" | "retiring") {
             violations.push(Violation::for_packages(
                 format!("primary-dep:{}->{dependency}", package.name),
@@ -1233,6 +1243,60 @@ mod tests {
         assert!(role_disposition_is_valid("compat", "collapse"));
         assert!(role_disposition_is_valid("internal-tool", "keep-internal"));
         assert!(!role_disposition_is_valid("compat", "keep"));
+    }
+
+    #[test]
+    fn product_dependencies_on_internal_tools_are_rejected() {
+        let package = MetadataPackage {
+            id: "path+file:///workspace#product".into(),
+            name: "copybook".into(),
+            publish: Some(Value::Bool(true)),
+            dependencies: vec![MetadataDependency {
+                name: "xtask".into(),
+                kind: None,
+            }],
+            features: BTreeMap::new(),
+        };
+        let boundary = Boundary {
+            role: "primary".into(),
+            seam_type: "library".into(),
+            true_owner: "copybook".into(),
+            external_user_story: None,
+            invariant_owned: None,
+            preferred_facade_path: None,
+            target_disposition: "keep".into(),
+            compatibility_plan: "none".into(),
+            consumer_data: None,
+            stability_class: "stable".into(),
+            dependency_direction: "inward".into(),
+            module_insufficiency_reason: "none".into(),
+        };
+        let tool = RegistryPackage {
+            name: "xtask".into(),
+            publish: false,
+            stability_class: "internal-dev-only".into(),
+            boundary: Some(Boundary {
+                role: "internal-tool".into(),
+                seam_type: "application".into(),
+                true_owner: "xtask".into(),
+                external_user_story: None,
+                invariant_owned: None,
+                preferred_facade_path: None,
+                target_disposition: "keep-internal".into(),
+                compatibility_plan: "none".into(),
+                consumer_data: None,
+                stability_class: "internal-dev-only".into(),
+                dependency_direction: "may-depend-on-product;never-consumed-by-product".into(),
+                module_insufficiency_reason: "none".into(),
+            }),
+        };
+        let registry = BTreeMap::from([(tool.name.clone(), &tool)]);
+        let mut violations = Vec::new();
+
+        validate_dependency_rules(&package, &boundary, &registry, &mut violations);
+
+        assert_eq!(violations[0].id, "internal-tool-consumer:copybook->xtask");
+        assert_eq!(violations[0].packages, ["copybook", "xtask"]);
     }
 
     #[test]

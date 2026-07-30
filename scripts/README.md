@@ -11,6 +11,7 @@ Automation and utility scripts for copybook-rs development and CI/CD.
 ## Repository Checks
 - **check-public-result-docs.sh** - Rust-backed public `Result` API documentation and attribute guard
 - **check_no_unwrap_expect.sh** - Rust-backed panic-call guard
+- **check_no_new_test_panic.sh** - diff-based guard against new `panic!` macros
 - **guard-hotpaths.sh** - Rust-backed hot-path allocation guard
 
 ## Development Automation

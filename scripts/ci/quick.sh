@@ -31,6 +31,9 @@ echo "==> Running cargo clippy (tests: deny panic, allow selected test-only lint
   -A clippy::duplicated_attributes \
   -A deprecated
 
+echo "==> Rejecting new explicit panic macros"
+bash scripts/check_no_new_test_panic.sh
+
 echo "==> Running cargo build --workspace --release"
 "$CARGO_BIN" build --workspace --release
 

@@ -113,7 +113,9 @@ cargo clippy --workspace --tests --all-features \
 
 **What it validates**:
 - All test code passes clippy lints
-- Common test patterns (unwrap, expect, panic, dbg!, print!) are allowed
+- Unwrap/expect remain allowed for existing test helpers; explicit `panic!`
+  macros are denied, and the panic-policy guard rejects newly added macros
+- Debug and output helpers remain allowed where the test gate permits them
 - All warnings are still treated as errors
 
 **How to run locally**:

@@ -125,7 +125,7 @@ just build-release         # release build
 just test                  # cargo nextest run (excludes bdd + bench crates)
 just test-crate <crate>    # nextest for one crate
 just bdd-smoke             # gated Cucumber smoke suite
-just lint                  # clippy, pedantic; tests get panic-family allows
+just lint                  # clippy, pedantic; tests deny explicit panic macros
 just fmt / just fmt-check  # rustfmt
 just deny                  # cargo-deny (licenses, advisories, bans)
 just docs                  # cargo doc --workspace --no-deps
@@ -179,8 +179,10 @@ sampled locally via `just scheduled`.
 - Keep shipped code safe and fallible: no new `unsafe` (workspace lints forbid
   `unsafe_code`), no panic-family calls (`unwrap`/`expect`/`panic!`/
   `unreachable!`/`todo!`/`unimplemented!`) or unchecked indexing in shipped
-  code without a documented, governed exception. Clippy warns on these; the
-  lint gate allows them only in tests.
+  code without a documented, governed exception. Clippy denies these in
+  shipped targets; test targets retain only the existing unwrap/expect
+  allowances, deny explicit `panic!` macros, and reject newly added panic
+  macros even when an older file-level allow exists.
 - Clippy pedantic compliance is enforced in CI; match idiomatic patterns
   already in the codebase (`div_ceil`, `is_empty`, range `contains`,
   `try_from()` conversions, `Display` for user-facing types).

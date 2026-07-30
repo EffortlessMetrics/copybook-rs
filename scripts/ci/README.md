@@ -27,10 +27,11 @@ Runs fmt, clippy, build, tests, governance microcrate checks, BDD smoke, and doc
 # 1. cargo fmt --all --check
 # 2. cargo clippy (pedantic, libs/bins/examples, -D warnings)
 # 3. cargo clippy (tests, denies panic and allows selected test-only lints)
-# 4. cargo build --workspace --release
-# 5. cargo nextest run (bounded parallelism)
-# 6. scripts/ci/governance-bdd-smoke.sh
-# 7. cargo test --doc (with warnings denied)
+# 4. scripts/check_no_new_test_panic.sh (rejects new explicit panic! macros)
+# 5. cargo build --workspace --release
+# 6. cargo nextest run (bounded parallelism)
+# 7. scripts/ci/governance-bdd-smoke.sh
+# 8. cargo test --doc (with warnings denied)
 ```
 
 **Expected time**: 5-10 minutes (cold), 2-5 minutes (warm)
@@ -101,13 +102,14 @@ just ci
 #   1. cargo fmt --all --check
 #   2. cargo clippy (pedantic: libs/bins/examples)
 #   3. cargo clippy (tests: denies panic, allows selected test-only lints)
-#   4. cargo build --workspace --release
-#   5. cargo nextest run (bounded parallelism)
-#   6. scripts/ci/governance-bdd-smoke.sh
-#   7. cargo test --doc (deny warnings)
+#   4. scripts/check_no_new_test_panic.sh (rejects new explicit panic! macros)
+#   5. cargo build --workspace --release
+#   6. cargo nextest run (bounded parallelism)
+#   7. scripts/ci/governance-bdd-smoke.sh
+#   8. cargo test --doc (deny warnings)
 # Phase 2: Security gates
-#   8. cargo deny check
-#   9. cargo audit (only if Cargo.lock changed)
+#   9. cargo deny check
+#   10. cargo audit (only if Cargo.lock changed)
 ```
 
 **Expected time**: 5-10 minutes (cold), 2-5 minutes (warm)

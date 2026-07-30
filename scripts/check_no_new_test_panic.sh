@@ -15,12 +15,46 @@ if ! git rev-parse --verify "${head_sha}^{commit}" >/dev/null 2>&1; then
 fi
 
 if violations="$(git diff --unified=0 "${base_sha}" "${head_sha}" -- '*.rs' | awk '
-  /^\+\+\+ b\// { path = substr($0, 7); next }
-  /^\+/ && !/^\+\+\+/ && /panic![[:space:]]*\(/ {
-    print path ":" substr($0, 2)
+  function report() {
+    print path ":" pending_line
     found = 1
+    pending = 0
   }
-  END { exit found ? 1 : 0 }
+
+  /^\+\+\+ b\// {
+    if (pending) report()
+    path = substr($0, 7)
+    pending = 0
+    next
+  }
+
+  /^@@/ {
+    if (pending) report()
+    pending = 0
+    next
+  }
+
+  {
+    added = /^\+/ && !/^\+\+\+/
+    line = substr($0, 2)
+
+    if (pending && !/^-/ && line ~ /^[[:space:]]*[({[]/) {
+      report()
+    }
+
+    if (added && line ~ /panic![[:space:]]*[({[]/) {
+      pending_line = line
+      report()
+    } else if (added && line ~ /panic!/) {
+      pending_line = line
+      pending = 1
+    }
+  }
+
+  END {
+    if (pending) report()
+    exit found ? 1 : 0
+  }
 ')"; then
   exit 0
 fi

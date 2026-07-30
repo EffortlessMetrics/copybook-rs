@@ -66,10 +66,12 @@ If any step fails, do not proceed.
 
 ## 3) Capture release plan and evidence
 
-The runbook now uses the xtask-generated, role-aware publish plan as the single
-publishable crate source of truth. Its JSON entries retain package role,
+The runbook uses the xtask-generated publish plan as the single publishable
+crate source of truth. For 0.6 releases, its JSON entries retain package role,
 version, dependency reason, and compatibility status for recovery and audit;
-the workflow publishes the `package` field from each entry.
+the workflow publishes the `package` field from each entry. The planner keeps
+the established manifest-driven package set for supported 0.5.x patch and
+security releases.
 
 ```bash
 RELEASE_TAG="vX.Y.Z" # no leading whitespace

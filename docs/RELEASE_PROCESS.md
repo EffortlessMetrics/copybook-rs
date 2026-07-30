@@ -24,6 +24,11 @@ come from the plan output — never from a hand-maintained list in documentation
 If documentation and the plan disagree, the plan is correct and the
 documentation is stale.
 
+For the current 0.5.x patch and security-release line, the planner preserves
+the established manifest-driven package set and dependency order. The
+role-aware registry policy is applied to the 0.6 target line, so convergence
+preconditions cannot block a supported 0.5.x release.
+
 Package roles in the plan:
 
 - Primary crates publish in generated dependency order. Conditional primary,
@@ -32,6 +37,9 @@ Package roles in the plan:
 - Active compatibility packages publish only while their recorded 0.6
   migration window remains active; retiring and internal-tool packages are
   excluded.
+- Compatibility windows are selected from explicit registry dispositions and
+  exact active/deprecated plan tokens; arbitrary version-like text does not
+  activate publication.
 - `copybook` is the canonical facade crate: it re-exports the component crates
   and publishes after all of its component dependencies.
 - `copybook-rs` is a redirect-only compatibility package that points users at
@@ -46,6 +54,8 @@ The strict planner rejects a primary package that still depends on a
 compatibility or retiring package. This is an intentional release precondition:
 until the corresponding ownership PRs converge, `publish plan --check` reports
 the owning package and publication must not proceed.
+It also rejects a selected 0.6 package with a required dependency on any
+workspace package omitted by the registry policy.
 
 ## Pre-Release Validation Gates
 

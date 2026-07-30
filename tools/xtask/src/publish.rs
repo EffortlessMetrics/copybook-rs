@@ -9,7 +9,7 @@ use std::{
 };
 
 const REGISTRY_PATH: &str = "docs/stability/surface-registry.json";
-const RELEASE_LINE: &str = "0.6";
+const TARGET_RELEASE_LINE: &str = "0.6";
 
 #[derive(Debug, Deserialize)]
 struct Metadata {
@@ -68,6 +68,8 @@ type DependencyGraph = (HashMap<String, usize>, HashMap<String, Vec<String>>);
 struct Dependency {
     #[serde(default)]
     kind: Option<String>,
+    #[serde(default)]
+    optional: bool,
     #[serde(default)]
     name: Option<String>,
     #[serde(default)]
@@ -137,6 +139,10 @@ fn build_publish_plan() -> Result<Vec<PlanPackage>> {
 }
 
 fn ordered_publish_plan(metadata: Metadata, registry: SurfaceRegistry) -> Result<Vec<PlanPackage>> {
+    if workspace_release_line(&metadata).as_deref() == Some("0.5") {
+        return ordered_legacy_publish_plan(metadata, registry);
+    }
+
     let workspace_members = metadata
         .workspace_members
         .iter()
@@ -144,9 +150,13 @@ fn ordered_publish_plan(metadata: Metadata, registry: SurfaceRegistry) -> Result
         .collect::<HashSet<_>>();
     let (package_roles, package_plans, all_id_to_name) =
         index_role_registry(&metadata, registry, &workspace_members)?;
+    let all_name_to_id = all_id_to_name
+        .iter()
+        .map(|(id, name)| (name.clone(), id.clone()))
+        .collect::<HashMap<_, _>>();
     let publishable_packages = metadata
         .packages
-        .into_iter()
+        .iter()
         .filter(|package| package_plans.contains_key(&package.name))
         .collect::<Vec<_>>();
 
@@ -156,20 +166,115 @@ fn ordered_publish_plan(metadata: Metadata, registry: SurfaceRegistry) -> Result
 
     let mut publishable_ids = HashSet::new();
     let mut id_to_name = HashMap::new();
-    let mut name_to_id = HashMap::new();
     for package in &publishable_packages {
         publishable_ids.insert(package.id.clone());
         id_to_name.insert(package.id.clone(), package.name.clone());
-        name_to_id.insert(package.name.clone(), package.id.clone());
     }
 
     let (in_degree, dependents) = build_dependency_graph(
         &publishable_packages,
         &package_roles,
         &all_id_to_name,
+        &all_name_to_id,
         &publishable_ids,
         &id_to_name,
-        &name_to_id,
+        true,
+    )?;
+    topological_order(package_plans, in_degree, dependents)
+}
+
+fn workspace_release_line(metadata: &Metadata) -> Option<String> {
+    let workspace_members = metadata
+        .workspace_members
+        .iter()
+        .cloned()
+        .collect::<HashSet<_>>();
+    let version = metadata
+        .packages
+        .iter()
+        .find(|package| package.name == "copybook" && workspace_members.contains(&package.id))?
+        .version
+        .as_str();
+    let mut components = version.split('.');
+    let major = components.next()?;
+    let minor = components.next()?;
+    Some(format!("{major}.{minor}"))
+}
+
+fn ordered_legacy_publish_plan(
+    metadata: Metadata,
+    registry: SurfaceRegistry,
+) -> Result<Vec<PlanPackage>> {
+    let workspace_members = metadata
+        .workspace_members
+        .iter()
+        .cloned()
+        .collect::<HashSet<_>>();
+    let registry_by_name = registry
+        .packages
+        .into_iter()
+        .map(|package| (package.name.clone(), package))
+        .collect::<HashMap<_, _>>();
+    let publishable_packages = metadata
+        .packages
+        .iter()
+        .filter(|package| {
+            workspace_members.contains(&package.id)
+                && is_publishable_package(package.publish.as_ref())
+        })
+        .collect::<Vec<_>>();
+
+    if publishable_packages.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut package_roles = HashMap::new();
+    let mut package_plans = HashMap::new();
+    for package in &publishable_packages {
+        let Some(registry_package) = registry_by_name.get(&package.name) else {
+            bail!(
+                "{REGISTRY_PATH} is missing workspace package {}",
+                package.name
+            );
+        };
+        package_roles.insert(package.name.clone(), registry_package.boundary.role.clone());
+        package_plans.insert(
+            package.name.clone(),
+            PlanPackage {
+                package: package.name.clone(),
+                version: package.version.clone(),
+                role: registry_package.boundary.role.clone(),
+                dependency_reason: "manifest publishable package".to_string(),
+                compatibility_status: "legacy-release-line".to_string(),
+            },
+        );
+    }
+
+    let all_id_to_name = metadata
+        .packages
+        .iter()
+        .map(|package| (package.id.clone(), package.name.clone()))
+        .collect::<HashMap<_, _>>();
+    let all_name_to_id = all_id_to_name
+        .iter()
+        .map(|(id, name)| (name.clone(), id.clone()))
+        .collect::<HashMap<_, _>>();
+    let publishable_ids = publishable_packages
+        .iter()
+        .map(|package| package.id.clone())
+        .collect::<HashSet<_>>();
+    let id_to_name = publishable_packages
+        .iter()
+        .map(|package| (package.id.clone(), package.name.clone()))
+        .collect::<HashMap<_, _>>();
+    let (in_degree, dependents) = build_dependency_graph(
+        &publishable_packages,
+        &package_roles,
+        &all_id_to_name,
+        &all_name_to_id,
+        &publishable_ids,
+        &id_to_name,
+        false,
     )?;
     topological_order(package_plans, in_degree, dependents)
 }
@@ -236,12 +341,13 @@ fn index_role_registry(
 }
 
 fn build_dependency_graph(
-    packages: &[Package],
+    packages: &[&Package],
     package_roles: &HashMap<String, String>,
     all_id_to_name: &HashMap<String, String>,
+    all_name_to_id: &HashMap<String, String>,
     publishable_ids: &HashSet<String>,
     id_to_name: &HashMap<String, String>,
-    name_to_id: &HashMap<String, String>,
+    enforce_role_policy: bool,
 ) -> Result<DependencyGraph> {
     let mut in_degree: HashMap<String, usize> = HashMap::new();
     let mut dependents: HashMap<String, Vec<String>> = HashMap::new();
@@ -279,7 +385,10 @@ fn build_dependency_graph(
                     .get(dep_name)
                     .map(String::as_str)
                     .unwrap_or_default();
-                if package_role == "primary" && matches!(dependency_role, "compat" | "retiring") {
+                if enforce_role_policy
+                    && package_role == "primary"
+                    && matches!(dependency_role, "compat" | "retiring")
+                {
                     bail!(
                         "primary package {} depends on {dependency_role} package {dep_name}; converge the owner before publishing",
                         package.name
@@ -291,10 +400,24 @@ fn build_dependency_graph(
                 dependency
                     .name
                     .as_ref()
-                    .and_then(|dep_name| name_to_id.get(dep_name))
+                    .and_then(|dep_name| all_name_to_id.get(dep_name))
             }) else {
                 continue;
             };
+
+            if enforce_role_policy
+                && workspace_dependency_name.is_some()
+                && !publishable_ids.contains(dep_id)
+                && !dependency.optional
+            {
+                let dep_name = workspace_dependency_name
+                    .as_deref()
+                    .unwrap_or("unknown workspace package");
+                bail!(
+                    "selected package {} depends on omitted workspace package {dep_name}; include it in the publish plan or make the dependency optional",
+                    package.name
+                );
+            }
 
             if !publishable_ids.contains(dep_id) {
                 continue;
@@ -418,9 +541,13 @@ fn plan_package(
     registry_package: &RegistryPackage,
 ) -> Result<Option<PlanPackage>> {
     let role = registry_package.boundary.role.as_str();
-    let (selected, compatibility_status, dependency_reason) = match role {
+    let (selected, compatibility_status, dependency_reason): (bool, String, &str) = match role {
         "primary" => match registry_package.boundary.target_disposition.as_str() {
-            "keep" => (true, "not-applicable", "required primary package"),
+            "keep" => (
+                true,
+                "not-applicable".to_string(),
+                "required primary package",
+            ),
             "conditional" => return Ok(None),
             disposition => {
                 bail!(
@@ -439,7 +566,7 @@ fn plan_package(
             }
             (
                 true,
-                "permanent-alias",
+                "permanent-alias".to_string(),
                 "permanent alias after canonical facade",
             )
         }
@@ -447,7 +574,11 @@ fn plan_package(
             let selected = registry_package.boundary.target_disposition == "keep";
             (
                 selected,
-                if selected { "selected" } else { "conditional" },
+                if selected {
+                    "selected".to_string()
+                } else {
+                    "conditional".to_string()
+                },
                 "selected retained adapter",
             )
         }
@@ -455,19 +586,22 @@ fn plan_package(
             let selected = registry_package.boundary.target_disposition == "keep";
             (
                 selected,
-                if selected { "selected" } else { "conditional" },
+                if selected {
+                    "selected".to_string()
+                } else {
+                    "conditional".to_string()
+                },
                 "selected external contract",
             )
         }
         "compat" => {
-            let selected =
-                compatibility_window_active(&registry_package.boundary.compatibility_plan);
+            let selected = compatibility_window_active(&registry_package.boundary);
             (
                 selected,
                 if selected {
-                    "active-through-0.6"
+                    format!("active-through-{TARGET_RELEASE_LINE}")
                 } else {
-                    "expired"
+                    "expired".to_string()
                 },
                 "active 0.6 compatibility window",
             )
@@ -488,8 +622,13 @@ fn plan_package(
     }))
 }
 
-fn compatibility_window_active(plan: &str) -> bool {
-    plan.contains(RELEASE_LINE) && !plan.contains("not-published")
+fn compatibility_window_active(boundary: &RegistryBoundary) -> bool {
+    boundary.target_disposition == "collapse"
+        && matches!(
+            boundary.compatibility_plan.as_str(),
+            "implementation-free-forwarder-through-0.6-with-finite-window"
+                | "deprecated-through-0.6"
+        )
 }
 
 fn is_publishable_package(publish: Option<&Value>) -> bool {
@@ -575,6 +714,99 @@ mod tests {
                 compatibility_plan: compatibility.to_string(),
             },
         }
+    }
+
+    #[test]
+    fn compatibility_window_requires_active_exact_registry_token() {
+        let mut boundary = RegistryBoundary {
+            role: "compat".to_string(),
+            target_disposition: "collapse".to_string(),
+            compatibility_plan: "implementation-free-forwarder-through-0.6-with-finite-window"
+                .to_string(),
+        };
+        assert!(compatibility_window_active(&boundary));
+
+        boundary.compatibility_plan = "deprecated-through-0.6".to_string();
+        assert!(compatibility_window_active(&boundary));
+
+        boundary.compatibility_plan = "removed-in-0.6".to_string();
+        assert!(!compatibility_window_active(&boundary));
+        boundary.compatibility_plan = "forwarder-through-10.6".to_string();
+        assert!(!compatibility_window_active(&boundary));
+        boundary.target_disposition = "conditional".to_string();
+        boundary.compatibility_plan =
+            "implementation-free-forwarder-through-0.6-with-finite-window".to_string();
+        assert!(!compatibility_window_active(&boundary));
+    }
+
+    #[test]
+    fn legacy_release_line_keeps_manifest_publish_plan() {
+        let metadata: Metadata = serde_json::from_str(
+            r#"{
+                "workspace_members":["id-facade", "id-compat", "id-rs"],
+                "packages":[
+                    {"id":"id-facade","name":"copybook","version":"0.5.1","dependencies":[
+                        {"name":"copybook-codepage","package":"id-compat"}
+                    ]},
+                    {"id":"id-compat","name":"copybook-codepage","version":"0.5.1","dependencies":[]},
+                    {"id":"id-rs","name":"copybook-rs","version":"0.5.1","dependencies":[
+                        {"name":"copybook","package":"id-facade"}
+                    ]}
+                ]
+            }"#,
+        )
+        .unwrap();
+        let mut registry = test_registry(&metadata);
+        registry
+            .packages
+            .iter_mut()
+            .find(|package| package.name == "copybook-codepage")
+            .unwrap()
+            .boundary
+            .role = "compat".to_string();
+
+        assert_eq!(workspace_release_line(&metadata), Some("0.5".to_string()));
+        let plan = ordered_publish_plan(metadata, registry).unwrap();
+        assert_eq!(
+            plan.into_iter()
+                .map(|package| package.package)
+                .collect::<Vec<_>>(),
+            ["copybook-codepage", "copybook", "copybook-rs"]
+        );
+    }
+
+    #[test]
+    fn role_policy_rejects_required_dependency_on_omitted_package() {
+        let metadata: Metadata = serde_json::from_str(
+            r#"{
+                "workspace_members":["id-facade", "id-conditional", "id-rs"],
+                "packages":[
+                    {"id":"id-facade","name":"copybook","version":"0.6.0","dependencies":[
+                        {"name":"copybook-fixed","package":"id-conditional"}
+                    ]},
+                    {"id":"id-conditional","name":"copybook-fixed","version":"0.6.0","dependencies":[]},
+                    {"id":"id-rs","name":"copybook-rs","version":"0.6.0","dependencies":[
+                        {"name":"copybook","package":"id-facade"}
+                    ]}
+                ]
+            }"#,
+        )
+        .unwrap();
+        let mut registry = test_registry(&metadata);
+        registry
+            .packages
+            .iter_mut()
+            .find(|package| package.name == "copybook-fixed")
+            .unwrap()
+            .boundary
+            .target_disposition = "conditional".to_string();
+
+        let error = ordered_publish_plan(metadata, registry).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("omitted workspace package copybook-fixed")
+        );
     }
 
     #[test]

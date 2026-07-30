@@ -140,7 +140,7 @@ fn build_publish_plan() -> Result<Vec<PlanPackage>> {
 
 fn ordered_publish_plan(metadata: Metadata, registry: SurfaceRegistry) -> Result<Vec<PlanPackage>> {
     if workspace_release_line(&metadata).as_deref() == Some("0.5") {
-        return ordered_legacy_publish_plan(metadata, registry);
+        return ordered_legacy_publish_plan(&metadata, registry);
     }
 
     let workspace_members = metadata
@@ -180,7 +180,7 @@ fn ordered_publish_plan(metadata: Metadata, registry: SurfaceRegistry) -> Result
         &id_to_name,
         true,
     )?;
-    topological_order(package_plans, in_degree, dependents)
+    topological_order(package_plans, in_degree, &dependents)
 }
 
 fn workspace_release_line(metadata: &Metadata) -> Option<String> {
@@ -202,7 +202,7 @@ fn workspace_release_line(metadata: &Metadata) -> Option<String> {
 }
 
 fn ordered_legacy_publish_plan(
-    metadata: Metadata,
+    metadata: &Metadata,
     registry: SurfaceRegistry,
 ) -> Result<Vec<PlanPackage>> {
     let workspace_members = metadata
@@ -276,7 +276,7 @@ fn ordered_legacy_publish_plan(
         &id_to_name,
         false,
     )?;
-    topological_order(package_plans, in_degree, dependents)
+    topological_order(package_plans, in_degree, &dependents)
 }
 
 fn index_role_registry(
@@ -444,7 +444,7 @@ fn build_dependency_graph(
 fn topological_order(
     mut package_plans: HashMap<String, PlanPackage>,
     mut in_degree: HashMap<String, usize>,
-    dependents: HashMap<String, Vec<String>>,
+    dependents: &HashMap<String, Vec<String>>,
 ) -> Result<Vec<PlanPackage>> {
     let mut ready = in_degree
         .iter()
@@ -618,7 +618,7 @@ fn plan_package(
         version: package.version.clone(),
         role: role.to_string(),
         dependency_reason: dependency_reason.to_string(),
-        compatibility_status: compatibility_status.to_string(),
+        compatibility_status: compatibility_status.clone(),
     }))
 }
 

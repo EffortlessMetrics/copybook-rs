@@ -292,7 +292,6 @@ dependencies = [
 name = "copybook-rdw"
 version = "0.5.0"
 dependencies = [
- "copybook-core",
  "copybook-error",
  "copybook-rdw-predicates",
  "tracing",

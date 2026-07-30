@@ -217,9 +217,6 @@ use copybook_rdw::RdwHeader;
 use serde_json::Value;
 use std::io::{BufReader, Read};
 
-const FIXED_FORMAT_LRECL_MISSING: &str = "Fixed format requires a fixed record length (LRECL). \
-     Set `schema.lrecl_fixed` or use `RecordFormat::Variable`.";
-
 /// Iterator over records in a data file, yielding decoded JSON values
 ///
 /// This iterator provides streaming access to records, processing them one at a time
@@ -386,9 +383,7 @@ impl<R: Read> RecordIterator<R> {
 
         let record_data = match self.options.format {
             RecordFormat::Fixed => {
-                let lrecl = self.schema.lrecl_fixed.ok_or_else(|| {
-                    Error::new(ErrorCode::CBKI001_INVALID_STATE, FIXED_FORMAT_LRECL_MISSING)
-                })? as usize;
+                let lrecl = crate::file::fixed::lrecl(&self.schema)? as usize;
                 self.buffer.resize(lrecl, 0);
 
                 match self.reader.read_exact(&mut self.buffer) {
@@ -826,7 +821,7 @@ mod tests {
         assert!(first.is_err());
         if let Err(e) = first {
             assert_eq!(e.code, ErrorCode::CBKI001_INVALID_STATE);
-            assert_eq!(e.message, FIXED_FORMAT_LRECL_MISSING);
+            assert_eq!(e.message, crate::file::fixed::FIXED_FORMAT_LRECL_MISSING);
         }
     }
 

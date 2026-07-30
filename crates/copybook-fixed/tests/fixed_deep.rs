@@ -828,30 +828,7 @@ fn ebcdic_content_roundtrip() {
 }
 
 // =========================================================================
-// 14. Validate record length
-// =========================================================================
-
-#[test]
-fn validate_record_length_matching_ok() {
-    let data = b"ABCDEFGH";
-    let mut r = FixedRecordReader::new(Cursor::new(data.as_slice()), Some(8)).unwrap();
-    let rec = r.read_record().unwrap().unwrap();
-    let schema = copybook_core::Schema::new();
-    r.validate_record_length(&schema, &rec).unwrap();
-}
-
-#[test]
-fn validate_record_length_mismatch_errors() {
-    let data = b"ABCDEFGH";
-    let mut r = FixedRecordReader::new(Cursor::new(data.as_slice()), Some(8)).unwrap();
-    let _ = r.read_record().unwrap().unwrap();
-    let schema = copybook_core::Schema::new();
-    let err = r.validate_record_length(&schema, b"SHORT").unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
-}
-
-// =========================================================================
-// 15. Streaming 10,000 records
+// 14. Streaming 10,000 records
 // =========================================================================
 
 #[test]

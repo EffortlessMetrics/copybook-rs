@@ -6,10 +6,6 @@
       "owner_issue": 656
     },
     {
-      "id": "edge-upward:copybook-fixed->copybook-core",
-      "owner_issue": 650
-    },
-    {
       "id": "edge-upward:copybook-rdw->copybook-core",
       "owner_issue": 651
     },

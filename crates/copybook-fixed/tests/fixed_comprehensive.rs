@@ -532,32 +532,7 @@ fn repeated_reads_after_eof_always_return_none() {
 }
 
 // ====================================================================
-// 13. Validate record length
-// ====================================================================
-
-#[test]
-fn validate_record_length_matching() {
-    let data = b"ABCDEFGH";
-    let mut reader = FixedRecordReader::new(Cursor::new(data.as_slice()), Some(8)).unwrap();
-    let record = reader.read_record().unwrap().unwrap();
-    let schema = copybook_core::Schema::new();
-    reader.validate_record_length(&schema, &record).unwrap();
-}
-
-#[test]
-fn validate_record_length_mismatch() {
-    let data = b"ABCDEFGH";
-    let mut reader = FixedRecordReader::new(Cursor::new(data.as_slice()), Some(8)).unwrap();
-    let _ = reader.read_record().unwrap().unwrap();
-    let schema = copybook_core::Schema::new();
-    let err = reader
-        .validate_record_length(&schema, b"SHORT")
-        .unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
-}
-
-// ====================================================================
-// 14. Writer output size always equals N * LRECL
+// 13. Writer output size always equals N * LRECL
 // ====================================================================
 
 #[test]

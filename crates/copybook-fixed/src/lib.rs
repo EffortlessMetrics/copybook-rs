@@ -9,11 +9,10 @@
 //! Use [`FixedRecordReader`] to consume fixed-length records from a byte stream
 //! and [`FixedRecordWriter`] to produce them with automatic null-byte padding.
 
-use copybook_core::Schema;
 use copybook_error::{Error, ErrorCode, ErrorContext, Result};
 use std::convert::TryFrom;
 use std::io::{ErrorKind, Read, Write};
-use tracing::{debug, warn};
+use tracing::debug;
 
 /// Fixed record reader for processing fixed-length records.
 #[derive(Debug)]
@@ -24,6 +23,20 @@ pub struct FixedRecordReader<R: Read> {
 }
 
 impl<R: Read> FixedRecordReader<R> {
+    /// Create a reader for an explicit fixed-record length.
+    ///
+    /// This is the canonical schema-independent constructor. Schema
+    /// compatibility belongs to the codec integration layer, not this
+    /// framing crate.
+    ///
+    /// # Errors
+    /// Returns an error if `lrecl` is zero.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn with_lrecl(input: R, lrecl: u32) -> Result<Self> {
+        Self::new(input, Some(lrecl))
+    }
+
     /// Create a new fixed record reader.
     ///
     /// # Errors
@@ -130,48 +143,6 @@ impl<R: Read> FixedRecordReader<R> {
         }
     }
 
-    /// Validate record length against schema expectations.
-    ///
-    /// # Errors
-    /// Returns an error if the record length does not match configured LRECL.
-    #[inline]
-    #[must_use = "Handle the Result or propagate the error"]
-    pub fn validate_record_length(&self, schema: &Schema, record_data: &[u8]) -> Result<()> {
-        let lrecl_len = self.lrecl_usize()?;
-        if record_data.len() != lrecl_len {
-            return Err(Error::new(
-                ErrorCode::CBKF221_RDW_UNDERFLOW,
-                format!(
-                    "Record length mismatch: expected {}, got {}",
-                    self.lrecl,
-                    record_data.len()
-                ),
-            )
-            .with_context(ErrorContext {
-                record_index: Some(self.record_count),
-                field_path: None,
-                byte_offset: None,
-                line_number: None,
-                details: Some("Fixed record length validation failed".to_string()),
-            }));
-        }
-
-        if let Some(schema_lrecl) = schema.lrecl_fixed
-            && self.lrecl != schema_lrecl
-        {
-            warn!(
-                "LRECL mismatch: reader configured for {}, schema expects {}",
-                self.lrecl, schema_lrecl
-            );
-        }
-
-        if schema.tail_odo.is_some() {
-            debug!("Record has ODO tail, variable length within fixed LRECL is expected");
-        }
-
-        Ok(())
-    }
-
     /// Get the current record count.
     #[must_use]
     #[inline]
@@ -206,6 +177,20 @@ pub struct FixedRecordWriter<W: Write> {
 }
 
 impl<W: Write> FixedRecordWriter<W> {
+    /// Create a writer for an explicit fixed-record length.
+    ///
+    /// This is the canonical schema-independent constructor. Schema
+    /// compatibility belongs to the codec integration layer, not this
+    /// framing crate.
+    ///
+    /// # Errors
+    /// Returns an error if `lrecl` is zero.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn with_lrecl(output: W, lrecl: u32) -> Result<Self> {
+        Self::new(output, Some(lrecl))
+    }
+
     /// Create a new fixed record writer.
     ///
     /// # Errors
@@ -366,6 +351,13 @@ mod tests {
     }
 
     #[test]
+    fn explicit_lrecl_reader_constructor() {
+        let mut reader = FixedRecordReader::with_lrecl(Cursor::new(b"ABCD"), 4).unwrap();
+
+        assert_eq!(reader.read_record().unwrap().unwrap(), b"ABCD");
+    }
+
+    #[test]
     fn fixed_record_reader_partial_record_is_underflow() {
         let data = b"ABCD123";
         let mut reader = FixedRecordReader::new(Cursor::new(data), Some(8)).unwrap();
@@ -402,6 +394,15 @@ mod tests {
     }
 
     #[test]
+    fn explicit_lrecl_writer_constructor() {
+        let mut output = Vec::new();
+        let mut writer = FixedRecordWriter::with_lrecl(&mut output, 4).unwrap();
+
+        writer.write_record(b"AB").unwrap();
+        assert_eq!(output, b"AB\x00\x00");
+    }
+
+    #[test]
     fn fixed_record_writer_too_long_is_cbke501() {
         let mut output = Vec::new();
         let mut writer = FixedRecordWriter::new(&mut output, Some(4)).unwrap();
@@ -422,27 +423,6 @@ mod tests {
         let mut output = Vec::new();
         let error = FixedRecordWriter::new(&mut output, None).unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKI001_INVALID_STATE);
-    }
-
-    #[test]
-    fn validate_record_length_ok() {
-        let data = b"ABCD1234";
-        let mut reader = FixedRecordReader::new(Cursor::new(data), Some(8)).unwrap();
-        let record = reader.read_record().unwrap().unwrap();
-
-        let schema = Schema::new();
-        reader.validate_record_length(&schema, &record).unwrap();
-    }
-
-    #[test]
-    fn validate_record_length_mismatch_is_underflow() {
-        let data = b"ABCD1234";
-        let mut reader = FixedRecordReader::new(Cursor::new(data), Some(8)).unwrap();
-        let _ = reader.read_record().unwrap().unwrap();
-
-        let schema = Schema::new();
-        let error = reader.validate_record_length(&schema, b"ABC").unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
     }
 
     proptest! {

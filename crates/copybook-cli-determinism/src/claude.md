@@ -2,10 +2,9 @@
 # claude.md
 
 ## Scope
-- Library sources for `copybook-cli-determinism` (CLI layer).
+
+- Retired package marker; live implementation is under `copybook-cli/src/commands/determinism.rs`.
 
 ## Navigation
-- Crate root: `../claude.md`
 
-## Build
-- `cargo build -p copybook-cli-determinism`
+- Crate root: `../claude.md`

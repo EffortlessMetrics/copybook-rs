@@ -774,7 +774,6 @@ version = "0.5.0"
 dependencies = [
  "anyhow",
  "base64",
- "copybook-cli-determinism",
  "copybook-codec",
  "copybook-core",
  "copybook-corruption",
@@ -836,7 +835,6 @@ dependencies = [
  "clap",
  "copybook-arrow",
  "copybook-charset",
- "copybook-cli-determinism",
  "copybook-codec",
  "copybook-core",
  "copybook-governance",
@@ -861,16 +859,6 @@ dependencies = [
 [[package]]
 name = "copybook-cli-determinism"
 version = "0.5.0"
-dependencies = [
- "anyhow",
- "clap",
- "copybook-codec",
- "copybook-core",
- "copybook-determinism",
- "proptest",
- "serde_json",
- "tempfile",
-]
 
 [[package]]
 name = "copybook-codec"

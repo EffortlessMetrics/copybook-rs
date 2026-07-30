@@ -8,7 +8,7 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage = "https://github.com/EffortlessMetrics/copybook-rs"
-description = "Determinism command execution and output rendering for the copybook CLI."
+description = "Retired 0.5 determinism CLI package; implementation moved to copybook-cli."
 documentation = "https://docs.rs/copybook-cli-determinism"
 readme = "README.md"
 include = ["src/**", "Cargo.toml", "README.md", "LICENSE", "!**/claude.md"]
@@ -18,18 +18,6 @@ categories = ["encoding", "command-line-utilities"]
 [package.metadata.docs.rs]
 all-features = false
 targets = ["x86_64-unknown-linux-gnu"]
-
-[dependencies]
-anyhow.workspace = true
-clap.workspace = true
-serde_json.workspace = true
-copybook-determinism = { workspace = true }
-copybook-core = { workspace = true }
-copybook-codec = { workspace = true }
-
-[dev-dependencies]
-proptest.workspace = true
-tempfile.workspace = true
 
 [lints]
 workspace = true

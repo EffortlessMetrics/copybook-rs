@@ -34,7 +34,6 @@ copybook-safe-index.workspace = true
 copybook-safe-text.workspace = true
 copybook-corruption.workspace = true
 copybook-corruption-rdw.workspace = true
-copybook-cli-determinism.workspace = true
 copybook-fixed.workspace = true
 copybook-rdw.workspace = true
 copybook-rdw-predicates.workspace = true

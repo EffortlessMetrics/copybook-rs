@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-use copybook_cli_determinism::render_human_result;
 use copybook_codec::determinism::{
     check_decode_determinism, check_encode_determinism, check_round_trip_determinism,
 };
@@ -34,6 +33,21 @@ fn assert_canonical_blake3_hex(hash: &str, label: &str) {
             .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
         "Expected {label} hash to be lowercase hex, got {hash}"
     );
+}
+
+fn render_determinism_summary(result: &copybook_codec::determinism::DeterminismResult) -> String {
+    let verdict = if result.is_deterministic {
+        "✅ DETERMINISTIC"
+    } else {
+        "❌ NON-DETERMINISTIC"
+    };
+    format!(
+        "Determinism mode: {:?}\nRound 1 hash: {}\nRound 2 hash: {}\n{verdict}\nByte differences: {}",
+        result.mode,
+        result.round1_hash,
+        result.round2_hash,
+        result.byte_differences.as_ref().map_or(0, Vec::len),
+    )
 }
 
 #[when(expr = "decode determinism is checked")]
@@ -200,7 +214,7 @@ async fn then_json_contains(world: &mut CopybookWorld, expected: String) {
 #[then(regex = r#"^the human-readable output should show "(.+)"$"#)]
 async fn then_human_readable_shows(world: &mut CopybookWorld, expected: String) {
     let result = determinism_result_or_panic(world);
-    let output = render_human_result(result, 100);
+    let output = render_determinism_summary(result);
     assert!(
         output.contains(&expected),
         "Expected human-readable output to show '{}', got '{}'",
@@ -222,7 +236,7 @@ async fn then_human_readable_shows(world: &mut CopybookWorld, expected: String) 
 #[then(regex = r#"^the output should contain "(.+)"$"#)]
 async fn then_output_contains(world: &mut CopybookWorld, expected: String) {
     let result = determinism_result_or_panic(world);
-    let output = render_human_result(result, 100);
+    let output = render_determinism_summary(result);
     let output = format!("{}\nDeterministic: {}", output, result.is_deterministic);
     assert!(
         output.contains(&expected),

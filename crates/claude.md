@@ -12,10 +12,10 @@
 | Facade | `copybook`, `copybook-rs` |
 | Parser | `copybook-core` |
 | Codec | `copybook-codec`, `copybook-codec-memory`, `copybook-codepage`, `copybook-charset`, `copybook-overpunch`, `copybook-zoned-format` |
-| CLI | `copybook-cli`, `copybook-cli-determinism`, `copybook-options` |
+| CLI | `copybook-cli`, `copybook-options` |
 | Framing | `copybook-fixed`, `copybook-rdw`, `copybook-rdw-predicates`, `copybook-record-io` |
 | Schema | `copybook-determinism`, `copybook-support-matrix` |
-| Compatibility | `copybook-dialect`, `copybook-lexer` |
+| Compatibility | `copybook-cli-determinism`, `copybook-dialect`, `copybook-lexer` |
 | Governance | `copybook-contracts`, `copybook-governance`, `copybook-governance-contracts`, `copybook-governance-grid`, `copybook-governance-runtime` |
 | Safety | `copybook-error`, `copybook-error-reporter`, `copybook-overflow`, `copybook-safe-index`, `copybook-safe-ops`, `copybook-safe-text`, `copybook-utils` |
 | Quality | `copybook-corruption`, `copybook-corruption-detectors`, `copybook-corruption-predicates`, `copybook-corruption-rdw` |

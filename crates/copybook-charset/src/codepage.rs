@@ -120,6 +120,11 @@ impl Codepage {
     }
 
     /// Parse a codepage and reject unknown values.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseCodepageError`] when `input` is not a supported
+    /// codepage spelling.
     pub fn parse(input: &str) -> Result<Self, ParseCodepageError> {
         Self::METADATA
             .iter()
@@ -186,6 +191,11 @@ impl UnmappablePolicy {
     }
 
     /// Parse a policy and reject unknown values.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseUnmappablePolicyError`] when `input` is not a supported
+    /// policy spelling.
     pub fn parse(input: &str) -> Result<Self, ParseUnmappablePolicyError> {
         match input.to_ascii_lowercase().as_str() {
             "error" => Ok(Self::Error),

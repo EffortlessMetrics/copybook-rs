@@ -12,6 +12,11 @@ helpers for custom framing scenarios.
 The framing crate is schema-independent. Schema-derived minimum payload and ODO compatibility
 checks belong to `copybook-codec::file::rdw`; this package does not depend on `copybook-core`.
 
+RDW transfer-corruption diagnostics are owned by `copybook_rdw::diagnostics`.
+The former `copybook-rdw-predicates` and `copybook-corruption-rdw` packages
+remain 0.5 compatibility surfaces, but primary packages use this module
+directly.
+
 ## Usage
 
 ```rust
@@ -35,6 +40,7 @@ assert_eq!(record.payload, b"HELLO");
 - `RDWRecordReader<R>` — Streaming reader for RDW-framed records
 - `RDWRecordWriter<W>` — Streaming writer for RDW-framed records
 - `rdw_read_len`, `rdw_slice_body`, `rdw_try_peek_len` — Low-level helpers
+- `diagnostics` — ASCII-transfer heuristics and `CBKF104` detection
 
 ## License
 

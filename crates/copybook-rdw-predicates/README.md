@@ -2,8 +2,8 @@
 
 Single-responsibility microcrate for the RDW ASCII-digit header heuristic.
 
-This crate contains the shared byte-level predicate used to quickly detect
-length-byte corruption patterns in RDW headers. It intentionally stays narrow:
+This 0.5 compatibility crate forwards the byte-level predicate owned by
+`copybook_rdw::diagnostics`. It intentionally stays narrow:
 
 - `rdw_is_suspect_ascii_corruption` checks whether RDW length bytes look like
   ASCII digits.

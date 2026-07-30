@@ -5,8 +5,8 @@
 //! length overflow detection, sequence validation across records,
 //! mixed valid/corrupt records, and recovery after corruption.
 
-use copybook_core::ErrorCode;
 use copybook_corruption_rdw::detect_rdw_ascii_corruption;
+use copybook_error::ErrorCode;
 
 // ===========================================================================
 // Corrupted RDW headers — various byte patterns

@@ -6,7 +6,7 @@
 //! delegated to dedicated microcrates and re-exported here for stable call sites.
 
 pub use copybook_corruption_detectors::{detect_ebcdic_corruption, detect_packed_corruption};
-pub use copybook_corruption_rdw::detect_rdw_ascii_corruption;
+pub use copybook_rdw::diagnostics::detect_rdw_ascii_corruption;
 
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used)]

@@ -850,9 +850,9 @@ fn cli_cbkf104_rdw_suspect_ascii() {
     );
 }
 
-/// CBKF221: Truncated fixed-length record (file shorter than LRECL).
+/// CBKR101: Truncated fixed-length record (file shorter than LRECL).
 #[test]
-fn cli_cbkf221_rdw_underflow_fixed() {
+fn cli_cbkr101_fixed_record_error_for_truncated_fixed_record() {
     // Schema needs 13 bytes per record but data is only 5 bytes
     let dir = setup_decode(
         "       01  REC.\n           05  NAME   PIC X(10).\n           05  AGE    PIC 9(3).\n",
@@ -874,8 +874,8 @@ fn cli_cbkf221_rdw_underflow_fixed() {
     let se = stderr_str(&output);
     assert_no_panic(&se);
     assert!(
-        se.contains("CBKF221_RDW_UNDERFLOW"),
-        "Expected CBKF221 in stderr: {se}"
+        se.contains("CBKR101_FIXED_RECORD_ERROR"),
+        "Expected CBKR101 in stderr: {se}"
     );
 }
 

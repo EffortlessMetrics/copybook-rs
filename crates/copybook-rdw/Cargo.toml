@@ -21,7 +21,6 @@ all-features = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-copybook-core.workspace = true
 copybook-error.workspace = true
 copybook-rdw-predicates.workspace = true
 tracing.workspace = true

@@ -14,7 +14,6 @@ mod buffer;
 mod header;
 mod reader;
 mod record;
-mod schema_prefix;
 mod writer;
 
 pub use buffer::{rdw_read_len, rdw_slice_body, rdw_try_peek_len, rdw_validate_and_finish};
@@ -270,50 +269,6 @@ mod tests {
 
         let error = reader.read_record().unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKF104_RDW_SUSPECT_ASCII);
-    }
-
-    #[test]
-    fn rdw_reader_zero_length_validation_obeys_schema_prefix() {
-        use copybook_core::{Field, FieldKind, Occurs, Schema, TailODO};
-
-        let mut counter = Field::with_kind(
-            5,
-            "CTR".to_string(),
-            FieldKind::BinaryInt {
-                bits: 16,
-                signed: false,
-            },
-        );
-        counter.offset = 0;
-        counter.len = 2;
-
-        let mut array = Field::with_kind(5, "ARR".to_string(), FieldKind::Alphanum { len: 1 });
-        array.offset = 2;
-        array.len = 1;
-        array.occurs = Some(Occurs::ODO {
-            min: 0,
-            max: 5,
-            counter_path: "CTR".to_string(),
-        });
-
-        let schema = Schema {
-            fields: vec![counter, array],
-            lrecl_fixed: None,
-            tail_odo: Some(TailODO {
-                counter_path: "CTR".to_string(),
-                min_count: 0,
-                max_count: 5,
-                array_path: "ARR".to_string(),
-            }),
-            fingerprint: String::new(),
-        };
-
-        let reader = RDWRecordReader::new(Cursor::new(Vec::<u8>::new()), false);
-        let error = reader.validate_zero_length_record(&schema).unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
-
-        let empty_schema = Schema::new();
-        reader.validate_zero_length_record(&empty_schema).unwrap();
     }
 
     #[test]

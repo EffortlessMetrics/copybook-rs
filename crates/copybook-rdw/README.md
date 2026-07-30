@@ -9,6 +9,9 @@ prefixed with a 4-byte header (2-byte big-endian payload length + 2 reserved byt
 Provides streaming `RDWRecordReader` / `RDWRecordWriter` for record I/O, plus lower-level
 helpers for custom framing scenarios.
 
+The framing crate is schema-independent. Schema-derived minimum payload and ODO compatibility
+checks belong to `copybook-codec::file::rdw`; this package does not depend on `copybook-core`.
+
 ## Usage
 
 ```rust

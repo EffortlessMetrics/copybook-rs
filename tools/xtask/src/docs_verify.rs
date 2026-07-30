@@ -1575,6 +1575,7 @@ fn verify_publish_workflow_inventory() -> Result<()> {
     for line in [
         "mapfile -t PUBLISH_CRATES < <(python - \"$PLAN_JSON\" <<'PY'",
         "PLAN_COUNT=$(python - \"${PLAN_JSON}\" <<'PY'",
+        "print(crate[\"package\"])",
         "if [ \"${PLAN_COUNT}\" -le 0 ]; then",
     ] {
         if !publish_workflow.contains(line) {

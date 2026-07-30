@@ -93,7 +93,7 @@ fn usage() {
          perf --enforce                      Run perf with SLO enforcement\n\
          perf --out-dir <path>               Run perf with custom output directory\n\
          perf --summarize-last               Summarize latest perf.json with SLO comparison\n\
-         publish plan [--format <plain|json>] [--check]  Print and validate publish order\n\
+         publish plan [--format <plain|json>] [--check]  Print and validate the role-aware publish plan\n\
          pr-insights                         Generate PR insights report (nextest + perf)"
     );
 }

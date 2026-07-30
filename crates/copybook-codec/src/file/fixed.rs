@@ -68,14 +68,14 @@ pub fn validate_record_length(
 ) -> Result<()> {
     let lrecl_len = usize::try_from(configured_lrecl).map_err(|_| {
         Error::new(
-            ErrorCode::CBKP001_SYNTAX,
+            ErrorCode::CBKR101_FIXED_RECORD_ERROR,
             "LRECL exceeds platform addressable size",
         )
     })?;
 
     if record_data.len() != lrecl_len {
         return Err(Error::new(
-            ErrorCode::CBKF221_RDW_UNDERFLOW,
+            ErrorCode::CBKR101_FIXED_RECORD_ERROR,
             format!(
                 "Record length mismatch: expected {}, got {}",
                 configured_lrecl,
@@ -148,6 +148,6 @@ mod tests {
 
         validate_record_length(&schema, 8, 1, b"ABCDEFGH").unwrap();
         let error = validate_record_length(&schema, 8, 2, b"SHORT").unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+        assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
     }
 }

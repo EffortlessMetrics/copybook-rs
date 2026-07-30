@@ -91,7 +91,7 @@ impl<R: Read> FixedRecordReader<R> {
                             Ok(Some(buffer))
                         }
                         Err(e) if e.kind() == ErrorKind::UnexpectedEof => Err(Error::new(
-                            ErrorCode::CBKF221_RDW_UNDERFLOW,
+                            ErrorCode::CBKR101_FIXED_RECORD_ERROR,
                             format!(
                                 "Incomplete record at end of file: expected {} bytes",
                                 self.lrecl
@@ -105,7 +105,7 @@ impl<R: Read> FixedRecordReader<R> {
                             details: Some("File ends with partial record".to_string()),
                         })),
                         Err(e) => Err(Error::new(
-                            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                            ErrorCode::CBKR101_FIXED_RECORD_ERROR,
                             format!("I/O error reading record: {e}"),
                         )
                         .with_context(ErrorContext {
@@ -130,7 +130,7 @@ impl<R: Read> FixedRecordReader<R> {
                 Ok(None)
             }
             Err(e) => Err(Error::new(
-                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                ErrorCode::CBKR101_FIXED_RECORD_ERROR,
                 format!("I/O error reading record: {e}"),
             )
             .with_context(ErrorContext {
@@ -161,7 +161,7 @@ impl<R: Read> FixedRecordReader<R> {
     fn lrecl_usize(&self) -> Result<usize> {
         usize::try_from(self.lrecl).map_err(|_| {
             Error::new(
-                ErrorCode::CBKP001_SYNTAX,
+                ErrorCode::CBKR101_FIXED_RECORD_ERROR,
                 "LRECL exceeds platform addressable size",
             )
         })
@@ -231,7 +231,7 @@ impl<W: Write> FixedRecordWriter<W> {
 
         if data_len > lrecl {
             return Err(Error::new(
-                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                ErrorCode::CBKR101_FIXED_RECORD_ERROR,
                 format!("Record too long: {data_len} bytes exceeds LRECL of {lrecl}"),
             )
             .with_context(ErrorContext {
@@ -245,7 +245,7 @@ impl<W: Write> FixedRecordWriter<W> {
 
         self.output.write_all(data).map_err(|e| {
             Error::new(
-                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                ErrorCode::CBKR101_FIXED_RECORD_ERROR,
                 format!("I/O error writing record: {e}"),
             )
             .with_context(ErrorContext {
@@ -261,7 +261,7 @@ impl<W: Write> FixedRecordWriter<W> {
             let padding = vec![0u8; lrecl - data_len];
             self.output.write_all(&padding).map_err(|e| {
                 Error::new(
-                    ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                    ErrorCode::CBKR101_FIXED_RECORD_ERROR,
                     format!("I/O error writing padding: {e}"),
                 )
                 .with_context(ErrorContext {
@@ -294,7 +294,7 @@ impl<W: Write> FixedRecordWriter<W> {
     pub fn flush(&mut self) -> Result<()> {
         self.output.flush().map_err(|e| {
             Error::new(
-                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                ErrorCode::CBKR101_FIXED_RECORD_ERROR,
                 format!("I/O error flushing output: {e}"),
             )
         })
@@ -318,7 +318,7 @@ impl<W: Write> FixedRecordWriter<W> {
     fn lrecl_usize(&self) -> Result<usize> {
         usize::try_from(self.lrecl).map_err(|_| {
             Error::new(
-                ErrorCode::CBKP001_SYNTAX,
+                ErrorCode::CBKR101_FIXED_RECORD_ERROR,
                 "LRECL exceeds platform addressable size",
             )
         })
@@ -365,12 +365,12 @@ mod tests {
     }
 
     #[test]
-    fn fixed_record_reader_partial_record_is_underflow() {
+    fn fixed_record_reader_partial_record_is_fixed_record_error() {
         let data = b"ABCD123";
         let mut reader = FixedRecordReader::new(Cursor::new(data), Some(8)).unwrap();
 
         let error = reader.read_record().unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+        assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
     }
 
     #[test]
@@ -418,12 +418,12 @@ mod tests {
     }
 
     #[test]
-    fn fixed_record_writer_too_long_is_cbke501() {
+    fn fixed_record_writer_too_long_is_fixed_record_error() {
         let mut output = Vec::new();
         let mut writer = FixedRecordWriter::new(&mut output, Some(4)).unwrap();
 
         let error = writer.write_record(b"ABCDEFGH").unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+        assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
     }
 
     #[test]
@@ -469,7 +469,7 @@ mod tests {
             let mut writer = FixedRecordWriter::new(&mut output, Some(u32::from(lrecl))).unwrap();
             let payload = vec![0x41; usize::from(lrecl) + extra];
             let error = writer.write_record(&payload).unwrap_err();
-            prop_assert_eq!(error.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+            prop_assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
         }
     }
 

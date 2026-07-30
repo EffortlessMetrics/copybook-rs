@@ -60,30 +60,30 @@ fn read_exact_lrecl_ten_records() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn read_partial_record_at_end_is_underflow() {
+fn read_partial_record_at_end_is_fixed_record_error() {
     let data = vec![0xBBu8; 83]; // 80 + 3 leftover
     let mut reader = FixedRecordReader::new(Cursor::new(&data), Some(80)).unwrap();
     let _ = reader.read_record().unwrap().unwrap(); // first 80 bytes ok
     let err = reader.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
-fn read_short_by_one_byte_is_underflow() {
+fn read_short_by_one_byte_is_fixed_record_error() {
     let data = vec![0xCCu8; 79]; // need 80
     let mut reader = FixedRecordReader::new(Cursor::new(&data), Some(80)).unwrap();
     let err = reader.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
-fn read_one_extra_byte_is_underflow() {
+fn read_one_extra_byte_is_fixed_record_error() {
     let data = vec![0xDDu8; 161]; // two records = 160, one extra
     let mut reader = FixedRecordReader::new(Cursor::new(&data), Some(80)).unwrap();
     reader.read_record().unwrap().unwrap();
     reader.read_record().unwrap().unwrap();
     let err = reader.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 // ---------------------------------------------------------------------------
@@ -207,7 +207,7 @@ fn write_oversize_data_is_error() {
     let mut output = Vec::new();
     let mut writer = FixedRecordWriter::new(&mut output, Some(4)).unwrap();
     let err = writer.write_record(b"ABCDE").unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]

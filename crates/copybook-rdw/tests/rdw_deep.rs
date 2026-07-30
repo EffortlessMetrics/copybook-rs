@@ -402,11 +402,7 @@ fn writer_oversize_payload_is_error() {
     let mut writer = RDWRecordWriter::new(&mut output);
     let large = vec![0u8; RDW_MAX_PAYLOAD_LEN + 1];
     let err = writer.write_record_from_payload(&large, None).unwrap_err();
-    // Error code for oversized payload from writer
-    assert!(
-        err.code == ErrorCode::CBKE501_JSON_TYPE_MISMATCH
-            || err.code == ErrorCode::CBKF102_RECORD_LENGTH_INVALID
-    );
+    assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
 }
 
 #[test]

@@ -112,7 +112,8 @@ impl<W: Write> RDWRecordWriter<W> {
     /// Write an RDW record directly from payload.
     ///
     /// # Errors
-    /// Returns an error if payload length exceeds `u16::MAX` or I/O fails.
+    /// Returns `CBKF102_RECORD_LENGTH_INVALID` if payload length exceeds
+    /// `u16::MAX`, or an error if writing fails.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn write_record_from_payload(
@@ -121,23 +122,17 @@ impl<W: Write> RDWRecordWriter<W> {
         preserve_reserved: Option<u16>,
     ) -> Result<()> {
         let length = payload.len();
-        let header =
-            RdwHeader::from_payload_len(length, preserve_reserved.unwrap_or(0)).map_err(|_| {
-                Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!(
-                        "RDW payload too large: {length} bytes exceeds maximum of {}",
-                        u16::MAX
-                    ),
-                )
-                .with_context(ErrorContext {
+        let header = RdwHeader::from_payload_len(length, preserve_reserved.unwrap_or(0)).map_err(
+            |error| {
+                error.with_context(ErrorContext {
                     record_index: Some(self.record_count + 1),
                     field_path: None,
                     byte_offset: None,
                     line_number: None,
                     details: Some("RDW length field is 16-bit".to_string()),
                 })
-            })?;
+            },
+        )?;
 
         let record = RDWRecord {
             header: header.bytes(),

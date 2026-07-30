@@ -150,11 +150,9 @@ dependencies = [
 name = "copybook-core"
 version = "0.5.0"
 dependencies = [
- "copybook-dialect",
  "copybook-error",
  "copybook-error-reporter",
  "copybook-governance-contracts",
- "copybook-lexer",
  "copybook-overflow",
  "copybook-utils",
  "logos",
@@ -205,13 +203,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "copybook-dialect"
-version = "0.5.0"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "copybook-error"
 version = "0.5.0"
 dependencies = [
@@ -231,7 +222,6 @@ dependencies = [
 name = "copybook-fixed"
 version = "0.5.0"
 dependencies = [
- "copybook-core",
  "copybook-error",
  "tracing",
 ]
@@ -242,13 +232,6 @@ version = "0.5.0"
 dependencies = [
  "copybook-contracts",
  "copybook-support-matrix",
-]
-
-[[package]]
-name = "copybook-lexer"
-version = "0.5.0"
-dependencies = [
- "logos",
 ]
 
 [[package]]

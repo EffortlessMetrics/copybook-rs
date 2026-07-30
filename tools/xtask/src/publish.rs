@@ -134,13 +134,16 @@ fn build_publish_plan() -> Result<Vec<PlanPackage>> {
     let registry: SurfaceRegistry =
         serde_json::from_str(&registry_text).with_context(|| format!("parsing {REGISTRY_PATH}"))?;
 
-    let plan = ordered_publish_plan(metadata, registry)?;
+    let plan = ordered_publish_plan(&metadata, registry)?;
     Ok(plan)
 }
 
-fn ordered_publish_plan(metadata: Metadata, registry: SurfaceRegistry) -> Result<Vec<PlanPackage>> {
-    if workspace_release_line(&metadata).as_deref() == Some("0.5") {
-        return ordered_legacy_publish_plan(&metadata, registry);
+fn ordered_publish_plan(
+    metadata: &Metadata,
+    registry: SurfaceRegistry,
+) -> Result<Vec<PlanPackage>> {
+    if workspace_release_line(metadata).as_deref() == Some("0.5") {
+        return ordered_legacy_publish_plan(metadata, registry);
     }
 
     let workspace_members = metadata
@@ -149,7 +152,7 @@ fn ordered_publish_plan(metadata: Metadata, registry: SurfaceRegistry) -> Result
         .cloned()
         .collect::<HashSet<_>>();
     let (package_roles, package_plans, all_id_to_name) =
-        index_role_registry(&metadata, registry, &workspace_members)?;
+        index_role_registry(metadata, registry, &workspace_members)?;
     let all_name_to_id = all_id_to_name
         .iter()
         .map(|(id, name)| (name.clone(), id.clone()))
@@ -673,7 +676,7 @@ mod tests {
     fn parse_plan(metadata_json: &str) -> Result<Vec<String>> {
         let metadata: Metadata = serde_json::from_str(metadata_json).unwrap();
         let registry = test_registry(&metadata);
-        Ok(ordered_publish_plan(metadata, registry)?
+        Ok(ordered_publish_plan(&metadata, registry)?
             .into_iter()
             .map(|package| package.package)
             .collect())
@@ -766,7 +769,7 @@ mod tests {
             .role = "compat".to_string();
 
         assert_eq!(workspace_release_line(&metadata), Some("0.5".to_string()));
-        let plan = ordered_publish_plan(metadata, registry).unwrap();
+        let plan = ordered_publish_plan(&metadata, registry).unwrap();
         assert_eq!(
             plan.into_iter()
                 .map(|package| package.package)
@@ -801,7 +804,7 @@ mod tests {
             .boundary
             .target_disposition = "conditional".to_string();
 
-        let error = ordered_publish_plan(metadata, registry).unwrap_err();
+        let error = ordered_publish_plan(&metadata, registry).unwrap_err();
         assert!(
             error
                 .to_string()
@@ -897,7 +900,7 @@ mod tests {
             .unwrap()
             .boundary
             .role = "compat".to_string();
-        assert!(ordered_publish_plan(metadata, registry).is_err());
+        assert!(ordered_publish_plan(&metadata, registry).is_err());
     }
 
     #[test]

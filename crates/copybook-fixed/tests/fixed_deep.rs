@@ -261,7 +261,7 @@ fn long_record_rejected_with_error_code() {
     let mut out = Vec::new();
     let mut w = FixedRecordWriter::new(&mut out, Some(4)).unwrap();
     let err = w.write_record(b"TOOLONG").unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
@@ -269,7 +269,7 @@ fn long_record_one_byte_over_rejected() {
     let mut out = Vec::new();
     let mut w = FixedRecordWriter::new(&mut out, Some(5)).unwrap();
     let err = w.write_record(b"ABCDEF").unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
@@ -311,7 +311,7 @@ fn long_record_various_excess_sizes() {
         let err = w.write_record(&payload).unwrap_err();
         assert_eq!(
             err.code,
-            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            ErrorCode::CBKR101_FIXED_RECORD_ERROR,
             "wrong error for lrecl={lrecl}, excess={excess}"
         );
     }
@@ -668,8 +668,8 @@ fn flush_failure_returns_error() {
     let mut fail_flusher = FlushFailWriter::new();
     let mut w = FixedRecordWriter::new(&mut fail_flusher, Some(4)).unwrap();
     w.write_record(b"DATA").unwrap();
-    let err = w.flush();
-    assert!(err.is_err());
+    let err = w.flush().unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
@@ -757,19 +757,22 @@ fn writer_lrecl_accessor_returns_configured_value() {
 #[test]
 fn read_io_error_propagates() {
     let mut r = FixedRecordReader::new(AlwaysFailReader, Some(10)).unwrap();
-    assert!(r.read_record().is_err());
+    let error = r.read_record().unwrap_err();
+    assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
 fn write_io_error_propagates() {
     let mut w = FixedRecordWriter::new(AlwaysFailWriter, Some(4)).unwrap();
-    assert!(w.write_record(b"FAIL").is_err());
+    let error = w.write_record(b"FAIL").unwrap_err();
+    assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
 fn flush_io_error_propagates() {
     let mut w = FixedRecordWriter::new(AlwaysFailWriter, Some(4)).unwrap();
-    assert!(w.flush().is_err());
+    let error = w.flush().unwrap_err();
+    assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 // =========================================================================
@@ -777,14 +780,14 @@ fn flush_io_error_propagates() {
 // =========================================================================
 
 #[test]
-fn truncated_single_byte_with_large_lrecl() {
+fn truncated_single_byte_with_large_lrecl_is_fixed_record_error() {
     let mut r = FixedRecordReader::new(Cursor::new(vec![0x42u8]), Some(1000)).unwrap();
     let err = r.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
-fn truncated_after_good_records_returns_error() {
+fn truncated_after_good_records_is_fixed_record_error() {
     // 3 good records of 4 bytes + 2 leftover bytes
     let data = vec![0x41; 14];
     let mut r = FixedRecordReader::new(Cursor::new(&data), Some(4)).unwrap();
@@ -792,16 +795,16 @@ fn truncated_after_good_records_returns_error() {
         r.read_record().unwrap().unwrap();
     }
     let err = r.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
     assert_eq!(r.record_count(), 3);
 }
 
 #[test]
-fn truncated_lrecl_minus_one_bytes() {
+fn truncated_lrecl_minus_one_bytes_is_fixed_record_error() {
     let data = vec![0x43; 79]; // LRECL=80, only 79 bytes
     let mut r = FixedRecordReader::new(Cursor::new(&data), Some(80)).unwrap();
     let err = r.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 // =========================================================================

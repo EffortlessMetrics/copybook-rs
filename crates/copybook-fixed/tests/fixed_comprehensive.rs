@@ -103,7 +103,7 @@ fn partial_last_record_two_bytes_short() {
     let mut reader = FixedRecordReader::new(Cursor::new(&data), Some(8)).unwrap();
     reader.read_record().unwrap().unwrap(); // first full record
     let err = reader.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
     assert_eq!(reader.record_count(), 1); // only the successful read counted
 }
 
@@ -113,7 +113,7 @@ fn partial_record_exactly_one_byte() {
     let data = vec![0x42u8];
     let mut reader = FixedRecordReader::new(Cursor::new(&data), Some(10)).unwrap();
     let err = reader.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
@@ -122,7 +122,7 @@ fn partial_record_lrecl_minus_one() {
     let data = vec![0x43u8; 49];
     let mut reader = FixedRecordReader::new(Cursor::new(&data), Some(50)).unwrap();
     let err = reader.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
@@ -134,7 +134,7 @@ fn partial_record_after_multiple_good_records() {
         reader.read_record().unwrap().unwrap();
     }
     let err = reader.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
     assert_eq!(reader.record_count(), 3);
 }
 
@@ -272,7 +272,7 @@ fn write_rejects_oversized_record() {
     let mut output = Vec::new();
     let mut writer = FixedRecordWriter::new(&mut output, Some(4)).unwrap();
     let err = writer.write_record(b"TOOLONG").unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
     assert_eq!(writer.record_count(), 0);
 }
 
@@ -281,7 +281,7 @@ fn write_rejects_one_byte_over_lrecl() {
     let mut output = Vec::new();
     let mut writer = FixedRecordWriter::new(&mut output, Some(5)).unwrap();
     let err = writer.write_record(b"ABCDEF").unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]

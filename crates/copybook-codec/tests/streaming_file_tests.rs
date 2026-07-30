@@ -509,7 +509,7 @@ fn decode_file_partial_record_at_eof() {
             assert_eq!(summary.bytes_processed, 5);
         }
         Err(error) => {
-            assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+            assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
             assert!(!error.message.is_empty());
         }
     }

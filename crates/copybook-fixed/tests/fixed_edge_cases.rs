@@ -35,7 +35,7 @@ fn read_input_shorter_than_lrecl_returns_error() {
     let data = b"SHORT";
     let mut reader = FixedRecordReader::new(Cursor::new(data.as_slice()), Some(100)).unwrap();
     let err = reader.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
@@ -43,7 +43,7 @@ fn read_single_byte_input_with_large_lrecl_returns_error() {
     let data = vec![0x42u8];
     let mut reader = FixedRecordReader::new(Cursor::new(&data), Some(1000)).unwrap();
     let err = reader.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 // ====================================================================
@@ -91,7 +91,7 @@ fn read_input_not_divisible_by_lrecl_errors_on_partial() {
     assert_eq!(r2, b"BBBBB");
 
     let err = reader.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn read_input_one_extra_byte_errors_on_partial() {
     reader.read_record().unwrap().unwrap();
 
     let err = reader.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 // ====================================================================

@@ -135,7 +135,7 @@ fn writer_rejects_record_longer_than_lrecl() {
     let mut output = Vec::new();
     let mut writer = FixedRecordWriter::new(&mut output, Some(4)).unwrap();
     let err = writer.write_record(b"TOOLONG").unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
@@ -143,7 +143,7 @@ fn writer_rejects_record_one_byte_over_lrecl() {
     let mut output = Vec::new();
     let mut writer = FixedRecordWriter::new(&mut output, Some(4)).unwrap();
     let err = writer.write_record(b"ABCDE").unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
@@ -187,14 +187,14 @@ fn lrecl_accessors() {
 // ====================================================================
 
 #[test]
-fn partial_record_at_eof_is_underflow() {
+fn partial_record_at_eof_is_fixed_record_error() {
     // 7 bytes, LRECL=4: first record OK, second is partial (3 bytes)
     let data = b"ABCDEFG";
     let mut reader = FixedRecordReader::new(Cursor::new(data.as_slice()), Some(4)).unwrap();
     let r1 = reader.read_record().unwrap().unwrap();
     assert_eq!(r1, b"ABCD");
     let err = reader.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
@@ -204,7 +204,7 @@ fn partial_record_single_byte_remainder() {
     let mut reader = FixedRecordReader::new(Cursor::new(data.as_slice()), Some(4)).unwrap();
     reader.read_record().unwrap().unwrap();
     let err = reader.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 #[test]
@@ -213,7 +213,7 @@ fn partial_record_one_less_than_lrecl() {
     let data = vec![0x41u8; 99];
     let mut reader = FixedRecordReader::new(Cursor::new(&data), Some(100)).unwrap();
     let err = reader.read_record().unwrap_err();
-    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    assert_eq!(err.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 // ====================================================================

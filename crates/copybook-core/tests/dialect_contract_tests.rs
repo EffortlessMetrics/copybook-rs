@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Integration tests for the `copybook-dialect` crate.
+//! Integration tests for the core-owned dialect contract.
 
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use copybook_dialect::{Dialect, effective_min_count};
+use copybook_core::dialect::{Dialect, effective_min_count};
 
 // ---------------------------------------------------------------------------
 // 1. Dialect enum: creation and comparison

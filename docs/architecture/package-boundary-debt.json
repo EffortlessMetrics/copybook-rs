@@ -86,10 +86,6 @@
       "owner_issue": 652
     },
     {
-      "id": "primary-dep:copybook-core->copybook-dialect",
-      "owner_issue": 647
-    },
-    {
       "id": "primary-dep:copybook-core->copybook-error-reporter",
       "owner_issue": 655
     },

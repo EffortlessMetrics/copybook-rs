@@ -2,8 +2,8 @@
 # claude.md
 
 ## Scope
-- Dialect contract for ODO min_count semantics.
-- Layer: **Schema**.
+- Deprecated compatibility package for the core-owned ODO min_count contract.
+- Layer: **Compatibility**.
 - Workspace package `copybook-dialect` (see `Cargo.toml`).
 
 ## Navigation

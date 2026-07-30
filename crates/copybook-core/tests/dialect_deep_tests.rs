@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Deep tests for copybook-dialect: min_count behavior per dialect, parsing,
+//! Deep tests for the core-owned dialect: min_count behavior, parsing,
 //! Display/Debug/Clone traits, serde roundtrips, and edge cases.
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use copybook_dialect::{Dialect, effective_min_count};
+use copybook_core::dialect::{Dialect, effective_min_count};
 use std::collections::HashMap;
 use std::str::FromStr;
 

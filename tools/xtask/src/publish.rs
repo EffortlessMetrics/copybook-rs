@@ -57,6 +57,13 @@ struct PlanPackage {
     compatibility_status: String,
 }
 
+type RoleRegistryIndex = (
+    HashMap<String, String>,
+    HashMap<String, PlanPackage>,
+    HashMap<String, String>,
+);
+type DependencyGraph = (HashMap<String, usize>, HashMap<String, Vec<String>>);
+
 #[derive(Debug, Deserialize)]
 struct Dependency {
     #[serde(default)]
@@ -132,9 +139,46 @@ fn build_publish_plan() -> Result<Vec<PlanPackage>> {
 fn ordered_publish_plan(metadata: Metadata, registry: SurfaceRegistry) -> Result<Vec<PlanPackage>> {
     let workspace_members = metadata
         .workspace_members
-        .into_iter()
+        .iter()
+        .cloned()
         .collect::<HashSet<_>>();
+    let (package_roles, package_plans, all_id_to_name) =
+        index_role_registry(&metadata, registry, &workspace_members)?;
+    let publishable_packages = metadata
+        .packages
+        .into_iter()
+        .filter(|package| package_plans.contains_key(&package.name))
+        .collect::<Vec<_>>();
 
+    if publishable_packages.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut publishable_ids = HashSet::new();
+    let mut id_to_name = HashMap::new();
+    let mut name_to_id = HashMap::new();
+    for package in &publishable_packages {
+        publishable_ids.insert(package.id.clone());
+        id_to_name.insert(package.id.clone(), package.name.clone());
+        name_to_id.insert(package.name.clone(), package.id.clone());
+    }
+
+    let (in_degree, dependents) = build_dependency_graph(
+        &publishable_packages,
+        &package_roles,
+        &all_id_to_name,
+        &publishable_ids,
+        &id_to_name,
+        &name_to_id,
+    )?;
+    topological_order(package_plans, in_degree, dependents)
+}
+
+fn index_role_registry(
+    metadata: &Metadata,
+    registry: SurfaceRegistry,
+    workspace_members: &HashSet<String>,
+) -> Result<RoleRegistryIndex> {
     let registry_package_count = registry.packages.len();
     let registry_by_name = registry
         .packages
@@ -188,35 +232,26 @@ fn ordered_publish_plan(metadata: Metadata, registry: SurfaceRegistry) -> Result
             package_plans.insert(package.name.clone(), plan);
         }
     }
+    Ok((package_roles, package_plans, all_id_to_name))
+}
 
-    let publishable_packages = metadata
-        .packages
-        .into_iter()
-        .filter(|package| package_plans.contains_key(&package.name))
-        .collect::<Vec<_>>();
-
-    if publishable_packages.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let mut publishable_ids = HashSet::new();
-    let mut id_to_name = HashMap::new();
-    let mut name_to_id = HashMap::new();
-    for package in &publishable_packages {
-        publishable_ids.insert(package.id.clone());
-        id_to_name.insert(package.id.clone(), package.name.clone());
-        name_to_id.insert(package.name.clone(), package.id.clone());
-    }
-
+fn build_dependency_graph(
+    packages: &[Package],
+    package_roles: &HashMap<String, String>,
+    all_id_to_name: &HashMap<String, String>,
+    publishable_ids: &HashSet<String>,
+    id_to_name: &HashMap<String, String>,
+    name_to_id: &HashMap<String, String>,
+) -> Result<DependencyGraph> {
     let mut in_degree: HashMap<String, usize> = HashMap::new();
     let mut dependents: HashMap<String, Vec<String>> = HashMap::new();
     let mut seen_edges = HashSet::new();
 
-    for package in &publishable_packages {
+    for package in packages {
         in_degree.entry(package.name.clone()).or_insert(0);
     }
 
-    for package in &publishable_packages {
+    for package in packages {
         for dependency in package
             .dependencies
             .iter()
@@ -280,6 +315,14 @@ fn ordered_publish_plan(metadata: Metadata, registry: SurfaceRegistry) -> Result
         }
     }
 
+    Ok((in_degree, dependents))
+}
+
+fn topological_order(
+    mut package_plans: HashMap<String, PlanPackage>,
+    mut in_degree: HashMap<String, usize>,
+    dependents: HashMap<String, Vec<String>>,
+) -> Result<Vec<PlanPackage>> {
     let mut ready = in_degree
         .iter()
         .filter_map(|(name, degree)| (*degree == 0).then_some(name.clone()))

@@ -209,7 +209,6 @@ dependencies = [
 name = "copybook-fixed"
 version = "0.5.0"
 dependencies = [
- "copybook-core",
  "copybook-error",
  "tracing",
 ]

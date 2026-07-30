@@ -2,7 +2,8 @@
 # claude.md
 
 ## Scope
-- Integration tests for `copybook-dialect` (Schema layer).
+
+- Compatibility compile-contract tests for `copybook-dialect`.
 
 ## Navigation
 - Crate root: `../claude.md`

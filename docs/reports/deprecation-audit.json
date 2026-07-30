@@ -178,6 +178,28 @@
       "planned_removal": "Retained as a compatibility wrapper through the 0.6 migration window; removal requires a future compatibility decision.",
       "compatibility_impact": "Existing calls continue to compile with a deprecation warning and preserve zoned-sign behavior.",
       "note": "The wrapper delegates directly to the charset owner."
+    },
+    {
+      "path": "crates/copybook-dialect/src/lib.rs",
+      "symbol": "Dialect",
+      "kind": "type",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook_core::dialect::Dialect",
+      "migration_example": "Replace `copybook_dialect::Dialect` with `copybook_core::dialect::Dialect`.",
+      "planned_removal": "Retained as a compatibility alias through the 0.6 migration window; removal requires a future compatibility decision.",
+      "compatibility_impact": "Existing imports continue to compile with a deprecation warning; new code should use the core-owned dialect type.",
+      "note": "The compatibility package forwards the parser-language dialect without retaining an implementation."
+    },
+    {
+      "path": "crates/copybook-dialect/src/lib.rs",
+      "symbol": "effective_min_count",
+      "kind": "fn",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook_core::dialect::effective_min_count",
+      "migration_example": "Replace `copybook_dialect::effective_min_count` with `copybook_core::dialect::effective_min_count`.",
+      "planned_removal": "Retained as a compatibility wrapper through the 0.6 migration window; removal requires a future compatibility decision.",
+      "compatibility_impact": "Existing calls continue to compile with a deprecation warning and preserve dialect-bound behavior.",
+      "note": "The wrapper delegates directly to the core dialect owner."
     }
   ]
 }

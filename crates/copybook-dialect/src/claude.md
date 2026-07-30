@@ -2,7 +2,8 @@
 # claude.md
 
 ## Scope
-- Library sources for `copybook-dialect` (Schema layer).
+
+- Deprecated forwarding source for the core-owned dialect contract.
 
 ## Navigation
 - Crate root: `../claude.md`

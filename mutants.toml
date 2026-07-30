@@ -40,7 +40,6 @@ examine_globs = [
     "crates/copybook-fixed/src/**/*.rs",
     "crates/copybook-charset/src/**/*.rs",
     "crates/copybook-codepage/src/**/*.rs",
-    "crates/copybook-dialect/src/**/*.rs",
     "crates/copybook-record-io/src/**/*.rs",
 ]
 

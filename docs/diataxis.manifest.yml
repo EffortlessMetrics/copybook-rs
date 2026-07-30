@@ -150,6 +150,7 @@ categories:
       - docs/archived/  # All archived docs (gate receipts, issue specs, historical content)
       - docs/api/structural-validation.md
       - docs/backlog/benchmark_tooling.md
+      - docs/design/AGENTIC_PR_OPERATIONS.md
       - docs/design/DETERMINISM_CLI.md
       - docs/design/NESTED_ODO_BEHAVIOR.md
       - docs/design/RENAMES_NESTED_GROUPS.md

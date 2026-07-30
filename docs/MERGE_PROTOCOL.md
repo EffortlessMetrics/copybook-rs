@@ -8,6 +8,24 @@
 - Make merge behavior reproducible and auditable
 - Provide clear validation evidence for each PR
 
+## Agentic Review Loop
+
+When a maintainer delegates an issue and PR queue, routine review-bot handling
+is part of the normal merge protocol. The agent addresses every actionable
+comment that remains within the selected concern, runs the relevant proof,
+pushes the reviewed head, and resolves the addressed thread. A second
+authorization is not required for those routine operations.
+
+The agent still stops for ambiguous or conflicting feedback, material scope
+expansion, force-push or direct-main requests, release or deployment actions,
+secrets, or missing required checks. Informational, duplicate, outdated, and
+rate-limit bot messages do not block a lane by themselves. The complete state
+machine and authority boundary live in
+[`docs/design/AGENTIC_PR_OPERATIONS.md`](design/AGENTIC_PR_OPERATIONS.md).
+
+The merge decision must use the current GitHub head: required checks are green,
+the PR is mergeable, and no actionable review thread remains unresolved.
+
 ## Local Gates
 
 ### Hard Gate (Required for ALL infra PRs)
@@ -135,14 +153,17 @@ If post-merge validation fails:
 
 ### 5. CI Stability Note
 
-If GitHub Actions are unstable at merge time, add to PR before merging:
+If GitHub Actions are unstable at merge time, do not merge around the required
+checks. Record local evidence in the PR while waiting for the current GitHub
+checks to recover, or stop and request direction if the required check cannot
+be restored:
 
 ```markdown
 ## CI Status
 
 GitHub Actions currently unstable (rustc ICE / environment issues).
-Local semantic validation (`./scripts/ci/offline-semantic.sh`) is the
-gating signal for this merge.
+Local semantic validation (`./scripts/ci/offline-semantic.sh`) is supporting
+evidence only; required GitHub checks must still be green before merge.
 
 Evidence: [paste offline-semantic output]
 ```
@@ -226,18 +247,21 @@ See `docs/VALIDATION_PROTOCOL.md` for more examples.
 # On PR branch
 git checkout <branch-name>
 git fetch origin
-git rebase origin/main
+git merge --no-edit origin/main
 
 # Resolve conflicts
 git add <resolved-files>
-git rebase --continue
+git commit
 
-# Force push (rebased)
-git push --force-with-lease origin <branch-name>
+# Publish the non-rewriting update
+git push origin <branch-name>
 
 # Re-run validation
 ./scripts/ci/offline-semantic.sh
 ```
+
+If resolving the conflict requires a product decision or expands the selected
+concern, stop and request direction rather than rewriting the remote branch.
 
 ## Validation Protocol Reference
 

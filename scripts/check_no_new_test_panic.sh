@@ -14,7 +14,7 @@ if ! git rev-parse --verify "${head_sha}^{commit}" >/dev/null 2>&1; then
   head_sha=HEAD
 fi
 
-if violations="$(git diff --unified=0 "${base_sha}"..."${head_sha}" -- '*.rs' | awk '
+if violations="$(git diff --unified=0 "${base_sha}" "${head_sha}" -- '*.rs' | awk '
   /^\+\+\+ b\// { path = substr($0, 7); next }
   /^\+/ && !/^\+\+\+/ && /panic![[:space:]]*\(/ {
     print path ":" substr($0, 2)

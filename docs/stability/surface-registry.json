@@ -746,29 +746,34 @@
     {
       "name": "copybook-fixed",
       "publish": true,
-      "class": "internal-dev-only",
-      "stability_statement": "Specialized fixed-field helpers for internal parser composition.",
+      "class": "beta",
+      "stability_statement": "Schema-independent fixed-LRECL framing for direct library consumers and codec composition.",
       "limitations": [
-        "No downstream support contract."
+        "Provides byte-stream framing only; schema interpretation and field conversion remain in higher layers.",
+        "The public API remains subject to the project's pre-1.0 compatibility policy."
       ],
-      "graduation_criteria": [],
+      "graduation_criteria": [
+        "The clean-room framing contract and stable diagnostics remain covered across a release."
+      ],
       "source_of_truth": [
-        "docs/STABILITY_GUARANTEES.md"
+        "docs/STABILITY_GUARANTEES.md",
+        "docs/architecture/PACKAGE_BOUNDARIES.md",
+        "crates/copybook-fixed/README.md"
       ],
       "features": [],
       "boundary": {
         "role": "primary",
         "seam_type": "external-format",
         "true_owner": "copybook-fixed",
-        "external_user_story": "Read and write fixed-LRECL streams independently if the schema-independent boundary is proven.",
+        "external_user_story": "Read and write fixed-LRECL streams independently without pulling in schema, codec, or CLI layers.",
         "invariant_owned": "bounded correct fixed-LRECL framing",
         "preferred_facade_path": "copybook::framing::fixed",
-        "target_disposition": "conditional",
-        "compatibility_plan": "retain-only-if-schema-independent-direct-use-proof-passes-issue-650",
+        "target_disposition": "keep",
+        "compatibility_plan": "retained-primary-package",
         "consumer_data": "generated-from-cargo-metadata-by-issue-644",
-        "stability_class": "internal-dev-only",
+        "stability_class": "beta",
         "dependency_direction": "edge-leaf:no-core-codec-cli-framework-or-governance",
-        "module_insufficiency_reason": "Conditional: a package is justified only if schema-independent fixed-LRECL users and proof survive #650."
+        "module_insufficiency_reason": "Fixed-LRECL consumers need a small independently resolvable framing package without schema or codec dependencies."
       }
     },
     {

@@ -35,6 +35,19 @@ The `with_lrecl` constructors are the canonical schema-independent framing
 surface. Copybook schema compatibility is validated by `copybook-codec` before
 it constructs these framing primitives.
 
+## Standalone consumer proof
+
+The repository includes a clean-room consumer that depends directly on only
+`copybook-fixed` and `copybook-error`:
+
+```text
+cargo run --locked --manifest-path examples/copybook-fixed-clean-room/Cargo.toml
+```
+
+It proves multi-record read/write, zero padding, EOF, truncated-input rejection,
+oversized-payload rejection, and the stable `CBKR101_FIXED_RECORD_ERROR`
+identity without importing schema, codec, or CLI packages.
+
 ## Migration from the 0.5 schema-aware helper
 
 The former `FixedRecordReader::validate_record_length` method was schema-aware

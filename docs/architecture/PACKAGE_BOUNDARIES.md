@@ -31,4 +31,4 @@ A retained public package must name an external user story, its invariant, its d
 
 ## Working primary family for 0.6.0
 
-The current target is `copybook`, `copybook-rs`, `copybook-core`, `copybook-codec`, `copybook-error`, `copybook-charset`, `copybook-cli`, and `copybook-arrow`. Both `copybook-rdw` and `copybook-fixed` remain conditional on a schema-independent direct-use proof. Governance and support-matrix packages remain conditional rather than being promoted by topology alone.
+The current target is `copybook`, `copybook-rs`, `copybook-core`, `copybook-codec`, `copybook-error`, `copybook-charset`, `copybook-cli`, and `copybook-arrow`. `copybook-fixed` is retained as a primary external-format package after the clean-room proof in `examples/copybook-fixed-clean-room`; `copybook-rdw` remains conditional on its own schema-independent direct-use proof. Governance and support-matrix packages remain conditional rather than being promoted by topology alone.

@@ -14,7 +14,7 @@ use copybook_error::{Error, ErrorCode, ErrorContext, Result};
 ///
 /// # Errors
 /// Returns `CBKF221_RDW_UNDERFLOW` when the schema requires non-zero bytes.
-#[must_use]
+#[must_use = "handle the RDW validation result"]
 #[inline]
 pub fn validate_zero_length_record(schema: &Schema, record_index: u64) -> Result<()> {
     let minimum_payload_len = schema_fixed_prefix(schema);

@@ -24,7 +24,6 @@ workspace = true
 libfuzzer-sys = "0.4.10"
 copybook-core = { path = "../crates/copybook-core" }
 copybook-codec = { path = "../crates/copybook-codec" }
-copybook-cli-determinism = { path = "../crates/copybook-cli-determinism" }
 copybook-fixed = { path = "../crates/copybook-fixed" }
 copybook-corruption = { path = "../crates/copybook-corruption" }
 copybook-corruption-detectors = { path = "../crates/copybook-corruption-detectors" }
@@ -95,10 +94,6 @@ path = "fuzz_targets/fixed_record.rs"
 [[bin]]
 name = "determinism_compare"
 path = "fuzz_targets/determinism_compare.rs"
-
-[[bin]]
-name = "cli_determinism_render"
-path = "fuzz_targets/cli_determinism_render.rs"
 
 [[bin]]
 name = "options_contract"

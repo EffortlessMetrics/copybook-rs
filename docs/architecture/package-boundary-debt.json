@@ -14,10 +14,6 @@
       "owner_issue": 651
     },
     {
-      "id": "library-cli-framework:copybook-cli-determinism->clap",
-      "owner_issue": 649
-    },
-    {
       "id": "library-cli-framework:copybook-scripts->clap",
       "owner_issue": 640
     },
@@ -56,10 +52,6 @@
     {
       "id": "primary-dep:copybook->copybook-utils",
       "owner_issue": 655
-    },
-    {
-      "id": "primary-dep:copybook-cli->copybook-cli-determinism",
-      "owner_issue": 649
     },
     {
       "id": "primary-dep:copybook-codec->copybook-codec-memory",

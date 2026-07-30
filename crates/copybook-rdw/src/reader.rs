@@ -46,7 +46,7 @@ impl<R: Read> RDWRecordReader<R> {
 
         let buf = self.input.fill_buf().map_err(|e| {
             Error::new(
-                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                ErrorCode::CBKR201_RDW_READ_ERROR,
                 format!("I/O error reading RDW header: {e}"),
             )
             .with_context(ErrorContext {
@@ -69,7 +69,7 @@ impl<R: Read> RDWRecordReader<R> {
         let context = self.header_context("Unable to read RDW header");
         let buf = self.input.fill_buf().map_err(|e| {
             Error::new(
-                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                ErrorCode::CBKR201_RDW_READ_ERROR,
                 format!("I/O error reading RDW header: {e}"),
             )
             .with_context(context)
@@ -102,7 +102,7 @@ impl<R: Read> RDWRecordReader<R> {
             .fill_buf()
             .map_err(|e| {
                 Error::new(
-                    ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                    ErrorCode::CBKR201_RDW_READ_ERROR,
                     format!("I/O error reading RDW header: {e}"),
                 )
                 .with_context(context)

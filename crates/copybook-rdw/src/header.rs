@@ -1,4 +1,4 @@
-use crate::RDW_HEADER_LEN;
+use crate::{RDW_HEADER_LEN, diagnostics::rdw_is_suspect_ascii_corruption};
 use copybook_error::{Error, ErrorCode, Result};
 
 /// Parsed RDW header (`length + reserved`).
@@ -96,13 +96,4 @@ pub fn rdw_payload_len_to_u16(len: usize) -> Result<u16> {
             ),
         )
     })
-}
-
-/// Heuristic to detect ASCII-corrupted RDW headers.
-///
-/// Returns `true` when both RDW length bytes are ASCII digits (`0x30..=0x39`).
-#[must_use]
-#[inline]
-pub const fn rdw_is_suspect_ascii_corruption(rdw_header: [u8; RDW_HEADER_LEN]) -> bool {
-    copybook_rdw_predicates::rdw_is_suspect_ascii_corruption(rdw_header)
 }

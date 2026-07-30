@@ -1,8 +1,7 @@
 # copybook-corruption-rdw
 
-Small, single-purpose crate for RDW ASCII-transfer corruption heuristics.
+Small 0.5 compatibility crate forwarding RDW ASCII-transfer corruption
+heuristics to `copybook_rdw::diagnostics`.
 
-This crate isolates the RDW header corruption decision logic from
-`copybook-corruption` so it can be exercised independently by unit tests,
-property tests, and fuzzing while keeping the existing API surface in
-`copybook-corruption` stable.
+The canonical implementation lives with the RDW framing owner; this package
+remains available for existing 0.5 call sites while primary consumers migrate.

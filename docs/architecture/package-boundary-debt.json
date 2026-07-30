@@ -84,10 +84,6 @@
     {
       "id": "primary-dep:copybook-core->copybook-utils",
       "owner_issue": 655
-    },
-    {
-      "id": "primary-dep:copybook-rdw->copybook-rdw-predicates",
-      "owner_issue": 651
     }
   ]
 }

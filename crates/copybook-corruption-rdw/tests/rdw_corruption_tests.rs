@@ -4,8 +4,8 @@
 //! Tests for RDW-specific corruption detection: valid headers, length
 //! mismatches, reserved byte corruption, and truncated headers.
 
-use copybook_core::ErrorCode;
 use copybook_corruption_rdw::detect_rdw_ascii_corruption;
+use copybook_error::ErrorCode;
 
 // ===========================================================================
 // Valid RDW passes — no corruption detected

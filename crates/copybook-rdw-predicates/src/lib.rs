@@ -1,36 +1,14 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! RDW header ASCII-digit detection helper.
+//! 0.5 compatibility wrapper for the RDW diagnostic predicate.
 //!
-//! This crate owns exactly one predicate: whether RDW length bytes look like ASCII
-//! digits and therefore likely represent ASCII-transfer corruption.
+//! The implementation is owned by `copybook_rdw::diagnostics`; this package
+//! preserves the published predicate paths while primary consumers migrate.
 
-/// RDW header size in bytes.
-pub const RDW_HEADER_LEN: usize = 4;
-
-/// Returns `true` if the first two RDW header bytes are ASCII digits, indicating likely ASCII-transfer corruption.
-#[inline]
-#[must_use]
-pub const fn rdw_is_suspect_ascii_corruption(rdw_header: [u8; RDW_HEADER_LEN]) -> bool {
-    let b0 = rdw_header[0];
-    let b1 = rdw_header[1];
-
-    is_ascii_digit(b0) && is_ascii_digit(b1)
-}
-
-/// Slice-based variant of [`rdw_is_suspect_ascii_corruption`] that checks at least 4 bytes.
-#[inline]
-#[must_use]
-pub fn rdw_is_suspect_ascii_corruption_slice(rdw_bytes: &[u8]) -> bool {
-    rdw_bytes.len() >= RDW_HEADER_LEN
-        && rdw_is_suspect_ascii_corruption([rdw_bytes[0], rdw_bytes[1], rdw_bytes[2], rdw_bytes[3]])
-}
-
-#[inline]
-#[must_use]
-const fn is_ascii_digit(byte: u8) -> bool {
-    byte >= b'0' && byte <= b'9'
-}
+pub use copybook_rdw::RDW_HEADER_LEN;
+pub use copybook_rdw::diagnostics::{
+    rdw_is_suspect_ascii_corruption, rdw_is_suspect_ascii_corruption_slice,
+};
 
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used)]

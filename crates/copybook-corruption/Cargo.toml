@@ -22,8 +22,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 copybook-core.workspace = true
-copybook-corruption-rdw.workspace = true
 copybook-corruption-detectors.workspace = true
+copybook-rdw.workspace = true
 
 [dev-dependencies]
 copybook-corruption-detectors = { path = "../copybook-corruption-detectors" }

@@ -5,8 +5,8 @@
 //! file, length exceeds max record size, non-zero reserved bytes, truncated
 //! RDW at end of file, and multiple sequential corruptions.
 
-use copybook_core::ErrorCode;
 use copybook_corruption_rdw::detect_rdw_ascii_corruption;
+use copybook_error::ErrorCode;
 
 // ===========================================================================
 // Invalid RDW header length (0, 1, 2, 3 bytes)

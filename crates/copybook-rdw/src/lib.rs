@@ -11,13 +11,15 @@
 //! ([`rdw_read_len`], [`rdw_slice_body`]) for custom framing.
 
 mod buffer;
+pub mod diagnostics;
 mod header;
 mod reader;
 mod record;
 mod writer;
 
 pub use buffer::{rdw_read_len, rdw_slice_body, rdw_try_peek_len, rdw_validate_and_finish};
-pub use header::{RdwHeader, rdw_is_suspect_ascii_corruption, rdw_payload_len_to_u16};
+pub use diagnostics::{detect_rdw_ascii_corruption, rdw_is_suspect_ascii_corruption};
+pub use header::{RdwHeader, rdw_payload_len_to_u16};
 pub use reader::RDWRecordReader;
 pub use record::RDWRecord;
 pub use writer::RDWRecordWriter;

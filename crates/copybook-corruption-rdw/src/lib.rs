@@ -2,89 +2,21 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! RDW corruption heuristics.
 //!
-//! This crate owns only RDW ASCII-corruption detection.
+//! This 0.5 compatibility crate forwards to [`copybook_rdw::diagnostics`].
 
-use copybook_core::{Error, ErrorCode};
-use copybook_corruption_predicates::is_ascii_printable;
-use copybook_rdw_predicates::rdw_is_suspect_ascii_corruption_slice;
-
-/// Heuristics for detecting ASCII transfer corruption in RDW headers.
-///
-/// This function implements the `CBKF104_RDW_SUSPECT_ASCII` detection logic by
-/// checking for patterns that suggest binary data was converted through ASCII
-/// transfer by mistake (for example, EBCDIC/ASCII confusion around the length
-/// field).
-#[inline]
-#[must_use = "Handle the returned error when corruption is detected"]
-pub fn detect_rdw_ascii_corruption(rdw_bytes: &[u8]) -> Option<Error> {
-    if rdw_bytes.len() < 4 {
-        return None;
-    }
-
-    // Extract the length field (first 2 bytes, big-endian).
-    let length_bytes = [rdw_bytes[0], rdw_bytes[1]];
-    let length = u16::from_be_bytes(length_bytes);
-
-    // Heuristic 1: Length field contains ASCII digits.
-    if rdw_is_suspect_ascii_corruption_slice(rdw_bytes) {
-        return Some(Error::new(
-            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-            format!(
-                "RDW length field appears to contain ASCII digits: 0x{:02X}{:02X} ('{}{}')",
-                rdw_bytes[0],
-                rdw_bytes[1],
-                ascii_char_or_dot(rdw_bytes[0]),
-                ascii_char_or_dot(rdw_bytes[1])
-            ),
-        ));
-    }
-
-    // Heuristic 2: Unreasonably large length values that could be ASCII.
-    if length > 0x3030 && length <= 0x3939 {
-        // Range covers ASCII '00'..='99' when interpreted as binary.
-        return Some(Error::new(
-            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-            format!(
-                "RDW length field suspiciously large ({length}), may be ASCII-corrupted: 0x{length:04X}"
-            ),
-        ));
-    }
-
-    // Heuristic 3: Reserved bytes contain ASCII-like printable bytes.
-    if is_ascii_printable(rdw_bytes[2])
-        && is_ascii_printable(rdw_bytes[3])
-        && rdw_bytes[2..4] != [0x00, 0x00]
-    {
-        return Some(Error::new(
-            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-            format!(
-                "RDW reserved bytes contain ASCII-like data: 0x{:02X}{:02X} ('{}{}')",
-                rdw_bytes[2],
-                rdw_bytes[3],
-                ascii_char_or_dot(rdw_bytes[2]),
-                ascii_char_or_dot(rdw_bytes[3])
-            ),
-        ));
-    }
-
-    None
-}
-
-fn ascii_char_or_dot(byte: u8) -> char {
-    if is_ascii_printable(byte) {
-        byte as char
-    } else {
-        '.'
-    }
-}
+pub use copybook_rdw::diagnostics::detect_rdw_ascii_corruption;
 
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use copybook_core::ErrorCode;
-    use copybook_rdw_predicates::rdw_is_suspect_ascii_corruption_slice;
+    use copybook_error::ErrorCode;
+    use copybook_rdw::diagnostics::rdw_is_suspect_ascii_corruption_slice;
     use proptest::prelude::*;
+
+    const fn is_ascii_printable(byte: u8) -> bool {
+        byte >= 0x20 && byte <= 0x7E
+    }
 
     fn expected_corruption_present(data: &[u8]) -> bool {
         if data.len() < 4 {

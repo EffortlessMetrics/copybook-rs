@@ -3,8 +3,8 @@
 
 //! Comprehensive tests for RDW-specific corruption detection heuristics.
 
-use copybook_core::ErrorCode;
 use copybook_corruption_rdw::detect_rdw_ascii_corruption;
+use copybook_error::ErrorCode;
 
 // ===========================================================================
 // Short/empty input handling

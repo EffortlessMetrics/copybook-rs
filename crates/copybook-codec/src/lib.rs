@@ -21,6 +21,8 @@ pub mod determinism;
 /// Edited PIC (numeric editing) decode and encode support.
 pub mod edited_pic;
 mod fidelity;
+/// Schema-aware file framing integration.
+pub mod file;
 /// Streaming record iterator for file-level decoding.
 pub mod iterator;
 /// Core library API: record decode/encode and file-level processing.

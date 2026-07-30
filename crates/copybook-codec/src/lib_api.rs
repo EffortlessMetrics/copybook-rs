@@ -2542,12 +2542,18 @@ fn process_fixed_records<R: Read, W: Write>(
         return process_fixed_records_parallel(schema, reader, output, options, summary);
     }
 
-    let mut reader = crate::record::FixedRecordReader::new(reader, schema.lrecl_fixed)?;
+    let mut reader = crate::file::fixed::reader(reader, schema)?;
     let mut scratch = crate::memory::ScratchBuffers::new();
     let mut record_index = 0u64;
 
     while let Some(record_data) = reader.read_record()? {
         record_index += 1;
+        crate::file::fixed::validate_record_length(
+            schema,
+            reader.lrecl(),
+            reader.record_count(),
+            &record_data,
+        )?;
         summary.bytes_processed += record_data.len() as u64;
         telemetry::record_read(record_data.len(), options);
 
@@ -2681,7 +2687,7 @@ fn process_fixed_records_parallel<R: Read, W: Write>(
     options: &DecodeOptions,
     summary: &mut RunSummary,
 ) -> Result<()> {
-    let mut reader = crate::record::FixedRecordReader::new(reader, schema.lrecl_fixed)?;
+    let mut reader = crate::file::fixed::reader(reader, schema)?;
     let workers = effective_worker_count(options.threads);
     let batch_capacity = workers.saturating_mul(4).max(1);
     let mut pool = decode_worker_pool(schema, options);
@@ -2705,6 +2711,12 @@ fn process_fixed_records_parallel<R: Read, W: Write>(
         let Some(record_data) = record else { break };
 
         record_index += 1;
+        crate::file::fixed::validate_record_length(
+            schema,
+            reader.lrecl(),
+            reader.record_count(),
+            &record_data,
+        )?;
         summary.bytes_processed += record_data.len() as u64;
         telemetry::record_read(record_data.len(), options);
         let raw_data = match options.emit_raw {

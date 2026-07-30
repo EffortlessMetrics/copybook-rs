@@ -16,12 +16,12 @@ use std::io::Cursor;
 
 // Write fixed-length records (LRECL = 8)
 let mut output = Vec::new();
-let mut writer = FixedRecordWriter::new(&mut output, Some(8)).unwrap();
+let mut writer = FixedRecordWriter::with_lrecl(&mut output, 8).unwrap();
 writer.write_record(b"ABCD").unwrap(); // padded to 8 bytes
 writer.flush().unwrap();
 
 // Read fixed-length records
-let mut reader = FixedRecordReader::new(Cursor::new(&output), Some(8)).unwrap();
+let mut reader = FixedRecordReader::with_lrecl(Cursor::new(&output), 8).unwrap();
 let record = reader.read_record().unwrap().unwrap();
 assert_eq!(&record[..4], b"ABCD");
 ```
@@ -30,6 +30,19 @@ assert_eq!(&record[..4], b"ABCD");
 
 - `FixedRecordReader<R>` — Streaming reader for fixed-length records
 - `FixedRecordWriter<W>` — Streaming writer with automatic padding
+
+The `with_lrecl` constructors are the canonical schema-independent framing
+surface. Copybook schema compatibility is validated by `copybook-codec` before
+it constructs these framing primitives.
+
+## Migration from the 0.5 schema-aware helper
+
+The former `FixedRecordReader::validate_record_length` method was schema-aware
+and is not part of the schema-independent framing API. Callers that need that
+compatibility check should use
+`copybook_codec::file::fixed::validate_record_length` with the parsed schema,
+configured LRECL, record index, and record bytes; callers that only need
+framing should use `with_lrecl`.
 
 ## License
 

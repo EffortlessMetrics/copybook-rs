@@ -26,7 +26,8 @@ Start with **[START_HERE.md](START_HERE.md)** for the hand-maintained navigation
 
 ### Architecture
 - [Architecture Decision Records](adr/) -- ADRs for significant decisions
-- [Design docs](design/) -- ODO, RENAMES, feature contracts
+- [Design docs](design/) -- behavior contracts and agentic PR operations
+- [Agentic PR Operations](design/AGENTIC_PR_OPERATIONS.md) -- delegated lane authority and review-to-merge state machine
 - [Internal feature specs](internal/features/) -- dialect lever, edited PIC
 
 ### Diataxis Framework

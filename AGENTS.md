@@ -111,6 +111,7 @@ Canonical references include:
 | ODO and RENAMES behavior | `docs/design/NESTED_ODO_BEHAVIOR.md`, `docs/design/RENAMES_NESTED_GROUPS.md` |
 | Stability and support | `docs/STABILITY_GUARANTEES.md`, `docs/SUPPORT_POLICY.md` |
 | Release procedure | `docs/RELEASE_RUNBOOK.md` |
+| Agentic PR operations | `docs/design/AGENTIC_PR_OPERATIONS.md` |
 
 ## Build and test commands
 
@@ -272,3 +273,11 @@ are green, and actionable feedback is resolved. After merge, sync the target
 branch and remove only the branch, worktree, and temporary artifacts created by
 the lane. Capture genuine remaining work as a focused issue instead of widening
 the merged concern.
+
+When a maintainer delegates issue-by-issue and PR-by-PR work, addressing and
+resolving actionable review-bot comments is normal lane authority after the
+requested behavior is implemented and proven. Do not stop for per-comment
+authorization. Stop only for ambiguity, material scope expansion, conflicting
+feedback, force-push or direct-main requests, release/deployment actions,
+secrets, or another boundary listed in
+`docs/design/AGENTIC_PR_OPERATIONS.md`.

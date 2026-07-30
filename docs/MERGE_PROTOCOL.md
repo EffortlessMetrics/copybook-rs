@@ -8,6 +8,24 @@
 - Make merge behavior reproducible and auditable
 - Provide clear validation evidence for each PR
 
+## Agentic Review Loop
+
+When a maintainer delegates an issue and PR queue, routine review-bot handling
+is part of the normal merge protocol. The agent addresses every actionable
+comment that remains within the selected concern, runs the relevant proof,
+pushes the reviewed head, and resolves the addressed thread. A second
+authorization is not required for those routine operations.
+
+The agent still stops for ambiguous or conflicting feedback, material scope
+expansion, force-push or direct-main requests, release or deployment actions,
+secrets, or missing required checks. Informational, duplicate, outdated, and
+rate-limit bot messages do not block a lane by themselves. The complete state
+machine and authority boundary live in
+[`docs/design/AGENTIC_PR_OPERATIONS.md`](design/AGENTIC_PR_OPERATIONS.md).
+
+The merge decision must use the current GitHub head: required checks are green,
+the PR is mergeable, and no actionable review thread remains unresolved.
+
 ## Local Gates
 
 ### Hard Gate (Required for ALL infra PRs)

@@ -42,7 +42,6 @@ copybook-safe-text = { path = "../crates/copybook-safe-text" }
 copybook-zoned-format = { path = "../crates/copybook-zoned-format" }
 copybook-overpunch = { path = "../crates/copybook-overpunch" }
 copybook-charset = { path = "../crates/copybook-charset" }
-copybook-codepage = { path = "../crates/copybook-codepage" }
 copybook-governance-runtime = { path = "../crates/copybook-governance-runtime" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"

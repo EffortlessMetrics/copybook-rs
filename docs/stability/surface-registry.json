@@ -177,20 +177,7 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": [
-        {
-          "name": "clap",
-          "class": "beta",
-          "stability_statement": "Optional CLI integration feature for downstream command wiring.",
-          "limitations": [
-            "Public feature surface is not included in the v1 compatibility contract."
-          ],
-          "graduation_criteria": [
-            "Cross-version compatibility verification for downstream CLI integrations is added.",
-            "Feature stability is validated in the API baseline run."
-          ]
-        }
-      ],
+      "features": [],
       "boundary": {
         "role": "primary",
         "seam_type": "external-format",
@@ -417,19 +404,7 @@
         "docs/reference/LIBRARY_API.md",
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": [
-        {
-          "name": "clap",
-          "class": "beta",
-          "stability_statement": "CLI-facing integration feature for downstream command assembly.",
-          "limitations": [
-            "Not part of the v1 stable API contract."
-          ],
-          "graduation_criteria": [
-            "Downstream CLI compatibility matrix includes this feature with migration steps."
-          ]
-        }
-      ],
+      "features": [],
       "boundary": {
         "role": "compat",
         "seam_type": "utility",

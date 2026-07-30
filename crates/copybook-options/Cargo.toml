@@ -21,10 +21,9 @@ all-features = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-copybook-charset = { workspace = true, features = ["clap"] }
+copybook-charset.workspace = true
 copybook-zoned-format = { workspace = true }
 serde.workspace = true
-clap.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

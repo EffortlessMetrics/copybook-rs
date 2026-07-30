@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Integration tests for `copybook-codepage` public API.
+#![allow(deprecated)]
 
 use copybook_codepage::{Codepage, UnmappablePolicy, get_zoned_sign_table, space_byte};
 use std::str::FromStr;
@@ -156,27 +157,29 @@ fn codepage_from_str_mixed_case() {
 }
 
 // ---------------------------------------------------------------------------
-// FromStr – fallback / default behaviour
+// FromStr – invalid input is rejected
 // ---------------------------------------------------------------------------
 
 #[test]
-fn codepage_from_str_unknown_defaults_to_cp037() {
-    assert_eq!(Codepage::from_str("unknown").unwrap(), Codepage::CP037);
-    assert_eq!(Codepage::from_str("037").unwrap(), Codepage::CP037);
-    assert_eq!(Codepage::from_str("ebcdic").unwrap(), Codepage::CP037);
-    assert_eq!(Codepage::from_str("utf8").unwrap(), Codepage::CP037);
+fn parsing_codepage_from_str_rejects_unknown_values() {
+    assert!(Codepage::from_str("unknown").is_err());
+    assert!(Codepage::from_str("037").is_err());
+    assert!(Codepage::from_str("ebcdic").is_err());
+    assert!(Codepage::from_str("utf8").is_err());
 }
 
 #[test]
-fn codepage_from_str_empty_string_defaults_to_cp037() {
-    assert_eq!(Codepage::from_str("").unwrap(), Codepage::CP037);
+fn parsing_codepage_from_str_rejects_empty_values() {
+    assert!(Codepage::from_str("").is_err());
 }
 
 #[test]
-fn codepage_from_str_never_errors() {
-    // FromStr::Err = Infallible, so any input succeeds.
+fn parsing_codepage_from_str_rejects_invalid_inputs() {
     for input in ["", "gibberish", "cp99999", "  ", "ñ", "🦀"] {
-        assert!(Codepage::from_str(input).is_ok(), "should parse: {input:?}");
+        assert!(
+            Codepage::from_str(input).is_err(),
+            "should reject: {input:?}"
+        );
     }
 }
 
@@ -217,23 +220,17 @@ fn unmappable_policy_from_str_case_insensitive() {
 }
 
 #[test]
-fn unmappable_policy_from_str_unknown_defaults_to_error() {
-    assert_eq!(
-        UnmappablePolicy::from_str("unknown").unwrap(),
-        UnmappablePolicy::Error
-    );
-    assert_eq!(
-        UnmappablePolicy::from_str("").unwrap(),
-        UnmappablePolicy::Error
-    );
+fn parsing_unmappable_policy_from_str_rejects_unknown_values() {
+    assert!(UnmappablePolicy::from_str("unknown").is_err());
+    assert!(UnmappablePolicy::from_str("").is_err());
 }
 
 #[test]
-fn unmappable_policy_from_str_never_errors() {
+fn parsing_unmappable_policy_from_str_rejects_invalid_inputs() {
     for input in ["", "anything", "  ", "🔥"] {
         assert!(
-            UnmappablePolicy::from_str(input).is_ok(),
-            "should parse: {input:?}"
+            UnmappablePolicy::from_str(input).is_err(),
+            "should reject: {input:?}"
         );
     }
 }
@@ -500,26 +497,23 @@ fn zoned_sign_table_has_16_entries() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn codepage_from_str_with_whitespace_defaults_to_cp037() {
+fn parsing_codepage_from_str_rejects_whitespace() {
     // Leading/trailing whitespace is not trimmed by the implementation.
-    assert_eq!(Codepage::from_str(" cp037").unwrap(), Codepage::CP037);
-    assert_eq!(Codepage::from_str("cp037 ").unwrap(), Codepage::CP037);
+    assert!(Codepage::from_str(" cp037").is_err());
+    assert!(Codepage::from_str("cp037 ").is_err());
 }
 
 #[test]
-fn unmappable_policy_from_str_with_whitespace_defaults_to_error() {
-    assert_eq!(
-        UnmappablePolicy::from_str(" replace").unwrap(),
-        UnmappablePolicy::Error
-    );
+fn parsing_unmappable_policy_from_str_rejects_whitespace() {
+    assert!(UnmappablePolicy::from_str(" replace").is_err());
 }
 
 #[test]
-fn codepage_from_str_numeric_only_defaults_to_cp037() {
+fn parsing_codepage_from_str_rejects_numeric_only_values() {
     // "037", "273" etc. are unrecognised (need "cp" prefix).
-    assert_eq!(Codepage::from_str("037").unwrap(), Codepage::CP037);
-    assert_eq!(Codepage::from_str("273").unwrap(), Codepage::CP037);
-    assert_eq!(Codepage::from_str("500").unwrap(), Codepage::CP037);
-    assert_eq!(Codepage::from_str("1047").unwrap(), Codepage::CP037);
-    assert_eq!(Codepage::from_str("1140").unwrap(), Codepage::CP037);
+    assert!(Codepage::from_str("037").is_err());
+    assert!(Codepage::from_str("273").is_err());
+    assert!(Codepage::from_str("500").is_err());
+    assert!(Codepage::from_str("1047").is_err());
+    assert!(Codepage::from_str("1140").is_err());
 }

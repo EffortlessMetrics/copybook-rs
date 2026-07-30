@@ -163,8 +163,8 @@ enum Commands {
     Inspect {
         /// Copybook file path
         copybook: PathBuf,
-        /// Character encoding
-        #[arg(long, default_value = "cp037")]
+        /// Character encoding: ascii, cp037, cp273, cp500, cp1047, or cp1140.
+        #[arg(long, default_value = "cp037", value_parser = crate::cli_config::parse_codepage)]
         codepage: Codepage,
         /// Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
         #[arg(long)]
@@ -198,8 +198,8 @@ Field Projection:\n\
         /// Record format (explicit, no auto-detection)
         #[arg(long)]
         format: RecordFormat,
-        /// Character encoding
-        #[arg(long, default_value = "cp037")]
+        /// Character encoding: ascii, cp037, cp273, cp500, cp1047, or cp1140.
+        #[arg(long, default_value = "cp037", value_parser = crate::cli_config::parse_codepage)]
         codepage: Codepage,
         /// JSON number mode
         #[arg(long, default_value = "lossless")]
@@ -223,7 +223,7 @@ Field Projection:\n\
         #[arg(long, default_value = "off")]
         emit_raw: RawMode,
         /// Unmappable character policy
-        #[arg(long, default_value = "error")]
+        #[arg(long, default_value = "error", value_parser = crate::cli_config::parse_unmappable_policy)]
         on_decode_unmappable: UnmappablePolicy,
         /// Number of threads for parallel processing
         #[arg(long, default_value = "1")]
@@ -239,7 +239,7 @@ Field Projection:\n\
         #[arg(long, value_enum, default_value_t = ZonedEncodingPreference::Preferred)]
         preferred_zoned_encoding: ZonedEncodingPreference,
         /// COMP-1/COMP-2 floating-point binary format.
-        #[arg(long, value_enum, default_value = "ieee-be")]
+        #[arg(long, default_value = "ieee-be")]
         float_format: FloatFormat,
         /// Dialect for ODO `min_count` interpretation (n=normative, 0=zero-tolerant, 1=one-tolerant)
         #[arg(long, value_enum)]
@@ -271,8 +271,8 @@ Field Projection:\n\
         /// Record format (explicit, no auto-detection)
         #[arg(long)]
         format: RecordFormat,
-        /// Character encoding
-        #[arg(long, default_value = "cp037")]
+        /// Character encoding: ascii, cp037, cp273, cp500, cp1047, or cp1140.
+        #[arg(long, default_value = "cp037", value_parser = crate::cli_config::parse_codepage)]
         codepage: Codepage,
         /// Use raw data when available
         #[arg(long)]
@@ -298,11 +298,11 @@ Field Projection:\n\
         /// Disable inline comments (*>) - enforce COBOL-85 compatibility
         #[arg(long)]
         strict_comments: bool,
-        /// Force zoned encoding format (ascii|ebcdic), ignoring preserved/preferred.
-        #[arg(long, value_enum)]
+        /// Force zoned encoding format (ascii, ebcdic, or auto), ignoring preserved/preferred.
+        #[arg(long, value_parser = clap::value_parser!(copybook_codec::ZonedEncodingFormat))]
         zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
         /// COMP-1/COMP-2 floating-point binary format.
-        #[arg(long, value_enum, default_value = "ieee-be")]
+        #[arg(long, default_value = "ieee-be")]
         float_format: FloatFormat,
         /// Dialect for ODO `min_count` interpretation (n=normative, 0=zero-tolerant, 1=one-tolerant)
         #[arg(long, value_enum)]
@@ -354,8 +354,8 @@ Field Projection:
         /// Record format (explicit, no auto-detection)
         #[arg(long)]
         format: RecordFormat,
-        /// Character encoding
-        #[arg(long, default_value = "cp037")]
+        /// Character encoding: ascii, cp037, cp273, cp500, cp1047, or cp1140.
+        #[arg(long, default_value = "cp037", value_parser = crate::cli_config::parse_codepage)]
         codepage: Codepage,
         /// Enable strict mode validation
         #[arg(long)]

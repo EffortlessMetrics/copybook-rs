@@ -28,12 +28,15 @@ copybook = "0.5"
 ```
 
 `copybook-core` and `copybook-codec` remain available for advanced users who need a smaller dependency surface.
+For direct character conversion, use `copybook::charset`; the older
+`copybook::codepage` path is retained only as a deprecated migration alias.
 
 Basic usage:
 
 ```rust
 use copybook::core::parse_copybook;
-use copybook::codec::{decode_file_to_jsonl, DecodeOptions, Codepage, RecordFormat};
+use copybook::charset::Codepage;
+use copybook::codec::{decode_file_to_jsonl, DecodeOptions, RecordFormat};
 
 // Parse copybook
 let copybook_text = std::fs::read_to_string("customer.cpy")?;

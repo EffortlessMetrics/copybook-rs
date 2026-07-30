@@ -24,10 +24,16 @@
 //! character has no mapping in the target encoding (replace with a substitute
 //! character or return an error).
 
-pub use copybook_codepage::{Codepage, UnmappablePolicy, get_zoned_sign_table, space_byte};
+mod codepage;
+mod zoned_sign;
+
+pub use codepage::{
+    Codepage, ParseCodepageError, ParseUnmappablePolicyError, UnmappablePolicy, space_byte,
+};
 use copybook_error::{Error, ErrorCode, Result};
 use std::convert::TryFrom;
 use tracing::warn;
+pub use zoned_sign::get_zoned_sign_table;
 
 // ============================================================================
 // Charset conversion code (moved from copybook-codec/src/charset.rs)

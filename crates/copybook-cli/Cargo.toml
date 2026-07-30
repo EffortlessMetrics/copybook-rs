@@ -40,6 +40,7 @@ chrono.workspace = true
 anyhow.workspace = true
 copybook-core = { workspace = true }
 copybook-codec = { workspace = true }
+copybook-charset = { workspace = true }
 copybook-governance = { workspace = true }
 copybook-arrow = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }

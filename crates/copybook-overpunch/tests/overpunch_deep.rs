@@ -4,7 +4,7 @@
 //! and thread safety.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
-use copybook_codepage::Codepage;
+use copybook_charset::Codepage;
 use copybook_error::ErrorCode;
 use copybook_overpunch::{
     ZeroSignPolicy, decode_ebcdic_overpunch_zone, decode_overpunch_byte,

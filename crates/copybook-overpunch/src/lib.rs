@@ -21,7 +21,7 @@
 //!   - Negative → `0xD`
 //!   - Preferred-zero policy (EBCDIC) → `0xF` for zero regardless of sign
 
-use copybook_codepage::Codepage;
+use copybook_charset::Codepage;
 use copybook_error::{Error, ErrorCode, Result};
 use std::convert::TryFrom;
 

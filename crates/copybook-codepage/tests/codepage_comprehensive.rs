@@ -3,6 +3,7 @@
 //! description, `code_page_number`, `space_byte`, zoned sign tables, serde, and
 //! `UnmappablePolicy` semantics.
 #![allow(clippy::expect_used, clippy::unwrap_used)]
+#![allow(deprecated)]
 
 use copybook_codepage::{Codepage, UnmappablePolicy, get_zoned_sign_table, space_byte};
 use std::str::FromStr;
@@ -82,25 +83,20 @@ fn from_str_case_insensitive() {
 }
 
 // ============================================================================
-// 5. FromStr — invalid names default to CP037
+// 5. FromStr — invalid names are rejected
 // ============================================================================
 
 #[test]
-fn from_str_unknown_defaults_to_cp037() {
+fn from_str_unknown_rejects_invalid_codepages() {
     for input in ["unknown", "ebcdic", "utf-8", "037", "gibberish", ""] {
-        assert_eq!(
-            Codepage::from_str(input).unwrap(),
-            Codepage::CP037,
-            "input '{input}' should default to CP037"
-        );
+        assert!(Codepage::from_str(input).is_err(), "input '{input}'");
     }
 }
 
 #[test]
-fn from_str_never_returns_error() {
-    // FromStr::Err is Infallible
+fn from_str_rejects_invalid_codepage_inputs() {
     for input in ["", "🦀", " cp037 ", "12345", "null"] {
-        assert!(Codepage::from_str(input).is_ok(), "input '{input}'");
+        assert!(Codepage::from_str(input).is_err(), "input '{input}'");
     }
 }
 
@@ -299,12 +295,11 @@ fn unmappable_policy_from_str_case_insensitive() {
 }
 
 #[test]
-fn unmappable_policy_from_str_unknown_defaults_to_error() {
+fn unmappable_policy_from_str_rejects_invalid_values() {
     for input in ["", "unknown", "none", "🦀"] {
-        assert_eq!(
-            UnmappablePolicy::from_str(input).unwrap(),
-            UnmappablePolicy::Error,
-            "input '{input}' should default to Error"
+        assert!(
+            UnmappablePolicy::from_str(input).is_err(),
+            "input '{input}'"
         );
     }
 }

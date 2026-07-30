@@ -2,6 +2,7 @@
 # claude.md
 
 ## Scope
+
 - Deprecated forwarding source for the core-owned dialect contract.
 
 ## Navigation

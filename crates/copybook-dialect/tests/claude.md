@@ -2,6 +2,7 @@
 # claude.md
 
 ## Scope
+
 - Compatibility compile-contract tests for `copybook-dialect`.
 
 ## Navigation

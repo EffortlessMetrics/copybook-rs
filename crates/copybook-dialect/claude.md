@@ -2,6 +2,7 @@
 # claude.md
 
 ## Scope
+
 - Deprecated compatibility package for the core-owned ODO min_count contract.
 - Layer: **Compatibility**.
 - Workspace package `copybook-dialect` (see `Cargo.toml`).

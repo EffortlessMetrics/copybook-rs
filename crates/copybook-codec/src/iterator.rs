@@ -826,6 +826,24 @@ mod tests {
     }
 
     #[test]
+    fn test_iterator_fixed_format_zero_lrecl_errors_on_next() {
+        let copybook_text = "01 SOME-GROUP. 05 SOME-FIELD PIC X(1).";
+        let mut schema = parse_copybook(copybook_text).unwrap();
+        schema.lrecl_fixed = Some(0);
+
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
+
+        let mut iterator = RecordIterator::new(Cursor::new(b"DATA"), &schema, &options).unwrap();
+
+        let error = iterator.next().unwrap().unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKI001_INVALID_STATE);
+        assert_eq!(error.message, "LRECL must be greater than zero");
+    }
+
+    #[test]
     fn test_iterator_schema_and_options_accessors() {
         let copybook_text = r"
             01 RECORD.

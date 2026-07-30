@@ -23,9 +23,18 @@ pub(crate) const FIXED_FORMAT_LRECL_MISSING: &str = "Fixed format requires a fix
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn lrecl(schema: &Schema) -> Result<u32> {
-    schema
+    let lrecl = schema
         .lrecl_fixed
-        .ok_or_else(|| Error::new(ErrorCode::CBKI001_INVALID_STATE, FIXED_FORMAT_LRECL_MISSING))
+        .ok_or_else(|| Error::new(ErrorCode::CBKI001_INVALID_STATE, FIXED_FORMAT_LRECL_MISSING))?;
+
+    if lrecl == 0 {
+        return Err(Error::new(
+            ErrorCode::CBKI001_INVALID_STATE,
+            "LRECL must be greater than zero",
+        ));
+    }
+
+    Ok(lrecl)
 }
 
 /// Construct a fixed reader after resolving the schema's LRECL in the codec.
@@ -120,6 +129,16 @@ mod tests {
 
         let error = lrecl(&schema).unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKI001_INVALID_STATE);
+    }
+
+    #[test]
+    fn rejects_zero_schema_lrecl_at_codec_boundary() {
+        let mut schema = Schema::new();
+        schema.lrecl_fixed = Some(0);
+
+        let error = lrecl(&schema).unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKI001_INVALID_STATE);
+        assert_eq!(error.message, "LRECL must be greater than zero");
     }
 
     #[test]

@@ -35,6 +35,15 @@ The `with_lrecl` constructors are the canonical schema-independent framing
 surface. Copybook schema compatibility is validated by `copybook-codec` before
 it constructs these framing primitives.
 
+## Migration from the 0.5 schema-aware helper
+
+The former `FixedRecordReader::validate_record_length` method was schema-aware
+and is not part of the schema-independent framing API. Callers that need that
+compatibility check should use
+`copybook_codec::file::fixed::validate_record_length` with the parsed schema,
+configured LRECL, record index, and record bytes; callers that only need
+framing should use `with_lrecl`.
+
 ## License
 
 AGPL-3.0-or-later

@@ -358,6 +358,13 @@ mod tests {
     }
 
     #[test]
+    fn explicit_lrecl_reader_constructor_rejects_zero() {
+        let error = FixedRecordReader::with_lrecl(Cursor::new(b"ABCD"), 0).unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::CBKI001_INVALID_STATE);
+    }
+
+    #[test]
     fn fixed_record_reader_partial_record_is_underflow() {
         let data = b"ABCD123";
         let mut reader = FixedRecordReader::new(Cursor::new(data), Some(8)).unwrap();
@@ -400,6 +407,14 @@ mod tests {
 
         writer.write_record(b"AB").unwrap();
         assert_eq!(output, b"AB\x00\x00");
+    }
+
+    #[test]
+    fn explicit_lrecl_writer_constructor_rejects_zero() {
+        let mut output = Vec::new();
+        let error = FixedRecordWriter::with_lrecl(&mut output, 0).unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::CBKI001_INVALID_STATE);
     }
 
     #[test]

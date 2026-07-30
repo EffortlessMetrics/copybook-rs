@@ -72,7 +72,8 @@ pub fn detect_rdw_ascii_corruption(rdw_bytes: &[u8]) -> Option<Error> {
 }
 
 #[inline]
-fn ascii_corruption_error(detail: String) -> Error {
+fn ascii_corruption_error(detail: impl Into<String>) -> Error {
+    let detail = detail.into();
     Error::new(
         ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
         format!("{detail}; verify binary transfer mode and preserve the RDW header bytes"),

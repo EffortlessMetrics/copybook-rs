@@ -45,15 +45,31 @@ pub enum ZonedEncodingFormat {
     Auto,
 }
 
+/// Error returned when parsing an unsupported zoned encoding format.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseZonedEncodingFormatError {
+    input: String,
+}
+
+impl fmt::Display for ParseZonedEncodingFormatError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "unsupported zoned encoding format `{}`", self.input)
+    }
+}
+
+impl std::error::Error for ParseZonedEncodingFormatError {}
+
 impl FromStr for ZonedEncodingFormat {
-    type Err = String;
+    type Err = ParseZonedEncodingFormatError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input.to_ascii_lowercase().as_str() {
             "ascii" => Ok(Self::Ascii),
             "ebcdic" => Ok(Self::Ebcdic),
             "auto" => Ok(Self::Auto),
-            _ => Err(format!("unsupported zoned encoding format `{input}`")),
+            _ => Err(ParseZonedEncodingFormatError {
+                input: input.to_owned(),
+            }),
         }
     }
 }

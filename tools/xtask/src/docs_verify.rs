@@ -1394,7 +1394,14 @@ fn verify_facade_invariants() -> Result<()> {
     let dep_module_set = collect_copybook_dependency_modules()?;
     let readme_module_set = collect_copybook_readme_modules()?;
 
-    let (lib_only, dep_only) = symmetric_diff(&lib_module_set, &dep_module_set);
+    // `copybook::codepage` is a deprecated facade alias that forwards directly
+    // to `copybook-charset`; it intentionally has no compatibility-crate
+    // dependency so the facade does not reintroduce the old ownership edge.
+    let mut dependency_modules = lib_module_set.clone();
+    if !dep_module_set.contains("codepage") {
+        dependency_modules.remove("codepage");
+    }
+    let (lib_only, dep_only) = symmetric_diff(&dependency_modules, &dep_module_set);
     if !(lib_only.is_empty() && dep_only.is_empty()) {
         bail!(
             "copybook facade modules mismatch dependency list: lib-only={lib_only:?} dep-only={dep_only:?} | authoritative-source=crates/copybook/src/lib.rs and crates/copybook/Cargo.toml"
@@ -1673,8 +1680,9 @@ fn collect_deprecated_api_inventory() -> Result<Vec<DiscoveredDeprecatedItem>> {
     let deprecated_re = Regex::new(r"^\s*#\[deprecated")?;
     let attr_since_re = Regex::new(r#"since\s*=\s*"([^"]+)""#)?;
     let attr_kv_re = Regex::new(r#"^\s*[A-Za-z_][A-Za-z0-9_]*\s*="#)?;
-    let fn_re =
-        Regex::new(r"^\s*(?:pub\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)")?;
+    let fn_re = Regex::new(
+        r"^\s*(?:pub\s+)?(?:const\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)",
+    )?;
     let type_re =
         Regex::new(r"^\s*(?:pub\s+)?(struct|enum|trait|type|mod)\s+([A-Za-z_][A-Za-z0-9_]*)")?;
     let workspace_root = workspace_root();

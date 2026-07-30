@@ -112,6 +112,72 @@
       "planned_removal": "Retained through the 0.6 migration window; removal requires a future compatibility decision documented by the surface registry.",
       "compatibility_impact": "Existing facade imports continue to compile with a deprecation warning; new code should use the charset module.",
       "note": "The facade alias preserves the published module path while codepage ownership converges in copybook-charset."
+    },
+    {
+      "path": "crates/copybook-codepage/src/lib.rs",
+      "symbol": "Codepage",
+      "kind": "type",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook_charset::Codepage",
+      "migration_example": "Replace `copybook_codepage::Codepage` with `copybook_charset::Codepage`.",
+      "planned_removal": "Retained as a compatibility alias through the 0.6 migration window; removal requires a future compatibility decision.",
+      "compatibility_impact": "Existing imports continue to compile with a deprecation warning; new code should use copybook-charset directly.",
+      "note": "The compatibility crate forwards the domain type without retaining an implementation."
+    },
+    {
+      "path": "crates/copybook-codepage/src/lib.rs",
+      "symbol": "ParseCodepageError",
+      "kind": "type",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook_charset::ParseCodepageError",
+      "migration_example": "Replace `copybook_codepage::ParseCodepageError` with `copybook_charset::ParseCodepageError`.",
+      "planned_removal": "Retained as a compatibility alias through the 0.6 migration window; removal requires a future compatibility decision.",
+      "compatibility_impact": "Existing error imports continue to compile with a deprecation warning; new code should use copybook-charset directly.",
+      "note": "The compatibility crate forwards the canonical typed parse error."
+    },
+    {
+      "path": "crates/copybook-codepage/src/lib.rs",
+      "symbol": "ParseUnmappablePolicyError",
+      "kind": "type",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook_charset::ParseUnmappablePolicyError",
+      "migration_example": "Replace `copybook_codepage::ParseUnmappablePolicyError` with `copybook_charset::ParseUnmappablePolicyError`.",
+      "planned_removal": "Retained as a compatibility alias through the 0.6 migration window; removal requires a future compatibility decision.",
+      "compatibility_impact": "Existing error imports continue to compile with a deprecation warning; new code should use copybook-charset directly.",
+      "note": "The compatibility crate forwards the canonical typed policy parse error."
+    },
+    {
+      "path": "crates/copybook-codepage/src/lib.rs",
+      "symbol": "UnmappablePolicy",
+      "kind": "type",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook_charset::UnmappablePolicy",
+      "migration_example": "Replace `copybook_codepage::UnmappablePolicy` with `copybook_charset::UnmappablePolicy`.",
+      "planned_removal": "Retained as a compatibility alias through the 0.6 migration window; removal requires a future compatibility decision.",
+      "compatibility_impact": "Existing imports continue to compile with a deprecation warning; new code should use copybook-charset directly.",
+      "note": "The compatibility crate forwards the domain policy without retaining an implementation."
+    },
+    {
+      "path": "crates/copybook-codepage/src/lib.rs",
+      "symbol": "space_byte",
+      "kind": "fn",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook_charset::space_byte",
+      "migration_example": "Replace `copybook_codepage::space_byte` with `copybook_charset::space_byte`.",
+      "planned_removal": "Retained as a compatibility wrapper through the 0.6 migration window; removal requires a future compatibility decision.",
+      "compatibility_impact": "Existing calls continue to compile with a deprecation warning and preserve padding-byte behavior.",
+      "note": "The wrapper delegates directly to the charset owner."
+    },
+    {
+      "path": "crates/copybook-codepage/src/lib.rs",
+      "symbol": "get_zoned_sign_table",
+      "kind": "fn",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook_charset::get_zoned_sign_table",
+      "migration_example": "Replace `copybook_codepage::get_zoned_sign_table` with `copybook_charset::get_zoned_sign_table`.",
+      "planned_removal": "Retained as a compatibility wrapper through the 0.6 migration window; removal requires a future compatibility decision.",
+      "compatibility_impact": "Existing calls continue to compile with a deprecation warning and preserve zoned-sign behavior.",
+      "note": "The wrapper delegates directly to the charset owner."
     }
   ]
 }

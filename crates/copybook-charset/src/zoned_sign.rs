@@ -41,7 +41,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn tables_cover_ascii_and_ebcdic() {
+    fn encoding_tables_cover_ascii_and_ebcdic() {
         assert!(
             get_zoned_sign_table(Codepage::ASCII)
                 .iter()

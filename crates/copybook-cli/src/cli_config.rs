@@ -14,7 +14,14 @@ use std::str::FromStr;
 /// Parse a codepage for CLI arguments while keeping validation out of library
 /// crates and their public dependency graph.
 pub(crate) fn parse_codepage(input: &str) -> Result<Codepage, String> {
-    Codepage::parse(input).map_err(|error| error.to_string())
+    Codepage::parse(input).map_err(|error| {
+        let expected = Codepage::variants()
+            .iter()
+            .map(|codepage| codepage.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("{error}; expected one of: {expected}")
+    })
 }
 
 /// Parse an unmappable-character policy for CLI arguments.

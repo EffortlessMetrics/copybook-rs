@@ -78,6 +78,19 @@ impl Codepage {
         ),
     ];
 
+    /// Return all supported codepages in their canonical display order.
+    #[must_use]
+    pub const fn variants() -> &'static [Self; 6] {
+        &[
+            Self::ASCII,
+            Self::CP037,
+            Self::CP273,
+            Self::CP500,
+            Self::CP1047,
+            Self::CP1140,
+        ]
+    }
+
     const fn metadata(self) -> CodepageMetadata {
         match self {
             Self::ASCII => Self::METADATA[0].1,
@@ -147,10 +160,10 @@ impl fmt::Display for Codepage {
 }
 
 impl FromStr for Codepage {
-    type Err = std::convert::Infallible;
+    type Err = ParseCodepageError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        Ok(Self::parse(input).unwrap_or(Self::CP037))
+        Self::parse(input)
     }
 }
 
@@ -215,10 +228,10 @@ impl fmt::Display for UnmappablePolicy {
 }
 
 impl FromStr for UnmappablePolicy {
-    type Err = std::convert::Infallible;
+    type Err = ParseUnmappablePolicyError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        Ok(Self::parse(input).unwrap_or(Self::Error))
+        Self::parse(input)
     }
 }
 
@@ -258,7 +271,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn domain_metadata_and_validation_are_owned_by_charset() {
+    fn parsing_codepage_metadata_and_validation() {
         assert_eq!(
             Codepage::CP037.description(),
             "EBCDIC Code Page 037 (US/Canada)"
@@ -270,10 +283,27 @@ mod tests {
             Ok(UnmappablePolicy::Replace)
         );
         assert!(UnmappablePolicy::parse("unknown").is_err());
+        assert_eq!("cp037".parse::<Codepage>(), Ok(Codepage::CP037));
+        assert_eq!(
+            "replace".parse::<UnmappablePolicy>(),
+            Ok(UnmappablePolicy::Replace)
+        );
+        assert_eq!(
+            "unknown".parse::<Codepage>(),
+            Err(ParseCodepageError {
+                input: "unknown".to_owned(),
+            })
+        );
+        assert_eq!(
+            "unknown".parse::<UnmappablePolicy>(),
+            Err(ParseUnmappablePolicyError {
+                input: "unknown".to_owned(),
+            })
+        );
     }
 
     #[test]
-    fn padding_bytes_are_codepage_owned() {
+    fn parsing_codepage_padding_bytes() {
         assert_eq!(space_byte(Codepage::ASCII), 0x20);
         assert_eq!(space_byte(Codepage::CP037), 0x40);
     }

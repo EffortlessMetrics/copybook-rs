@@ -12,9 +12,13 @@ pub mod codec {
     pub use copybook_codec::*;
 }
 
-/// Codepage and unmappable-character policy types.
+/// Deprecated compatibility alias for the charset domain types.
+#[deprecated(
+    since = "0.6.0",
+    note = "use copybook::charset for codepage domain types"
+)]
 pub mod codepage {
-    pub use copybook_codepage::*;
+    pub use copybook_charset::*;
 }
 
 /// Shared feature-flag governance contracts.

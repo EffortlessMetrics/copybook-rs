@@ -21,7 +21,6 @@ all-features = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-clap.workspace = true
 serde.workspace = true
 
 [dev-dependencies]

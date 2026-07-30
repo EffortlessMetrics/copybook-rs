@@ -25,7 +25,7 @@ Each module re-exports the corresponding published component crate:
 | --- | --- |
 | `charset` | `copybook-charset` |
 | `codec` | `copybook-codec` |
-| `codepage` | `copybook-codepage` |
+| `codepage` | Deprecated alias for `copybook-charset` |
 | `contracts` | `copybook-contracts` |
 | `core` | `copybook-core` |
 | `determinism` | `copybook-determinism` |
@@ -44,6 +44,9 @@ Each module re-exports the corresponding published component crate:
 Use the component crates directly when you need the smallest possible dependency
 surface. Use `copybook` when you want the canonical project entrypoint and a
 single dependency over the public crate family.
+
+Use `copybook::charset` for new code. The `copybook::codepage` module remains
+available as a deprecated compatibility alias during the 0.6 migration window.
 
 Add `copybook` in your `Cargo.toml`:
 

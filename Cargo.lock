@@ -738,7 +738,6 @@ version = "0.5.0"
 dependencies = [
  "copybook-charset",
  "copybook-codec",
- "copybook-codepage",
  "copybook-contracts",
  "copybook-core",
  "copybook-determinism",
@@ -821,8 +820,8 @@ dependencies = [
 name = "copybook-charset"
 version = "0.5.0"
 dependencies = [
- "copybook-codepage",
  "copybook-error",
+ "serde",
  "tracing",
 ]
 
@@ -836,6 +835,7 @@ dependencies = [
  "chrono",
  "clap",
  "copybook-arrow",
+ "copybook-charset",
  "copybook-cli-determinism",
  "copybook-codec",
  "copybook-core",
@@ -879,7 +879,6 @@ dependencies = [
  "anyhow",
  "assert_cmd",
  "base64",
- "clap",
  "copybook-charset",
  "copybook-codec-memory",
  "copybook-core",
@@ -919,8 +918,7 @@ dependencies = [
 name = "copybook-codepage"
 version = "0.5.0"
 dependencies = [
- "clap",
- "serde",
+ "copybook-charset",
  "serde_json",
 ]
 
@@ -1118,7 +1116,6 @@ dependencies = [
 name = "copybook-options"
 version = "0.5.0"
 dependencies = [
- "clap",
  "copybook-charset",
  "copybook-zoned-format",
  "proptest",
@@ -1137,7 +1134,7 @@ dependencies = [
 name = "copybook-overpunch"
 version = "0.5.0"
 dependencies = [
- "copybook-codepage",
+ "copybook-charset",
  "copybook-error",
  "proptest",
 ]
@@ -1150,7 +1147,6 @@ dependencies = [
  "copybook-charset",
  "copybook-codec",
  "copybook-codec-memory",
- "copybook-codepage",
  "copybook-contracts",
  "copybook-core",
  "copybook-corruption",
@@ -1286,7 +1282,6 @@ dependencies = [
 name = "copybook-zoned-format"
 version = "0.5.0"
 dependencies = [
- "clap",
  "proptest",
  "serde",
  "serde_json",

@@ -14,40 +14,12 @@
       "owner_issue": 651
     },
     {
-      "id": "library-cli-feature:copybook-charset:clap",
-      "owner_issue": 648
-    },
-    {
-      "id": "library-cli-feature:copybook-codepage:clap",
-      "owner_issue": 648
-    },
-    {
       "id": "library-cli-framework:copybook-cli-determinism->clap",
       "owner_issue": 649
     },
     {
-      "id": "library-cli-framework:copybook-codec->clap",
-      "owner_issue": 640
-    },
-    {
-      "id": "library-cli-framework:copybook-codepage->clap",
-      "owner_issue": 648
-    },
-    {
-      "id": "library-cli-framework:copybook-options->clap",
-      "owner_issue": 653
-    },
-    {
       "id": "library-cli-framework:copybook-scripts->clap",
       "owner_issue": 640
-    },
-    {
-      "id": "library-cli-framework:copybook-zoned-format->clap",
-      "owner_issue": 653
-    },
-    {
-      "id": "primary-dep:copybook->copybook-codepage",
-      "owner_issue": 648
     },
     {
       "id": "primary-dep:copybook->copybook-contracts",
@@ -84,10 +56,6 @@
     {
       "id": "primary-dep:copybook->copybook-utils",
       "owner_issue": 655
-    },
-    {
-      "id": "primary-dep:copybook-charset->copybook-codepage",
-      "owner_issue": 648
     },
     {
       "id": "primary-dep:copybook-cli->copybook-cli-determinism",

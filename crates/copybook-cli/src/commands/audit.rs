@@ -160,7 +160,7 @@ pub struct AuditValidateArgs {
     pub format: Option<RecordFormat>,
 
     /// Character encoding
-    #[arg(long, default_value = "cp037")]
+    #[arg(long, default_value = "cp037", value_parser = crate::cli_config::parse_codepage)]
     pub codepage: Codepage,
 
     /// Enable strict compliance validation
@@ -248,7 +248,7 @@ pub struct AuditPerformanceArgs {
     pub format: Option<RecordFormat>,
 
     /// Character encoding
-    #[arg(long, default_value = "cp037")]
+    #[arg(long, default_value = "cp037", value_parser = crate::cli_config::parse_codepage)]
     pub codepage: Codepage,
 
     /// Output performance report

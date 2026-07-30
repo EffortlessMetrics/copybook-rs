@@ -15,7 +15,7 @@ pub use copybook_charset::UnmappablePolicy;
 /// Zoned decimal encoding format (ASCII, EBCDIC, or auto-detect).
 pub use copybook_zoned_format::ZonedEncodingFormat;
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 const DEFAULT_RECORD_FORMAT: RecordFormat = RecordFormat::Fixed;
 const DEFAULT_CODEPAGE: Codepage = Codepage::CP037;
@@ -110,15 +110,25 @@ macro_rules! impl_common_option_builders {
 /// assert_eq!(fmt, FloatFormat::IeeeBigEndian);
 /// assert_eq!(format!("{fmt}"), "ieee-be");
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum FloatFormat {
     /// IEEE-754 big-endian binary format.
     #[default]
-    #[value(name = "ieee-be", alias = "ieee", alias = "ieee-big-endian")]
     IeeeBigEndian,
     /// IBM hexadecimal floating-point format.
-    #[value(name = "ibm-hex", alias = "ibm")]
     IbmHex,
+}
+
+impl FromStr for FloatFormat {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input.to_ascii_lowercase().as_str() {
+            "ieee-be" | "ieee" | "ieee-big-endian" => Ok(Self::IeeeBigEndian),
+            "ibm-hex" | "ibm" => Ok(Self::IbmHex),
+            _ => Err(format!("unsupported float format `{input}`")),
+        }
+    }
 }
 
 /// Options for decoding operations
@@ -216,12 +226,24 @@ pub struct EncodeOptions {
 /// assert!(!fmt.is_variable());
 /// assert_eq!(fmt.description(), "Fixed-length records");
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RecordFormat {
     /// Fixed-length records
     Fixed,
     /// Variable-length records with RDW
     RDW,
+}
+
+impl FromStr for RecordFormat {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input.to_ascii_lowercase().as_str() {
+            "fixed" => Ok(Self::Fixed),
+            "rdw" => Ok(Self::RDW),
+            _ => Err(format!("unsupported record format `{input}`")),
+        }
+    }
 }
 
 impl RecordFormat {
@@ -262,12 +284,24 @@ impl RecordFormat {
 /// assert!(mode.is_lossless());
 /// assert_eq!(mode.description(), "Lossless string representation for decimals");
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum JsonNumberMode {
     /// Lossless string representation for decimals
     Lossless,
     /// Native JSON numbers where possible
     Native,
+}
+
+impl FromStr for JsonNumberMode {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input.to_ascii_lowercase().as_str() {
+            "lossless" => Ok(Self::Lossless),
+            "native" => Ok(Self::Native),
+            _ => Err(format!("unsupported JSON number mode `{input}`")),
+        }
+    }
 }
 
 impl JsonNumberMode {
@@ -315,7 +349,7 @@ impl JsonNumberMode {
 /// let field_mode = RawMode::Field;
 /// assert_ne!(field_mode, RawMode::Off);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RawMode {
     /// No raw data capture
     Off,
@@ -324,8 +358,21 @@ pub enum RawMode {
     /// Capture field-level raw data
     Field,
     /// Capture record and RDW header
-    #[value(name = "record+rdw")]
     RecordRDW,
+}
+
+impl FromStr for RawMode {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input.to_ascii_lowercase().as_str() {
+            "off" => Ok(Self::Off),
+            "record" => Ok(Self::Record),
+            "field" => Ok(Self::Field),
+            "record+rdw" => Ok(Self::RecordRDW),
+            _ => Err(format!("unsupported raw mode `{input}`")),
+        }
+    }
 }
 
 impl Default for DecodeOptions {

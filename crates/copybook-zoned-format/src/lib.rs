@@ -4,7 +4,7 @@
 #![allow(clippy::missing_inline_in_public_items)]
 
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 /// Zone nibble constants for zoned decimal encoding detection.
 mod zone_constants {
@@ -34,7 +34,7 @@ mod zone_constants {
 /// let detected = ZonedEncodingFormat::detect_from_byte(0xF5);
 /// assert_eq!(detected, Some(ZonedEncodingFormat::Ebcdic));
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ZonedEncodingFormat {
     /// ASCII digit zones (0x30-0x39).
     Ascii,
@@ -43,6 +43,19 @@ pub enum ZonedEncodingFormat {
     /// Automatic detection based on zone nibbles.
     #[default]
     Auto,
+}
+
+impl FromStr for ZonedEncodingFormat {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input.to_ascii_lowercase().as_str() {
+            "ascii" => Ok(Self::Ascii),
+            "ebcdic" => Ok(Self::Ebcdic),
+            "auto" => Ok(Self::Auto),
+            _ => Err(format!("unsupported zoned encoding format `{input}`")),
+        }
+    }
 }
 
 impl ZonedEncodingFormat {

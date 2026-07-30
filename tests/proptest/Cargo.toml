@@ -42,7 +42,6 @@ copybook-overflow.workspace = true
 copybook-overpunch.workspace = true
 copybook-charset.workspace = true
 copybook-codec-memory.workspace = true
-copybook-codepage.workspace = true
 copybook-lexer.workspace = true
 copybook-fixed.workspace = true
 copybook-rdw.workspace = true

@@ -4,7 +4,7 @@
 use copybook_overpunch::{
     ZeroSignPolicy, decode_overpunch_byte, encode_overpunch_byte, is_valid_overpunch,
 };
-use copybook_codepage::Codepage;
+use copybook_charset::Codepage;
 use libfuzzer_sys::fuzz_target;
 
 /// Fuzz target for overpunch decode/encode with arbitrary bytes.

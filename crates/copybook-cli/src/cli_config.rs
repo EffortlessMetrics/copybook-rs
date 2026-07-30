@@ -6,9 +6,21 @@
 
 use anyhow::anyhow;
 use clap::{Args, ValueEnum};
+use copybook_charset::{Codepage, UnmappablePolicy};
 use copybook_core::{Feature, FeatureCategory, FeatureFlags};
 use std::path::PathBuf;
 use std::str::FromStr;
+
+/// Parse a codepage for CLI arguments while keeping validation out of library
+/// crates and their public dependency graph.
+pub(crate) fn parse_codepage(input: &str) -> Result<Codepage, String> {
+    Codepage::parse(input).map_err(|error| error.to_string())
+}
+
+/// Parse an unmappable-character policy for CLI arguments.
+pub(crate) fn parse_unmappable_policy(input: &str) -> Result<UnmappablePolicy, String> {
+    UnmappablePolicy::parse(input).map_err(|error| error.to_string())
+}
 
 /// Feature flag options for the CLI
 ///

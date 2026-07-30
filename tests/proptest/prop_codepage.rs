@@ -7,8 +7,8 @@
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
+use copybook_charset::space_byte;
 use copybook_charset::{Codepage, UnmappablePolicy, ebcdic_to_utf8, utf8_to_ebcdic};
-use copybook_codepage::space_byte;
 use proptest::prelude::*;
 
 use super::config::DEFAULT_CASES;

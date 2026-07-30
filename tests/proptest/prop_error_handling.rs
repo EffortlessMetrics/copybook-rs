@@ -12,11 +12,11 @@
 use std::io::Cursor;
 use std::panic::catch_unwind;
 
+use copybook_charset::UnmappablePolicy;
 use copybook_charset::{ebcdic_to_utf8, utf8_to_ebcdic};
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, RecordFormat, decode_record, encode_record,
 };
-use copybook_codepage::UnmappablePolicy;
 use copybook_core::{parse_copybook, project_schema};
 use copybook_overpunch::{ZeroSignPolicy, decode_overpunch_byte, encode_overpunch_byte};
 use copybook_rdw::RDWRecordReader;

@@ -1,8 +1,9 @@
 # copybook-codepage
 
-Codepage domain types and helpers for `copybook-rs`.
+Compatibility forwarding package for the codepage domain types in
+`copybook-charset`.
 
-This crate provides:
+The canonical package provides:
 - `Codepage` enum for ASCII and supported EBCDIC variants
 - `UnmappablePolicy` enum for decode/encode fallback behavior
 - `space_byte` for codepage-specific space byte selection
@@ -11,7 +12,7 @@ This crate provides:
 ## Usage
 
 ```rust
-use copybook_codepage::{Codepage, UnmappablePolicy, get_zoned_sign_table, space_byte};
+use copybook_charset::{Codepage, UnmappablePolicy, get_zoned_sign_table, space_byte};
 
 assert_eq!(space_byte(Codepage::ASCII), 0x20);
 assert_eq!(space_byte(Codepage::CP037), 0x40);

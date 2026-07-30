@@ -21,13 +21,12 @@ all-features = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-copybook-codepage.workspace = true
 copybook-error.workspace = true
+serde.workspace = true
 tracing.workspace = true
 
 [features]
 default = []
-clap = ["copybook-codepage/clap"]
 
 [lints]
 workspace = true

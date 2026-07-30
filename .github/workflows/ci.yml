@@ -30,6 +30,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
+      with:
+        fetch-depth: 2
+        persist-credentials: false
     - uses: dtolnay/rust-toolchain@stable
       with:
         components: rustfmt
@@ -41,6 +44,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
+      with:
+        fetch-depth: 2
+        persist-credentials: false
     - uses: dtolnay/rust-toolchain@stable
       with:
         components: clippy
@@ -53,12 +59,20 @@ jobs:
           -- -D warnings \
           -A clippy::unwrap_used \
           -A clippy::expect_used \
-          -A clippy::panic \
+          -D clippy::panic \
           -A clippy::dbg_macro \
           -A clippy::print_stdout \
           -A clippy::print_stderr \
           -A clippy::duplicated_attributes \
           -A deprecated
+    - name: Fetch PR base for panic policy
+      if: github.event_name == 'pull_request'
+      run: git fetch --no-tags --depth=1 origin ${{ github.event.pull_request.base.sha }}:refs/remotes/origin/panic-policy-base
+    - name: Reject new explicit panic macros
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
+        HEAD_SHA: HEAD
+      run: bash scripts/check_no_new_test_panic.sh
     - name: Enforce panic prevention lints (shipped targets)
       run: cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unreachable -D clippy::todo -D clippy::unimplemented
 

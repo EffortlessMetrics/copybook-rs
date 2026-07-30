@@ -18,18 +18,21 @@ echo "==> Running cargo clippy (pedantic: libs/bins/examples)"
 "$CARGO_BIN" clippy --workspace --lib --bins --examples --all-features \
   -- -D warnings -W clippy::pedantic
 
-echo "==> Running cargo clippy (tests: allow common test-only lints)"
+echo "==> Running cargo clippy (tests: deny panic, allow selected test-only lints)"
 "$CARGO_BIN" clippy --workspace --tests --all-features \
   -- -D warnings \
   -A clippy::unwrap_used \
   -A clippy::expect_used \
-  -A clippy::panic \
+  -D clippy::panic \
   -A clippy::dbg_macro \
   -A clippy::print_stdout \
   -A clippy::print_stderr \
   -A clippy::missing_inline_in_public_items \
   -A clippy::duplicated_attributes \
   -A deprecated
+
+echo "==> Rejecting new explicit panic macros"
+bash scripts/check_no_new_test_panic.sh
 
 echo "==> Running cargo build --workspace --release"
 "$CARGO_BIN" build --workspace --release

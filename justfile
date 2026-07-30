@@ -67,7 +67,7 @@ lint:
     cargo clippy --workspace --tests --all-features -- -D warnings \
       -A clippy::unwrap_used \
       -A clippy::expect_used \
-      -A clippy::panic \
+      -D clippy::panic \
       -A clippy::dbg_macro \
       -A clippy::print_stdout \
       -A clippy::print_stderr \

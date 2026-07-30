@@ -259,12 +259,16 @@ Update `MERGE_STATUS.md`:
 ```bash
 git checkout <branch>
 git fetch origin main
-git rebase origin/main
+git merge --no-edit origin/main
 
 # Resolve conflicts, then:
-git rebase --continue
-git push origin <branch> --force-with-lease
+git add <resolved-files>
+git commit
+git push origin <branch>
 ```
+
+If the conflict cannot be resolved without a product decision or scope
+expansion, stop and request direction. Do not rewrite the remote branch.
 
 ### "Cargo lock contention in WSL"
 

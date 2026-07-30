@@ -153,14 +153,17 @@ If post-merge validation fails:
 
 ### 5. CI Stability Note
 
-If GitHub Actions are unstable at merge time, add to PR before merging:
+If GitHub Actions are unstable at merge time, do not merge around the required
+checks. Record local evidence in the PR while waiting for the current GitHub
+checks to recover, or stop and request direction if the required check cannot
+be restored:
 
 ```markdown
 ## CI Status
 
 GitHub Actions currently unstable (rustc ICE / environment issues).
-Local semantic validation (`./scripts/ci/offline-semantic.sh`) is the
-gating signal for this merge.
+Local semantic validation (`./scripts/ci/offline-semantic.sh`) is supporting
+evidence only; required GitHub checks must still be green before merge.
 
 Evidence: [paste offline-semantic output]
 ```
@@ -244,18 +247,21 @@ See `docs/VALIDATION_PROTOCOL.md` for more examples.
 # On PR branch
 git checkout <branch-name>
 git fetch origin
-git rebase origin/main
+git merge --no-edit origin/main
 
 # Resolve conflicts
 git add <resolved-files>
-git rebase --continue
+git commit
 
-# Force push (rebased)
-git push --force-with-lease origin <branch-name>
+# Publish the non-rewriting update
+git push origin <branch-name>
 
 # Re-run validation
 ./scripts/ci/offline-semantic.sh
 ```
+
+If resolving the conflict requires a product decision or expands the selected
+concern, stop and request direction rather than rewriting the remote branch.
 
 ## Validation Protocol Reference
 

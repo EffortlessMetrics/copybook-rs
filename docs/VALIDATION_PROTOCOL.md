@@ -243,8 +243,10 @@ Compare to tool output in summary.
 
 ### CI Instability
 - GitHub Actions may be temporarily unreliable
-- Local validation via `offline-semantic.sh` is sufficient for merge readiness
-- Full CI validation will happen when Actions stabilizes
+- Local validation via `offline-semantic.sh` is supporting evidence, not a
+  substitute for required GitHub checks
+- Do not merge while a required check is missing, stale, or failing; wait for
+  recovery or request direction
 
 ---
 

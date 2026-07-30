@@ -4,7 +4,22 @@
 
 use copybook_error::ErrorCode;
 use copybook_rdw::{RDW_HEADER_LEN, RDWRecordReader, RDWRecordWriter, RdwHeader};
-use std::io::Cursor;
+use std::io::{self, Cursor, Read};
+
+struct FailingReader;
+
+impl Read for FailingReader {
+    fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
+        Err(io::Error::new(io::ErrorKind::BrokenPipe, "read failure"))
+    }
+}
+
+#[test]
+fn rdw_reader_io_failure_is_cbkr201() {
+    let mut reader = RDWRecordReader::new(FailingReader, false);
+    let err = reader.read_record().unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKR201_RDW_READ_ERROR);
+}
 
 // ====================================================================
 // 1. Valid 4-byte RDW header → correct payload extraction

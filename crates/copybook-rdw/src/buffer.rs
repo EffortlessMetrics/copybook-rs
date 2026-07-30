@@ -5,14 +5,14 @@ use std::io::BufRead;
 ///
 /// # Errors
 /// Returns:
-/// - `CBKF104_RDW_SUSPECT_ASCII` for I/O errors while peeking.
+/// - `CBKR201_RDW_READ_ERROR` for I/O errors while peeking.
 /// - `CBKF102_RECORD_LENGTH_INVALID` for incomplete headers.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn rdw_read_len<R: BufRead>(reader: &mut R) -> Result<u16> {
     let buf = reader.fill_buf().map_err(|e| {
         Error::new(
-            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+            ErrorCode::CBKR201_RDW_READ_ERROR,
             format!("I/O error peeking RDW length: {e}"),
         )
     })?;
@@ -36,7 +36,7 @@ pub fn rdw_read_len<R: BufRead>(reader: &mut R) -> Result<u16> {
 ///
 /// # Errors
 /// Returns:
-/// - `CBKF104_RDW_SUSPECT_ASCII` for I/O errors while peeking.
+/// - `CBKR201_RDW_READ_ERROR` for I/O errors while peeking.
 /// - `CBKF102_RECORD_LENGTH_INVALID` when fewer than `len` bytes are available.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
@@ -48,7 +48,7 @@ pub fn rdw_slice_body<R: BufRead>(reader: &mut R, len: u16) -> Result<&[u8]> {
 
     let buf = reader.fill_buf().map_err(|e| {
         Error::new(
-            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+            ErrorCode::CBKR201_RDW_READ_ERROR,
             format!("I/O error reading RDW payload: {e}"),
         )
     })?;
@@ -80,13 +80,13 @@ pub const fn rdw_validate_and_finish(body: &[u8]) -> &[u8] {
 /// - `>= 2` bytes buffered => `Ok(Some(()))`
 ///
 /// # Errors
-/// Returns `CBKF104_RDW_SUSPECT_ASCII` for I/O errors while peeking.
+/// Returns `CBKR201_RDW_READ_ERROR` for I/O errors while peeking.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn rdw_try_peek_len<R: BufRead>(reader: &mut R) -> Result<Option<()>> {
     let buf = reader.fill_buf().map_err(|e| {
         Error::new(
-            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+            ErrorCode::CBKR201_RDW_READ_ERROR,
             format!("I/O error peeking RDW header: {e}"),
         )
     })?;

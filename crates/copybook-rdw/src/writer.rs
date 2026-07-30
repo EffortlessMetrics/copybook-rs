@@ -32,7 +32,7 @@ impl<W: Write> RDWRecordWriter<W> {
 
         self.output.write_all(&record.header).map_err(|e| {
             Error::new(
-                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                ErrorCode::CBKR202_RDW_WRITE_ERROR,
                 format!("I/O error writing RDW header: {e}"),
             )
             .with_context(ErrorContext {
@@ -46,7 +46,7 @@ impl<W: Write> RDWRecordWriter<W> {
 
         self.output.write_all(&record.payload).map_err(|e| {
             Error::new(
-                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                ErrorCode::CBKR202_RDW_WRITE_ERROR,
                 format!("I/O error writing RDW payload: {e}"),
             )
             .with_context(ErrorContext {
@@ -150,7 +150,7 @@ impl<W: Write> RDWRecordWriter<W> {
     pub fn flush(&mut self) -> Result<()> {
         self.output.flush().map_err(|e| {
             Error::new(
-                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                ErrorCode::CBKR202_RDW_WRITE_ERROR,
                 format!("I/O error flushing output: {e}"),
             )
         })

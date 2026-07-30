@@ -361,6 +361,7 @@ assert_eq!(original_data, encoded_data);
 - **Length Recomputation**: When `use_raw=false`, encoder recomputes RDW length from payload size
 - **Truncation Detection**: Fixed-format records validate expected length against actual data
 - **Error Codes**:
+  - `CBKR202_RDW_WRITE_ERROR` - RDW header, payload, or flush write failure
   - `CBKR211_RDW_RESERVED_NONZERO` - Non-zero reserved bytes warning (lenient mode)
   - `CBKF221_RDW_UNDERFLOW` - Incomplete RDW header or payload
   - `CBKE501_JSON_TYPE_MISMATCH` - Invalid base64 in `raw_b64` / `__raw_b64`

@@ -2040,6 +2040,10 @@ mod tests {
 
     use super::*;
 
+    #[expect(
+        clippy::unnecessary_wraps,
+        reason = "Verifier callbacks share the Result-returning function signature"
+    )]
     fn ok() -> Result<()> {
         Ok(())
     }
@@ -2064,6 +2068,10 @@ mod tests {
         ORDER.get_or_init(|| Mutex::new(Vec::new()))
     }
 
+    #[expect(
+        clippy::unnecessary_wraps,
+        reason = "Order probes share the Result-returning verifier signature"
+    )]
     fn record_order(name: &'static str) -> Result<()> {
         with_order().lock().unwrap().push(name);
         Ok(())
@@ -2243,7 +2251,7 @@ mod tests {
             source_revision: "current".to_string(),
             source_paths: STABLE_CONTRACT_SOURCE_PATHS
                 .iter()
-                .map(|path| path.to_string())
+                .map(ToString::to_string)
                 .collect(),
             cli: ContractCliInventory {
                 commands: commands

@@ -9,7 +9,7 @@ else
   CARGO_BIN="cargo"
 fi
 
-# Fast path: fmt → clippy → build → tests → governance+BDD smoke → doctests
+# Fast path: fmt → clippy → build → architecture → tests → governance+BDD smoke → doctests
 echo "==> Running cargo fmt --all --check"
 "$CARGO_BIN" fmt --all --check
 
@@ -33,6 +33,9 @@ echo "==> Running cargo clippy (tests: allow common test-only lints)"
 
 echo "==> Running cargo build --workspace --release"
 "$CARGO_BIN" build --workspace --release
+
+echo "==> Checking package architecture"
+"$CARGO_BIN" run -p xtask -- architecture check
 
 # Keep PRs fast & deterministic; bound jobs
 echo "==> Running cargo nextest (portable, leave 2 cores free)"

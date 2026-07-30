@@ -314,8 +314,8 @@ fn error_fixed_write_io_failure() {
 #[test]
 fn error_rdw_write_io_failure() {
     let mut w = AlwaysFailWriter;
-    let err = write_record(&mut w, b"FAIL", RecordFormat::RDW);
-    assert!(err.is_err());
+    let err = write_record(&mut w, b"FAIL", RecordFormat::RDW).unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKR202_RDW_WRITE_ERROR);
 }
 
 #[test]

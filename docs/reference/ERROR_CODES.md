@@ -334,6 +334,18 @@ Error: CBKR201_RDW_READ_ERROR at record 100
 Failed to read RDW header: Unexpected end of file
 ```
 
+#### CBKR202_RDW_WRITE_ERROR
+
+**Description**: Error writing or flushing Record Descriptor Word (RDW) header or payload
+**Severity**: Fatal
+**Context**: Record number, byte offset when available, I/O error details
+**Resolution**: Check output integrity, permissions, and available disk space
+
+```text
+Error: CBKR202_RDW_WRITE_ERROR at record 100
+Failed to write or flush RDW output: Broken pipe
+```
+
 #### CBKR211_RDW_RESERVED_NONZERO
 **Description**: RDW reserved bytes are non-zero
 **Severity**: Warning (lenient), Fatal (strict)
@@ -875,7 +887,7 @@ Errors in Apache Arrow and Parquet conversion (copybook-arrow integration).
 
 ## Error Code Index
 
-All 63 stable error codes across 10 families:
+All 64 stable error codes across 10 families:
 
 | Code | Category | Severity | Description |
 |------|----------|----------|-------------|
@@ -907,6 +919,7 @@ All 63 stable error codes across 10 families:
 | CBKS703 | Schema | Fatal | Projection: Field not found |
 | CBKR101 | Record | Fatal | Fixed record error |
 | CBKR201 | Record | Fatal | RDW read error |
+| CBKR202 | Record | Fatal | RDW write error |
 | CBKR211 | Record | Warning/Fatal | RDW reserved non-zero |
 | CBKC201 | Charset | Fatal | JSON write error |
 | CBKC301 | Charset | Warning/Fatal | Invalid EBCDIC byte |

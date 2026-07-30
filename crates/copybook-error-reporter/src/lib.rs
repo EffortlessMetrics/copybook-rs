@@ -361,6 +361,7 @@ impl ErrorReporter {
             // Record framing/read errors are fatal (unrecoverable I/O)
             | ErrorCode::CBKR101_FIXED_RECORD_ERROR
             | ErrorCode::CBKR201_RDW_READ_ERROR
+            | ErrorCode::CBKR202_RDW_WRITE_ERROR
             // Iterator/internal state errors are fatal
             | ErrorCode::CBKI001_INVALID_STATE => ErrorSeverity::Fatal,
 

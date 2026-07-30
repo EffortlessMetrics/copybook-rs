@@ -4,7 +4,7 @@
 
 use copybook_error::ErrorCode;
 use copybook_rdw::{RDW_HEADER_LEN, RDWRecordReader, RDWRecordWriter, RdwHeader};
-use std::io::{self, Cursor, Read};
+use std::io::{self, Cursor, Read, Write};
 
 struct FailingReader;
 
@@ -19,6 +19,76 @@ fn rdw_reader_io_failure_is_cbkr201() {
     let mut reader = RDWRecordReader::new(FailingReader, false);
     let err = reader.read_record().unwrap_err();
     assert_eq!(err.code, ErrorCode::CBKR201_RDW_READ_ERROR);
+}
+
+struct FailingWriter;
+
+impl Write for FailingWriter {
+    fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
+        Err(io::Error::new(io::ErrorKind::BrokenPipe, "write failure"))
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+struct PayloadFailWriter {
+    wrote_header: bool,
+}
+
+impl Write for PayloadFailWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if !self.wrote_header {
+            self.wrote_header = true;
+            Ok(buf.len())
+        } else {
+            Err(io::Error::new(io::ErrorKind::BrokenPipe, "payload failure"))
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+struct FlushFailWriter;
+
+impl Write for FlushFailWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Err(io::Error::new(io::ErrorKind::BrokenPipe, "flush failure"))
+    }
+}
+
+#[test]
+fn rdw_writer_io_failure_is_cbkr202() {
+    let mut writer = RDWRecordWriter::new(FailingWriter);
+    let err = writer
+        .write_record_from_payload(b"payload", None)
+        .unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKR202_RDW_WRITE_ERROR);
+}
+
+#[test]
+fn rdw_writer_payload_io_failure_is_cbkr202() {
+    let mut writer = RDWRecordWriter::new(PayloadFailWriter {
+        wrote_header: false,
+    });
+    let err = writer
+        .write_record_from_payload(b"payload", None)
+        .unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKR202_RDW_WRITE_ERROR);
+}
+
+#[test]
+fn rdw_writer_flush_failure_is_cbkr202() {
+    let mut writer = RDWRecordWriter::new(FlushFailWriter);
+    let err = writer.flush().unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKR202_RDW_WRITE_ERROR);
 }
 
 // ====================================================================

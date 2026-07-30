@@ -283,7 +283,7 @@ copybook determinism decode --output json --format fixed --codepage cp037 schema
 
 ## Error Code Coverage
 
-**Comprehensive error taxonomy with 63 stable error codes total** (counts generated from the `ErrorCode` enum in `crates/copybook-error/src/lib.rs`):
+**Comprehensive error taxonomy with 64 stable error codes total** (counts generated from the `ErrorCode` enum in `crates/copybook-error/src/lib.rs`):
 
 ### Error Code Audit Summary
 
@@ -293,13 +293,13 @@ copybook determinism decode --output json --format fixed --codepage cp037 schema
 | Schema Validation | CBKS* | 19 |
 | Data Errors | CBKD* | 15 |
 | Encode Errors | CBKE* | 7 |
-| Record Errors | CBKR* | 3 |
+| Record Errors | CBKR* | 4 |
 | Character Set Errors | CBKC* | 2 |
 | File/Format Errors | CBKF* | 3 |
 | Infrastructure | CBKI* | 1 |
 | Audit | CBKA* | 1 |
 | Arrow/Writer | CBKW* | 5 |
-| **Total** | | **63** |
+| **Total** | | **64** |
 
 ### Parse Errors (CBKP*)
 - `CBKP001_SYNTAX`: Copybook syntax errors — `comprehensive_parser_tests.rs::test_error_context_with_line_numbers`, `comprehensive_parser_tests.rs::test_sign_clause_as_edited_pic_normative`
@@ -542,7 +542,7 @@ pub enum FieldKind {
 - Enterprise scenarios: `enterprise_mainframe_production_scenarios.rs` (5 tests)
 - Determinism validation: `determinism_cli.rs` (6 tests)
 - Panic elimination: Zero unsafe code, comprehensive error path coverage
-- Error code coverage: 63 stable codes in the taxonomy (see [ERROR_CODES.md](ERROR_CODES.md))
+- Error code coverage: 64 stable codes in the taxonomy (see [ERROR_CODES.md](ERROR_CODES.md))
 
 See [TEST_INFRASTRUCTURE_LANDSCAPE.md](../TEST_INFRASTRUCTURE_LANDSCAPE.md) for detailed analysis.
 

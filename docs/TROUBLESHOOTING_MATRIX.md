@@ -15,6 +15,7 @@ Quick reference matrix for diagnosing and resolving copybook-rs issues, organize
 | CBKS141 | Schema | Fatal | Reduce record size | [Schema Errors](#schema-errors) |
 | CBKS301 | Schema | Warning | Check ODO bounds | [Schema Errors](#schema-errors) |
 | CBKS302 | Schema | Warning | Check ODO bounds | [Schema Errors](#schema-errors) |
+| CBKR202 | Record | Fatal | Check output integrity and permissions | [Record Errors](#record-errors) |
 | CBKR211 | Record | Warning/Fatal | Check RDW format | [Record Errors](#record-errors) |
 | CBKF221 | File | Fatal | Check record length | [File Errors](#file-errors) |
 | CBKC301 | Charset | Warning/Fatal | Check codepage | [Character Errors](#character-errors) |
@@ -184,6 +185,28 @@ copybook decode schema.cpy data.bin --emit-meta --verbose 2>&1 | grep ODO
 | Adjust bounds | Modify copybook | Counter values are valid |
 
 ## Record Errors
+
+### CBKR202_RDW_WRITE_ERROR
+
+**Symptoms:**
+- "I/O error writing RDW header"
+- "I/O error writing RDW payload" or "I/O error flushing output"
+
+**Diagnosis:**
+
+```bash
+# Verify the destination directory is writable and has sufficient space.
+output_dir=$(dirname output.bin)
+test -w "$output_dir" && df -h "$output_dir"
+```
+
+**Solutions:**
+
+| Scenario | Solution |
+|----------|----------|
+| Permission denied | Choose a writable destination or fix its permissions |
+| Broken pipe or disconnected stream | Reconnect the consumer and retry the export |
+| Disk full | Free space or select a destination with sufficient capacity |
 
 ### CBKR211_RDW_RESERVED_NONZERO
 

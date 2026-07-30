@@ -13,7 +13,7 @@ Start with **[START_HERE.md](START_HERE.md)** for the hand-maintained navigation
 
 ### Reference
 - [COBOL Support Matrix](reference/COBOL_SUPPORT_MATRIX.md) -- feature coverage
-- [Error Codes](reference/ERROR_CODES.md) -- 10 families, 63 stable codes
+- [Error Codes](reference/ERROR_CODES.md) -- 10 families, 64 stable codes
 - [CLI Examples](reference/CLI_EXAMPLES.md) -- copy-paste command recipes
 
 ### Project

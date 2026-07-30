@@ -1,11 +1,11 @@
-//! Comprehensive integration tests for the copybook-lexer crate.
+//! Comprehensive integration tests for the core-owned lexer.
 //!
 //! Covers: empty input, field definitions, all keyword tokens, PIC clause
 //! tokenization, numeric literals, level numbers, period handling, comments,
 //! sequence/continuation areas, special PIC characters, FILLER, BLANK WHEN ZERO,
 //! string literals, and multi-token lines.
 
-use copybook_lexer::{CobolFormat, Lexer, LexerOptions, Token};
+use copybook_core::lexer::{CobolFormat, Lexer, LexerOptions, Token};
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

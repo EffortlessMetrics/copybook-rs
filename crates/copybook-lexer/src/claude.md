@@ -2,7 +2,8 @@
 # claude.md
 
 ## Scope
-- Library sources for `copybook-lexer` (Parser layer).
+
+- Deprecated forwarding source for the core-owned lexer.
 
 ## Navigation
 - Crate root: `../claude.md`

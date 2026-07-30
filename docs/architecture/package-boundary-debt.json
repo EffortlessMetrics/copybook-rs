@@ -94,10 +94,6 @@
       "owner_issue": 656
     },
     {
-      "id": "primary-dep:copybook-core->copybook-lexer",
-      "owner_issue": 647
-    },
-    {
       "id": "primary-dep:copybook-core->copybook-overflow",
       "owner_issue": 655
     },

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-//! Edge-case tests for the copybook-lexer crate.
+//! Edge-case tests for the core-owned lexer.
 //!
 //! Targets boundary conditions: empty input, whitespace-only, comment-only,
 //! line-length boundaries, continuation markers, format detection, exotic
 //! line endings, null bytes, Unicode in comments, and COPY/REPLACE directives.
 
-use copybook_lexer::{CobolFormat, Lexer, LexerOptions, Token};
+use copybook_core::lexer::{CobolFormat, Lexer, LexerOptions, Token};
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

@@ -25,7 +25,6 @@ libfuzzer-sys = "0.4.10"
 copybook-core = { path = "../crates/copybook-core" }
 copybook-codec = { path = "../crates/copybook-codec" }
 copybook-cli-determinism = { path = "../crates/copybook-cli-determinism" }
-copybook-lexer = { path = "../crates/copybook-lexer" }
 copybook-fixed = { path = "../crates/copybook-fixed" }
 copybook-corruption = { path = "../crates/copybook-corruption" }
 copybook-corruption-detectors = { path = "../crates/copybook-corruption-detectors" }

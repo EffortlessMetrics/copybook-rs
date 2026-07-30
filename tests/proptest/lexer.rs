@@ -3,12 +3,12 @@
 //! Property tests for copybook lexer behavior.
 //!
 //! These tests validate fuzz-like parser resilience invariants and option
-//! interactions in the dedicated lexer microcrate.
+//! interactions in the core-owned lexer.
 
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
-use copybook_lexer::{Lexer, LexerOptions, Token};
+use copybook_core::lexer::{Lexer, LexerOptions, Token};
 use proptest::prelude::*;
 
 /// Tokenization must never panic and should always finish with EOF.

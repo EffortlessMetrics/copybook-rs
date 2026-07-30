@@ -2,9 +2,8 @@
 # claude.md
 
 ## Scope
-- COBOL copybook lexical analysis and tokenization primitives (logos-based).
-- Layer: **Parser**.
-- Workspace package `copybook-lexer` (see `Cargo.toml`).
+
+- Deprecated compatibility package for the core-owned lexer.
 
 ## Navigation
 - Crates index + layer map: `../claude.md`

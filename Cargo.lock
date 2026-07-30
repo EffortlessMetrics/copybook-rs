@@ -941,7 +941,6 @@ dependencies = [
  "copybook-error",
  "copybook-error-reporter",
  "copybook-governance-contracts",
- "copybook-lexer",
  "copybook-overflow",
  "copybook-utils",
  "hex",
@@ -1106,8 +1105,7 @@ dependencies = [
 name = "copybook-lexer"
 version = "0.5.0"
 dependencies = [
- "logos",
- "proptest",
+ "copybook-core",
 ]
 
 [[package]]
@@ -1156,7 +1154,6 @@ dependencies = [
  "copybook-fixed",
  "copybook-governance-grid",
  "copybook-governance-runtime",
- "copybook-lexer",
  "copybook-overflow",
  "copybook-overpunch",
  "copybook-rdw",

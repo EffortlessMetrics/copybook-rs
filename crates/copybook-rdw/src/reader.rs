@@ -1,8 +1,7 @@
 use crate::{
     RDW_HEADER_LEN, RDWRecord, rdw_is_suspect_ascii_corruption, rdw_read_len, rdw_slice_body,
-    rdw_try_peek_len, rdw_validate_and_finish, schema_prefix::calculate_schema_fixed_prefix,
+    rdw_try_peek_len, rdw_validate_and_finish,
 };
-use copybook_core::Schema;
 use copybook_error::{Error, ErrorCode, ErrorContext, Result};
 use std::io::{BufRead, BufReader, Read};
 use tracing::{debug, warn};
@@ -254,42 +253,11 @@ impl<R: Read> RDWRecordReader<R> {
         Ok(payload)
     }
 
-    /// Validate a zero-length record against schema requirements.
-    ///
-    /// # Errors
-    /// Returns an error when the schema requires non-zero fixed bytes.
-    #[inline]
-    #[must_use = "Handle the Result or propagate the error"]
-    pub fn validate_zero_length_record(&self, schema: &Schema) -> Result<()> {
-        let min_size = Self::calculate_schema_fixed_prefix(schema);
-
-        if min_size > 0 {
-            return Err(Error::new(
-                ErrorCode::CBKF221_RDW_UNDERFLOW,
-                format!("Zero-length RDW record invalid: schema requires minimum {min_size} bytes"),
-            )
-            .with_context(ErrorContext {
-                record_index: Some(self.record_count),
-                field_path: None,
-                byte_offset: None,
-                line_number: None,
-                details: Some("Zero-length record with non-zero schema prefix".to_string()),
-            }));
-        }
-
-        Ok(())
-    }
-
     /// Number of RDW records consumed from the stream.
     #[inline]
     #[must_use]
     pub fn record_count(&self) -> u64 {
         self.record_count
-    }
-
-    #[inline]
-    fn calculate_schema_fixed_prefix(schema: &Schema) -> u32 {
-        calculate_schema_fixed_prefix(schema)
     }
 
     #[inline]

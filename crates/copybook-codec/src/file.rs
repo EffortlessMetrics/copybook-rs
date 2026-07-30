@@ -2,3 +2,5 @@
 //! Schema-aware file processing integration.
 
 pub mod fixed;
+/// Schema-aware RDW framing integration.
+pub mod rdw;

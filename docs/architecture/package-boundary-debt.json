@@ -6,10 +6,6 @@
       "owner_issue": 656
     },
     {
-      "id": "edge-upward:copybook-rdw->copybook-core",
-      "owner_issue": 651
-    },
-    {
       "id": "library-cli-framework:copybook-scripts->clap",
       "owner_issue": 640
     },

@@ -44,6 +44,14 @@ cargo run --manifest-path examples/kafka_streaming/Cargo.toml --example producer
 cargo run --manifest-path examples/kafka_streaming/Cargo.toml --example consumer
 ```
 
+The [copybook-fixed-clean-room](copybook-fixed-clean-room/) project is a
+standalone proof that fixed-LRECL framing can be consumed without the schema,
+codec, or CLI packages:
+
+```bash
+cargo run --locked --manifest-path examples/copybook-fixed-clean-room/Cargo.toml
+```
+
 ## Example Data
 
 Examples use test data from:

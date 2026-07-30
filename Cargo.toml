@@ -48,6 +48,7 @@ members = [
     "tests/e2e",
 ]
 exclude = [
+    "examples/copybook-fixed-clean-room",
     "examples/kafka_pipeline",
     "examples/kafka_streaming",
 ]

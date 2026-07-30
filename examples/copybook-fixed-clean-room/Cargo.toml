@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This crate is intentionally excluded from the root workspace. It models an
+# external consumer of copybook-fixed and copybook-error.
+[package]
+name = "copybook-fixed-clean-room"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license = "AGPL-3.0-or-later"
+publish = false
+
+[dependencies]
+copybook-error = { version = "=0.5.0", path = "../../crates/copybook-error" }
+copybook-fixed = { version = "=0.5.0", path = "../../crates/copybook-fixed" }

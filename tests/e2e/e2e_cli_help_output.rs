@@ -363,3 +363,44 @@ fn short_version_flag_works() {
     let has_version = regex::Regex::new(r"\d+\.\d+\.\d+").unwrap().is_match(&text);
     assert!(has_version, "-V should produce version number, got: {text}");
 }
+
+// =========================================================================
+// 22. Both help forms describe the program, not the flattened flag struct
+// =========================================================================
+
+#[test]
+fn help_describes_the_program_not_the_feature_flag_struct() {
+    // `Cli` flattens `FeatureFlagOpts`. Without an explicit `long_about`, clap
+    // promotes the flattened struct's doc comment and `--help` opens with
+    // "Feature flag options for the CLI".
+    for flag in ["-h", "--help"] {
+        let text = help_text(&run_help(&[flag]));
+        assert!(
+            text.starts_with("Modern COBOL copybook parser and data converter"),
+            "{flag} should open with the program description, got:\n{text}"
+        );
+        assert!(
+            !text.contains("Feature flag options for the CLI"),
+            "{flag} leaked the flattened flag struct's description:\n{text}"
+        );
+    }
+}
+
+// =========================================================================
+// 23. Help points at the two settings that are never auto-detected
+// =========================================================================
+
+#[test]
+fn help_documents_format_and_codepage_defaults() {
+    let text = help_text(&run_help(&["--help"]));
+    assert!(
+        text.contains("Getting started:"),
+        "help should carry worked examples, got:\n{text}"
+    );
+    for expected in ["--format", "--codepage", "cp037", "Exit codes:"] {
+        assert!(
+            text.contains(expected),
+            "help should mention {expected}, got:\n{text}"
+        );
+    }
+}

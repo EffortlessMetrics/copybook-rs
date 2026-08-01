@@ -7,11 +7,11 @@ copybook-rs maintains security updates for the following versions:
 
 | Version | Supported          | Status |
 | ------- | ------------------ | ------ |
-| 0.4.x   | :white_check_mark: | Current stable release (Engineering Preview) |
-| 0.3.x   | :x:                | No longer supported |
-| < 0.3.0 | :x:                | No longer supported |
+| 0.5.x   | :white_check_mark: | Current stable release (Engineering Preview) |
+| 0.4.x   | :x:                | No longer supported |
+| < 0.4.0 | :x:                | No longer supported |
 
-**Note**: copybook-rs is currently in Engineering Preview (v0.4.x). While the CLI and library APIs are production-ready, feature completeness is still in preview. Security patches are applied to the current 0.4.x release series. See [ROADMAP.md](docs/ROADMAP.md) for version stability timeline and v1.0.0 plans.
+**Note**: copybook-rs is currently in Engineering Preview (v0.5.x). While the CLI and library APIs are production-ready, feature completeness is still in preview. Security patches are applied to the current 0.5.x release series. See [ROADMAP.md](docs/ROADMAP.md) for version stability timeline and v1.0.0 plans.
 
 ## Reporting a Vulnerability
 

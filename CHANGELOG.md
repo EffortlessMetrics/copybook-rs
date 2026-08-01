@@ -17,7 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   records now raise `CBKR101_FIXED_RECORD_ERROR` and truncated RDW headers raise
   `CBKF221_RDW_UNDERFLOW`; a file ending on a record boundary is still a clean
   end of file.
-
 - **cli**: `support` now prints the feature IDs its own footer tells you to
   pass to `--check`; previously the identifiers were only reachable through
   `--format json`. Columns size to their contents instead of truncating at a
@@ -26,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--check` value lists the known IDs, and output goes through the CLI's
   pipe-safe writer so `copybook support | head` no longer prints a panic
   backtrace.
+- **docs**: State the current release in the status lines that declare it.
+  `CLAUDE.md`, `CONTRIBUTING.md`, `docs/USER_GUIDE.md`, and the readiness
+  assessment in `docs/REPORT.md` still said `v0.4.3` after the 0.5.0 release —
+  `docs/REPORT.md` contradicted its own header — and `SECURITY.md` promised
+  security updates for the `0.4.x` series rather than `0.5.x`.
+  `xtask docs verify-all` gained a `status-versioning` check so these lines
+  cannot drift from the workspace version again.
 - **cli**: `inspect` now renders a layout an operator can act on. The `Type`
   column reproduces the source PIC clause instead of restating the stored total
   digit count (`PIC S9(7)V99 COMP-3` printed as `S9(9)V9(2)`), binary fields
@@ -60,7 +66,6 @@ codepage fixes delivered in #607 (issues #600, #601, #605), and a blocking CI
 performance-regression gate with machine-readable receipts.
 
 ### Added
-
 - **ci**: Add blocking performance regression gate (`perf-gate.yml`) enforcing absolute floors (DISPLAY ≥80, COMP-3 ≥8 MiB/s) and >5% relative regression vs committed baseline; ships `bench-report gate` subcommand, `scripts/bench/baseline.json`, and canonical SLO constants in `copybook-bench::slo`. COMP-3 floor is CI-grounded (12–14 MiB/s observed on `ubuntu-latest`; throughput decreases with larger payloads, so 8 MiB/s gives ~35% headroom).
 - **docs**: Add iterator reference (`docs/reference/iterators.md`) and streaming-decode how-to; fix fabricated `RecordDecoder` type in `LIBRARY_API.md`/`MIGRATION_GUIDE.md` and a file-open error-code bug in `iter_records_from_file`
 - **audit**: Implement `Display` for `AuditEventType` and `AuditSeverity` enums
@@ -73,13 +78,11 @@ performance-regression gate with machine-readable receipts.
 - **lint**: Add `clippy::dbg_macro` to workspace-wide lint config
 
 ### Changed
-
 - **core**: Refactor `PicToken` methods for clarity and consistency
 - **codec**: Improve JSON writer functionality
 - **docs**: Add explicit pre-v1 migration/retention decision notes for deprecated Rust, CLI/schema/output surfaces in `docs/reports/deprecation-audit.json` and `docs/reports/surface-deprecation-audit.json`
 
 ### Fixed
-
 - **cli**: Map CBKP*/CBKS* structural parse/schema rejections to exit code 3 (CBKE) instead of 5 (#600)
 - **codec**: Check PIC X encode capacity in codepage output bytes instead of UTF-8 bytes, fixing false `CBKE515` rejections for non-ASCII input (#601)
 - **contracts**: Include `Internal`/CBKI in the stable-surface exit-code contract (#605)
@@ -87,7 +90,6 @@ performance-regression gate with machine-readable receipts.
 - **test**: Gate debug-build throughput floor assertions behind `COPYBOOK_TEST_PERF_ASSERT=1`; they flaked on shared CI runners and blocked main (perf gating remains with the canonical bench gate)
 - **ci**: Pin bench builds to `x86-64-v3` instead of `target-cpu=native`; cached native-compiled artifacts SIGILLed on heterogeneous runner CPUs. Regression-gate baseline re-grounded for the v3 toolchain
 - **deps**: Routine minor/patch dependency group updates
-
 - **codec**: Reject ODO (OCCURS DEPENDING ON) encode input where the JSON counter value disagrees with the array length instead of silently writing extra elements that are unrecoverable on decode (`CBKE521_ARRAY_LEN_OOB`)
 - **codec**: Keep `RawMode::Field` output scoped to `<field>_raw_b64` values instead of also emitting whole-record `raw_b64` and `__raw_b64` payloads
 - Release prep: resolve clippy/rustdoc gate failures across core, codec, arrow examples, and test suites
@@ -104,7 +106,6 @@ performance-regression gate with machine-readable receipts.
 - **docs**: Add doc comment for `numeric` module in copybook-codec
 
 ### Miscellaneous Tasks
-
 - **docs**: Add a tool-neutral `AGENTS.md` hierarchy and align Claude, Gemini, Copilot, and contributor entry points
 - Update GitHub Actions to use latest action versions
 - **docs**: Update CLAUDE.md workspace structure (36 crates, 69 deps)
@@ -128,7 +129,6 @@ performance-regression gate with machine-readable receipts.
 - Update project description and topics in settings.yml; add GEMINI.md for project overview and structure
 
 ### Changed
-
 - **decode**: Streamline stdout writing by removing unnecessary line breaks
 - **memory**: Optimize chunk processing and buffer growth logic
 
@@ -139,7 +139,6 @@ performance-regression gate with machine-readable receipts.
 - Add Copilot instructions for project overview, build, and testing guidelines
 
 ### Fixed
-
 - **codec**: Fix iterator tests placed outside `mod tests` block causing compilation failures
 - **codec**: Fix memory tests with incorrect blocking channel operations and threshold calculations
 - **audit**: Fix formatting in compliance validation code
@@ -162,7 +161,6 @@ performance-regression gate with machine-readable receipts.
 - Dialect Lever (D0) + Edited PIC Encode (E3) + CLI Utilities ([#197](https://github.com/effortlessmetrics/copybook-rs/issues/197))
 
 ### Fixed
-
 - **codec**: Remove last production panic
 - **fixtures**: Repair simple.bin EBCDIC padding (0x20 → 0x40) ([#200](https://github.com/effortlessmetrics/copybook-rs/issues/200))
 
@@ -206,7 +204,6 @@ performance-regression gate with machine-readable receipts.
 - **odo**: Reject nested ODO and ODO-in-REDEFINES (Issue #164 Phase N2) ([#172](https://github.com/effortlessmetrics/copybook-rs/issues/172))
 
 ### Documentation
-
 - **license**: Clarify AGPL-3.0-or-later licensing and add CLA
 - Update test counts to reflect current reality (615 passing, 54 skipped)
 - Replace unlinked performance claims with baseline values
@@ -253,7 +250,6 @@ performance-regression gate with machine-readable receipts.
 - Bump version to 0.4.1
 
 ### Release
-
 - **release**: V0.4.0 release hygiene ([#175](https://github.com/effortlessmetrics/copybook-rs/issues/175))
 
 ### Styling
@@ -316,7 +312,6 @@ performance-regression gate with machine-readable receipts.
 - Enhance documentation with performance specifications and add golden fixture tests for ODO validation
 
 ### Release
-
 - **release**: Prepare v0.3.1 for crates.io publishing with updated benchmarks and fixtures
 
 ## [0.3.0] — 2025-09-22

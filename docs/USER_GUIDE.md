@@ -333,7 +333,7 @@ For production deployments:
 4. Use verification mode for data quality auditing
 5. Validate representative copybooks against supported features before deployment
 
-**Status**: copybook-rs is in Engineering Preview (v0.4.3). Suitable for teams that validate copybooks against supported features. Production deployment requires pilot validation on representative workloads. See [ROADMAP.md](ROADMAP.md) for adoption guidance.
+**Status**: copybook-rs is in Engineering Preview (v0.5.0). Suitable for teams that validate copybooks against supported features. Production deployment requires pilot validation on representative workloads. See [ROADMAP.md](ROADMAP.md) for adoption guidance.
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

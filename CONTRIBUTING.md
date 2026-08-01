@@ -192,7 +192,7 @@ receipt at `scripts/bench/perf.json`; benchmark methodology remains in
 
 ## Project Status & Resources
 
-**Status**: Engineering Preview (v0.4.3)
+**Status**: Engineering Preview (v0.5.0)
 
 **Key Documentation**:
 - [ROADMAP.md](docs/ROADMAP.md) - Project status and adoption guidance

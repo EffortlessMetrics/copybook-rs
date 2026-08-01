@@ -95,6 +95,18 @@ pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> 
 ///
 /// Configures how the parser handles various COBOL dialect features,
 /// comment styles, and validation strictness.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_core::ParseOptions;
+/// use copybook_core::dialect::Dialect;
+///
+/// let opts = ParseOptions::new()
+///     .with_strict(true)
+///     .with_dialect(Dialect::ZeroTolerant)
+///     .with_emit_filler(true);
+/// ```
 #[derive(Debug, Clone)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct ParseOptions {
@@ -122,6 +134,63 @@ impl Default for ParseOptions {
             strict_comments: false,
             dialect: crate::dialect::Dialect::Normative,
         }
+    }
+}
+
+impl ParseOptions {
+    /// Create a new `ParseOptions` with default values.
+    #[inline]
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set whether to emit FILLER fields in the parsed schema output.
+    #[inline]
+    #[must_use]
+    pub fn with_emit_filler(mut self, emit_filler: bool) -> Self {
+        self.emit_filler = emit_filler;
+        self
+    }
+
+    /// Set the codepage identifier used for fingerprint calculation.
+    #[inline]
+    #[must_use]
+    pub fn with_codepage(mut self, codepage: impl Into<String>) -> Self {
+        self.codepage = codepage.into();
+        self
+    }
+
+    /// Set whether to allow COBOL-2002 inline comments (`*>`).
+    #[inline]
+    #[must_use]
+    pub fn with_allow_inline_comments(mut self, allow: bool) -> Self {
+        self.allow_inline_comments = allow;
+        self
+    }
+
+    /// Set strict mode (less error tolerance).
+    #[inline]
+    #[must_use]
+    pub fn with_strict(mut self, strict: bool) -> Self {
+        self.strict = strict;
+        self
+    }
+
+    /// Set whether to enforce strict comment parsing rules.
+    #[inline]
+    #[must_use]
+    pub fn with_strict_comments(mut self, strict_comments: bool) -> Self {
+        self.strict_comments = strict_comments;
+        self
+    }
+
+    /// Set the dialect for ODO `min_count` interpretation.
+    #[inline]
+    #[must_use]
+    pub fn with_dialect(mut self, dialect: crate::dialect::Dialect) -> Self {
+        self.dialect = dialect;
+        self
     }
 }
 

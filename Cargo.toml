@@ -167,6 +167,15 @@ lto = true
 codegen-units = 1
 panic = "unwind"
 
+# Lighter release profile for CI runs that need optimization (perf gates,
+# benchmarks, determinism smoke) but don't ship artifacts. Thin LTO + more
+# codegen units cut compile time significantly vs fat LTO + codegen-units=1.
+# Usage: cargo build --profile ci --release
+[profile.ci]
+inherits = "release"
+lto = "thin"
+codegen-units = 16
+
 [profile.dev]
 debug = true
 panic = "unwind"

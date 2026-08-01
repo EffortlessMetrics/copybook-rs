@@ -71,6 +71,27 @@ copybook inspect customer.cpy --strict
 copybook inspect customer.cpy --codepage cp500
 ```
 
+**Output:** a header block followed by one row per field. The `Type` column
+reproduces the source PIC clause (`digits` are split back into integer and
+decimal positions), and the `Details` column carries the clauses that are not
+part of the picture — `OCCURS`, `REDEFINES`, `SYNCHRONIZED`, and
+`BLANK WHEN ZERO`. The `Details` column is omitted when no field has any.
+
+```text
+Copybook Layout
+===============
+Codepage: CP037 (EBCDIC Code Page 037 (US/Canada))
+Fixed LRECL: 31 bytes
+Fields: 4
+
+Field Path                       Offset   Length   Type
+------------------------------------------------------------------------
+CUSTOMER-RECORD                  0        31       GROUP
+CUSTOMER-RECORD.CUST-ID          0        6        PIC 9(6)
+CUSTOMER-RECORD.CUST-NAME        6        20       PIC X(20)
+CUSTOMER-RECORD.CUST-BALANCE     26       5        PIC S9(7)V9(2) COMP-3
+```
+
 ### decode
 Convert binary data to JSONL using copybook schema.
 

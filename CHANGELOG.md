@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **cli**: Map `CBKR*` record-framing errors to exit code 4 (`CBKF`) instead of
+  5 (`CBKI`). `CBKR` was absent from the family-prefix table, so it fell through
+  to the unmapped default and every fixed-record or RDW framing failure — a
+  truncated input file being the common case — was reported as an internal
+  orchestration error. The documented meaning of exit 4 ("Record format/RDW
+  failure") now holds for the record-format family itself.
+
 ## [0.5.0] — 2026-07-28
 
 **Highlights**: v0.5.0 makes the canonical `copybook` facade crate the default

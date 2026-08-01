@@ -573,7 +573,7 @@ copybook decode legacy-schema.cpy data.bin --format fixed --strict-comments --ou
 | 1 | CBK? | Unknown/unclassified failure (e.g. unknown `support --check` feature ID) |
 | 2 | CBKD | Data quality failure |
 | 3 | CBKE | Encode/validation failure (including structural parse/schema rejections) |
-| 4 | CBKF | Record format/RDW failure |
+| 4 | CBKF | Record format/RDW failure (also `CBKR*` fixed-record and RDW framing errors) |
 | 5 | CBKI | Internal orchestration error (including panics and otherwise unmapped errors) |
 
 Some subcommands document additional command-specific semantics: `verify` reports 3 for validation errors and 2 for fatal I/O/schema errors; `determinism` reports 0 for deterministic, 2 for drift detected, and 3 for codec/usage errors.

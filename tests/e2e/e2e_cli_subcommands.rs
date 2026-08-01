@@ -521,6 +521,40 @@ fn verify_with_report_produces_file() {
 }
 
 // =========================================================================
+// 13b. VERIFY: a truncated file is a validation failure, not a PASS
+// =========================================================================
+
+#[test]
+fn verify_reports_a_trailing_partial_record() {
+    // One whole 13-byte record plus a 5-byte tail. Reporting PASS here would
+    // tell an operator a truncated upload is safe to decode, and `decode`
+    // rejects the same file.
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("schema.cpy"), SIMPLE_CPY).unwrap();
+    let mut truncated = simple_record();
+    truncated.extend_from_slice(&simple_record()[..5]);
+    std::fs::write(dir.path().join("data.bin"), truncated).unwrap();
+
+    let assert = cmd()
+        .args(["verify"])
+        .arg(p(&dir, "schema.cpy"))
+        .arg(p(&dir, "data.bin"))
+        .args(["--format", "fixed", "--codepage", "cp037"])
+        .assert()
+        .failure();
+
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout).into_owned();
+    assert!(
+        !stdout.contains("PASS"),
+        "truncated data must not be reported as PASS, got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("CBKR101_FIXED_RECORD_ERROR"),
+        "summary should name the framing error, got:\n{stdout}"
+    );
+}
+
+// =========================================================================
 // 14. VERIFY: invalid data exits non-zero
 // =========================================================================
 

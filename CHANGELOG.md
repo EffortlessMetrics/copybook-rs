@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   themselves to the content so long field paths no longer break alignment, and
   `OCCURS`, `REDEFINES`, `SYNCHRONIZED`, and `BLANK WHEN ZERO` are now reported
   in the `Details` column.
+- **cli**: `copybook --help` opened with "Feature flag options for the CLI" —
+  the doc comment of the flattened `FeatureFlagOpts` struct, which clap promotes
+  to the program description when the command declares `about` but no
+  `long_about`. Both help forms now describe the tool, and carry worked examples
+  plus a note that `--format` is never auto-detected and `--codepage` defaults to
+  `cp037`.
 - **cli**: Map `CBKR*` record-framing errors to exit code 4 (`CBKF`) instead of
   5 (`CBKI`). `CBKR` was absent from the family-prefix table, so it fell through
   to the unmapped default and every fixed-record or RDW framing failure — a

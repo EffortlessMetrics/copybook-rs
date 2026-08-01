@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **cli**: `copybook --help` opened with "Feature flag options for the CLI" —
+  the doc comment of the flattened `FeatureFlagOpts` struct, which clap promotes
+  to the program description when the command declares `about` but no
+  `long_about`. Both help forms now describe the tool, and carry worked examples
+  plus a note that `--format` is never auto-detected and `--codepage` defaults to
+  `cp037`.
+
 ## [0.5.0] — 2026-07-28
 
 **Highlights**: v0.5.0 makes the canonical `copybook` facade crate the default

@@ -67,9 +67,53 @@ fn invocation_id() -> &'static str {
     })
 }
 
+/// Long description for `--help`.
+///
+/// Declared explicitly because `Cli` flattens [`FeatureFlagOpts`]; without an
+/// explicit `long_about`, clap promotes the flattened struct's doc comment to
+/// the program description and `--help` opens with "Feature flag options for
+/// the CLI".
+const LONG_ABOUT: &str = "\
+Modern COBOL copybook parser and data converter.
+
+Parses COBOL copybooks into a record layout, then decodes fixed-length or RDW \
+data files to JSONL and encodes them back byte-for-byte.";
+
+/// Worked examples appended to `--help` and `-h`.
+const AFTER_HELP: &str = "\
+Getting started:
+  copybook inspect customer.cpy
+      Show the record layout: field paths, byte offsets, and PIC clauses.
+
+  copybook decode customer.cpy data.bin -o records.jsonl --format fixed
+      Decode a fixed-length EBCDIC file to one JSON object per line.
+
+  copybook encode customer.cpy records.jsonl -o data.bin --format fixed
+      Encode JSONL back to the binary layout.
+
+  copybook verify customer.cpy data.bin --format fixed
+      Check a data file against the copybook without writing output.
+
+  copybook support --check occurs-depending
+      Ask whether a COBOL construct is supported before you rely on it.
+
+Two settings are never guessed and are worth getting right first:
+  --format    fixed | rdw. There is no auto-detection; the wrong choice
+              reports record-framing errors (CBKF*), not a useful diff.
+  --codepage  cp037 (default), cp273, cp500, cp1047, cp1140, or ascii. A
+              mismatch decodes without error but yields mojibake text.
+
+Exit codes: 0 success, 2 data errors (CBKD), 3 encode/schema errors (CBKE),
+4 record-format errors (CBKF), 5 internal errors (CBKI), 1 otherwise.
+
+Error codes: docs/reference/ERROR_CODES.md
+Full CLI reference: docs/CLI_REFERENCE.md";
+
 #[derive(Parser)]
 #[command(name = "copybook", color = ColorChoice::Never)]
 #[command(about = "Modern COBOL copybook parser and data converter")]
+#[command(long_about = LONG_ABOUT)]
+#[command(after_help = AFTER_HELP)]
 #[command(version)]
 struct Cli {
     #[command(subcommand)]

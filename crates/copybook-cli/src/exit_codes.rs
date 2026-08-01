@@ -137,7 +137,11 @@ impl ExitCode {
             "CBKE" | "CBKP" | "CBKS" => Some(ExitCode::Encode),
             // Parse/schema rejections (syntax + validation families).
             // Map to Encode/validation at the process boundary for stable CLI UX.
-            "CBKF" => Some(ExitCode::Format),
+            //
+            // CBKR is the record-framing family (fixed-record and RDW read/write
+            // failures); it belongs with CBKF at the process boundary, otherwise a
+            // truncated input file is reported as an internal error.
+            "CBKF" | "CBKR" => Some(ExitCode::Format),
             "CBKI" => Some(ExitCode::Internal),
             _ => None,
         }

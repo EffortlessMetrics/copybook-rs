@@ -65,6 +65,45 @@ fn exit_code_cbkf_is_4() -> TestResult<()> {
 
 #[test]
 #[serial]
+fn exit_code_cbkr_is_4() -> TestResult<()> {
+    // A fixed-length file whose size is not a multiple of LRECL raises
+    // CBKR101_FIXED_RECORD_ERROR. Record framing is a format failure, not an
+    // internal error: the taxonomy family is CBKR, and the process boundary
+    // must report 4 like every other framing failure.
+    let copybook = NamedTempFile::new()?;
+    write_file(copybook.path(), "01 REC.\n   05 FIELD PIC X(4).\n")?;
+
+    // Six bytes for a 4-byte record: one whole record plus a 2-byte tail.
+    let input = NamedTempFile::new()?;
+    write_file(input.path(), [0x41u8, 0x42, 0x43, 0x44, 0x45, 0x46])?;
+
+    let output_dir = TempDir::new()?;
+    let output_path = output_dir.path().join("fixed-out.jsonl");
+
+    let args = vec![
+        OsString::from("decode"),
+        OsString::from("--format"),
+        OsString::from("fixed"),
+        OsString::from("--codepage"),
+        OsString::from("ascii"),
+        OsString::from("--output"),
+        output_path.into_os_string(),
+        copybook.path().as_os_str().to_owned(),
+        input.path().as_os_str().to_owned(),
+    ];
+
+    let (code, stderr) = run_and_status_with_stderr(&args)?;
+
+    assert!(
+        stderr.contains("CBKR101_FIXED_RECORD_ERROR"),
+        "expected a CBKR framing error, got stderr:\n{stderr}"
+    );
+    assert_eq!(code, 4, "CBKR errors should map to exit code 4, not 5");
+    Ok(())
+}
+
+#[test]
+#[serial]
 fn exit_code_cbkd_is_2() -> TestResult<()> {
     // Data error: invalid nibble for packed decimal → CBKD (2)
     let copybook = NamedTempFile::new()?;

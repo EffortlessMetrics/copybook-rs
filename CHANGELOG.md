@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **cli**: `inspect` now renders a layout an operator can act on. The `Type`
+  column reproduces the source PIC clause instead of restating the stored total
+  digit count (`PIC S9(7)V99 COMP-3` printed as `S9(9)V9(2)`), binary fields
+  report their width and signedness instead of the malformed `COMP-S (16bit)` /
+  `COMP- (32bit)`, and level-88 values, the fixed LRECL, and the codepage no
+  longer leak Rust `Debug` formatting (`Some(31)`, `["A"]`). Columns size
+  themselves to the content so long field paths no longer break alignment, and
+  `OCCURS`, `REDEFINES`, `SYNCHRONIZED`, and `BLANK WHEN ZERO` are now reported
+  in the `Details` column.
 - **cli**: Map `CBKR*` record-framing errors to exit code 4 (`CBKF`) instead of
   5 (`CBKI`). `CBKR` was absent from the family-prefix table, so it fell through
   to the unmapped default and every fixed-record or RDW framing failure — a

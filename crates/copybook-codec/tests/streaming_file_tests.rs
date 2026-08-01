@@ -487,6 +487,14 @@ fn iter_records_partial_record_at_eof() {
     assert_eq!(second["TEST-FIELD"], "00002");
     assert_eq!(iter.current_record_index(), 2);
 
+    // The three trailing bytes are a truncated record, not a clean end of file.
+    // Reporting EOF here would discard them without telling the caller.
+    let error = iter
+        .next()
+        .expect("partial record yields an item")
+        .expect_err("partial record is an error");
+    assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
+
     assert!(iter.next().is_none());
     assert!(iter.is_eof());
     assert_eq!(iter.current_record_index(), 2);

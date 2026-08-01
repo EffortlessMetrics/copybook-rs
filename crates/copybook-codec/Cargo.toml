@@ -56,7 +56,6 @@ default = ["comp3_fast"]
 comprehensive-tests = []
 # COMP-3 fast path optimizations
 comp3_fast = []
-comp3_unsafe = []
 metrics = ["dep:metrics"]
 audit = ["copybook-core/audit"]
 

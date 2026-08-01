@@ -42,8 +42,6 @@ tempfile = { workspace = true }
 
 [features]
 default = []
-# Enable experimental features
-experimental = []
 
 [lints]
 workspace = true

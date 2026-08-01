@@ -28,5 +28,8 @@ jobs:
 
       - name: cargo-audit
         run: |
-          cargo install --locked cargo-audit >/dev/null 2>&1 || true
-          cargo audit
+          cargo install --locked cargo-audit
+          # --ignore RUSTSEC-2024-0436: paste (unmaintained, transitive via
+          # parquet/arrow). Not actionable until parquet drops it. Remove this
+          # ignore once the upstream dependency updates.
+          cargo audit --ignore RUSTSEC-2024-0436

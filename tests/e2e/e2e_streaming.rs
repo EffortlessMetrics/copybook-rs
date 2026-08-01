@@ -22,7 +22,7 @@ use copybook_codec::{
     decode_file_to_jsonl, decode_record, decode_record_with_scratch, encode_jsonl_to_file,
     iter_records, memory::ScratchBuffers,
 };
-use copybook_core::parse_copybook;
+use copybook_core::{ErrorCode, parse_copybook};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -445,7 +445,7 @@ fn streaming_error_recovery_iterator() {
 }
 
 // ===========================================================================
-// 13. Iterator with partial trailing data does not panic
+// 13. Iterator with partial trailing data reports it and stops
 // ===========================================================================
 
 #[test]
@@ -460,9 +460,14 @@ fn streaming_iterator_partial_trailing_data() {
     let iter = iter_records(Cursor::new(&data), &schema, &dopts).expect("iter");
     let results: Vec<_> = iter.collect();
 
-    // Should get exactly 1 successful record; trailing data is too short
-    assert_eq!(results.len(), 1, "only 1 complete record");
+    // One complete record, then the truncated tail as an error. Yielding only
+    // the first item would drop the trailing bytes without telling the caller.
+    assert_eq!(results.len(), 2, "one record plus the truncation report");
     assert!(results[0].is_ok());
+    let error = results[1]
+        .as_ref()
+        .expect_err("trailing bytes are an error");
+    assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
 }
 
 // ===========================================================================

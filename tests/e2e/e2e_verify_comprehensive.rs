@@ -375,14 +375,16 @@ fn verify_truncated_record_detected() {
     // Send 10 bytes when LRECL is 13
     let dir = setup(SIMPLE_CPY, &simple_record()[..10]);
 
-    // The CLI should warn about non-LRECL-aligned file but still exit
-    // The verify should detect the truncation
+    // The truncation is a validation error, so it lands in the error list and
+    // the command exits non-zero rather than reporting a clean run.
     cmd()
         .args(["verify", "--format", "fixed", "--codepage", "cp037"])
         .arg(cpy_path(&dir))
         .arg(data_path(&dir))
         .assert()
-        .stdout(predicate::str::contains("Records Total: 0"));
+        .failure()
+        .stdout(predicate::str::contains("CBKR101_FIXED_RECORD_ERROR"))
+        .stdout(predicate::str::contains("PASS").not());
 }
 
 // ---------------------------------------------------------------------------

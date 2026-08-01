@@ -9,7 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-
+- **codec**: `RecordIterator` no longer discards a trailing partial record.
+  `read_exact` reports `UnexpectedEof` both for a clean end of file and for a
+  reader that ran dry mid-record, so a file that is not a multiple of LRECL had
+  its trailing bytes dropped with no signal to the caller. `verify` therefore
+  reported `PASS` on truncated data that `decode` refused to process. Fixed
+  records now raise `CBKR101_FIXED_RECORD_ERROR` and truncated RDW headers raise
+  `CBKF221_RDW_UNDERFLOW`; a file ending on a record boundary is still a clean
+  end of file.
 - **cli**: `inspect` now renders a layout an operator can act on. The `Type`
   column reproduces the source PIC clause instead of restating the stored total
   digit count (`PIC S9(7)V99 COMP-3` printed as `S9(9)V9(2)`), binary fields

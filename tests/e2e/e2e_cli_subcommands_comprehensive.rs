@@ -638,22 +638,23 @@ fn verify_report_flag_writes_file() {
 }
 
 // =========================================================================
-// 24. VERIFY: truncated data (not multiple of LRECL) warns but passes with 0 records
+// 24. VERIFY: truncated data (not multiple of LRECL) is a validation failure
 // =========================================================================
 
 #[test]
-fn verify_truncated_data_exits_zero_with_zero_records() {
+fn verify_truncated_data_exits_nonzero() {
     let dir = setup(SIMPLE_CPY, &[0xF0; 5]); // 5 bytes, needs 13
-    // File size is not a multiple of LRECL; verify logs a warning
-    // but processes 0 records and exits 0 (PASS).
+    // The file is truncated, not empty. Passing it would tell an operator a
+    // partial upload is safe to decode, and `decode` rejects the same bytes.
     cmd()
         .args(["verify"])
         .arg(p(&dir, "schema.cpy"))
         .arg(p(&dir, "data.bin"))
         .args(["--format", "fixed", "--codepage", "cp037"])
         .assert()
-        .success()
-        .stdout(predicate::str::contains("PASS"));
+        .failure()
+        .stdout(predicate::str::contains("CBKR101_FIXED_RECORD_ERROR"))
+        .stdout(predicate::str::contains("PASS").not());
 }
 
 // =========================================================================

@@ -212,10 +212,50 @@
 //! ```
 
 use crate::options::{DecodeOptions, RecordFormat};
-use copybook_core::{Error, ErrorCode, Result, Schema};
+use copybook_core::{Error, ErrorCode, ErrorContext, Result, Schema};
 use copybook_rdw::RdwHeader;
 use serde_json::Value;
 use std::io::{BufReader, Read};
+
+/// Outcome of reading a whole record-sized unit at a record boundary.
+enum BoundaryRead {
+    /// The buffer was filled.
+    Complete,
+    /// The reader was already exhausted; nothing was consumed.
+    CleanEof,
+    /// The reader ran out mid-unit after this many bytes.
+    Partial(usize),
+}
+
+/// Fill `buffer` from `reader`, distinguishing a clean end of file from a
+/// truncated final unit.
+///
+/// [`Read::read_exact`] reports [`std::io::ErrorKind::UnexpectedEof`] for both
+/// cases and consumes the bytes it did read, so it cannot tell "the file ended
+/// on a record boundary" from "the file ends with a partial record". Treating
+/// the two alike silently discards the trailing bytes.
+fn fill_at_record_boundary<R: Read>(
+    reader: &mut R,
+    buffer: &mut [u8],
+) -> std::io::Result<BoundaryRead> {
+    let mut filled = 0;
+    while filled < buffer.len() {
+        match reader.read(&mut buffer[filled..]) {
+            Ok(0) => break,
+            Ok(read) => filled += read,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(e) => return Err(e),
+        }
+    }
+
+    if filled == buffer.len() {
+        Ok(BoundaryRead::Complete)
+    } else if filled == 0 {
+        Ok(BoundaryRead::CleanEof)
+    } else {
+        Ok(BoundaryRead::Partial(filled))
+    }
+}
 
 /// Iterator over records in a data file, yielding decoded JSON values
 ///
@@ -386,14 +426,30 @@ impl<R: Read> RecordIterator<R> {
                 let lrecl = crate::file::fixed::lrecl(&self.schema)? as usize;
                 self.buffer.resize(lrecl, 0);
 
-                match self.reader.read_exact(&mut self.buffer) {
-                    Ok(()) => {
+                match fill_at_record_boundary(&mut self.reader, &mut self.buffer) {
+                    Ok(BoundaryRead::Complete) => {
                         self.record_index += 1;
                         Some(self.buffer.clone())
                     }
-                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                    Ok(BoundaryRead::CleanEof) => {
                         self.eof_reached = true;
                         return Ok(None);
+                    }
+                    Ok(BoundaryRead::Partial(read)) => {
+                        self.eof_reached = true;
+                        return Err(Error::new(
+                            ErrorCode::CBKR101_FIXED_RECORD_ERROR,
+                            format!("Incomplete record at end of file: expected {lrecl} bytes"),
+                        )
+                        .with_context(ErrorContext {
+                            record_index: Some(self.record_index + 1),
+                            field_path: None,
+                            byte_offset: None,
+                            line_number: None,
+                            details: Some(format!(
+                                "File ends with partial record ({read} of {lrecl} bytes)"
+                            )),
+                        }));
                     }
                     Err(e) => {
                         return Err(Error::new(
@@ -406,11 +462,27 @@ impl<R: Read> RecordIterator<R> {
             RecordFormat::RDW => {
                 // Read RDW header
                 let mut rdw_header = [0u8; 4];
-                match self.reader.read_exact(&mut rdw_header) {
-                    Ok(()) => {}
-                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                match fill_at_record_boundary(&mut self.reader, &mut rdw_header) {
+                    Ok(BoundaryRead::Complete) => {}
+                    Ok(BoundaryRead::CleanEof) => {
                         self.eof_reached = true;
                         return Ok(None);
+                    }
+                    Ok(BoundaryRead::Partial(read)) => {
+                        self.eof_reached = true;
+                        return Err(Error::new(
+                            ErrorCode::CBKF221_RDW_UNDERFLOW,
+                            "Incomplete RDW header at end of file: expected 4 bytes".to_string(),
+                        )
+                        .with_context(ErrorContext {
+                            record_index: Some(self.record_index + 1),
+                            field_path: None,
+                            byte_offset: None,
+                            line_number: None,
+                            details: Some(format!(
+                                "File ends with partial RDW header ({read} of 4 bytes)"
+                            )),
+                        }));
                     }
                     Err(e) => {
                         return Err(Error::new(
@@ -796,7 +868,14 @@ mod tests {
 
         let mut iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
 
-        // Should yield EOF (Ok(None)) when encountering truncated fixed-length data
+        // A truncated final record is reported, not silently dropped: returning
+        // EOF here would discard the four trailing bytes with no signal to the
+        // caller.
+        let error = iterator
+            .next()
+            .expect("truncated data yields an item")
+            .expect_err("truncated data is an error");
+        assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
         assert!(iterator.next().is_none());
     }
 
@@ -1127,5 +1206,130 @@ mod tests {
 
         let error = iterator.read_raw_record().unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
+    }
+
+    /// Reader that hands out one byte per call, so `read_exact` cannot fill the
+    /// buffer in a single call and the boundary logic is exercised for real.
+    struct DribbleReader {
+        data: Vec<u8>,
+        position: usize,
+    }
+
+    impl Read for DribbleReader {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            if self.position >= self.data.len() || buf.is_empty() {
+                return Ok(0);
+            }
+            buf[0] = self.data[self.position];
+            self.position += 1;
+            Ok(1)
+        }
+    }
+
+    fn eight_byte_schema() -> Schema {
+        let mut schema = parse_copybook("01 RECORD.\n   05 NAME PIC X(8).").unwrap();
+        schema.lrecl_fixed = Some(8);
+        schema
+    }
+
+    #[test]
+    fn fixed_trailing_partial_record_is_reported_not_discarded() {
+        // Twelve bytes for an 8-byte LRECL: one whole record and a 4-byte tail.
+        let data = b"RECORD01HALF".to_vec();
+        let schema = eight_byte_schema();
+        let options = DecodeOptions::default().with_codepage(Codepage::ASCII);
+        let mut iterator = RecordIterator::new(Cursor::new(data), &schema, &options).unwrap();
+
+        assert_eq!(iterator.read_raw_record().unwrap().unwrap(), b"RECORD01");
+
+        let error = iterator.read_raw_record().unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
+        let context = error.context.expect("partial record reports context");
+        assert_eq!(context.record_index, Some(2));
+        assert!(
+            context.details.unwrap_or_default().contains("4 of 8 bytes"),
+            "details should name the short count"
+        );
+    }
+
+    #[test]
+    fn fixed_partial_record_terminates_iteration_after_one_error() {
+        let schema = eight_byte_schema();
+        let options = DecodeOptions::default().with_codepage(Codepage::ASCII);
+        let mut iterator =
+            RecordIterator::new(Cursor::new(b"RECORD01HALF".to_vec()), &schema, &options).unwrap();
+
+        assert!(iterator.next().unwrap().is_ok());
+        assert!(iterator.next().unwrap().is_err());
+        assert!(
+            iterator.next().is_none(),
+            "iteration must stop after the partial-record error"
+        );
+    }
+
+    #[test]
+    fn fixed_file_ending_on_a_record_boundary_is_still_clean_eof() {
+        let schema = eight_byte_schema();
+        let options = DecodeOptions::default().with_codepage(Codepage::ASCII);
+        let mut iterator =
+            RecordIterator::new(Cursor::new(b"RECORD01".to_vec()), &schema, &options).unwrap();
+
+        assert_eq!(iterator.read_raw_record().unwrap().unwrap(), b"RECORD01");
+        assert!(iterator.read_raw_record().unwrap().is_none());
+        assert!(iterator.is_eof());
+    }
+
+    #[test]
+    fn fixed_partial_record_detected_when_reads_return_one_byte_at_a_time() {
+        // A short `read` is not end of file. The boundary helper must keep
+        // reading until the buffer is full or the reader is genuinely dry.
+        let schema = eight_byte_schema();
+        let options = DecodeOptions::default().with_codepage(Codepage::ASCII);
+        let reader = DribbleReader {
+            data: b"RECORD01HALF".to_vec(),
+            position: 0,
+        };
+        let mut iterator = RecordIterator::new(reader, &schema, &options).unwrap();
+
+        assert_eq!(iterator.read_raw_record().unwrap().unwrap(), b"RECORD01");
+        assert_eq!(
+            iterator.read_raw_record().unwrap_err().code,
+            ErrorCode::CBKR101_FIXED_RECORD_ERROR
+        );
+    }
+
+    #[test]
+    fn rdw_trailing_partial_header_is_reported_not_discarded() {
+        // One 8-byte RDW record followed by a 2-byte stub of a second header.
+        let mut data = vec![0x00, 0x08, 0x00, 0x00];
+        data.extend_from_slice(b"RECORD01");
+        data.extend_from_slice(&[0x00, 0x08]);
+
+        let schema = eight_byte_schema();
+        let options = DecodeOptions::default()
+            .with_format(RecordFormat::RDW)
+            .with_codepage(Codepage::ASCII);
+        let mut iterator = RecordIterator::new(Cursor::new(data), &schema, &options).unwrap();
+
+        assert_eq!(iterator.read_raw_record().unwrap().unwrap(), b"RECORD01");
+
+        let error = iterator.read_raw_record().unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    }
+
+    #[test]
+    fn rdw_file_ending_on_a_record_boundary_is_still_clean_eof() {
+        let mut data = vec![0x00, 0x08, 0x00, 0x00];
+        data.extend_from_slice(b"RECORD01");
+
+        let schema = eight_byte_schema();
+        let options = DecodeOptions::default()
+            .with_format(RecordFormat::RDW)
+            .with_codepage(Codepage::ASCII);
+        let mut iterator = RecordIterator::new(Cursor::new(data), &schema, &options).unwrap();
+
+        assert_eq!(iterator.read_raw_record().unwrap().unwrap(), b"RECORD01");
+        assert!(iterator.read_raw_record().unwrap().is_none());
+        assert!(iterator.is_eof());
     }
 }

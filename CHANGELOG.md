@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **codec**: `RecordIterator` no longer discards a trailing partial record.
+  `read_exact` reports `UnexpectedEof` both for a clean end of file and for a
+  reader that ran dry mid-record, so a file that is not a multiple of LRECL had
+  its trailing bytes dropped with no signal to the caller. `verify` therefore
+  reported `PASS` on truncated data that `decode` refused to process. Fixed
+  records now raise `CBKR101_FIXED_RECORD_ERROR` and truncated RDW headers raise
+  `CBKF221_RDW_UNDERFLOW`; a file ending on a record boundary is still a clean
+  end of file.
 
 - **cli**: `support` now prints the feature IDs its own footer tells you to
   pass to `--check`; previously the identifiers were only reachable through

@@ -728,9 +728,10 @@ fn verify_valid_data_exits_zero() {
 }
 
 #[test]
-fn verify_truncated_data_reports_zero_records() {
+fn verify_truncated_data_is_a_validation_failure() {
     let dir = setup_simple();
-    // 5 bytes is not a complete record (13 needed); verify processes 0 records.
+    // 5 bytes where the record is 13. The file is truncated, not empty, and
+    // reporting PASS would say a partial upload is safe to decode.
     std::fs::write(dir.path().join("data.bin"), [0xF0; 5]).unwrap();
 
     let output = Command::cargo_bin("copybook")
@@ -743,11 +744,39 @@ fn verify_truncated_data_reports_zero_records() {
         .expect("run verify truncated");
 
     assert_no_panic(&stderr_str(&output));
-    // Truncated data yields 0 complete records; verify exits 0 with a warning.
+    assert_ne!(output.status.code(), Some(0));
     let so = stdout_str(&output);
     assert!(
-        so.contains("Records Total: 0") || so.contains("PASS"),
-        "verify of truncated data should process 0 records: {so}"
+        !so.contains("PASS"),
+        "truncated data must not be reported as PASS: {so}"
+    );
+    assert!(
+        so.contains("CBKR101_FIXED_RECORD_ERROR"),
+        "summary should name the framing error: {so}"
+    );
+}
+
+#[test]
+fn verify_empty_data_reports_zero_records() {
+    let dir = setup_simple();
+    // An empty file ends on a record boundary: zero records, nothing truncated.
+    std::fs::write(dir.path().join("data.bin"), []).unwrap();
+
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args(["verify"])
+        .arg(temp_path(&dir, "schema.cpy"))
+        .arg(temp_path(&dir, "data.bin"))
+        .args(["--format", "fixed", "--codepage", "cp037"])
+        .output()
+        .expect("run verify empty");
+
+    assert_no_panic(&stderr_str(&output));
+    assert_eq!(output.status.code(), Some(0));
+    let so = stdout_str(&output);
+    assert!(
+        so.contains("Records Total: 0"),
+        "empty input should process 0 records: {so}"
     );
 }
 

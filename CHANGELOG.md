@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   records now raise `CBKR101_FIXED_RECORD_ERROR` and truncated RDW headers raise
   `CBKF221_RDW_UNDERFLOW`; a file ending on a record boundary is still a clean
   end of file.
+
+- **cli**: `support` now prints the feature IDs its own footer tells you to
+  pass to `--check`; previously the identifiers were only reachable through
+  `--format json`. Columns size to their contents instead of truncating at a
+  fixed 25 characters, statuses are spelled the way `--status` and the JSON
+  `status` field spell them rather than as Rust `Debug` output, an unknown
+  `--check` value lists the known IDs, and output goes through the CLI's
+  pipe-safe writer so `copybook support | head` no longer prints a panic
+  backtrace.
 - **cli**: `inspect` now renders a layout an operator can act on. The `Type`
   column reproduces the source PIC clause instead of restating the stored total
   digit count (`PIC S9(7)V99 COMP-3` printed as `S9(9)V9(2)`), binary fields

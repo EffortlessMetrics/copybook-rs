@@ -8,6 +8,7 @@
 use crate::exit_codes::ExitCode;
 use copybook_governance as governance;
 use governance::FeatureFlags;
+use std::fmt::Write as _;
 
 #[derive(clap::Args)]
 pub struct SupportArgs {
@@ -74,7 +75,8 @@ fn run_check(
     feature_flags: &FeatureFlags,
 ) -> ExitCode {
     let Some(support) = governance::support_matrix::find_feature(feature_id) else {
-        eprintln!("Error: Unknown feature ID: {feature_id}");
+        eprintln!("Error: unknown feature ID: {feature_id}");
+        eprintln!("Known feature IDs: {}", known_feature_ids().join(", "));
         return ExitCode::Unknown;
     };
 
@@ -87,57 +89,75 @@ fn run_check(
     };
 
     // Simple rule: only `supported` is success; everything else is non-zero exit.
+    let mut out = String::new();
     match state.support_status {
         governance::SupportStatus::Supported => {
-            println!("Feature: {}", state.support_name);
-            println!("Status: {:?}", state.support_status);
-            println!("Description: {}", state.support_description);
+            writeln!(out, "Feature: {}", state.support_name).ok();
+            writeln!(out, "ID: {}", feature_id_str(state.support_id)).ok();
+            writeln!(out, "Status: {}", status_str(state.support_status)).ok();
+            writeln!(out, "Description: {}", state.support_description).ok();
             if let Some(doc_ref) = state.doc_ref {
-                println!("Documentation: {doc_ref}");
+                writeln!(out, "Documentation: {doc_ref}").ok();
             }
 
             if with_governance {
-                println!("Runtime-Available: {}", state.runtime_enabled);
-                println!(
+                writeln!(out, "Runtime-Available: {}", state.runtime_enabled).ok();
+                writeln!(
+                    out,
                     "Required Feature Flags: {}",
                     format_flags(state.required_feature_flags)
-                );
-                println!(
+                )
+                .ok();
+                writeln!(
+                    out,
                     "Missing Feature Flags: {}",
                     format_flags(&state.missing_feature_flags)
-                );
-                println!("Rationale: {}", state.rationale);
+                )
+                .ok();
+                writeln!(out, "Rationale: {}", state.rationale).ok();
 
                 if let Some(state) =
                     governance::governance_state_for_support_id(state.support_id, feature_flags)
                 {
                     if state.missing_feature_flags.is_empty() {
-                        println!("Runtime gating status: enabled by feature flags");
+                        writeln!(out, "Runtime gating status: enabled by feature flags").ok();
                     } else {
-                        println!("Runtime gating status: disabled by feature flags");
+                        writeln!(out, "Runtime gating status: disabled by feature flags").ok();
                     }
                 }
             }
 
+            write_stdout(&out);
             ExitCode::Ok
         }
         _status => {
             eprintln!(
-                "Feature '{}' not fully supported (status: {:?}). See {}",
+                "Feature '{}' is not fully supported (status: {}). See {}",
                 feature_id,
-                state.support_status,
+                status_str(state.support_status),
                 state.doc_ref.unwrap_or("project documentation"),
             );
             if with_governance {
-                println!("Runtime-Available: {}", state.runtime_enabled);
-                println!(
+                writeln!(out, "Runtime-Available: {}", state.runtime_enabled).ok();
+                writeln!(
+                    out,
                     "Missing Feature Flags: {}",
                     format_flags(&state.missing_feature_flags)
-                );
+                )
+                .ok();
+                write_stdout(&out);
             }
             ExitCode::Encode // Non-zero exit for policy/validation failure.
         }
     }
+}
+
+/// Write to stdout through the CLI's pipe-safe writer.
+///
+/// `println!` panics when the consumer closes the pipe, so `copybook support |
+/// head` printed a panic backtrace before the process exited.
+fn write_stdout(text: &str) {
+    let _ = crate::write_stdout_all(text.as_bytes());
 }
 
 fn run_matrix_view(
@@ -155,53 +175,68 @@ fn run_matrix_view(
         None => features.to_vec(),
     };
 
+    let mut out = String::new();
     match format {
         OutputFormat::Table => {
-            if with_governance {
-                println!("COBOL Feature Support + Governance");
-                println!();
-                println!(
-                    "{:<25} {:<15} {:<20} {:<16} Description",
-                    "Feature", "Status", "Feature Flags", "Runtime",
-                );
-                println!("{}", "-".repeat(100));
-                for feature in &filtered {
-                    let status_str = format!("{:?}", feature.support_status);
-                    println!(
-                        "{:<25} {:<15} {:<20} {:<16} {}",
-                        feature.support_name,
-                        status_str,
-                        format_flags(feature.required_feature_flags),
+            // The `ID` column is what `--check` consumes; without it the footer
+            // points at identifiers the table never shows.
+            let mut rows: Vec<Vec<String>> = Vec::with_capacity(filtered.len());
+            let headers: Vec<&str> = if with_governance {
+                writeln!(out, "COBOL Feature Support + Governance").ok();
+                vec![
+                    "ID",
+                    "Feature",
+                    "Status",
+                    "Feature Flags",
+                    "Runtime",
+                    "Description",
+                ]
+            } else {
+                writeln!(out, "COBOL Feature Support Matrix").ok();
+                vec!["ID", "Feature", "Status", "Description"]
+            };
+            out.push('\n');
+
+            for feature in &filtered {
+                let mut row = vec![
+                    feature_id_str(feature.support_id),
+                    feature.support_name.to_string(),
+                    status_str(feature.support_status).to_string(),
+                ];
+                if with_governance {
+                    row.push(format_flags(feature.required_feature_flags));
+                    row.push(
                         if feature.runtime_enabled {
                             "enabled"
                         } else {
                             "disabled-by-flags"
-                        },
-                        feature.support_description,
+                        }
+                        .to_string(),
                     );
                 }
-            } else {
-                println!("COBOL Feature Support Matrix");
-                println!();
-                println!("{:<25} {:<15} Description", "Feature", "Status");
-                println!("{}", "-".repeat(80));
-                for feature in &filtered {
-                    println!(
-                        "{:<25} {:<15} {}",
-                        feature.support_name,
-                        format!("{:?}", feature.support_status),
-                        feature.support_description,
-                    );
-                }
+                row.push(feature.support_description.to_string());
+                rows.push(row);
             }
 
-            println!();
-            println!("Use 'copybook support --check <feature-id>' to check a specific feature.");
-            println!("Use 'copybook support --format json' for machine-readable output.");
-            if with_governance {
-                println!(
+            render_table(&mut out, &headers, &rows);
+
+            out.push('\n');
+            writeln!(
+                out,
+                "Use 'copybook support --check <ID>' to check a specific feature."
+            )
+            .ok();
+            writeln!(
+                out,
+                "Use 'copybook support --format json' for machine-readable output."
+            )
+            .ok();
+            if !with_governance {
+                writeln!(
+                    out,
                     "Use 'copybook support --with-governance' to include runtime flag linkage."
-                );
+                )
+                .ok();
             }
         }
         OutputFormat::Json => {
@@ -216,11 +251,78 @@ fn run_matrix_view(
                     .collect();
                 serde_json::to_string_pretty(&basic)?
             };
-            println!("{json}");
+            writeln!(out, "{json}").ok();
         }
     }
 
+    write_stdout(&out);
     Ok(ExitCode::Ok)
+}
+
+/// Canonical kebab-case identifier for a feature, matching `--check` and the
+/// `id` field emitted by `--format json`.
+fn feature_id_str(id: governance::FeatureId) -> String {
+    serde_plain::to_string(&id).unwrap_or_else(|_| format!("{id:?}"))
+}
+
+/// Canonical status spelling, matching `--status` values and `--format json`.
+fn status_str(status: governance::SupportStatus) -> &'static str {
+    match status {
+        governance::SupportStatus::Supported => "supported",
+        governance::SupportStatus::Partial => "partial",
+        governance::SupportStatus::Planned => "planned",
+        governance::SupportStatus::NotPlanned => "not-planned",
+        // `SupportStatus` is non-exhaustive upstream.
+        _ => "unknown",
+    }
+}
+
+/// Every identifier `--check` accepts, in matrix order.
+fn known_feature_ids() -> Vec<String> {
+    governance::support_matrix::all_features()
+        .iter()
+        .map(|feature| feature_id_str(feature.id))
+        .collect()
+}
+
+/// Render a table whose columns fit their contents.
+///
+/// The final column is not padded, so a long description never drags trailing
+/// whitespace across the line.
+fn render_table(out: &mut String, headers: &[&str], rows: &[Vec<String>]) {
+    let widths: Vec<usize> = headers
+        .iter()
+        .enumerate()
+        .map(|(column, header)| {
+            rows.iter()
+                .filter_map(|row| row.get(column))
+                .map(String::len)
+                .chain(std::iter::once(header.len()))
+                .max()
+                .unwrap_or(0)
+        })
+        .collect();
+
+    let render = |cells: &[&str]| -> String {
+        let last = cells.len().saturating_sub(1);
+        let mut line = String::new();
+        for (column, cell) in cells.iter().enumerate() {
+            if column == last {
+                line.push_str(cell);
+            } else {
+                write!(line, "{cell:<width$} ", width = widths[column]).ok();
+            }
+        }
+        line
+    };
+
+    let header_line = render(headers);
+    writeln!(out, "{header_line}").ok();
+    writeln!(out, "{}", "-".repeat(header_line.len())).ok();
+    for row in rows {
+        let cells: Vec<&str> = row.iter().map(String::as_str).collect();
+        writeln!(out, "{}", render(&cells)).ok();
+    }
 }
 
 fn format_flags(flags: &[governance::Feature]) -> String {

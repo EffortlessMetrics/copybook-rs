@@ -43,19 +43,7 @@
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
       ],
-      "features": [
-        {
-          "name": "experimental",
-          "class": "experimental",
-          "stability_statement": "Opt-in feature gate that keeps the crate on the experimental track.",
-          "limitations": [
-            "Can change API shape without a major-version-compatible migration."
-          ],
-          "graduation_criteria": [
-            "Feature remains stable through a full compatibility evidence cycle and no public break without migration docs."
-          ]
-        }
-      ],
+      "features": [],
       "boundary": {
         "role": "adapter",
         "seam_type": "adapter",
@@ -235,15 +223,6 @@
           "graduation_criteria": [
             "Metrics contract is documented with a stable output schema and compatibility checks."
           ]
-        },
-        {
-          "name": "soak",
-          "class": "internal-dev-only",
-          "stability_statement": "Soak/benchmarking path not part of the supported CLI contract.",
-          "limitations": [
-            "Used only for sustained-load validation."
-          ],
-          "graduation_criteria": []
         }
       ],
       "boundary": {
@@ -316,15 +295,6 @@
           "stability_statement": "Performance-tuned COMP-3 path; implementation detail for advanced users.",
           "limitations": [
             "Not covered by the v1 stable codec contract."
-          ],
-          "graduation_criteria": []
-        },
-        {
-          "name": "comp3_unsafe",
-          "class": "internal-dev-only",
-          "stability_statement": "Unsafe COMP-3 optimization path.",
-          "limitations": [
-            "May change with implementation and does not carry user-facing stability."
           ],
           "graduation_criteria": []
         },

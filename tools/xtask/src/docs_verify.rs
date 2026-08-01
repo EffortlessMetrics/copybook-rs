@@ -2175,16 +2175,20 @@ mod tests {
 
     #[test]
     fn status_version_targets_all_exist_and_declare_status() {
+        let mut problems = Vec::new();
         for target in STATUS_VERSION_TARGETS {
             let path = workspace_root().join(target);
-            let source = fs::read_to_string(&path)
-                .unwrap_or_else(|err| panic!("status target {target} is unreadable: {err}"));
-            assert!(
-                source.contains("Engineering Preview"),
-                "{target} no longer declares a release status; drop it from \
-                 STATUS_VERSION_TARGETS or restore the claim"
-            );
+            match fs::read_to_string(&path) {
+                Ok(source) if source.contains("Engineering Preview") => {}
+                Ok(_) => problems.push(format!("{target} no longer declares a release status")),
+                Err(err) => problems.push(format!("{target} is unreadable: {err}")),
+            }
         }
+        assert!(
+            problems.is_empty(),
+            "drop these from STATUS_VERSION_TARGETS or restore the claim: {}",
+            problems.join("; ")
+        );
     }
 
     fn failing() -> Result<()> {

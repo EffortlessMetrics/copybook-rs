@@ -19,7 +19,7 @@ use xtask::perf;
 type Verifier = (&'static str, fn() -> Result<()>);
 
 pub(crate) fn run() -> Result<()> {
-    let checks: [Verifier; 14] = [
+    let checks: [Verifier; 15] = [
         (
             "workspace-version-and-msrv",
             verify_workspace_version_and_msrv,
@@ -52,6 +52,7 @@ pub(crate) fn run() -> Result<()> {
             verify_surface_deprecation_audit,
         ),
         ("quick-start-versioning", verify_quick_start_versioning),
+        ("status-versioning", verify_status_versioning),
     ];
     run_checks(&checks)
 }
@@ -1635,6 +1636,102 @@ fn verify_quick_start_versioning() -> Result<()> {
     Ok(())
 }
 
+/// Documents that declare the project's current release status.
+///
+/// Each of these carries a line naming the Engineering Preview version. They
+/// drifted to `v0.4.3` while the workspace was on `0.5.0`, and `docs/REPORT.md`
+/// contradicted itself in two places within one file.
+const STATUS_VERSION_TARGETS: [&str; 7] = [
+    "CLAUDE.md",
+    "CONTRIBUTING.md",
+    "README.md",
+    "SECURITY.md",
+    "docs/REPORT.md",
+    "docs/ROADMAP.md",
+    "docs/USER_GUIDE.md",
+];
+
+/// Extract version-like tokens (`0.5.0`, `v0.5.0`, `0.5.x`) from one line.
+fn version_tokens(line: &str) -> Vec<String> {
+    let bytes: Vec<char> = line.chars().collect();
+    let mut tokens = Vec::new();
+    let mut index = 0;
+    while index < bytes.len() {
+        if !bytes[index].is_ascii_digit() {
+            index += 1;
+            continue;
+        }
+        let start = index;
+        while index < bytes.len() && (bytes[index].is_ascii_digit() || bytes[index] == '.') {
+            index += 1;
+        }
+        // Allow a trailing wildcard component such as `0.5.x`.
+        if index < bytes.len() && bytes[index] == 'x' && bytes[start..index].contains(&'.') {
+            index += 1;
+        }
+        let token: String = bytes[start..index].iter().collect();
+        if token.matches('.').count() >= 1 {
+            tokens.push(token);
+        }
+    }
+    tokens
+}
+
+/// Fail when a current-status line names a version other than the workspace one.
+///
+/// Only lines mentioning "Engineering Preview" are considered, so historical
+/// statements ("promoted to stable in v0.4.3") stay untouched.
+fn verify_status_versioning() -> Result<()> {
+    // Resolve from the workspace root rather than the current directory so the
+    // check behaves the same under `xtask docs verify-all` and `cargo test`.
+    let manifest_path = workspace_root().join("Cargo.toml");
+    let manifest = fs::read_to_string(&manifest_path)
+        .with_context(|| format!("loading {}", manifest_path.display()))?;
+    let workspace: toml::Value = toml::from_str(&manifest)?;
+    let version = workspace_version(&workspace)?;
+    let mut parts = version.split('.');
+    let major = parts
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("invalid workspace version: {version}"))?;
+    let minor = parts
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("invalid workspace version: {version}"))?;
+    let expected_prefix = format!("{major}.{minor}");
+
+    for target in STATUS_VERSION_TARGETS {
+        // Resolved from the workspace root, not the current directory: several
+        // packages ship their own README.md, which would otherwise shadow the
+        // repository one.
+        let path = workspace_root().join(target);
+        let source =
+            fs::read_to_string(&path).with_context(|| format!("loading {}", path.display()))?;
+        for (offset, line) in source.lines().enumerate() {
+            if !line.contains("Engineering Preview") {
+                continue;
+            }
+            let tokens = version_tokens(line);
+            if tokens.is_empty() {
+                continue;
+            }
+            // At least one token must be the current release. Status lines
+            // legitimately also mention the v1.0.0 target, so requiring *every*
+            // token to match would reject correct prose.
+            if !tokens
+                .iter()
+                .any(|token| token.starts_with(&expected_prefix))
+            {
+                bail!(
+                    "status version drift in {target}:{}: found `{}`, expected one naming `{expected_prefix}`",
+                    offset + 1,
+                    tokens.join("`, `")
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn load_deprecation_audit_report() -> Result<DeprecatedAuditReport> {
     let path = resolve_workspace_file(DEPRECATION_AUDIT_PATH)
         .ok_or_else(|| anyhow::anyhow!("loading docs/reports/deprecation-audit.json"))?;
@@ -2055,6 +2152,39 @@ mod tests {
     )]
     fn ok() -> Result<()> {
         Ok(())
+    }
+
+    #[test]
+    fn version_tokens_finds_release_shapes() {
+        assert_eq!(version_tokens("Engineering Preview v0.5.0"), vec!["0.5.0"]);
+        assert_eq!(version_tokens("| 0.5.x | supported |"), vec!["0.5.x"]);
+        assert_eq!(
+            version_tokens("Preview (v0.5.0) and (v0.4.3)"),
+            vec!["0.5.0", "0.4.3"]
+        );
+        assert!(version_tokens("Engineering Preview, no version here").is_empty());
+        // A bare integer is not a version.
+        assert!(version_tokens("supports 63 error codes").is_empty());
+    }
+
+    #[test]
+    fn status_versioning_matches_the_workspace_version() {
+        // The repository's own status lines must already agree.
+        verify_status_versioning().expect("status lines name the workspace version");
+    }
+
+    #[test]
+    fn status_version_targets_all_exist_and_declare_status() {
+        for target in STATUS_VERSION_TARGETS {
+            let path = workspace_root().join(target);
+            let source = fs::read_to_string(&path)
+                .unwrap_or_else(|err| panic!("status target {target} is unreadable: {err}"));
+            assert!(
+                source.contains("Engineering Preview"),
+                "{target} no longer declares a release status; drop it from \
+                 STATUS_VERSION_TARGETS or restore the claim"
+            );
+        }
     }
 
     fn failing() -> Result<()> {

@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **docs**: State the current release in the status lines that declare it.
+  `CLAUDE.md`, `CONTRIBUTING.md`, `docs/USER_GUIDE.md`, and the readiness
+  assessment in `docs/REPORT.md` still said `v0.4.3` after the 0.5.0 release —
+  `docs/REPORT.md` contradicted its own header — and `SECURITY.md` promised
+  security updates for the `0.4.x` series rather than `0.5.x`.
+  `xtask docs verify-all` gained a `status-versioning` check so these lines
+  cannot drift from the workspace version again.
 - **cli**: `inspect` now renders a layout an operator can act on. The `Type`
   column reproduces the source PIC clause instead of restating the stored total
   digit count (`PIC S9(7)V99 COMP-3` printed as `S9(9)V9(2)`), binary fields

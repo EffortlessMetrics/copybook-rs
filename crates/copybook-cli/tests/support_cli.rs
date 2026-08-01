@@ -24,7 +24,8 @@ fn support_table_prints_known_features() {
     assert!(stdout.contains("Status"));
     assert!(stdout.contains("Description"));
     assert!(stdout.contains("LEVEL 88"));
-    assert!(stdout.contains("Supported")); // At least one feature should be supported
+    // Status is spelled the way `--status` and the JSON `status` field spell it.
+    assert!(stdout.contains("supported")); // At least one feature should be supported
 }
 
 #[test]
@@ -82,7 +83,7 @@ fn support_check_unknown_feature_exits_nonzero() {
 
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("Unknown feature ID"));
+    assert!(stderr.contains("unknown feature ID"));
 }
 
 #[test]
@@ -170,5 +171,5 @@ fn support_check_partial_feature_exits_nonzero_nested_odo() {
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("not fully supported"));
-    assert!(stderr.contains("Partial"));
+    assert!(stderr.contains("partial"));
 }

@@ -48,7 +48,7 @@ jobs:
           key: comprehensive-${{ matrix.package }}
 
       - name: Install nextest (pinned)
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.85.5
         with:
           tool: nextest@0.9.11
           checksum: true

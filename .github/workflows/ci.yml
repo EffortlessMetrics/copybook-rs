@@ -97,7 +97,7 @@ jobs:
         key: ${{ matrix.features }}
     - name: Install nextest (pinned)
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
-      uses: taiki-e/install-action@v2
+      uses: taiki-e/install-action@v2.85.5
       with:
         tool: nextest@0.9.11
         checksum: true

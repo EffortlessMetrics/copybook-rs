@@ -23,7 +23,7 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@v2.85.5
         with:
           tool: cargo-nextest
 
@@ -44,7 +44,7 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@v2.85.5
         with:
           tool: cargo-nextest
 
@@ -64,7 +64,7 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@v2.85.5
         with:
           tool: cargo-nextest
 

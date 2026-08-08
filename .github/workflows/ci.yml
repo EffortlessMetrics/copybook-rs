@@ -203,15 +203,19 @@ jobs:
         arguments: --all-features
     - name: Install cargo-audit
       run: cargo install cargo-audit --locked
-    - name: Run cargo audit
-      id: audit
-      # cargo audit exits 1 on warnings (e.g. unmaintained crates) AND
-      # vulnerabilities. We capture JSON regardless; continue-on-error lets
-      # the validation step below be the hard gate.
+    # cargo audit exits 1 on warnings (e.g. unmaintained crates) AND
+    # vulnerabilities. We capture JSON regardless; continue-on-error lets
+    # the validation step below be the hard gate.
     - name: Run cargo audit
       id: audit
       continue-on-error: true
-      run: cargo audit -q --json > target/security.audit.json
+      # `target/` need not exist yet: no earlier step in this job builds, and a
+      # cold `rust-cache` restores nothing. Without it the redirect fails before
+      # cargo-audit runs, and the validation step below reads that missing file
+      # as a tool failure.
+      run: |
+        mkdir -p target
+        cargo audit -q --json > target/security.audit.json
     - name: Validate audit results
       run: |
         python3 - <<'PY'

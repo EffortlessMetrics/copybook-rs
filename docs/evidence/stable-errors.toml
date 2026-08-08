@@ -47,7 +47,8 @@ direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbks121_counter_not
 [[errors]]
 code = "CBKS141_RECORD_TOO_LARGE"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-overflow/tests/overflow_comprehensive.rs::chain_fails_at_u16_narrowing"
 [[errors]]
 code = "CBKS301_ODO_CLIPPED"
 stability_class = "stable"
@@ -256,7 +257,8 @@ direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbke515_string_length_v
 [[errors]]
 code = "CBKE521_ARRAY_LEN_OOB"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-codec/tests/comprehensive_redefines_odo_tests.rs::test_odo_encode_counter_array_mismatch_rejected"
 [[errors]]
 code = "CBKE530_SIGN_SEPARATE_ENCODE_ERROR"
 stability_class = "stable"
@@ -290,7 +292,8 @@ direct_test = "tests/e2e/e2e_error_codes.rs::cbkf221_rdw_underflow"
 [[errors]]
 code = "CBKA001_BASELINE_ERROR"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-core/tests/error_code_coverage_tests.rs::test_cbka001_baseline_load_missing_file"
 [[errors]]
 code = "CBKW001_SCHEMA_CONVERSION"
 stability_class = "stable"

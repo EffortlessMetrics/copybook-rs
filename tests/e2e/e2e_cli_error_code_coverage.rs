@@ -817,6 +817,79 @@ fn cli_cbkf102_rdw_record_length_invalid() {
         se.contains("CBKF102_RECORD_LENGTH_INVALID"),
         "Expected CBKF102 in stderr: {se}"
     );
+    assert_eq!(
+        output.status.code(),
+        Some(4),
+        "CBKF format failures must exit with status 4"
+    );
+}
+
+/// CBKF102: RDW record length invalid when the declared payload is truncated.
+#[test]
+fn cli_cbkf102_rdw_truncated_payload_exits_format() {
+    // RDW header: length=9 declares a 5-byte payload, but the file ends after
+    // the four-byte header.
+    let dir = setup_decode(
+        "       01  REC.\n           05  A   PIC X(5).\n",
+        &[0x00, 0x09, 0x00, 0x00],
+    );
+
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args(["decode"])
+        .arg(temp_path(&dir, "schema.cpy"))
+        .arg(temp_path(&dir, "data.bin"))
+        .args(["--output"])
+        .arg(temp_path(&dir, "out.jsonl"))
+        .args(["--format", "rdw", "--codepage", "cp037", "--fail-fast"])
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let se = stderr_str(&output);
+    assert_no_panic(&se);
+    assert!(
+        se.contains("CBKF102_RECORD_LENGTH_INVALID"),
+        "Expected CBKF102 in stderr: {se}"
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(4),
+        "CBKF format failures must exit with status 4"
+    );
+}
+
+/// CBKF221: RDW input ends before the four-byte header is complete.
+#[test]
+fn cli_cbkf221_rdw_short_header_exits_format() {
+    let dir = setup_decode(
+        "       01  REC.\n           05  A   PIC X(1).\n",
+        &[0x00, 0x05],
+    );
+
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args(["decode"])
+        .arg(temp_path(&dir, "schema.cpy"))
+        .arg(temp_path(&dir, "data.bin"))
+        .args(["--output"])
+        .arg(temp_path(&dir, "out.jsonl"))
+        .args(["--format", "rdw", "--codepage", "cp037", "--fail-fast"])
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let se = stderr_str(&output);
+    assert_no_panic(&se);
+    assert!(
+        se.contains("CBKF221_RDW_UNDERFLOW"),
+        "Expected CBKF221 in stderr: {se}"
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(4),
+        "CBKF format failures must exit with status 4"
+    );
 }
 
 /// CBKF104: RDW header looks ASCII-corrupted.

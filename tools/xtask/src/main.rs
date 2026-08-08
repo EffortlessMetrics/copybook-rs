@@ -24,6 +24,7 @@ fn main() -> Result<()> {
         ["docs", "verify-tests"] => verify(),
         ["docs", "verify-all"] => docs_verify::run(),
         ["docs", "verify-record-pipeline"] => docs_verify::verify_record_pipeline_command(),
+        ["docs", "verify-stable-errors"] => docs_verify::verify_stable_error_registry_command(),
         ["docs", "verify-support-matrix"] => verify_support_matrix(),
         ["docs", "freeze", "contracts"] => docs_verify::run_freeze_contract_checks(),
         ["docs", "contracts", "generate"] => docs_verify::run_contracts_command(),
@@ -88,6 +89,7 @@ fn usage() {
          docs verify-tests                   Verify test status is in sync\n\
          docs verify-all                     Verify all source-of-truth documentation invariants\n\
          docs verify-record-pipeline         Verify fixed/RDW evidence registry anchors\n\
+         docs verify-stable-errors            Verify stable error taxonomy registry\n\
          docs freeze contracts               Verify freeze-sensitive contracts (strict, API surface contract guard)\n\
          docs contracts generate             Regenerate stable contract manifest baseline\n\
          docs verify-support-matrix          Verify support matrix registry -> docs\n\

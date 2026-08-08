@@ -1,0 +1,269 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Stable error taxonomy inventory for issue #576.
+#
+# This slice establishes exact taxonomy coverage and distinguishes the two
+# intentionally reserved float identifiers. Direct trigger ownership is
+# recorded incrementally; `pending` is an explicit residual, not proof.
+schema_version = 1
+scope = "stable-errors"
+
+[[errors]]
+code = "CBKP001_SYNTAX"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKP011_UNSUPPORTED_CLAUSE"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKP021_ODO_NOT_TAIL"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKP022_NESTED_ODO"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKP023_ODO_REDEFINES"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKP051_UNSUPPORTED_EDITED_PIC"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKP101_INVALID_PIC"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS121_COUNTER_NOT_FOUND"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS141_RECORD_TOO_LARGE"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS301_ODO_CLIPPED"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS302_ODO_RAISED"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS601_RENAME_UNKNOWN_FROM"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS602_RENAME_UNKNOWN_THRU"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS603_RENAME_NOT_CONTIGUOUS"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS604_RENAME_REVERSED_RANGE"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS605_RENAME_FROM_CROSSES_GROUP"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS606_RENAME_THRU_CROSSES_GROUP"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS607_RENAME_CROSSES_OCCURS"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS609_RENAME_OVER_REDEFINES"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS610_RENAME_MULTIPLE_REDEFINES"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS611_RENAME_PARTIAL_OCCURS"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS612_RENAME_ODO_NOT_SUPPORTED"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS701_PROJECTION_INVALID_ODO"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS702_PROJECTION_UNRESOLVED_ALIAS"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKS703_PROJECTION_FIELD_NOT_FOUND"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKR101_FIXED_RECORD_ERROR"
+stability_class = "stable"
+evidence_status = "direct"
+[[errors]]
+code = "CBKR201_RDW_READ_ERROR"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKR202_RDW_WRITE_ERROR"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKR211_RDW_RESERVED_NONZERO"
+stability_class = "stable"
+evidence_status = "direct"
+[[errors]]
+code = "CBKC201_JSON_WRITE_ERROR"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKC301_INVALID_EBCDIC_BYTE"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKD101_INVALID_FIELD_TYPE"
+stability_class = "stable"
+evidence_status = "direct"
+[[errors]]
+code = "CBKD301_RECORD_TOO_SHORT"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKD302_EDITED_PIC_NOT_IMPLEMENTED"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKD401_COMP3_INVALID_NIBBLE"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKD410_ZONED_OVERFLOW"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKD411_ZONED_BAD_SIGN"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKD412_ZONED_BLANK_IS_ZERO"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKD413_ZONED_INVALID_ENCODING"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKD414_ZONED_MIXED_ENCODING"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKD415_ZONED_ENCODING_AMBIGUOUS"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKD421_EDITED_PIC_INVALID_FORMAT"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKD422_EDITED_PIC_SIGN_MISMATCH"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKD423_EDITED_PIC_BLANK_WHEN_ZERO"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKD431_FLOAT_NAN"
+stability_class = "reserved"
+evidence_status = "pending"
+[[errors]]
+code = "CBKD432_FLOAT_INFINITY"
+stability_class = "reserved"
+evidence_status = "pending"
+[[errors]]
+code = "CBKI001_INVALID_STATE"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKE501_JSON_TYPE_MISMATCH"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKE505_SCALE_MISMATCH"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKE510_NUMERIC_OVERFLOW"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKE515_STRING_LENGTH_VIOLATION"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKE521_ARRAY_LEN_OOB"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKE530_SIGN_SEPARATE_ENCODE_ERROR"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKE531_FLOAT_ENCODE_OVERFLOW"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKF001_FILE_READ_ERROR"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKF102_RECORD_LENGTH_INVALID"
+stability_class = "stable"
+evidence_status = "direct"
+[[errors]]
+code = "CBKF104_RDW_SUSPECT_ASCII"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKF221_RDW_UNDERFLOW"
+stability_class = "stable"
+evidence_status = "direct"
+[[errors]]
+code = "CBKA001_BASELINE_ERROR"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKW001_SCHEMA_CONVERSION"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKW002_TYPE_MAPPING"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKW003_DECIMAL_OVERFLOW"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKW004_BATCH_BUILD"
+stability_class = "stable"
+evidence_status = "pending"
+[[errors]]
+code = "CBKW005_PARQUET_WRITE"
+stability_class = "stable"
+evidence_status = "pending"

@@ -33,6 +33,7 @@ Start with **[START_HERE.md](START_HERE.md)** for the hand-maintained navigation
 ### Evidence
 
 - [Fixed/RDW pipeline registry](evidence/fixed-rdw-pipeline.toml) -- current-main scenario and test-anchor evidence
+- [Stable error registry](evidence/stable-errors.toml) -- taxonomy coverage and reserved-code status
 
 ### Diataxis Framework
 Documentation follows [Diataxis](https://diataxis.fr/). Category indexes:

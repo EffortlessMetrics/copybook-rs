@@ -19,7 +19,7 @@ use xtask::perf;
 type Verifier = (&'static str, fn() -> Result<()>);
 
 pub(crate) fn run() -> Result<()> {
-    let checks: [Verifier; 16] = [
+    let checks: [Verifier; 17] = [
         (
             "workspace-version-and-msrv",
             verify_workspace_version_and_msrv,
@@ -30,6 +30,7 @@ pub(crate) fn run() -> Result<()> {
             verify_copybook_rs_redirect_invariant,
         ),
         ("error-code-inventory", verify_error_code_inventory),
+        ("stable-error-registry", verify_stable_error_registry),
         ("record-pipeline-evidence", verify_record_pipeline_evidence),
         ("test-status", verify_test_status_if_present),
         ("support-matrix", verify_support_matrix),
@@ -65,6 +66,10 @@ pub(crate) fn run_contracts_command() -> Result<()> {
 
 pub(crate) fn verify_record_pipeline_command() -> Result<()> {
     verify_record_pipeline_evidence()
+}
+
+pub(crate) fn verify_stable_error_registry_command() -> Result<()> {
+    verify_stable_error_registry()
 }
 
 pub(crate) fn run_freeze_contract_checks() -> Result<()> {
@@ -1718,6 +1723,121 @@ fn verify_error_code_inventory() -> Result<()> {
     Ok(())
 }
 
+const STABLE_ERROR_REGISTRY_PATH: &str = "docs/evidence/stable-errors.toml";
+
+#[derive(Debug, Deserialize)]
+struct StableErrorRegistry {
+    schema_version: u32,
+    scope: String,
+    errors: Vec<StableErrorEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StableErrorEntry {
+    code: String,
+    stability_class: String,
+    evidence_status: String,
+}
+
+fn verify_stable_error_registry() -> Result<()> {
+    let root = workspace_root();
+    let path = root.join(STABLE_ERROR_REGISTRY_PATH);
+    let source = fs::read_to_string(&path)
+        .with_context(|| format!("loading stable error registry {}", path.display()))?;
+    let registry: StableErrorRegistry =
+        toml::from_str(&source).with_context(|| format!("parsing {}", path.display()))?;
+    if registry.schema_version != 1 {
+        bail!(
+            "unsupported stable error registry schema version {}",
+            registry.schema_version
+        );
+    }
+    if registry.scope != "stable-errors" {
+        bail!(
+            "unexpected stable error registry scope `{}`",
+            registry.scope
+        );
+    }
+
+    let error_source = fs::read_to_string(root.join("crates/copybook-error/src/lib.rs"))
+        .context("loading crates/copybook-error/src/lib.rs")?;
+    let expected: BTreeSet<String> = parse_error_code_variants(&error_source)?
+        .into_iter()
+        .collect();
+    validate_stable_error_registry(&registry, &expected)?;
+    println!(
+        "stable error registry verified: {} codes ({} direct, {} pending)",
+        registry.errors.len(),
+        registry
+            .errors
+            .iter()
+            .filter(|entry| entry.evidence_status == "direct")
+            .count(),
+        registry
+            .errors
+            .iter()
+            .filter(|entry| entry.evidence_status == "pending")
+            .count()
+    );
+    Ok(())
+}
+
+fn validate_stable_error_registry(
+    registry: &StableErrorRegistry,
+    expected: &BTreeSet<String>,
+) -> Result<()> {
+    let mut seen = BTreeSet::new();
+    for entry in &registry.errors {
+        if !seen.insert(entry.code.clone()) {
+            bail!("duplicate stable error registry entry `{}`", entry.code);
+        }
+        if !expected.contains(&entry.code) {
+            bail!(
+                "stable error registry references unknown code `{}`",
+                entry.code
+            );
+        }
+        if !matches!(entry.stability_class.as_str(), "stable" | "reserved") {
+            bail!(
+                "stable error registry entry `{}` has invalid stability class `{}`",
+                entry.code,
+                entry.stability_class
+            );
+        }
+        if !matches!(entry.evidence_status.as_str(), "pending" | "direct") {
+            bail!(
+                "stable error registry entry `{}` has invalid evidence status `{}`",
+                entry.code,
+                entry.evidence_status
+            );
+        }
+        let reserved = matches!(
+            entry.code.as_str(),
+            "CBKD431_FLOAT_NAN" | "CBKD432_FLOAT_INFINITY"
+        );
+        if reserved != (entry.stability_class == "reserved") {
+            bail!(
+                "stable error registry entry `{}` disagrees with the reserved-code policy",
+                entry.code
+            );
+        }
+        if reserved && entry.evidence_status == "direct" {
+            bail!(
+                "reserved error `{}` cannot claim direct evidence",
+                entry.code
+            );
+        }
+    }
+    if &seen != expected {
+        let missing: BTreeSet<_> = expected.difference(&seen).collect();
+        let extra: BTreeSet<_> = seen.difference(expected).collect();
+        bail!(
+            "stable error registry coverage drift: missing={missing:?} unknown={extra:?} | authoritative-source=crates/copybook-error/src/lib.rs and {STABLE_ERROR_REGISTRY_PATH}"
+        );
+    }
+    Ok(())
+}
+
 fn verify_performance_floor_and_receipt() -> Result<()> {
     let policy_text = fs::read_to_string("docs/PERFORMANCE_GOVERNANCE.md")
         .context("loading docs/PERFORMANCE_GOVERNANCE.md")?;
@@ -3316,6 +3436,29 @@ mod tests {
 
         verify_record_pipeline_scenarios(root.path(), &scenarios, &[])
             .expect("valid scenario row must be accepted");
+    }
+
+    #[test]
+    fn stable_error_registry_rejects_missing_taxonomy_entry() {
+        let registry: StableErrorRegistry = toml::from_str(
+            "schema_version = 1\nscope = 'stable-errors'\n\n[[errors]]\ncode = 'CBKP001_SYNTAX'\nstability_class = 'stable'\nevidence_status = 'pending'\n",
+        )
+        .expect("parse registry fixture");
+        let expected = BTreeSet::from([
+            "CBKP001_SYNTAX".to_string(),
+            "CBKP011_UNSUPPORTED_CLAUSE".to_string(),
+        ]);
+        assert!(validate_stable_error_registry(&registry, &expected).is_err());
+    }
+
+    #[test]
+    fn stable_error_registry_rejects_direct_reserved_evidence() {
+        let registry: StableErrorRegistry = toml::from_str(
+            "schema_version = 1\nscope = 'stable-errors'\n\n[[errors]]\ncode = 'CBKD431_FLOAT_NAN'\nstability_class = 'reserved'\nevidence_status = 'direct'\n",
+        )
+        .expect("parse registry fixture");
+        let expected = BTreeSet::from(["CBKD431_FLOAT_NAN".to_string()]);
+        assert!(validate_stable_error_registry(&registry, &expected).is_err());
     }
 
     #[test]

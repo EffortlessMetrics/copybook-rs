@@ -118,6 +118,10 @@ pub fn find_byte_differences(round1: &[u8], round2: &[u8]) -> Vec<ByteDiff> {
 }
 
 /// Find byte-level differences between two slices with an explicit limit.
+///
+/// If the inputs have different lengths, offsets past the shorter input are
+/// reported with `0` substituted for the missing byte. A tail difference can
+/// therefore contain equal byte values when the longer input contains `0`.
 #[must_use]
 pub fn find_byte_differences_with_limit(
     round1: &[u8],
@@ -430,6 +434,16 @@ mod tests {
         let decoded: DeterminismResult =
             serde_json::from_str(&json).expect("deserialize determinism result");
         assert_eq!(decoded, result);
+    }
+
+    #[test]
+    fn primitive_length_difference_documents_zero_padding() {
+        let diffs = find_byte_differences(b"ABC", b"ABC\0");
+
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0].offset, 3);
+        assert_eq!(diffs[0].round1_byte, 0);
+        assert_eq!(diffs[0].round2_byte, 0);
     }
 
     #[test]

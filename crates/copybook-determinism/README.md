@@ -16,6 +16,8 @@ are repeatable. This package forwards that API for compatibility; new code shoul
 
 ```rust
 use copybook_codec::determinism::{compare_outputs, DeterminismMode, blake3_hex};
+// The 0.5 path remains valid through this compatibility facade:
+// use copybook_determinism::{compare_outputs, DeterminismMode, blake3_hex};
 
 let output_a = b"hello world";
 let output_b = b"hello world";

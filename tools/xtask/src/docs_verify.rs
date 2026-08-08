@@ -1415,18 +1415,11 @@ fn verify_facade_invariants() -> Result<()> {
     // These deprecated facade aliases forward directly to their true owners;
     // they intentionally have no compatibility-crate dependency so the
     // facade does not reintroduce an old ownership edge.
-    let mut dependency_modules = lib_module_set.clone();
-    for alias in ["codepage", "determinism", "options", "record_io"] {
-        if !dep_module_set.contains(alias) {
-            dependency_modules.remove(alias);
-        }
-    }
-    let (lib_only, dep_only) = symmetric_diff(&dependency_modules, &dep_module_set);
-    if !(lib_only.is_empty() && dep_only.is_empty()) {
-        bail!(
-            "copybook facade modules mismatch dependency list: lib-only={lib_only:?} dep-only={dep_only:?} | authoritative-source=crates/copybook/src/lib.rs and crates/copybook/Cargo.toml"
-        );
-    }
+    verify_facade_module_dependency_invariant(
+        &lib_module_set,
+        &dep_module_set,
+        &["codepage", "determinism", "options", "record_io"],
+    )?;
 
     let (readme_only, lib_readme_only) = symmetric_diff(&readme_module_set, &lib_module_set);
     if !(readme_only.is_empty() && lib_readme_only.is_empty()) {
@@ -1435,6 +1428,26 @@ fn verify_facade_invariants() -> Result<()> {
         );
     }
 
+    Ok(())
+}
+
+fn verify_facade_module_dependency_invariant(
+    lib_module_set: &BTreeSet<String>,
+    dep_module_set: &BTreeSet<String>,
+    aliases: &[&str],
+) -> Result<()> {
+    let mut dependency_modules = lib_module_set.clone();
+    for alias in aliases {
+        if !dep_module_set.contains(*alias) {
+            dependency_modules.remove(*alias);
+        }
+    }
+    let (lib_only, dep_only) = symmetric_diff(&dependency_modules, dep_module_set);
+    if !(lib_only.is_empty() && dep_only.is_empty()) {
+        bail!(
+            "copybook facade modules mismatch dependency list: lib-only={lib_only:?} dep-only={dep_only:?} | authoritative-source=crates/copybook/src/lib.rs and crates/copybook/Cargo.toml"
+        );
+    }
     Ok(())
 }
 
@@ -2207,6 +2220,44 @@ mod tests {
             problems.is_empty(),
             "drop these from STATUS_VERSION_TARGETS or restore the claim: {}",
             problems.join("; ")
+        );
+    }
+
+    #[test]
+    fn facade_dependency_invariant_accepts_forwarding_alias_without_dependency() {
+        let lib_modules = BTreeSet::from([
+            "codec".to_string(),
+            "determinism".to_string(),
+            "options".to_string(),
+        ]);
+        let dependency_modules = BTreeSet::from(["codec".to_string(), "options".to_string()]);
+
+        assert!(
+            verify_facade_module_dependency_invariant(
+                &lib_modules,
+                &dependency_modules,
+                &["determinism"],
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn facade_dependency_invariant_rejects_dependency_without_facade_module() {
+        let lib_modules = BTreeSet::from(["codec".to_string(), "options".to_string()]);
+        let dependency_modules = BTreeSet::from([
+            "codec".to_string(),
+            "determinism".to_string(),
+            "options".to_string(),
+        ]);
+
+        assert!(
+            verify_facade_module_dependency_invariant(
+                &lib_modules,
+                &dependency_modules,
+                &["determinism"],
+            )
+            .is_err()
         );
     }
 

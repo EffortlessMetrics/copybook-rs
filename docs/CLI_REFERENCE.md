@@ -657,7 +657,7 @@ Binary field sizes are determined by PIC digits: ≤4→16b, 5–9→32b, 10–1
 
 **Envelope (always present):**
 - `schema` - JSONL schema version (currently `copybook.v1`)
-- `record_index` - Zero-based record number
+- `record_index` - One-based record number in the decoded stream (the first record is `1`)
 - `codepage` - Code page identifier used for decoding
 - `fields` - Object containing decoded field values
 

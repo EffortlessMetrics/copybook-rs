@@ -325,7 +325,8 @@ Decoded records are wrapped in a stable JSON envelope:
 ```
 
 - `schema` – Versioned schema identifier (`copybook.v1`)
-- `record_index` – Zero-based record sequence number
+- `record_index` – One-based record sequence number for streaming JSONL decode (the first
+  record is `1`). Direct library decode APIs preserve the caller-supplied index.
 - `codepage` – Decoder code page (e.g., `cp037`)
 - `fields` – Map of decoded field values (nested for groups)
 - `schema_fingerprint`, `__schema_id`, `offset`, `length`, `__record_index`, `__length` – Added when

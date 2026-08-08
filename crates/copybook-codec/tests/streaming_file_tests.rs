@@ -1010,10 +1010,14 @@ fn decode_file_to_jsonl_raw_mode_rdw_emits_header_and_payload() {
 #[test]
 fn decode_file_to_jsonl_raw_mode_rdw_is_stable_across_workers() {
     let rdw_schema = parse_copybook(RDW_SCHEMA).unwrap();
-    let rdw_data = build_rdw_records(&["ABCDE", "FGHIJ"]);
+    let rdw_data = [
+        [0x00, 0x05, 0x00, 0x00, b'A', b'B', b'C', b'D', b'E'],
+        [0x00, 0x05, 0x12, 0x34, b'F', b'G', b'H', b'I', b'J'],
+    ]
+    .concat();
     let expected_raw = vec![
         vec![0x00, 0x05, 0x00, 0x00, b'A', b'B', b'C', b'D', b'E'],
-        vec![0x00, 0x05, 0x00, 0x00, b'F', b'G', b'H', b'I', b'J'],
+        vec![0x00, 0x05, 0x12, 0x34, b'F', b'G', b'H', b'I', b'J'],
     ];
     let mut baseline_output = None;
 
@@ -1028,11 +1032,17 @@ fn decode_file_to_jsonl_raw_mode_rdw_is_stable_across_workers() {
 
         assert_eq!(summary.records_processed, 2);
         assert_eq!(summary.bytes_processed, 18);
+        assert_eq!(summary.warnings, 1);
+        assert_eq!(summary.threads_used, threads);
         let lines: Vec<_> = String::from_utf8(output.clone())
             .unwrap()
             .lines()
             .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
             .collect();
+        for line in &lines {
+            assert!(line.get("raw_b64").is_some());
+            assert!(line.get("__raw_b64").is_some());
+        }
         let actual_raw: Vec<_> = lines.iter().map(parse_raw_b64_field).collect();
         assert_eq!(actual_raw, expected_raw);
 

@@ -163,7 +163,8 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKD401_COMP3_INVALID_NIBBLE"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkd401_comp3_invalid_nibble_decode"
 [[errors]]
 code = "CBKD410_ZONED_OVERFLOW"
 stability_class = "stable"
@@ -171,7 +172,8 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKD411_ZONED_BAD_SIGN"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkd411_zoned_bad_sign_decode"
 [[errors]]
 code = "CBKD412_ZONED_BLANK_IS_ZERO"
 stability_class = "stable"
@@ -191,7 +193,8 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKD421_EDITED_PIC_INVALID_FORMAT"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkd421_edited_pic_invalid_decode"
 [[errors]]
 code = "CBKD422_EDITED_PIC_SIGN_MISMATCH"
 stability_class = "stable"
@@ -252,7 +255,8 @@ direct_test = "tests/e2e/e2e_error_codes.rs::cbkf102_record_length_invalid"
 [[errors]]
 code = "CBKF104_RDW_SUSPECT_ASCII"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkf104_rdw_suspect_ascii"
 [[errors]]
 code = "CBKF221_RDW_UNDERFLOW"
 stability_class = "stable"

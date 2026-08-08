@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `undisclosed_failure_count()` reports how many failures were not retained.
 
 ### Fixed
+- **cli**: `encode --fail-fast` can now be turned off. It was declared as a `bool`
+  with `default_value = "true"`, which clap gives `ArgAction::SetTrue` — so the
+  flag was permanently on and no invocation could disable it. Its own error text
+  advised `--fail-fast=false`, a form clap rejects outright, and the lenient
+  branch that reports skipped records was unreachable. Stopping at the first
+  failure remains the default; `--no-fail-fast` encodes the remaining records and
+  lists every failure at the end.
 - **cli**: A file the CLI cannot read now names the file and the argument it came
   from, and exits 4 instead of 5. `copybook inspect /nope.cpy` printed a bare
   `No such file or directory (os error 2)` — no path, no indication whether the

@@ -222,7 +222,8 @@ copybook encode <COPYBOOK> <JSONL> [OPTIONS]
 - `--float-format <FORMAT>` - COMP-1/COMP-2 binary format: ieee-be, ibm-hex (default: ieee-be)
 
 **Error Handling:**
-- `--fail-fast` - Stop on first error (default: true)
+- `--fail-fast` - Stop on the first record that fails to encode (default)
+- `--no-fail-fast` - Encode the remaining records and list the failures at the end
 - `--strict` - Enable strict mode validation (default: false for lenient mode)
 - `--max-errors <N>` - Maximum errors before stopping
 

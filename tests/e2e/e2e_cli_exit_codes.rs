@@ -695,3 +695,82 @@ fn missing_input_data_file_names_the_file_and_exits_4() {
         "a missing data file should be attributed to the input argument.\nstderr: {stderr}"
     );
 }
+
+// =========================================================================
+// `copybook encode --no-fail-fast` actually continues past failures
+// =========================================================================
+
+/// Three records that all fail to encode: PIC 9(3) cannot hold alphabetic text.
+fn three_bad_encode_records(dir: &std::path::Path) -> std::path::PathBuf {
+    let cpy = dir.join("num.cpy");
+    std::fs::write(&cpy, "       01 REC.\n          05 FLD PIC 9(3).\n").expect("write cpy");
+    let jsonl = dir.join("bad3.jsonl");
+    std::fs::write(
+        &jsonl,
+        "{\"FLD\":\"AAA\"}\n{\"FLD\":\"BBB\"}\n{\"FLD\":\"CCC\"}\n",
+    )
+    .expect("write jsonl");
+    cpy
+}
+
+fn run_encode(
+    dir: &std::path::Path,
+    cpy: &std::path::Path,
+    extra: &[&str],
+) -> std::process::Output {
+    let mut cmd = Command::cargo_bin("copybook").unwrap();
+    cmd.args(["encode"])
+        .arg(cpy)
+        .arg(dir.join("bad3.jsonl"))
+        .arg("--output")
+        .arg(dir.join("out.bin"))
+        .args(["--format", "fixed", "--codepage", "ascii"]);
+    for arg in extra {
+        cmd.arg(arg);
+    }
+    cmd.output().expect("failed to run copybook encode")
+}
+
+#[test]
+fn encode_fail_fast_stops_at_the_first_failure_by_default() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = three_bad_encode_records(dir.path());
+
+    let out = run_encode(dir.path(), &cpy, &[]);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert_no_panic(&stderr);
+    assert_eq!(out.status.code(), Some(3), "stderr: {stderr}");
+    assert_eq!(
+        stderr.matches("  record ").count(),
+        1,
+        "the default stops at the first failure.\nstderr: {stderr}"
+    );
+}
+
+#[test]
+fn encode_no_fail_fast_reports_every_failure() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = three_bad_encode_records(dir.path());
+
+    let out = run_encode(dir.path(), &cpy, &["--no-fail-fast"]);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert_no_panic(&stderr);
+    assert_eq!(
+        stderr.matches("  record ").count(),
+        3,
+        "--no-fail-fast must continue past the first failure.\nstderr: {stderr}"
+    );
+}
+
+#[test]
+fn encode_rejects_fail_fast_together_with_no_fail_fast() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = three_bad_encode_records(dir.path());
+
+    let out = run_encode(dir.path(), &cpy, &["--fail-fast", "--no-fail-fast"]);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("cannot be used with"),
+        "the two flags must conflict rather than silently picking one.\nstderr: {stderr}"
+    );
+}

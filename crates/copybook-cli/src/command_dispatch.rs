@@ -153,6 +153,7 @@ fn run_encode_command(command: Commands) -> CommandOutcome {
         strict,
         max_errors,
         fail_fast,
+        no_fail_fast,
         threads,
         coerce_numbers,
         strict_comments,
@@ -178,7 +179,10 @@ fn run_encode_command(command: Commands) -> CommandOutcome {
                 bwz_encode,
                 strict,
                 max_errors,
-                fail_fast,
+                // Stopping on the first failure is the default, so only `--no-fail-fast`
+                // changes anything. clap rejects the two together, so this cannot be
+                // ambiguous.
+                fail_fast: fail_fast || !no_fail_fast,
                 threads,
                 coerce_numbers,
                 strict_comments,

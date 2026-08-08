@@ -6,6 +6,11 @@ use crate::options::{DecodeOptions, ZonedEncodingFormat};
 use copybook_core::Schema;
 use serde_json::Value;
 
+pub(super) struct RecordMetadata {
+    pub(super) length: usize,
+    pub(super) offset: Option<u64>,
+}
+
 /// Recursively flatten hierarchical fields into a target map so that leaf
 /// field names are accessible at the root level for backward compatibility.
 fn flatten_fields_into(
@@ -31,7 +36,7 @@ pub(super) fn build_json_envelope(
     schema: &Schema,
     options: &DecodeOptions,
     record_index: u64,
-    record_length: usize,
+    record_metadata: &RecordMetadata,
     raw_b64: Option<String>,
     encoding_metadata: Vec<(String, ZonedEncodingFormat)>,
 ) -> Value {
@@ -65,7 +70,7 @@ pub(super) fn build_json_envelope(
         }
         root.insert(
             String::from("length"),
-            Value::Number(serde_json::Number::from(record_length)),
+            Value::Number(serde_json::Number::from(record_metadata.length)),
         );
         root.insert(
             String::from("__record_index"),
@@ -73,8 +78,14 @@ pub(super) fn build_json_envelope(
         );
         root.insert(
             String::from("__length"),
-            Value::Number(serde_json::Number::from(record_length)),
+            Value::Number(serde_json::Number::from(record_metadata.length)),
         );
+        if let Some(offset) = record_metadata.offset {
+            root.insert(
+                String::from("offset"),
+                Value::Number(serde_json::Number::from(offset)),
+            );
+        }
     }
 
     if let Some(raw) = raw_b64 {

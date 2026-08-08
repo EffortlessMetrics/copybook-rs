@@ -222,6 +222,7 @@ fn decode_rdw_record_raw_cli_preserves_physical_frames() {
     for (index, line) in lines.iter().enumerate() {
         assert!(line.get("raw_b64").is_some());
         assert!(line.get("__raw_b64").is_some());
+        assert_eq!(line["offset"], index * 9);
         assert_eq!(line["length"], 5);
         assert_eq!(line["__length"], 5);
         assert_eq!(line["record_index"], index + 1);

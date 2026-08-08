@@ -328,8 +328,9 @@ Decoded records are wrapped in a stable JSON envelope:
 - `record_index` – Zero-based record sequence number
 - `codepage` – Decoder code page (e.g., `cp037`)
 - `fields` – Map of decoded field values (nested for groups)
-- `schema_fingerprint`, `__schema_id`, `length`, `__record_index`, `__length` – Added when
-  `emit_meta` is enabled
+- `schema_fingerprint`, `__schema_id`, `offset`, `length`, `__record_index`, `__length` – Added when
+  `emit_meta` is enabled for streaming decode; `offset` is the zero-based physical source offset
+  of the decoded record
 
 When `emit_raw` is enabled, record-level payloads are emitted as **`raw_b64`** (with the canonical
 `__raw_b64` key also present). Field-level capture uses the `<FIELD>__raw_b64` naming pattern:

@@ -2,8 +2,8 @@
 //! Comprehensive tests for record I/O format dispatch.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+use copybook_codec::options::RecordFormat;
 use copybook_error::ErrorCode;
-use copybook_options::RecordFormat;
 use copybook_record_io::{
     FixedRecordReader, FixedRecordWriter, RDWRecordReader, RDWRecordWriter, read_record,
     write_record,

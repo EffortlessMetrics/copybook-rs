@@ -114,6 +114,17 @@
       "note": "The facade alias preserves the published module path while codepage ownership converges in copybook-charset."
     },
     {
+      "path": "crates/copybook/src/lib.rs",
+      "symbol": "options",
+      "kind": "mod",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook::codec::options",
+      "migration_example": "Replace `copybook::options::DecodeOptions` and related imports with `copybook::codec::options`.",
+      "planned_removal": "Retained through the 0.6 migration window; removal requires a future compatibility decision documented by the surface registry.",
+      "compatibility_impact": "Existing facade imports continue to compile with a deprecation warning; new code should use the codec options module.",
+      "note": "The facade alias preserves the published module path while codec operation-option ownership converges in copybook-codec."
+    },
+    {
       "path": "crates/copybook-codepage/src/lib.rs",
       "symbol": "Codepage",
       "kind": "type",

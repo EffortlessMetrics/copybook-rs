@@ -31,7 +31,6 @@ copybook-error.workspace = true
 copybook-error-reporter.workspace = true
 copybook-fixed.workspace = true
 copybook-governance-contracts.workspace = true
-copybook-options.workspace = true
 copybook-overflow.workspace = true
 copybook-overpunch.workspace = true
 copybook-rdw.workspace = true

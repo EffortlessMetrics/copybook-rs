@@ -4,8 +4,8 @@
 //! mismatch detection, streaming multiple records, and edge cases.
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
+use copybook_codec::options::RecordFormat;
 use copybook_error::ErrorCode;
-use copybook_options::RecordFormat;
 use copybook_record_io::{
     FixedRecordReader, FixedRecordWriter, RDWRecord, RDWRecordReader, RDWRecordWriter, read_record,
     write_record,

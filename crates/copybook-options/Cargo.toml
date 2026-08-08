@@ -21,13 +21,12 @@ all-features = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-copybook-charset.workspace = true
-copybook-zoned-format = { workspace = true }
-serde.workspace = true
+copybook-codec.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
 proptest.workspace = true
+copybook-zoned-format.workspace = true
 
 [lints]
 workspace = true

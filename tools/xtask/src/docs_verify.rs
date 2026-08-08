@@ -175,7 +175,7 @@ const STABLE_CONTRACT_SOURCE_PATHS: [&str; 6] = [
     "crates/copybook-cli/src/main.rs",
     "crates/copybook-cli/src/exit_codes.rs",
     "crates/copybook-error/src/lib.rs",
-    "crates/copybook-options/src/lib.rs",
+    "crates/copybook-codec/src/options.rs",
     "schemas/record-format.json",
     "docs/CLI_REFERENCE.md",
 ];
@@ -634,8 +634,8 @@ fn collect_stable_contract_inventory() -> Result<StableSurfaceContractManifest> 
         .context("loading crates/copybook-cli/src/exit_codes.rs")?;
     let error_source = fs::read_to_string("crates/copybook-error/src/lib.rs")
         .context("loading crates/copybook-error/src/lib.rs")?;
-    let raw_mode_source = fs::read_to_string("crates/copybook-options/src/lib.rs")
-        .context("loading crates/copybook-options/src/lib.rs")?;
+    let raw_mode_source = fs::read_to_string("crates/copybook-codec/src/options.rs")
+        .context("loading crates/copybook-codec/src/options.rs")?;
     let jsonl_schema_source = fs::read_to_string("schemas/record-format.json")
         .context("loading schemas/record-format.json")?;
 
@@ -1399,7 +1399,7 @@ fn verify_facade_invariants() -> Result<()> {
     // they intentionally have no compatibility-crate dependency so the
     // facade does not reintroduce an old ownership edge.
     let mut dependency_modules = lib_module_set.clone();
-    for alias in ["codepage", "record_io"] {
+    for alias in ["codepage", "options", "record_io"] {
         if !dep_module_set.contains(alias) {
             dependency_modules.remove(alias);
         }

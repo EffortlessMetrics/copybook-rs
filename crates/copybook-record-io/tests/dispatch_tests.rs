@@ -4,7 +4,7 @@
 //! Integration tests for record-io dispatch, error propagation,
 //! re-exports, and configuration options.
 
-use copybook_options::RecordFormat;
+use copybook_codec::options::RecordFormat;
 use copybook_record_io::{
     FixedRecordReader, FixedRecordWriter, RDWRecord, RDWRecordReader, RDWRecordWriter, read_record,
     write_record,

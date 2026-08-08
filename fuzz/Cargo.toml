@@ -33,7 +33,6 @@ copybook-corruption-rdw = { path = "../crates/copybook-corruption-rdw" }
 copybook-record-io = { path = "../crates/copybook-record-io" }
 copybook-determinism = { path = "../crates/copybook-determinism" }
 copybook-rdw-predicates = { path = "../crates/copybook-rdw-predicates" }
-copybook-options = { path = "../crates/copybook-options" }
 copybook-safe-ops = { path = "../crates/copybook-safe-ops" }
 copybook-safe-index = { path = "../crates/copybook-safe-index" }
 copybook-safe-text = { path = "../crates/copybook-safe-text" }

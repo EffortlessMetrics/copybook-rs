@@ -26,10 +26,6 @@
       "owner_issue": 656
     },
     {
-      "id": "primary-dep:copybook->copybook-options",
-      "owner_issue": 653
-    },
-    {
       "id": "primary-dep:copybook->copybook-overflow",
       "owner_issue": 655
     },
@@ -54,11 +50,11 @@
       "owner_issue": 654
     },
     {
-      "id": "primary-dep:copybook-codec->copybook-options",
+      "id": "primary-dep:copybook-codec->copybook-overpunch",
       "owner_issue": 653
     },
     {
-      "id": "primary-dep:copybook-codec->copybook-overpunch",
+      "id": "primary-dep:copybook-codec->copybook-zoned-format",
       "owner_issue": 653
     },
     {

@@ -11,7 +11,7 @@ This published 0.5 package remains resolvable for compatibility.
 
 ```rust
 use copybook_record_io::{read_record, write_record};
-use copybook_options::RecordFormat;
+use copybook_codec::options::RecordFormat;
 use std::io::Cursor;
 
 // Write a fixed-length record

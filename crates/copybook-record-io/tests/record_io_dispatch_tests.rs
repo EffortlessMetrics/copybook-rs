@@ -4,8 +4,8 @@
 //! Integration tests for record-io dispatch covering fixed-length reading,
 //! RDW reading, format dispatch logic, and error conditions.
 
+use copybook_codec::options::RecordFormat;
 use copybook_error::ErrorCode;
-use copybook_options::RecordFormat;
 use copybook_record_io::{FixedRecordReader, RDWRecordReader, read_record, write_record};
 use std::io::{self, Cursor, Read, Write};
 

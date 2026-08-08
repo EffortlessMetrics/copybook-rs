@@ -56,7 +56,8 @@ direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbks301_odo_clipped"
 [[errors]]
 code = "CBKS302_ODO_RAISED"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-codec/src/odo_redefines.rs::test_odo_validation_lenient_mode_raise_min"
 [[errors]]
 code = "CBKS601_RENAME_UNKNOWN_FROM"
 stability_class = "stable"
@@ -130,11 +131,13 @@ direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkr101_fixed_recor
 [[errors]]
 code = "CBKR201_RDW_READ_ERROR"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-record-io/tests/dispatch_deep.rs::error_rdw_read_io_failure"
 [[errors]]
 code = "CBKR202_RDW_WRITE_ERROR"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-record-io/tests/dispatch_deep.rs::error_rdw_write_io_failure"
 [[errors]]
 code = "CBKR211_RDW_RESERVED_NONZERO"
 stability_class = "stable"
@@ -147,7 +150,8 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKC301_INVALID_EBCDIC_BYTE"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-charset/tests/charset_edge_cases.rs::non_printable_byte_0x00_error_policy_fails_cp037"
 [[errors]]
 code = "CBKD101_INVALID_FIELD_TYPE"
 stability_class = "stable"
@@ -256,7 +260,8 @@ direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbke531_float_encode_ov
 [[errors]]
 code = "CBKF001_FILE_READ_ERROR"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_cli_exit_codes.rs::missing_copybook_names_the_file_and_exits_4"
 [[errors]]
 code = "CBKF102_RECORD_LENGTH_INVALID"
 stability_class = "stable"

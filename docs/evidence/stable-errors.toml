@@ -85,7 +85,8 @@ direct_test = "crates/copybook-core/tests/renames_resolver_negative_tests.rs::re
 [[errors]]
 code = "CBKS606_RENAME_THRU_CROSSES_GROUP"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-core/tests/renames_resolver_negative_tests.rs::renames_thru_crosses_group"
 [[errors]]
 code = "CBKS607_RENAME_CROSSES_OCCURS"
 stability_class = "stable"
@@ -98,7 +99,8 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKS609_RENAME_OVER_REDEFINES"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-core/tests/renames_r4_r6_bdd_tests.rs::test_r4_renames_over_redefines_rejected_when_flag_disabled"
 [[errors]]
 code = "CBKS610_RENAME_MULTIPLE_REDEFINES"
 stability_class = "stable"
@@ -107,7 +109,8 @@ direct_test = "crates/copybook-core/tests/error_code_coverage_tests.rs::test_cbk
 [[errors]]
 code = "CBKS611_RENAME_PARTIAL_OCCURS"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-core/tests/error_code_coverage_tests.rs::test_cbks611_partial_occurs_with_r4r6_flag"
 [[errors]]
 code = "CBKS612_RENAME_ODO_NOT_SUPPORTED"
 stability_class = "stable"
@@ -192,11 +195,13 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKD413_ZONED_INVALID_ENCODING"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-core/tests/zoned_encoding_error_codes_tests.rs::test_cbkd413_zoned_invalid_encoding"
 [[errors]]
 code = "CBKD414_ZONED_MIXED_ENCODING"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-core/tests/zoned_encoding_error_codes_tests.rs::test_cbkd414_zoned_mixed_encoding"
 [[errors]]
 code = "CBKD415_ZONED_ENCODING_AMBIGUOUS"
 stability_class = "stable"

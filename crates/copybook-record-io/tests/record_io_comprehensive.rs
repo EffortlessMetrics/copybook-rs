@@ -156,7 +156,8 @@ fn fixed_data_read_as_rdw_errors() {
     let mut cursor = Cursor::new(data.to_vec());
     // 'AB' = 0x4142 = 16706 bytes expected, but only 4 remain after header
     let result = read_record(&mut cursor, RecordFormat::RDW, None);
-    assert!(result.is_err(), "ASCII data should fail as RDW");
+    let err = result.unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
 }
 
 #[test]

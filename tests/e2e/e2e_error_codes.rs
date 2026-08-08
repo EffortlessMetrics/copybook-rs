@@ -897,25 +897,16 @@ fn cbkf104_rdw_suspect_ascii() {
     );
 }
 
-/// CBKF221: RDW length underflow (length < 4)
+/// CBKF221: RDW header underflow (fewer than 4 header bytes)
 #[test]
 fn cbkf221_rdw_underflow() {
-    // RDW header with length=2 (minimum is 4 for the header itself)
+    // Truncated RDW header: only the two-byte length prefix is present.
     let data: Vec<u8> = vec![
-        0x00, 0x02, // length = 2 (below 4-byte minimum)
-        0x00, 0x00,
+        0x00, 0x02, // length prefix; reserved bytes are missing
     ];
-    let mut reader = RDWRecordReader::new(Cursor::new(data), false);
-    let result = reader.read_record();
-    assert!(result.is_err());
-    let code = result.unwrap_err().code;
-    assert!(
-        matches!(
-            code,
-            ErrorCode::CBKF221_RDW_UNDERFLOW | ErrorCode::CBKF102_RECORD_LENGTH_INVALID
-        ),
-        "Expected CBKF221 or CBKF102, got {code:?}"
-    );
+    let mut reader = RDWRecordReader::new(Cursor::new(data), true);
+    let err = reader.read_record().unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
 }
 
 // =========================================================================

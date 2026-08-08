@@ -1395,12 +1395,14 @@ fn verify_facade_invariants() -> Result<()> {
     let dep_module_set = collect_copybook_dependency_modules()?;
     let readme_module_set = collect_copybook_readme_modules()?;
 
-    // `copybook::codepage` is a deprecated facade alias that forwards directly
-    // to `copybook-charset`; it intentionally has no compatibility-crate
-    // dependency so the facade does not reintroduce the old ownership edge.
+    // These deprecated facade aliases forward directly to their true owners;
+    // they intentionally have no compatibility-crate dependency so the
+    // facade does not reintroduce an old ownership edge.
     let mut dependency_modules = lib_module_set.clone();
-    if !dep_module_set.contains("codepage") {
-        dependency_modules.remove("codepage");
+    for alias in ["codepage", "record_io"] {
+        if !dep_module_set.contains(alias) {
+            dependency_modules.remove(alias);
+        }
     }
     let (lib_only, dep_only) = symmetric_diff(&dependency_modules, &dep_module_set);
     if !(lib_only.is_empty() && dep_only.is_empty()) {

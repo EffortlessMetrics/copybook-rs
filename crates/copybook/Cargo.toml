@@ -35,7 +35,6 @@ copybook-options.workspace = true
 copybook-overflow.workspace = true
 copybook-overpunch.workspace = true
 copybook-rdw.workspace = true
-copybook-record-io.workspace = true
 copybook-support-matrix.workspace = true
 copybook-utils.workspace = true
 

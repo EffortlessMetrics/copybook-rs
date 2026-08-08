@@ -38,10 +38,6 @@
       "owner_issue": 653
     },
     {
-      "id": "primary-dep:copybook->copybook-record-io",
-      "owner_issue": 652
-    },
-    {
       "id": "primary-dep:copybook->copybook-utils",
       "owner_issue": 655
     },
@@ -64,10 +60,6 @@
     {
       "id": "primary-dep:copybook-codec->copybook-overpunch",
       "owner_issue": 653
-    },
-    {
-      "id": "primary-dep:copybook-codec->copybook-record-io",
-      "owner_issue": 652
     },
     {
       "id": "primary-dep:copybook-core->copybook-error-reporter",

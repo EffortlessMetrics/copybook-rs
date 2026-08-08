@@ -1,13 +1,11 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-record-io
 
-Record-format dispatch for copybook-rs.
+Compatibility forwarding package for copybook-rs record dispatch.
 
 ## Overview
 
-Provides a format-agnostic API for single-record I/O that dispatches to either fixed-length
-(LRECL) or RDW (variable-length) framing. This crate bridges the dedicated framing microcrates
-(`copybook-fixed`, `copybook-rdw`) behind a unified `read_record` / `write_record` interface.
+This published 0.5 package remains resolvable for compatibility.
 
 ## Usage
 
@@ -28,8 +26,8 @@ assert_eq!(record.unwrap(), b"DATA");
 
 ## Public API
 
-- `read_record` / `write_record` — Format-agnostic single-record I/O
-- Re-exports: `FixedRecordReader`, `FixedRecordWriter`, `RDWRecord`, `RDWRecordReader`, `RDWRecordWriter`
+- `read_record` / `write_record` — forwarded format-agnostic single-record I/O
+- Forwarded framing types: `FixedRecordReader`, `FixedRecordWriter`, `RDWRecord`, `RDWRecordReader`, `RDWRecordWriter`
 
 ## License
 

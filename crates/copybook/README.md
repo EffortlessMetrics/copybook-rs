@@ -37,7 +37,7 @@ Each module re-exports the corresponding published component crate:
 | `overflow` | `copybook-overflow` |
 | `overpunch` | `copybook-overpunch` |
 | `rdw` | `copybook-rdw` |
-| `record_io` | `copybook-record-io` |
+| `record_io` | `copybook-codec` |
 | `support_matrix` | `copybook-support-matrix` |
 | `utils` | `copybook-utils` |
 

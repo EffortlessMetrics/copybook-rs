@@ -255,6 +255,17 @@
       "planned_removal": "Retained as a compatibility alias through the 0.6 migration window; removal requires a future compatibility decision.",
       "compatibility_impact": "Existing source-position consumers continue to compile with a deprecation warning.",
       "note": "The compatibility package forwards token positions to the core owner."
+    },
+    {
+      "path": "crates/copybook/src/lib.rs",
+      "symbol": "record_io",
+      "kind": "mod",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook::codec::record",
+      "migration_example": "Replace `copybook::record_io` imports with `copybook::codec::record` or `copybook::codec::file::dispatch`.",
+      "planned_removal": "Retained through the 0.6 migration window; removal requires a future compatibility decision documented by the surface registry.",
+      "compatibility_impact": "Existing facade imports continue to compile with a deprecation warning and preserve the record-dispatch API.",
+      "note": "The deprecated facade alias forwards directly to the codec-owned dispatch implementation."
     }
   ]
 }

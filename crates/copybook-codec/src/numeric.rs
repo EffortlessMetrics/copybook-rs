@@ -119,7 +119,7 @@
 //! - [`crate::memory::ScratchBuffers`] - Reusable buffers for zero-allocation processing
 
 use crate::memory::ScratchBuffers;
-use crate::options::{Codepage, ZonedEncodingFormat};
+use crate::options::Codepage;
 use crate::zoned_overpunch::{ZeroSignPolicy, encode_overpunch_byte};
 use copybook_core::{Error, ErrorCode, Result, SignPlacement, SignSeparateInfo};
 use std::convert::TryFrom;
@@ -130,6 +130,7 @@ mod binary;
 mod branch;
 mod decimal;
 mod float;
+pub mod zoned;
 
 pub use alphanumeric::encode_alphanumeric;
 pub use binary::{
@@ -140,6 +141,7 @@ use branch::{likely, unlikely};
 pub use decimal::{SmallDecimal, ZonedEncodingInfo};
 use decimal::{create_normalized_decimal, digit_from_value, scale_abs_to_u32};
 pub use float::*;
+pub use zoned::{ParseZonedEncodingFormatError, ZonedEncodingFormat};
 
 /// Nibble zones for ASCII/EBCDIC digits (high bits in zoned bytes).
 const ASCII_DIGIT_ZONE: u8 = 0x3; // ASCII '0'..'9' => 0x30..0x39

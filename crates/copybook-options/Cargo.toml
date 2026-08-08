@@ -26,7 +26,6 @@ copybook-codec.workspace = true
 [dev-dependencies]
 serde_json.workspace = true
 proptest.workspace = true
-copybook-zoned-format.workspace = true
 
 [lints]
 workspace = true

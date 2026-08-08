@@ -104,7 +104,6 @@ dependencies = [
  "copybook-fixed",
  "copybook-overpunch",
  "copybook-rdw",
- "copybook-zoned-format",
  "crossbeam-channel",
  "indexmap",
  "serde",
@@ -213,7 +212,6 @@ dependencies = [
  "copybook-safe-index",
  "copybook-safe-ops",
  "copybook-safe-text",
- "copybook-zoned-format",
  "libfuzzer-sys",
  "serde",
  "serde_json",
@@ -317,13 +315,6 @@ version = "0.5.0"
 dependencies = [
  "copybook-error",
  "copybook-safe-ops",
-]
-
-[[package]]
-name = "copybook-zoned-format"
-version = "0.5.0"
-dependencies = [
- "serde",
 ]
 
 [[package]]

@@ -1,7 +1,7 @@
 #![no_main]
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use copybook_determinism::{
+use copybook_codec::determinism::{
     DeterminismMode, compare_outputs, compare_outputs_with_limit, find_byte_differences_with_limit,
 };
 use libfuzzer_sys::fuzz_target;

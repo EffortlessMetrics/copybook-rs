@@ -28,7 +28,7 @@ Each module re-exports the corresponding published component crate:
 | `codepage` | `copybook-charset` |
 | `contracts` | `copybook-contracts` |
 | `core` | `copybook-core` |
-| `determinism` | `copybook-determinism` |
+| `determinism` | `copybook-codec` |
 | `error` | `copybook-error` |
 | `error_reporter` | `copybook-error-reporter` |
 | `fixed` | `copybook-fixed` |

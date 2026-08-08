@@ -31,9 +31,9 @@ pub mod core {
     pub use copybook_core::*;
 }
 
-/// Determinism primitives for stable hash and diff comparison.
+/// Determinism primitives for stable hash, diff comparison, and codec checks.
 pub mod determinism {
-    pub use copybook_determinism::*;
+    pub use copybook_codec::determinism::*;
 }
 
 /// Error types and taxonomy.

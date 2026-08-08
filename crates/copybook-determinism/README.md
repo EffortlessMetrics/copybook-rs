@@ -1,18 +1,23 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-determinism
 
-Determinism primitives for repeatable output validation in copybook-rs.
+Backward-compatible package facade for the determinism primitives owned by
+`copybook-codec`.
 
 ## Overview
 
-This crate compares two codec output byte streams using BLAKE3 digests and reports bounded
-byte-level differences. It supports decode-only, encode-only, and full round-trip determinism
-checks, enabling CI pipelines and tests to verify that codec operations are repeatable.
+The canonical implementation compares two codec output byte streams using BLAKE3 digests and
+reports bounded byte-level differences. It supports decode-only, encode-only, and full
+round-trip determinism checks, enabling CI pipelines and tests to verify that codec operations
+are repeatable. This package forwards that API for compatibility; new code should use
+`copybook_codec::determinism`.
 
 ## Usage
 
 ```rust
-use copybook_determinism::{compare_outputs, DeterminismMode, blake3_hex};
+use copybook_codec::determinism::{compare_outputs, DeterminismMode, blake3_hex};
+// The 0.5 path remains valid through this compatibility facade:
+// use copybook_determinism::{compare_outputs, DeterminismMode, blake3_hex};
 
 let output_a = b"hello world";
 let output_b = b"hello world";

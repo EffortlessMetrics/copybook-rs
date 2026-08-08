@@ -9,9 +9,9 @@
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
+use copybook_codec::determinism::blake3_hex;
 use copybook_codec::{Codepage, DecodeOptions, RecordFormat, decode_record, encode_record};
 use copybook_core::parse_copybook;
-use copybook_determinism::blake3_hex;
 use copybook_sequence_ring::{SequenceRing, SequencedRecord};
 use proptest::prelude::*;
 use serde_json::Value;

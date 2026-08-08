@@ -389,6 +389,35 @@ fn test_rdw_with_odo_variable_length() {
 }
 
 #[test]
+fn test_rdw_with_odo_variable_length_parallel() {
+    let copybook = r"
+01 ODO-RDW-RECORD.
+   05 COUNTER PIC 9(2).
+   05 VARIABLE-ARRAY OCCURS 1 TO 5 TIMES DEPENDING ON COUNTER PIC X(3).
+";
+
+    let schema = parse_copybook(copybook).unwrap();
+    let mut options = create_rdw_decode_options(RawMode::Off, false);
+    options.threads = 4;
+
+    // The schema LRECL is the maximum ODO allocation (17 bytes), while this
+    // valid record contains only the counter and three array elements (11
+    // bytes). Parallel dispatch must apply the same ODO-aware boundary as the
+    // single-worker path.
+    let input = Cursor::new(b"\x00\x0B\x00\x0003ABCDEFGHI");
+    let mut output = Vec::new();
+
+    let summary = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options)
+        .expect("parallel RDW ODO record should be accepted");
+    assert_eq!(summary.records_processed, 1);
+
+    let json_record: Value = serde_json::from_str(String::from_utf8(output).unwrap().trim())
+        .expect("parallel RDW output should be valid JSON");
+    assert_eq!(json_record["COUNTER"], "03");
+    assert_eq!(json_record["VARIABLE-ARRAY"].as_array().unwrap().len(), 3);
+}
+
+#[test]
 fn test_rdw_big_endian_length() {
     let copybook = "01 RECORD PIC X(38)."; // Larger record to test 16-bit length within limits
     let schema = parse_copybook(copybook).unwrap();

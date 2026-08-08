@@ -2984,6 +2984,7 @@ fn process_rdw_records_parallel<R: Read, W: Write>(
         }
 
         if let Some(schema_lrecl) = schema.lrecl_fixed
+            && schema.tail_odo.is_none()
             && rdw_record.payload.len() < schema_lrecl as usize
         {
             let error = rdw_underflow_error(schema_lrecl, rdw_record.payload.len());

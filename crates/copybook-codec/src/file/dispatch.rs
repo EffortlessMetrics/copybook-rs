@@ -64,7 +64,7 @@ pub fn write_record(output: &mut impl Write, data: &[u8], format: RecordFormat) 
         RecordFormat::Fixed => {
             output.write_all(data).map_err(|e| {
                 Error::new(
-                    ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                    ErrorCode::CBKR101_FIXED_RECORD_ERROR,
                     format!("Write error: {e}"),
                 )
             })?;

@@ -21,14 +21,12 @@ all-features = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-serde.workspace = true
-blake3.workspace = true
+copybook-codec.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
 serde_json.workspace = true
 copybook-core = { path = "../copybook-core" }
-copybook-codec = { path = "../copybook-codec" }
 
 [lints]
 workspace = true

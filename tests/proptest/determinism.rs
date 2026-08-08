@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use copybook_determinism::{
+use copybook_codec::determinism::{
     BLAKE3_HEX_LEN, DeterminismMode, compare_outputs, compare_outputs_with_limit,
     find_byte_differences_with_limit,
 };

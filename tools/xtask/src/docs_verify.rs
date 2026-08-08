@@ -1416,7 +1416,7 @@ fn verify_facade_invariants() -> Result<()> {
     // they intentionally have no compatibility-crate dependency so the
     // facade does not reintroduce an old ownership edge.
     let mut dependency_modules = lib_module_set.clone();
-    for alias in ["codepage", "options", "record_io"] {
+    for alias in ["codepage", "determinism", "options", "record_io"] {
         if !dep_module_set.contains(alias) {
             dependency_modules.remove(alias);
         }

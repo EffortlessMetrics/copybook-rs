@@ -26,7 +26,6 @@ copybook-charset.workspace = true
 copybook-codec.workspace = true
 copybook-contracts.workspace = true
 copybook-core.workspace = true
-copybook-determinism.workspace = true
 copybook-error.workspace = true
 copybook-error-reporter.workspace = true
 copybook-fixed.workspace = true

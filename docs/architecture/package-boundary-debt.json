@@ -14,10 +14,6 @@
       "owner_issue": 656
     },
     {
-      "id": "primary-dep:copybook->copybook-determinism",
-      "owner_issue": 654
-    },
-    {
       "id": "primary-dep:copybook->copybook-error-reporter",
       "owner_issue": 655
     },
@@ -44,10 +40,6 @@
     {
       "id": "primary-dep:copybook-codec->copybook-corruption",
       "owner_issue": 655
-    },
-    {
-      "id": "primary-dep:copybook-codec->copybook-determinism",
-      "owner_issue": 654
     },
     {
       "id": "primary-dep:copybook-codec->copybook-overpunch",

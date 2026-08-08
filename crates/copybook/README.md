@@ -33,7 +33,7 @@ Each module re-exports the corresponding published component crate:
 | `error_reporter` | `copybook-error-reporter` |
 | `fixed` | `copybook-fixed` |
 | `governance_contracts` | `copybook-governance-contracts` |
-| `options` | `copybook-codec` (deprecated since 0.6.0; use `copybook::codec::options`) |
+| `options` | `copybook-codec` |
 | `overflow` | `copybook-overflow` |
 | `overpunch` | `copybook-overpunch` |
 | `rdw` | `copybook-rdw` |
@@ -47,8 +47,9 @@ single dependency over the public crate family.
 
 Use `copybook::charset` for new code. The `copybook::codepage` module remains
 available as a deprecated compatibility alias during the planned 0.6 migration
-window. The installation example below uses the currently published 0.5
-release.
+window. The `copybook::options` module is also deprecated since 0.6.0; use
+`copybook::codec::options` for codec operation options. The installation example
+below uses the currently published 0.5 release.
 
 Add `copybook` in your `Cargo.toml`:
 

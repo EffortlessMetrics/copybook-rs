@@ -31,7 +31,7 @@ scratch.clear(); // clears without deallocating
 - `ScratchBuffers` — Reusable byte/digit/string buffers for hot-path processing
 - `WorkerPool` — Parallel record processing with deterministic output ordering
 - `StreamingProcessor` — Memory-bounded streaming with pressure tracking
-- `SequenceRing` / `SequencedRecord` — Re-exported from `copybook-sequence-ring`
+- `SequenceRing` / `SequencedRecord` — Re-exported from `copybook_codec::runtime`
 
 ## License
 

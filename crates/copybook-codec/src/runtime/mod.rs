@@ -6,6 +6,7 @@
 //! until issue #654 Slice C moves that implementation into this module family.
 
 mod scratch;
+mod sequence_ring;
 mod streaming;
 mod worker_pool;
 
@@ -13,7 +14,6 @@ mod worker_pool;
 mod tests;
 
 pub use scratch::{DigitBuffer, ScratchBuffers};
+pub use sequence_ring::{SequenceRing, SequenceRingStats, SequencedRecord};
 pub use streaming::{StreamingProcessor, StreamingProcessorStats};
 pub use worker_pool::{WorkerPool, WorkerPoolStats};
-// Sequence ordering remains externally implemented until issue #654 Slice C.
-pub use copybook_sequence_ring::{SequenceRing, SequenceRingStats, SequencedRecord};

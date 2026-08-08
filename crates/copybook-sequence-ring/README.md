@@ -1,6 +1,9 @@
 # copybook-sequence-ring
 
-Deterministic sequence reordering primitive for parallel pipelines.
+Backward-compatible package facade for the codec-owned sequence reordering runtime.
+
+The canonical implementation lives at `copybook_codec::runtime`. This package
+remains available for consumers migrating from the 0.5 package layout.
 
 ## Overview
 
@@ -11,7 +14,7 @@ multiple worker threads, which is critical for maintaining data integrity in par
 ## Usage
 
 ```rust
-use copybook_sequence_ring::{SequenceRing, SequencedRecord};
+use copybook_codec::runtime::{SequenceRing, SequencedRecord};
 
 let mut ring = SequenceRing::new(100, 50); // channel capacity, max reorder window
 let sender = ring.sender();

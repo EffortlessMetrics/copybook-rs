@@ -874,7 +874,6 @@ dependencies = [
  "copybook-options",
  "copybook-overpunch",
  "copybook-rdw",
- "copybook-sequence-ring",
  "copybook-zoned-format",
  "crossbeam-channel",
  "hex",
@@ -897,7 +896,6 @@ version = "0.5.0"
 dependencies = [
  "anyhow",
  "copybook-codec",
- "copybook-sequence-ring",
 ]
 
 [[package]]
@@ -1001,7 +999,6 @@ dependencies = [
  "copybook-codec",
  "copybook-core",
  "copybook-error",
- "copybook-sequence-ring",
  "predicates",
  "regex",
  "serde_json",
@@ -1140,7 +1137,6 @@ dependencies = [
  "copybook-record-io",
  "copybook-safe-index",
  "copybook-safe-text",
- "copybook-sequence-ring",
  "copybook-support-matrix",
  "crossbeam-channel",
  "proptest",
@@ -1227,8 +1223,8 @@ dependencies = [
 name = "copybook-sequence-ring"
 version = "0.5.0"
 dependencies = [
+ "copybook-codec",
  "crossbeam-channel",
- "tracing",
 ]
 
 [[package]]

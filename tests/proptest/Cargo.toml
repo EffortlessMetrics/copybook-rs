@@ -43,7 +43,6 @@ copybook-charset.workspace = true
 copybook-fixed.workspace = true
 copybook-rdw.workspace = true
 copybook-record-io.workspace = true
-copybook-sequence-ring.workspace = true
 crossbeam-channel.workspace = true
 copybook-error.workspace = true
 serde.workspace = true

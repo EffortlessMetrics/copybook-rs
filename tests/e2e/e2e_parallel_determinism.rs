@@ -209,7 +209,7 @@ fn test_decode_multi_run_sha256_stable() {
 
 #[test]
 fn test_sequence_ring_preserves_input_order() {
-    use copybook_sequence_ring::{SequenceRing, SequencedRecord};
+    use copybook_codec::runtime::{SequenceRing, SequencedRecord};
     use std::thread;
 
     let mut ring = SequenceRing::new(64, 32);

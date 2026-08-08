@@ -21,7 +21,6 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 copybook-codec.workspace = true
-copybook-sequence-ring.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true

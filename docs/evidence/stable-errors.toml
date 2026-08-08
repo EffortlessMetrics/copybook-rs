@@ -10,7 +10,8 @@ scope = "stable-errors"
 [[errors]]
 code = "CBKP001_SYNTAX"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkp001_syntax_garbage_parse"
 [[errors]]
 code = "CBKP011_UNSUPPORTED_CLAUSE"
 stability_class = "stable"
@@ -22,7 +23,8 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKP022_NESTED_ODO"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkp022_nested_odo"
 [[errors]]
 code = "CBKP023_ODO_REDEFINES"
 stability_class = "stable"
@@ -38,7 +40,8 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKS121_COUNTER_NOT_FOUND"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbks121_counter_not_found"
 [[errors]]
 code = "CBKS141_RECORD_TOO_LARGE"
 stability_class = "stable"
@@ -54,11 +57,13 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKS601_RENAME_UNKNOWN_FROM"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbks601_rename_unknown_from"
 [[errors]]
 code = "CBKS602_RENAME_UNKNOWN_THRU"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbks602_rename_unknown_thru"
 [[errors]]
 code = "CBKS603_RENAME_NOT_CONTIGUOUS"
 stability_class = "stable"

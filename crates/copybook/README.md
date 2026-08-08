@@ -33,7 +33,7 @@ Each module re-exports the corresponding published component crate:
 | `error_reporter` | `copybook-error-reporter` |
 | `fixed` | `copybook-fixed` |
 | `governance_contracts` | `copybook-governance-contracts` |
-| `options` | `copybook-codec` |
+| `options` | `copybook-codec` (deprecated since 0.6.0; use `copybook::codec::options`) |
 | `overflow` | `copybook-overflow` |
 | `overpunch` | `copybook-overpunch` |
 | `rdw` | `copybook-rdw` |

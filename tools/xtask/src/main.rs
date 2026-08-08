@@ -102,7 +102,7 @@ fn block(c: &Counts) -> String {
     let p = c.passed;
     let s = c.skipped;
     format!(
-        "**conformance:** {p}/{p}  \u{2022} **roundtrip:** N/A  \u{2022} **negative:** N/A  \u{2022} **skipped:** {s}  \u{2022} **leaks:** 0\n\
+        "**conformance:** {p}/{p}  \u{2022} **roundtrip:** N/A  \u{2022} **negative:** N/A  \u{2022} **skipped:** {s}  \u{2022} **leaks:** 0<br>\n\
          _Source: CI receipts (nextest/junit). This block is updated automatically._"
     )
 }

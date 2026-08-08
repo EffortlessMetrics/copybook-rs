@@ -335,9 +335,9 @@ impl JsonNumberMode {
 ///
 /// Controls whether and how binary record data is captured in the output:
 /// - `Off` — no raw data (default, lowest overhead)
-/// - `Record` — full record payload in `__raw_b64`
-/// - `RecordRDW` — RDW header + payload in `__raw_b64`
-/// - `Field` — per-field raw bytes in `<FIELD_NAME>__raw_b64`
+/// - `Record` — record payload in `raw_b64` and compatibility `__raw_b64`
+/// - `RecordRDW` — RDW header plus record payload in `raw_b64` and compatibility `__raw_b64`
+/// - `Field` — only per-field raw bytes in `<FIELD_NAME>_raw_b64`
 ///
 /// # Examples
 ///
@@ -450,9 +450,9 @@ impl DecodeOptions {
     ///
     /// Controls whether and how raw binary data is included in decode output:
     /// - `RawMode::Off` — no raw data (default)
-    /// - `RawMode::Record` — record payload in `__raw_b64`
-    /// - `RawMode::RecordRDW` — RDW header + payload in `__raw_b64`
-    /// - `RawMode::Field` — per-field raw values in `<FIELD>__raw_b64`
+    /// - `RawMode::Record` — record payload in `raw_b64` and compatibility `__raw_b64`
+    /// - `RawMode::RecordRDW` — RDW header plus payload in `raw_b64` and compatibility `__raw_b64`
+    /// - `RawMode::Field` — only per-field raw values in `<FIELD>_raw_b64`
     #[must_use]
     #[inline]
     pub fn with_emit_raw(mut self, emit_raw: RawMode) -> Self {

@@ -7,7 +7,7 @@
 //! content correctness, scratch buffer integration, and streaming
 //! processor patterns with the codec APIs.
 
-use copybook_codec::memory::{ScratchBuffers, StreamingProcessor};
+use copybook_codec::runtime::{ScratchBuffers, StreamingProcessor};
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat, decode_file_to_jsonl,
     decode_record, decode_record_with_scratch, encode_jsonl_to_file, iter_records,

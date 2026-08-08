@@ -9,7 +9,7 @@
 // ScratchBuffers usage example
 // Demonstrates zero-allocation decoding with reusable scratch buffers
 
-use copybook_codec::memory::ScratchBuffers;
+use copybook_codec::runtime::ScratchBuffers;
 use copybook_codec::{Codepage, DecodeOptions, RecordFormat, decode_record_with_scratch};
 use copybook_core::parse_copybook;
 

@@ -34,16 +34,16 @@
       "owner_issue": 655
     },
     {
-      "id": "primary-dep:copybook-codec->copybook-codec-memory",
-      "owner_issue": 654
-    },
-    {
       "id": "primary-dep:copybook-codec->copybook-corruption",
       "owner_issue": 655
     },
     {
       "id": "primary-dep:copybook-codec->copybook-overpunch",
       "owner_issue": 653
+    },
+    {
+      "id": "primary-dep:copybook-codec->copybook-sequence-ring",
+      "owner_issue": 654
     },
     {
       "id": "primary-dep:copybook-codec->copybook-zoned-format",

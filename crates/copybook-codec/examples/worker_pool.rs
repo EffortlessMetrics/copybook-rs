@@ -9,7 +9,7 @@
 // WorkerPool usage example
 // Demonstrates parallel record processing with deterministic output ordering
 
-use copybook_codec::memory::{ScratchBuffers, WorkerPool};
+use copybook_codec::runtime::{ScratchBuffers, WorkerPool};
 use copybook_codec::{Codepage, DecodeOptions, RecordFormat, decode_record_with_scratch};
 use copybook_core::parse_copybook;
 use std::sync::Arc;

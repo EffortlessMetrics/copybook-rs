@@ -5,7 +5,7 @@
 //! identical output to `decode_record` and that scratch buffers are properly
 //! reused across calls.
 
-use copybook_codec::memory::ScratchBuffers;
+use copybook_codec::runtime::ScratchBuffers;
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
     ZonedEncodingFormat, decode_record, decode_record_with_scratch,

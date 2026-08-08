@@ -44,7 +44,10 @@ println!("{json}");
 ```rust
 use copybook_core::parse_copybook;
 use copybook_codec::{decode_record_with_scratch, DecodeOptions, Codepage, JsonNumberMode};
-use copybook_codec::memory::ScratchBuffers;
+use copybook_codec::runtime::ScratchBuffers;
+
+// The pre-0.6 path remains available as a compatibility alias:
+// use copybook_codec::memory::ScratchBuffers;
 
 let schema = parse_copybook("01 A.\n   05 AMOUNT PIC S9(7)V99 COMP-3.\n")?;
 let options = DecodeOptions::new()

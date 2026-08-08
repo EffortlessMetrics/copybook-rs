@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 use super::*;
 use anyhow::{Context, Result, anyhow};
+use copybook_sequence_ring::{SequenceRing, SequencedRecord};
 use std::fmt::Write;
 use std::time::Duration;
 

@@ -63,7 +63,7 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
 /// ```
 /// use copybook_core::parse_copybook;
 /// use copybook_codec::{decode_record_with_scratch, DecodeOptions};
-/// use copybook_codec::memory::ScratchBuffers;
+/// use copybook_codec::runtime::ScratchBuffers;
 /// use copybook_codec::options::{Codepage, RecordFormat};
 ///
 /// let schema = parse_copybook("01 FLD PIC X(5).").unwrap();

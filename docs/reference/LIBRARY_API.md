@@ -505,7 +505,7 @@ safe_ops::safe_write_str(&mut json_buffer, ",\n")?;
 copybook-rs provides enterprise-grade encoding/decoding with comprehensive panic-safe operations:
 
 ```rust
-use copybook_codec::{decode_record_with_scratch, memory::ScratchBuffers};
+use copybook_codec::{decode_record_with_scratch, runtime::ScratchBuffers};
 
 // High-performance decoding with scratch buffer optimization
 let mut scratch = ScratchBuffers::new();
@@ -1077,7 +1077,7 @@ let handles: Vec<_> = (0..num_threads).map(|i| {
     
     thread::spawn(move || {
         // Use decode_record_with_scratch for per-thread decode with reused buffers
-        let mut scratch = copybook_codec::memory::ScratchBuffers::new();
+        let mut scratch = copybook_codec::runtime::ScratchBuffers::new();
         // Process chunk of data: decode_record_with_scratch(&schema, data, &opts, &mut scratch)
         let _ = (schema, opts, scratch);
         Ok(())
@@ -1168,7 +1168,7 @@ fn streaming_decode(
 
 ```rust
 // Reuse scratch buffers for better performance across many records
-use copybook_codec::{decode_record_with_scratch, memory::ScratchBuffers};
+use copybook_codec::{decode_record_with_scratch, runtime::ScratchBuffers};
 
 let mut scratch = ScratchBuffers::new();
 

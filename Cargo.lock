@@ -866,7 +866,6 @@ dependencies = [
  "base64",
  "blake3",
  "copybook-charset",
- "copybook-codec-memory",
  "copybook-core",
  "copybook-corruption",
  "copybook-determinism",
@@ -875,7 +874,9 @@ dependencies = [
  "copybook-options",
  "copybook-overpunch",
  "copybook-rdw",
+ "copybook-sequence-ring",
  "copybook-zoned-format",
+ "crossbeam-channel",
  "hex",
  "indexmap",
  "metrics",
@@ -884,6 +885,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "smallvec",
  "tempfile",
  "thiserror",
  "tracing",
@@ -894,10 +896,8 @@ name = "copybook-codec-memory"
 version = "0.5.0"
 dependencies = [
  "anyhow",
+ "copybook-codec",
  "copybook-sequence-ring",
- "crossbeam-channel",
- "smallvec",
- "tracing",
 ]
 
 [[package]]
@@ -1123,7 +1123,6 @@ dependencies = [
  "anyhow",
  "copybook-charset",
  "copybook-codec",
- "copybook-codec-memory",
  "copybook-contracts",
  "copybook-core",
  "copybook-corruption",

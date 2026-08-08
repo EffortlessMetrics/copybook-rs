@@ -132,7 +132,7 @@ fn decode_record_with_scratch_and_raw(
         schema,
         options,
         record_index,
-        RecordMetadata {
+        &RecordMetadata {
             length: data.len(),
             offset: record_offset,
         },
@@ -212,7 +212,7 @@ fn decode_record_with_raw_data_at_offset(
         schema,
         options,
         record_index,
-        RecordMetadata {
+        &RecordMetadata {
             length: data.len(),
             offset: record_offset,
         },

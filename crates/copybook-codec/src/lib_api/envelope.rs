@@ -36,7 +36,7 @@ pub(super) fn build_json_envelope(
     schema: &Schema,
     options: &DecodeOptions,
     record_index: u64,
-    record_metadata: RecordMetadata,
+    record_metadata: &RecordMetadata,
     raw_b64: Option<String>,
     encoding_metadata: Vec<(String, ZonedEncodingFormat)>,
 ) -> Value {

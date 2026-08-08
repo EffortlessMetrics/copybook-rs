@@ -174,7 +174,6 @@ path = "e2e_uselesskey_runtime_fixtures.rs"
 copybook-core.workspace = true
 copybook-codec.workspace = true
 copybook-error.workspace = true
-copybook-sequence-ring.workspace = true
 tempfile.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

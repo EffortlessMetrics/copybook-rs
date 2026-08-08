@@ -2,10 +2,11 @@
 # claude.md
 
 ## Scope
-- Library sources for `copybook-sequence-ring` (Other layer).
+- Compatibility facade for the codec-owned sequence ordering runtime.
 
 ## Navigation
 - Crate root: `../claude.md`
 
 ## Build
 - `cargo build -p copybook-sequence-ring`
+- Canonical implementation: `copybook_codec::runtime::sequence_ring`

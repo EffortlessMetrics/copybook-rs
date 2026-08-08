@@ -10,4 +10,4 @@ pub use copybook_codec::runtime::{
     DigitBuffer, ScratchBuffers, StreamingProcessor, StreamingProcessorStats, WorkerPool,
     WorkerPoolStats,
 };
-pub use copybook_sequence_ring::{SequenceRing, SequenceRingStats, SequencedRecord};
+pub use copybook_codec::runtime::{SequenceRing, SequenceRingStats, SequencedRecord};

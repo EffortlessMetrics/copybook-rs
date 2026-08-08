@@ -117,7 +117,6 @@ dependencies = [
  "copybook-fixed",
  "copybook-overpunch",
  "copybook-rdw",
- "copybook-sequence-ring",
  "copybook-zoned-format",
  "crossbeam-channel",
  "indexmap",
@@ -253,14 +252,6 @@ name = "copybook-safe-text"
 version = "0.5.0"
 dependencies = [
  "copybook-error",
-]
-
-[[package]]
-name = "copybook-sequence-ring"
-version = "0.5.0"
-dependencies = [
- "crossbeam-channel",
- "tracing",
 ]
 
 [[package]]

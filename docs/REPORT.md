@@ -137,7 +137,7 @@ Comprehensive support for mainframe data formats:
 **Documentation Gaps** (Medium Priority):
 
 - ~~22 numeric functions in `copybook-codec/src/numeric.rs` missing documentation~~ ✅ All 47 public functions documented
-- ~~Memory module (`ScratchBuffers`, `SequenceRing`, `WorkerPool`) needs API
+- ~~Runtime module (`ScratchBuffers`, `SequenceRing`, `WorkerPool`) needs API
   documentation~~ ✅ Module fully documented
 - ~~Iterator module public functions need usage examples~~ ✅ Iterator reference + streaming-decode how-to added (#514)
 

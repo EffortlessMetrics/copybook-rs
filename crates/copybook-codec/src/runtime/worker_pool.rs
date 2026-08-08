@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-use copybook_sequence_ring::{SequenceRing, SequenceRingStats, SequencedRecord};
+use super::{SequenceRing, SequenceRingStats, SequencedRecord};
 use crossbeam_channel::{Sender, bounded};
 use std::sync::Arc;
 use std::thread;

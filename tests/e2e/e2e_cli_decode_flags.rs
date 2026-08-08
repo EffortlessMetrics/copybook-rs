@@ -178,7 +178,7 @@ fn decode_rdw_record_raw_cli_preserves_physical_frames() {
     let (dir, cpy, data) = setup(RDW_CPY, &rdw_data);
     let out = dir.path().join("out.jsonl");
 
-    cmd()
+    let cli_output = cmd()
         .args([
             "decode",
             "--format",
@@ -195,8 +195,17 @@ fn decode_rdw_record_raw_cli_preserves_physical_frames() {
         .arg(&out)
         .arg(&cpy)
         .arg(&data)
-        .assert()
-        .success();
+        .output()
+        .unwrap();
+    assert!(
+        cli_output.status.success(),
+        "decode failed: {}",
+        String::from_utf8_lossy(&cli_output.stderr)
+    );
+    let summary = String::from_utf8_lossy(&cli_output.stdout);
+    assert!(summary.contains("Records processed: 2"));
+    assert!(summary.contains("Warnings: 1"));
+    assert!(summary.contains("Bytes processed: 18"));
 
     use base64::Engine;
     let lines: Vec<Value> = std::fs::read_to_string(&out)

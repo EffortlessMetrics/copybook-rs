@@ -155,7 +155,8 @@ direct_test = "tests/e2e/e2e_error_code_coverage.rs::error_cbkd101_invalid_field
 [[errors]]
 code = "CBKD301_RECORD_TOO_SHORT"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbkd301_record_too_short"
 [[errors]]
 code = "CBKD302_EDITED_PIC_NOT_IMPLEMENTED"
 stability_class = "stable"
@@ -218,19 +219,23 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKE501_JSON_TYPE_MISMATCH"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbke501_json_type_mismatch"
 [[errors]]
 code = "CBKE505_SCALE_MISMATCH"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbke505_scale_mismatch"
 [[errors]]
 code = "CBKE510_NUMERIC_OVERFLOW"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbke510_numeric_overflow"
 [[errors]]
 code = "CBKE515_STRING_LENGTH_VIOLATION"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbke515_string_length_violation"
 [[errors]]
 code = "CBKE521_ARRAY_LEN_OOB"
 stability_class = "stable"

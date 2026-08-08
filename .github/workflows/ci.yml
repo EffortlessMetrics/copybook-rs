@@ -203,11 +203,9 @@ jobs:
         arguments: --all-features
     - name: Install cargo-audit
       run: cargo install cargo-audit --locked
-    - name: Run cargo audit
-      id: audit
-      # cargo audit exits 1 on warnings (e.g. unmaintained crates) AND
-      # vulnerabilities. We capture JSON regardless; continue-on-error lets
-      # the validation step below be the hard gate.
+    # cargo audit exits 1 on warnings (e.g. unmaintained crates) AND
+    # vulnerabilities. We capture JSON regardless; continue-on-error lets
+    # the validation step below be the hard gate.
     - name: Run cargo audit
       id: audit
       continue-on-error: true

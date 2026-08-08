@@ -80,7 +80,8 @@ direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbks604_rename_reve
 [[errors]]
 code = "CBKS605_RENAME_FROM_CROSSES_GROUP"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-core/tests/renames_resolver_negative_tests.rs::renames_from_crosses_group"
 [[errors]]
 code = "CBKS606_RENAME_THRU_CROSSES_GROUP"
 stability_class = "stable"
@@ -101,7 +102,8 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKS610_RENAME_MULTIPLE_REDEFINES"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-core/tests/error_code_coverage_tests.rs::test_cbks610_multiple_redefines_with_r4r6_flag"
 [[errors]]
 code = "CBKS611_RENAME_PARTIAL_OCCURS"
 stability_class = "stable"
@@ -109,15 +111,18 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKS612_RENAME_ODO_NOT_SUPPORTED"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-core/tests/renames_r4_r6_bdd_tests.rs::test_r5_renames_odo_rejected"
 [[errors]]
 code = "CBKS701_PROJECTION_INVALID_ODO"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbks701_projection_invalid_odo"
 [[errors]]
 code = "CBKS702_PROJECTION_UNRESOLVED_ALIAS"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbks702_projection_unresolved_alias"
 [[errors]]
 code = "CBKS703_PROJECTION_FIELD_NOT_FOUND"
 stability_class = "stable"

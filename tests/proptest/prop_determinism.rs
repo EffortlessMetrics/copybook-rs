@@ -143,7 +143,9 @@ proptest! {
     #[test]
     fn prop_encode_deterministic_pic_9(value in 0u64..=99999) {
         let schema = parse_copybook("01 REC.\n   05 FLD PIC 9(5).").expect("parse");
-        let json: Value = serde_json::json!({ "FLD": value });
+        // PIC 9 takes its value as a string; a bare JSON number is a type mismatch
+        // unless the caller opts into coercion.
+        let json: Value = serde_json::json!({ "FLD": value.to_string() });
         let first = encode_record(&schema, &json, &encode_opts()).expect("encode 0");
         for i in 1..10 {
             let again = encode_record(&schema, &json, &encode_opts())

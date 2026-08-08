@@ -1954,10 +1954,12 @@ fn encode_single_field(
             pic_string, scale, ..
         } => {
             // Phase E3.1: Encode edited PIC fields
-            if let Some(text) = json_obj
-                .get(&field.name)
-                .and_then(|v| coerce_to_str(v, options.coerce_numbers))
-            {
+            if let Some(text) = encodable_numeric_text(
+                json_obj,
+                field,
+                "an edited numeric string",
+                options.coerce_numbers,
+            )? {
                 // Tokenize the PIC pattern
                 let pattern = crate::edited_pic::tokenize_edited_pic(pic_string)?;
 
@@ -2318,6 +2320,55 @@ fn coerce_to_str(value: &Value, coerce: bool) -> Option<String> {
     }
 }
 
+/// Name the JSON type of `value` the way a user would recognize it in their input.
+fn json_type_name(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "boolean",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
+    }
+}
+
+/// Look up a numeric field's text value, rejecting a present-but-unusable JSON type.
+///
+/// Returns `Ok(None)` when the field is absent or `null`, which leaves the field at
+/// its default bytes. When the field *is* present but carries a type this encoder
+/// cannot use, this returns [`ErrorCode::CBKE501_JSON_TYPE_MISMATCH`] rather than
+/// silently writing zeros over the value the caller supplied.
+fn encodable_numeric_text(
+    json_obj: &serde_json::Map<String, Value>,
+    field: &copybook_core::Field,
+    expected: &str,
+    coerce_numbers: bool,
+) -> Result<Option<String>> {
+    let Some(value) = json_obj.get(&field.name) else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    if let Some(text) = coerce_to_str(value, coerce_numbers) {
+        return Ok(Some(text));
+    }
+
+    let hint = if value.is_number() {
+        " (pass --coerce-numbers to accept JSON numbers here)"
+    } else {
+        ""
+    };
+    Err(Error::new(
+        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+        format!(
+            "Field '{}' expects {expected}, found {}{hint}",
+            field.name,
+            json_type_name(value),
+        ),
+    ))
+}
+
 #[inline]
 #[allow(clippy::too_many_arguments)]
 fn encode_zoned_decimal_field(
@@ -2332,10 +2383,12 @@ fn encode_zoned_decimal_field(
 ) -> Result<usize> {
     let field_len = field.len as usize;
 
-    if let Some(text) = json_obj
-        .get(&field.name)
-        .and_then(|v| coerce_to_str(v, options.coerce_numbers))
-    {
+    if let Some(text) = encodable_numeric_text(
+        json_obj,
+        field,
+        "a zoned decimal string",
+        options.coerce_numbers,
+    )? {
         // Check BWZ policy: when field has BLANK WHEN ZERO and bwz_encode is enabled,
         // zero values are encoded as spaces instead of numeric zeros.
         if field.blank_when_zero && options.bwz_encode {
@@ -2402,10 +2455,12 @@ fn encode_packed_decimal_field(
 ) -> Result<usize> {
     let field_len = field.len as usize;
 
-    if let Some(text) = json_obj
-        .get(&field.name)
-        .and_then(|v| coerce_to_str(v, options.coerce_numbers))
-    {
+    if let Some(text) = encodable_numeric_text(
+        json_obj,
+        field,
+        "a packed decimal string",
+        options.coerce_numbers,
+    )? {
         let encoded =
             crate::numeric::encode_packed_decimal(&text, spec.digits, spec.scale, spec.signed)?;
         if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
@@ -2434,16 +2489,37 @@ fn encode_binary_int_field(
 ) -> Result<usize> {
     let field_len = field.len as usize;
 
-    if let Some(num) = json_obj.get(&field.name).and_then(|v| {
-        if let Some(n) = v.as_i64() {
-            // Direct numeric path (always available for Value::Number with i64 range)
-            Some(n)
-        } else if let Some(s) = coerce_to_str(v, options.coerce_numbers) {
-            s.parse::<i64>().ok()
+    let value = match json_obj.get(&field.name) {
+        None => None,
+        Some(v) if v.is_null() => None,
+        Some(v) => Some(v),
+    };
+
+    if let Some(value) = value {
+        // Direct numeric path (always available for Value::Number in i64 range).
+        let num = if let Some(n) = value.as_i64() {
+            n
         } else {
-            None
-        }
-    }) {
+            let text = coerce_to_str(value, options.coerce_numbers).ok_or_else(|| {
+                Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!(
+                        "Field '{}' expects an integer, found {}",
+                        field.name,
+                        json_type_name(value),
+                    ),
+                )
+            })?;
+            text.parse::<i64>().map_err(|e| {
+                Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!(
+                        "Field '{}' expects an integer, found '{text}': {e}",
+                        field.name,
+                    ),
+                )
+            })?
+        };
         let encoded = crate::numeric::encode_binary_int(num, spec.bits, spec.signed)?;
         if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
             buffer[current_offset..current_offset + field_len].copy_from_slice(&encoded);

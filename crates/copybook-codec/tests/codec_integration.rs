@@ -8,6 +8,7 @@ use copybook_codec::{
     decode_file_to_jsonl, decode_record, encode_jsonl_to_file, encode_record,
 };
 use copybook_core::parse_copybook;
+use copybook_error::ErrorCode;
 use std::io::Cursor;
 
 // ---------------------------------------------------------------------------
@@ -337,11 +338,46 @@ fn encode_without_coerce_numbers_rejects_number() {
     let json: serde_json::Value = serde_json::json!({"FLD": 42});
     let opts = ascii_encode_opts().with_coerce_numbers(false);
     let result = encode_record(&schema, &json, &opts);
-    // Without coerce_numbers, Value::Number is silently skipped (field stays zero-filled)
-    assert!(result.is_ok());
-    let encoded = result.unwrap();
-    // Field should be zero-filled since Value::Number was not coerced
-    assert_eq!(&encoded[..5], b"\x00\x00\x00\x00\x00");
+    // Without coerce_numbers a JSON number is a type mismatch. Reject it rather than
+    // writing zeros over the value the caller supplied.
+    let err = result.expect_err("JSON number must not be silently zero-filled");
+    assert_eq!(err.code(), ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    let message = err.to_string();
+    assert!(
+        message.contains("FLD") && message.contains("--coerce-numbers"),
+        "error should name the field and the remedy: {message}"
+    );
+}
+
+#[test]
+fn encode_without_coerce_numbers_rejects_number_for_comp3() {
+    let schema = parse_copybook("01 FLD PIC S9(5) COMP-3.").unwrap();
+    let json: serde_json::Value = serde_json::json!({"FLD": 12345});
+    let opts = ascii_encode_opts().with_coerce_numbers(false);
+    let err = encode_record(&schema, &json, &opts)
+        .expect_err("JSON number must not be silently zero-filled for COMP-3");
+    assert_eq!(err.code(), ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+}
+
+#[test]
+fn encode_rejects_wrong_json_type_for_numeric_field() {
+    let schema = parse_copybook("01 FLD PIC 9(5).").unwrap();
+    let json: serde_json::Value = serde_json::json!({"FLD": true});
+    let opts = ascii_encode_opts().with_coerce_numbers(true);
+    let err = encode_record(&schema, &json, &opts)
+        .expect_err("a boolean is never an encodable numeric value");
+    assert_eq!(err.code(), ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+}
+
+#[test]
+fn encode_treats_null_numeric_field_as_absent() {
+    let schema = parse_copybook("01 FLD PIC 9(5).").unwrap();
+    let opts = ascii_encode_opts().with_coerce_numbers(false);
+    let explicit_null = encode_record(&schema, &serde_json::json!({"FLD": null}), &opts)
+        .expect("null should behave like an absent field");
+    let absent = encode_record(&schema, &serde_json::json!({}), &opts)
+        .expect("absent field should keep default bytes");
+    assert_eq!(explicit_null, absent);
 }
 
 #[test]

@@ -128,13 +128,22 @@ pub fn run(
         write_stderr_all(err_output.as_bytes())?;
     }
 
-    // Check for fatal errors when fail-fast is enabled
+    // Check for fatal errors when fail-fast is enabled.
+    //
+    // `map_error_to_exit_code` derives the process exit code from the CBK* prefix it
+    // finds in the error chain, and `parse_prefix_from_str` only inspects the message's
+    // *first* whitespace-delimited token. A message that opens with prose therefore
+    // carries no recoverable family and falls through to `ExitCode::Internal`, telling
+    // the user their bad input was a bug in copybook-rs. Lead with the stable code.
     if options.fail_fast && summary.has_errors() {
-        let error_msg = format!(
-            "Encoding failed with {} error(s) in fail-fast mode",
+        if let Some(first) = summary.failures.first() {
+            bail!("{} (record {})", first.error, first.record_index);
+        }
+        bail!(
+            "{}: encoding failed with {} error(s)",
+            ExitCode::Encode.tag(),
             summary.records_with_errors
         );
-        bail!("{error_msg}");
     }
 
     info!("Encode completed successfully");

@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **cli**: `encode` now exits 3 (`CBKE`) when input data fails to encode, instead
+  of 5 (`CBKI`, "internal orchestration error"). The fail-fast bail read
+  `"Encoding failed with N error(s) in fail-fast mode"`, and `parse_prefix_from_str`
+  recovers a family only from the message's *first* whitespace-delimited token — so
+  a message opening with prose carried no family and fell through to the internal
+  default, reporting the user's bad input as a bug in copybook-rs. The message now
+  leads with the failing record's stable code, which is what the top-level `--help`
+  already documents ("3 encode/schema errors (CBKE)").
+
 ### Added
 - **codec**: `RunSummary` now carries `failures`, the first `MAX_CAPTURED_FAILURES`
   (10) `RecordFailure` entries of a run, each naming the 1-based record index and

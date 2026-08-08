@@ -635,3 +635,63 @@ fn encode_bad_input_data_exits_3_not_internal() {
         "stderr should carry the stable code so the exit mapping is derivable.\nstderr: {stderr}"
     );
 }
+
+// =========================================================================
+// A missing file names the path and exits 4 (CBKF), not 5 (internal)
+// =========================================================================
+
+#[test]
+fn missing_copybook_names_the_file_and_exits_4() {
+    for subcommand in ["inspect", "parse"] {
+        let out = Command::cargo_bin("copybook")
+            .unwrap()
+            .args([subcommand, "/definitely/not/here.cpy"])
+            .output()
+            .expect("failed to run copybook");
+
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert_no_panic(&stderr);
+        assert_eq!(
+            out.status.code(),
+            Some(4),
+            "`{subcommand}` on a missing copybook is a file error (4), not internal (5).\nstderr: {stderr}"
+        );
+        assert!(
+            stderr.contains("CBKF001_FILE_READ_ERROR"),
+            "stderr should carry the stable code.\nstderr: {stderr}"
+        );
+        assert!(
+            stderr.contains("/definitely/not/here.cpy"),
+            "stderr should name the file the user typed.\nstderr: {stderr}"
+        );
+        assert!(
+            stderr.contains("copybook"),
+            "stderr should say which argument the path came from.\nstderr: {stderr}"
+        );
+    }
+}
+
+#[test]
+fn missing_input_data_file_names_the_file_and_exits_4() {
+    let dir = write_temp_file("schema.cpy", VALID_COPYBOOK.as_bytes());
+    let cpy_path = dir.path().join("schema.cpy");
+
+    let out = Command::cargo_bin("copybook")
+        .unwrap()
+        .args(["decode"])
+        .arg(&cpy_path)
+        .arg("/definitely/not/here.bin")
+        .arg("--output")
+        .arg(dir.path().join("out.jsonl"))
+        .args(["--format", "fixed"])
+        .output()
+        .expect("failed to run copybook decode");
+
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert_no_panic(&stderr);
+    assert_eq!(out.status.code(), Some(4), "stderr: {stderr}");
+    assert!(
+        stderr.contains("CBKF001_FILE_READ_ERROR") && stderr.contains("input file"),
+        "a missing data file should be attributed to the input argument.\nstderr: {stderr}"
+    );
+}

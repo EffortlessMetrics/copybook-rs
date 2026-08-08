@@ -95,7 +95,7 @@ cargo test --workspace golden
 
 ## Error Taxonomy
 
-10 families, 63 stable codes. See `docs/reference/ERROR_CODES.md` for the full list.
+10 families, 65 stable codes. See `docs/reference/ERROR_CODES.md` for the full list.
 
 | Prefix | Domain |
 |--------|--------|

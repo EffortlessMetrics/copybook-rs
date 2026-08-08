@@ -8,7 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **error**: `CBKF001_FILE_READ_ERROR` for a file named on the command line that
+  cannot be opened or read. Severity Fatal; maps to exit code 4 like the rest of
+  the `CBKF` family.
+- **codec**: `RunSummary` now carries `failures`, the first `MAX_CAPTURED_FAILURES`
+  (10) `RecordFailure` entries of a run, each naming the 1-based record index and
+  the `Error` that failed it. `records_with_errors` remains the full count, and
+  `undisclosed_failure_count()` reports how many failures were not retained.
+
 ### Fixed
+- **cli**: A file the CLI cannot read now names the file and the argument it came
+  from, and exits 4 instead of 5. `copybook inspect /nope.cpy` printed a bare
+  `No such file or directory (os error 2)` — no path, no indication whether the
+  copybook or the data file was missing — and, carrying no `CBK*` family, mapped
+  to `ExitCode::Internal`, reporting a mistyped path as an internal copybook-rs
+  error. Applies to `inspect`, `parse`, `decode`, `encode`, and `verify`, for both
+  the copybook and input arguments.
 - **cli**: `encode` now exits 3 (`CBKE`) when input data fails to encode, instead
   of 5 (`CBKI`, "internal orchestration error"). The fail-fast bail read
   `"Encoding failed with N error(s) in fail-fast mode"`, and `parse_prefix_from_str`
@@ -17,14 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default, reporting the user's bad input as a bug in copybook-rs. The message now
   leads with the failing record's stable code, which is what the top-level `--help`
   already documents ("3 encode/schema errors (CBKE)").
-
-### Added
-- **codec**: `RunSummary` now carries `failures`, the first `MAX_CAPTURED_FAILURES`
-  (10) `RecordFailure` entries of a run, each naming the 1-based record index and
-  the `Error` that failed it. `records_with_errors` remains the full count, and
-  `undisclosed_failure_count()` reports how many failures were not retained.
-
-### Fixed
 - **cli**: `decode` and `encode` now report which records failed and why. Both
   commands counted failures and discarded the errors themselves, so a run ended
   at `Records with errors: 3` with nothing to act on — the codec dropped each

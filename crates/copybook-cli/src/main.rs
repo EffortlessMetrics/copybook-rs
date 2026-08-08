@@ -104,7 +104,7 @@ Two settings are never guessed and are worth getting right first:
               mismatch decodes without error but yields mojibake text.
 
 Exit codes: 0 success, 2 data errors (CBKD), 3 encode/schema errors (CBKE),
-4 record-format errors (CBKF), 5 internal errors (CBKI), 1 otherwise.
+4 file/record-format errors (CBKF), 5 internal errors (CBKI), 1 otherwise.
 
 Error codes: docs/reference/ERROR_CODES.md
 Full CLI reference: docs/CLI_REFERENCE.md";

@@ -2,7 +2,7 @@
 //! Inspect command implementation
 
 use crate::exit_codes::ExitCode;
-use crate::utils::read_file_or_stdin;
+use crate::utils::{InputRole, read_input_or_stdin};
 use crate::write_stdout_all;
 use copybook_codec::Codepage;
 use copybook_core::{Field, FieldKind, Occurs, ParseOptions, parse_copybook_with_options};
@@ -33,7 +33,7 @@ pub fn run(
     }
 
     // Read copybook file or stdin
-    let copybook_text = read_file_or_stdin(copybook)?;
+    let copybook_text = read_input_or_stdin(InputRole::Copybook, copybook)?;
 
     // Parse copybook with options
     let options = ParseOptions {

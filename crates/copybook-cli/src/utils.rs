@@ -3,7 +3,9 @@
 
 use crate::exit_codes::ExitCode;
 use copybook_codec::RunSummary;
-use copybook_core::{ParseOptions, Schema, parse_copybook_with_options};
+use copybook_core::{
+    Error as CoreError, ErrorCode, ParseOptions, Schema, parse_copybook_with_options,
+};
 use std::fmt::Write as FmtWrite;
 use std::fs;
 use std::io::{self, Read, Write};
@@ -52,7 +54,7 @@ pub fn parse_projected_schema(
     config: &ParseOptionsConfig,
     select_args: &[String],
 ) -> anyhow::Result<Schema> {
-    let copybook_text = read_file_or_stdin(copybook)?;
+    let copybook_text = read_input_or_stdin(InputRole::Copybook, copybook)?;
     let parse_options = build_parse_options(config);
     let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
     apply_field_projection(schema, select_args)
@@ -152,14 +154,16 @@ where
     let write_to_stdout = output == Path::new("-");
 
     if write_to_stdout {
-        let input_file = fs::File::open(input)?;
+        let input_file =
+            fs::File::open(input).map_err(|e| file_read_error(InputRole::Input, input, &e))?;
         let mut stdout = std::io::stdout().lock();
         return Ok((process(input_file, &mut stdout)?, true));
     }
 
     let mut summary = None;
     atomic_write(output, |output_writer| {
-        let input_file = fs::File::open(input).map_err(std::io::Error::other)?;
+        let input_file = fs::File::open(input)
+            .map_err(|e| std::io::Error::other(file_read_error(InputRole::Input, input, &e)))?;
         let run_summary = process(input_file, output_writer).map_err(std::io::Error::other)?;
         summary = Some(run_summary);
         Ok(())
@@ -326,6 +330,51 @@ pub fn determine_exit_code(
 /// # Errors
 ///
 /// Returns an error if the file cannot be read or if stdin reading fails.
+/// Describe a file the user named on the command line, so a failure to open it can
+/// say *which* file and *which* argument it came from.
+#[derive(Clone, Copy)]
+pub enum InputRole {
+    /// The `<COPYBOOK>` positional argument.
+    Copybook,
+    /// The `<INPUT>` positional argument (data or JSONL).
+    Input,
+}
+
+impl InputRole {
+    const fn label(self) -> &'static str {
+        match self {
+            InputRole::Copybook => "copybook",
+            InputRole::Input => "input file",
+        }
+    }
+}
+
+/// Turn a file-open/read failure into a `CBKF001_FILE_READ_ERROR` naming the path.
+///
+/// A bare `io::Error` reaching the top level prints as an unattributed
+/// "No such file or directory (os error 2)" and, carrying no CBK* family, maps to
+/// `ExitCode::Internal` — reporting a mistyped path as a bug in copybook-rs.
+pub fn file_read_error(role: InputRole, path: &Path, error: &io::Error) -> CoreError {
+    CoreError::new(
+        ErrorCode::CBKF001_FILE_READ_ERROR,
+        format!(
+            "failed to read {} '{}': {error}",
+            role.label(),
+            path.display()
+        ),
+    )
+}
+
+/// Read a user-named file (or stdin for `-`), attributing any failure to the path.
+///
+/// # Errors
+///
+/// Returns [`ErrorCode::CBKF001_FILE_READ_ERROR`] naming the path and the argument
+/// it came from when the file cannot be read.
+pub fn read_input_or_stdin(role: InputRole, path: &Path) -> Result<String, CoreError> {
+    read_file_or_stdin(path).map_err(|error| file_read_error(role, path, &error))
+}
+
 pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
     let path = path.as_ref();
 

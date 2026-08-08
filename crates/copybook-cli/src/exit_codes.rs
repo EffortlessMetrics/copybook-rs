@@ -26,7 +26,7 @@ pub enum ExitCode {
     Data = 2,
     /// Encode/validation failure (`CBKE*`) or verification mismatch.
     Encode = 3,
-    /// Record format / iterator fatal (`CBKF*`).
+    /// Unreadable input file, record format, or iterator fatal (`CBKF*`).
     Format = 4,
     /// Internal orchestration error (`CBKI*`).
     Internal = 5,
@@ -81,7 +81,7 @@ impl ExitCode {
             ExitCode::Unknown => "Unhandled failure",
             ExitCode::Data => "Data quality failure",
             ExitCode::Encode => "Encode/validation failure",
-            ExitCode::Format => "Record format/RDW failure",
+            ExitCode::Format => "File read or record format/RDW failure",
             ExitCode::Internal => "Internal orchestration error",
         }
     }

@@ -3,8 +3,9 @@
 
 use crate::exit_codes::ExitCode;
 use crate::utils::{
-    ParseOptionsConfig, SummaryIssueCountStyle, append_processing_summary, determine_exit_code,
-    effective_error_policy, log_strict_comments, parse_projected_schema, run_with_output,
+    ParseOptionsConfig, SummaryIssueCountStyle, append_processing_summary, append_record_failures,
+    determine_exit_code, effective_error_policy, log_strict_comments, parse_projected_schema,
+    run_with_output,
 };
 use crate::{write_stderr_all, write_stdout_all};
 use anyhow::bail;
@@ -96,6 +97,13 @@ pub fn run(
         write_stdout_all(summary_output.as_bytes())?;
     }
 
+    // Report which records failed and why, not just how many.
+    let mut failure_output = String::new();
+    append_record_failures(&mut failure_output, &summary)?;
+    if !failure_output.is_empty() {
+        write_stderr_all(failure_output.as_bytes())?;
+    }
+
     // Provide detailed feedback about encode status
     if summary.records_processed == 0 && summary.records_with_errors > 0 {
         let mut err_output = String::new();
@@ -103,11 +111,6 @@ pub fn run(
         writeln!(
             &mut err_output,
             "ERROR: No records were successfully encoded."
-        )?;
-        writeln!(
-            &mut err_output,
-            "All {} records failed to encode. Use --fail-fast=false to see details of additional errors.",
-            summary.records_with_errors
         )?;
         writeln!(
             &mut err_output,
@@ -121,10 +124,6 @@ pub fn run(
             &mut err_output,
             "WARNING: {} records failed to encode but were skipped in lenient mode.",
             summary.records_with_errors
-        )?;
-        writeln!(
-            &mut err_output,
-            "Use --fail-fast to stop on first error for detailed error information."
         )?;
         write_stderr_all(err_output.as_bytes())?;
     }

@@ -898,7 +898,7 @@ Errors in Apache Arrow and Parquet conversion (copybook-arrow integration).
 
 ## Error Code Index
 
-All 64 stable error codes across 10 families:
+All 65 stable error codes across 10 families:
 
 | Code | Category | Severity | Description |
 |------|----------|----------|-------------|

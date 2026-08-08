@@ -79,6 +79,24 @@ fn verify_contracts_with_strictness(
     current: &StableSurfaceContractManifest,
     fail_on_additions: bool,
 ) -> Result<()> {
+    let expected_source_paths: BTreeSet<String> = STABLE_CONTRACT_SOURCE_PATHS
+        .iter()
+        .map(ToString::to_string)
+        .collect();
+    let baseline_source_paths: BTreeSet<String> = baseline.source_paths.iter().cloned().collect();
+    if baseline_source_paths != expected_source_paths {
+        bail!(
+            "stable-contract manifest source paths are stale: expected {expected_source_paths:?}, found {baseline_source_paths:?} | run `cargo run -p xtask -- docs contracts generate`"
+        );
+    }
+
+    let current_source_paths: BTreeSet<String> = current.source_paths.iter().cloned().collect();
+    if current_source_paths != expected_source_paths {
+        bail!(
+            "stable-contract collector source paths drifted: expected {expected_source_paths:?}, found {current_source_paths:?}"
+        );
+    }
+
     let deltas = diff_contracts(baseline, current);
 
     if !deltas.removed.is_empty() {
@@ -733,11 +751,10 @@ fn diff_contracts(
         removed: Vec::new(),
     };
 
-    let mut expected_source_paths = BTreeSet::new();
-    expected_source_paths.extend(STABLE_CONTRACT_SOURCE_PATHS.iter().map(ToString::to_string));
+    let baseline_source_paths: BTreeSet<String> = baseline.source_paths.iter().cloned().collect();
     let current_paths: BTreeSet<String> = current.source_paths.iter().cloned().collect();
     classify_delta_items(
-        &expected_source_paths,
+        &baseline_source_paths,
         &current_paths,
         "contract-source-path",
         &mut deltas,

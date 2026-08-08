@@ -1,10 +1,11 @@
 # copybook-codec-memory
 
-Core memory management utilities for `copybook-codec`, extracted as a dedicated crate.
+Backward-compatible facade for the runtime utilities owned by `copybook-codec`.
 
 ## Overview
 
-Provides performance-critical memory patterns for high-throughput COBOL data processing:
+The canonical `copybook_codec::runtime` module provides performance-critical memory patterns
+for high-throughput COBOL data processing:
 reusable scratch buffers to eliminate hot-path allocations, a deterministic worker pool for
 parallel record processing, and a streaming processor that enforces bounded memory usage
 (<256 MiB) for multi-GB files.
@@ -12,7 +13,10 @@ parallel record processing, and a streaming processor that enforces bounded memo
 ## Usage
 
 ```rust
-use copybook_codec_memory::ScratchBuffers;
+use copybook_codec::runtime::ScratchBuffers;
+
+// The 0.5 path remains valid through this compatibility facade:
+// use copybook_codec_memory::ScratchBuffers;
 
 // Reuse buffers across records to avoid allocation
 let mut scratch = ScratchBuffers::new();

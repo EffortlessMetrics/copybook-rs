@@ -111,29 +111,21 @@ dependencies = [
  "base64",
  "blake3",
  "copybook-charset",
- "copybook-codec-memory",
  "copybook-core",
  "copybook-corruption",
  "copybook-error",
  "copybook-fixed",
  "copybook-overpunch",
  "copybook-rdw",
+ "copybook-sequence-ring",
  "copybook-zoned-format",
+ "crossbeam-channel",
  "indexmap",
  "serde",
  "serde_json",
  "sha2",
- "thiserror",
- "tracing",
-]
-
-[[package]]
-name = "copybook-codec-memory"
-version = "0.5.0"
-dependencies = [
- "copybook-sequence-ring",
- "crossbeam-channel",
  "smallvec",
+ "thiserror",
  "tracing",
 ]
 

@@ -40,7 +40,7 @@ use super::ScratchBuffers;
 /// ## Basic Usage
 ///
 /// ```rust
-/// use copybook_codec_memory::{WorkerPool, ScratchBuffers};
+/// use copybook_codec::runtime::{WorkerPool, ScratchBuffers};
 ///
 /// let mut pool = WorkerPool::new(
 ///     4,   // 4 worker threads
@@ -68,7 +68,7 @@ use super::ScratchBuffers;
 /// ## COBOL Record Processing
 ///
 /// ```ignore
-/// use copybook_codec_memory::{WorkerPool, ScratchBuffers};
+/// use copybook_codec::runtime::{WorkerPool, ScratchBuffers};
 /// use copybook_codec::{decode_record_with_scratch, DecodeOptions};
 /// use copybook_core::{parse_copybook, Schema};
 /// use std::sync::Arc;

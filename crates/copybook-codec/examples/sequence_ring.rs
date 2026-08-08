@@ -9,7 +9,7 @@
 // SequenceRing usage example
 // Demonstrates ordered emission for parallel processing
 
-use copybook_codec::memory::{SequenceRing, SequencedRecord};
+use copybook_codec::runtime::{SequenceRing, SequencedRecord};
 use std::thread;
 use std::time::Duration;
 

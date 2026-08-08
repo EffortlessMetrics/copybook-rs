@@ -453,7 +453,7 @@ fn roundtrip_scratch_buffer_equivalence() {
 
     let without_scratch = copybook_codec::decode_record(&schema, &data, &opts).unwrap();
 
-    let mut scratch = copybook_codec::memory::ScratchBuffers::new();
+    let mut scratch = copybook_codec::runtime::ScratchBuffers::new();
     let with_scratch =
         copybook_codec::decode_record_with_scratch(&schema, &data, &opts, &mut scratch).unwrap();
 

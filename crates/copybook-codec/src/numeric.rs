@@ -2339,7 +2339,7 @@ fn zoned_ensure_unsigned(
 ///
 /// ```no_run
 /// use copybook_codec::numeric::{decode_zoned_decimal_with_scratch};
-/// use copybook_codec::memory::ScratchBuffers;
+/// use copybook_codec::runtime::ScratchBuffers;
 /// use copybook_codec::options::Codepage;
 ///
 /// let mut scratch = ScratchBuffers::new();
@@ -2353,7 +2353,7 @@ fn zoned_ensure_unsigned(
 ///
 /// ```no_run
 /// use copybook_codec::numeric::{decode_zoned_decimal_with_scratch};
-/// use copybook_codec::memory::ScratchBuffers;
+/// use copybook_codec::runtime::ScratchBuffers;
 /// use copybook_codec::options::Codepage;
 ///
 /// let mut scratch = ScratchBuffers::new();
@@ -2365,7 +2365,7 @@ fn zoned_ensure_unsigned(
 ///
 /// # See Also
 /// * [`decode_zoned_decimal`] - For basic zoned decimal decoding
-/// * [`ScratchBuffers`] - For scratch buffer management
+/// * [`crate::runtime::ScratchBuffers`] - For scratch buffer management
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_zoned_decimal_with_scratch(

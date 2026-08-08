@@ -211,6 +211,7 @@
 //! # }
 //! ```
 
+use crate::lib_api::decode_record_with_raw_data;
 use crate::options::{DecodeOptions, RecordFormat};
 use copybook_core::{Error, ErrorCode, ErrorContext, Result, Schema};
 use copybook_rdw::RdwHeader;
@@ -523,7 +524,13 @@ impl<R: Read> RecordIterator<R> {
     fn decode_next_record(&mut self) -> Result<Option<Value>> {
         match self.read_raw_record()? {
             Some(record_bytes) => {
-                let json_value = crate::decode_record(&self.schema, &record_bytes, &self.options)?;
+                let json_value = decode_record_with_raw_data(
+                    &self.schema,
+                    &record_bytes,
+                    &self.options,
+                    None,
+                    self.record_index,
+                )?;
                 Ok(Some(json_value))
             }
             None => Ok(None),

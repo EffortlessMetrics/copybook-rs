@@ -203,6 +203,20 @@ fn iter_records_does_not_buffer_all() {
 }
 
 #[test]
+fn record_iterator_decode_emits_one_based_indices() {
+    let schema = parse_copybook(SIMPLE_SCHEMA).unwrap();
+    let data = build_pic9_5_data(2);
+    let opts = ascii_decode_opts();
+    let mut iter = copybook_codec::RecordIterator::new(Cursor::new(data), &schema, &opts).unwrap();
+
+    let first = iter.next().unwrap().unwrap();
+    assert_eq!(first["record_index"], 1);
+
+    let second = iter.next().unwrap().unwrap();
+    assert_eq!(second["record_index"], 2);
+}
+
+#[test]
 fn record_iterator_raw_record_access() {
     let schema = parse_copybook(SIMPLE_SCHEMA).unwrap();
     let data = b"0000100002";

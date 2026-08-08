@@ -51,7 +51,8 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKS301_ODO_CLIPPED"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbks301_odo_clipped"
 [[errors]]
 code = "CBKS302_ODO_RAISED"
 stability_class = "stable"
@@ -199,7 +200,8 @@ direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkd421_edited_pic_
 [[errors]]
 code = "CBKD422_EDITED_PIC_SIGN_MISMATCH"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbkd422_edited_pic_sign_mismatch"
 [[errors]]
 code = "CBKD423_EDITED_PIC_BLANK_WHEN_ZERO"
 stability_class = "stable"
@@ -215,7 +217,8 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKI001_INVALID_STATE"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbki001_invalid_state_no_lrecl"
 [[errors]]
 code = "CBKE501_JSON_TYPE_MISMATCH"
 stability_class = "stable"
@@ -243,11 +246,13 @@ evidence_status = "pending"
 [[errors]]
 code = "CBKE530_SIGN_SEPARATE_ENCODE_ERROR"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbke530_sign_separate_encode_error"
 [[errors]]
 code = "CBKE531_FLOAT_ENCODE_OVERFLOW"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbke531_float_encode_overflow"
 [[errors]]
 code = "CBKF001_FILE_READ_ERROR"
 stability_class = "stable"

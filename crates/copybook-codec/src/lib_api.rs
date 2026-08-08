@@ -24,7 +24,7 @@ mod run_summary;
 mod telemetry;
 mod warnings;
 
-use envelope::build_json_envelope;
+use envelope::{RecordMetadata, build_json_envelope};
 pub use run_summary::{MAX_CAPTURED_FAILURES, RecordFailure, RunSummary};
 pub use warnings::increment_warning_counter;
 use warnings::{reset_warning_counter, warning_count};
@@ -89,7 +89,7 @@ pub fn decode_record_with_scratch(
     options: &DecodeOptions,
     scratch: &mut crate::memory::ScratchBuffers,
 ) -> Result<Value> {
-    decode_record_with_scratch_and_raw(schema, data, options, None, 0, scratch)
+    decode_record_with_scratch_and_raw(schema, data, options, None, 0, None, scratch)
 }
 
 /// Decode a record with optional raw data and scratch buffers for maximum performance
@@ -99,6 +99,7 @@ fn decode_record_with_scratch_and_raw(
     options: &DecodeOptions,
     raw_data: Option<Vec<u8>>,
     record_index: u64,
+    record_offset: Option<u64>,
     scratch: &mut crate::memory::ScratchBuffers,
 ) -> Result<Value> {
     use serde_json::Map;
@@ -131,7 +132,10 @@ fn decode_record_with_scratch_and_raw(
         schema,
         options,
         record_index,
-        data.len(),
+        RecordMetadata {
+            length: data.len(),
+            offset: record_offset,
+        },
         record_raw,
         encoding_acc,
     ))
@@ -149,6 +153,24 @@ pub fn decode_record_with_raw_data(
     options: &DecodeOptions,
     raw_data_with_header: Option<&[u8]>,
     record_index: u64,
+) -> Result<Value> {
+    decode_record_with_raw_data_at_offset(
+        schema,
+        data,
+        options,
+        raw_data_with_header,
+        record_index,
+        None,
+    )
+}
+
+fn decode_record_with_raw_data_at_offset(
+    schema: &Schema,
+    data: &[u8],
+    options: &DecodeOptions,
+    raw_data_with_header: Option<&[u8]>,
+    record_index: u64,
+    record_offset: Option<u64>,
 ) -> Result<Value> {
     use crate::options::RawMode;
     use serde_json::Map;
@@ -190,7 +212,10 @@ pub fn decode_record_with_raw_data(
         schema,
         options,
         record_index,
-        data.len(),
+        RecordMetadata {
+            length: data.len(),
+            offset: record_offset,
+        },
         record_raw,
         encoding_acc,
     ))
@@ -2621,9 +2646,12 @@ fn process_fixed_records<R: Read, W: Write>(
     let mut reader = crate::file::fixed::reader(reader, schema)?;
     let mut scratch = crate::memory::ScratchBuffers::new();
     let mut record_index = 0u64;
+    let mut record_offset = 0u64;
 
     while let Some(record_data) = reader.read_record()? {
         record_index += 1;
+        let current_offset = record_offset;
+        record_offset = record_offset.saturating_add(record_data.len() as u64);
         crate::file::fixed::validate_record_length(
             schema,
             reader.lrecl(),
@@ -2644,6 +2672,7 @@ fn process_fixed_records<R: Read, W: Write>(
             options,
             raw_data_for_decode,
             record_index,
+            Some(current_offset),
             &mut scratch,
         ) {
             Ok(json_value) => {
@@ -2667,6 +2696,7 @@ struct DecodeWork {
     payload: Vec<u8>,
     raw_data: Option<Vec<u8>>,
     record_index: u64,
+    record_offset: u64,
 }
 
 struct DecodeOutcome {
@@ -2702,6 +2732,7 @@ fn decode_worker_pool(
                 &options,
                 work.raw_data,
                 work.record_index,
+                Some(work.record_offset),
                 scratch,
             );
             let warnings = warning_count().saturating_sub(warning_count_before);
@@ -2773,6 +2804,7 @@ fn process_fixed_records_parallel<R: Read, W: Write>(
     let batch_capacity = workers.saturating_mul(4).max(1);
     let mut pool = decode_worker_pool(schema, options);
     let mut record_index = 0_u64;
+    let mut record_offset = 0_u64;
     let mut batch_len = 0_usize;
 
     loop {
@@ -2792,6 +2824,8 @@ fn process_fixed_records_parallel<R: Read, W: Write>(
         let Some(record_data) = record else { break };
 
         record_index += 1;
+        let current_offset = record_offset;
+        record_offset = record_offset.saturating_add(record_data.len() as u64);
         crate::file::fixed::validate_record_length(
             schema,
             reader.lrecl(),
@@ -2809,6 +2843,7 @@ fn process_fixed_records_parallel<R: Read, W: Write>(
             payload: record_data,
             raw_data,
             record_index,
+            record_offset: current_offset,
         }) {
             let pending_result = if batch_len > 0 {
                 process_decode_batch(&mut pool, batch_len, output, options, summary)
@@ -2864,10 +2899,13 @@ fn process_rdw_records<R: Read, W: Write>(
     let mut reader = crate::record::RDWRecordReader::new(reader, options.strict_mode);
     let mut scratch = crate::memory::ScratchBuffers::new();
     let mut record_index = 0u64;
+    let mut record_offset = 0u64;
 
     while let Some(rdw_record) = reader.read_record()? {
         record_index += 1;
         let record_bytes = rdw_record.header.len() + rdw_record.payload.len();
+        let current_offset = record_offset;
+        record_offset = record_offset.saturating_add(record_bytes as u64);
         summary.bytes_processed += record_bytes as u64;
         telemetry::record_read(record_bytes, options);
         if rdw_record.reserved() != 0 {
@@ -2903,6 +2941,7 @@ fn process_rdw_records<R: Read, W: Write>(
             options,
             full_raw_data,
             record_index,
+            Some(current_offset),
             &mut scratch,
         ) {
             Ok(json_value) => {
@@ -2957,6 +2996,7 @@ fn process_rdw_records_parallel<R: Read, W: Write>(
     let batch_capacity = workers.saturating_mul(4).max(1);
     let mut pool = decode_worker_pool(schema, options);
     let mut record_index = 0_u64;
+    let mut record_offset = 0_u64;
     let mut batch_len = 0_usize;
 
     loop {
@@ -2977,6 +3017,8 @@ fn process_rdw_records_parallel<R: Read, W: Write>(
 
         record_index += 1;
         let record_bytes = rdw_record.header.len() + rdw_record.payload.len();
+        let current_offset = record_offset;
+        record_offset = record_offset.saturating_add(record_bytes as u64);
         summary.bytes_processed += record_bytes as u64;
         telemetry::record_read(record_bytes, options);
         if rdw_record.reserved() != 0 {
@@ -3010,6 +3052,7 @@ fn process_rdw_records_parallel<R: Read, W: Write>(
             payload: rdw_record.payload,
             raw_data: full_raw_data,
             record_index,
+            record_offset: current_offset,
         }) {
             let pending_result = if batch_len > 0 {
                 process_decode_batch(&mut pool, batch_len, output, options, summary)

@@ -1058,6 +1058,51 @@ fn decode_file_to_jsonl_raw_mode_rdw_is_stable_across_workers() {
 }
 
 #[test]
+fn decode_file_to_jsonl_emit_meta_reports_physical_offsets_across_formats() {
+    let fixed_schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
+    let fixed_opts = ascii_decode_opts().with_emit_meta(true).with_threads(4);
+    let mut fixed_output = Vec::new();
+    decode_file_to_jsonl(
+        &fixed_schema,
+        Cursor::new(b"ABCDE12345"),
+        &mut fixed_output,
+        &fixed_opts,
+    )
+    .unwrap();
+    let fixed_lines: Vec<_> = String::from_utf8(fixed_output)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .collect();
+    assert_eq!(fixed_lines.len(), 2);
+    assert_eq!(fixed_lines[0]["offset"], 0);
+    assert_eq!(fixed_lines[1]["offset"], 5);
+
+    let rdw_schema = parse_copybook(RDW_SCHEMA).unwrap();
+    let rdw_data = build_rdw_records(&["ABCDE", "FGHIJ"]);
+    let rdw_opts = ascii_decode_opts()
+        .with_format(RecordFormat::RDW)
+        .with_emit_meta(true)
+        .with_threads(4);
+    let mut rdw_output = Vec::new();
+    decode_file_to_jsonl(
+        &rdw_schema,
+        Cursor::new(rdw_data),
+        &mut rdw_output,
+        &rdw_opts,
+    )
+    .unwrap();
+    let rdw_lines: Vec<_> = String::from_utf8(rdw_output)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .collect();
+    assert_eq!(rdw_lines.len(), 2);
+    assert_eq!(rdw_lines[0]["offset"], 0);
+    assert_eq!(rdw_lines[1]["offset"], 9);
+}
+
+#[test]
 fn decode_file_to_jsonl_raw_mode_rdw_strict_reserved_rejects_nonzero() {
     let schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
     let data = b"\x00\x05\x12\x34HELLO";

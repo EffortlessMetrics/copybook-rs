@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **codec**: `encode` no longer writes zeros over a numeric field whose JSON
+  value it cannot use. Zoned, packed, edited-numeric, and binary fields skipped
+  any present-but-unusable value and left the field at its default bytes, so
+  `{"CUST-ID": 12345}` without `--coerce-numbers` produced a record of zeros and
+  still reported success — silent corruption of the caller's data, including
+  under `--strict`. These fields now raise the already-documented
+  `CBKE501_JSON_TYPE_MISMATCH`, naming the field, the type found, and (for JSON
+  numbers) the `--coerce-numbers` remedy. `COMP-1`/`COMP-2` already behaved this
+  way; an absent field and an explicit `null` still keep their default bytes.
 - **codec**: `RecordIterator` no longer discards a trailing partial record.
   `read_exact` reports `UnexpectedEof` both for a clean end of file and for a
   reader that ran dry mid-record, so a file that is not a multiple of LRECL had

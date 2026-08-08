@@ -117,7 +117,7 @@ fn encode_accepts_inline_comments_by_default() {
 
     // Create JSONL input
     let jsonl_path = dir.path().join("input.jsonl");
-    std::fs::write(&jsonl_path, r#"{"FIELD-A":"ABCDEFGHIJ","FIELD-B":12345}"#).unwrap();
+    std::fs::write(&jsonl_path, r#"{"FIELD-A":"ABCDEFGHIJ","FIELD-B":"12345"}"#).unwrap();
     let out = dir.path().join("out.bin");
 
     cmd()
@@ -145,7 +145,7 @@ fn encode_strict_comments_rejects_inline() {
     let (dir, cpy, _data) = setup(INLINE_COMMENT_CPY, &make_inline_data());
 
     let jsonl_path = dir.path().join("input.jsonl");
-    std::fs::write(&jsonl_path, r#"{"FIELD-A":"ABCDEFGHIJ","FIELD-B":12345}"#).unwrap();
+    std::fs::write(&jsonl_path, r#"{"FIELD-A":"ABCDEFGHIJ","FIELD-B":"12345"}"#).unwrap();
     let out = dir.path().join("out.bin");
 
     cmd()

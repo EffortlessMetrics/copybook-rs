@@ -934,6 +934,28 @@ pub struct RunSummary {
     pub throughput_mbps: f64,
     pub peak_memory_bytes: Option<u64>,
     pub threads_used: usize,
+    /// The first `MAX_CAPTURED_FAILURES` record failures seen during the run.
+    pub failures: Vec<RecordFailure>,
+}
+
+pub struct RecordFailure {
+    /// 1-based index of the record within the input.
+    pub record_index: u64,
+    /// The error that caused this record to fail, with its code and context.
+    pub error: Error,
+}
+```
+
+`records_with_errors` is the full count of failed records. `failures` carries the
+detail for the first `MAX_CAPTURED_FAILURES` (10) of them, so a caller can report
+*which* records failed and *why* without holding an unbounded list for a file that
+fails on every record. `undisclosed_failure_count()` returns how many failures
+occurred beyond the retained ones.
+
+```rust
+let summary = decode_file_to_jsonl(&schema, input, &mut output, &options)?;
+for failure in &summary.failures {
+    eprintln!("record {}: {}", failure.record_index, failure.error);
 }
 ```
 

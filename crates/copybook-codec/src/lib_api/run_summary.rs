@@ -1,7 +1,30 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Processing run statistics and display formatting.
 
+use copybook_error::Error;
 use std::fmt;
+
+/// How many individual record failures a [`RunSummary`] retains.
+///
+/// A run over a badly mismatched file can fail on every record; keeping the
+/// first few is enough to diagnose it without holding the whole file in memory.
+/// `verify` already reports its errors under the same "first 10" convention.
+pub const MAX_CAPTURED_FAILURES: usize = 10;
+
+/// A single record that failed during a decode or encode run.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecordFailure {
+    /// 1-based index of the record within the input.
+    pub record_index: u64,
+    /// The error that caused this record to fail, with its code and context.
+    pub error: Error,
+}
+
+impl fmt::Display for RecordFailure {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "record {}: {}", self.record_index, self.error)
+    }
+}
 
 /// Summary of a processing run with comprehensive statistics.
 ///
@@ -30,6 +53,11 @@ pub struct RunSummary {
     pub peak_memory_bytes: Option<u64>,
     /// Number of worker threads used for parallel processing.
     pub threads_used: usize,
+    /// The first [`MAX_CAPTURED_FAILURES`] record failures seen during the run.
+    ///
+    /// `records_with_errors` remains the full count; this carries enough of the
+    /// detail to tell the caller *which* records failed and *why*.
+    pub failures: Vec<RecordFailure>,
 }
 
 impl RunSummary {
@@ -62,6 +90,29 @@ impl RunSummary {
     #[must_use]
     pub const fn has_errors(&self) -> bool {
         self.records_with_errors > 0
+    }
+
+    /// Count a failed record and retain its detail, up to [`MAX_CAPTURED_FAILURES`].
+    ///
+    /// Callers previously incremented `records_with_errors` and dropped the
+    /// `Error`, which left the caller with a count and no way to find out what
+    /// went wrong. Recording both keeps the count authoritative while making the
+    /// first failures reportable.
+    pub fn note_failure(&mut self, record_index: u64, error: &Error) {
+        self.records_with_errors += 1;
+        if self.failures.len() < MAX_CAPTURED_FAILURES {
+            self.failures.push(RecordFailure {
+                record_index,
+                error: error.clone(),
+            });
+        }
+    }
+
+    /// Number of failures that occurred beyond the retained [`Self::failures`].
+    #[must_use]
+    pub fn undisclosed_failure_count(&self) -> u64 {
+        self.records_with_errors
+            .saturating_sub(self.failures.len() as u64)
     }
 
     /// Check if processing had any warnings

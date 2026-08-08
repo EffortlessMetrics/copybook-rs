@@ -221,6 +221,30 @@ pub fn append_processing_summary(
     Ok(())
 }
 
+/// Append the record failures a run captured, so the operator can see which
+/// records failed and why instead of only how many.
+///
+/// Writes nothing when the run recorded no failures. The codec retains the
+/// first `MAX_CAPTURED_FAILURES`; any beyond that are reported as a remainder.
+pub fn append_record_failures(output: &mut String, summary: &RunSummary) -> std::fmt::Result {
+    if summary.failures.is_empty() {
+        return Ok(());
+    }
+
+    writeln!(output)?;
+    writeln!(output, "Failed records:")?;
+    for failure in &summary.failures {
+        writeln!(output, "  {failure}")?;
+    }
+
+    let remaining = summary.undisclosed_failure_count();
+    if remaining > 0 {
+        writeln!(output, "  ... and {remaining} more")?;
+    }
+
+    Ok(())
+}
+
 /// Atomically write data to a file using temporary file + rename
 ///
 /// This ensures that the output file is either completely written or not present at all,

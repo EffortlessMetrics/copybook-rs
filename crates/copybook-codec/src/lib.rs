@@ -45,8 +45,8 @@ pub const JSON_SCHEMA_VERSION: &str = "copybook.v1";
 pub use iterator::{RecordIterator, iter_records, iter_records_from_file};
 
 pub use lib_api::{
-    RunSummary, decode_file_to_jsonl, decode_record, decode_record_with_scratch,
-    encode_jsonl_to_file, encode_record,
+    MAX_CAPTURED_FAILURES, RecordFailure, RunSummary, decode_file_to_jsonl, decode_record,
+    decode_record_with_scratch, encode_jsonl_to_file, encode_record,
 };
 
 pub use numeric::{SmallDecimal, ZonedEncodingInfo};

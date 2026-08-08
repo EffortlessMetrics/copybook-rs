@@ -8,7 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **codec**: `RunSummary` now carries `failures`, the first `MAX_CAPTURED_FAILURES`
+  (10) `RecordFailure` entries of a run, each naming the 1-based record index and
+  the `Error` that failed it. `records_with_errors` remains the full count, and
+  `undisclosed_failure_count()` reports how many failures were not retained.
+
 ### Fixed
+- **cli**: `decode` and `encode` now report which records failed and why. Both
+  commands counted failures and discarded the errors themselves, so a run ended
+  at `Records with errors: 3` with nothing to act on — the codec dropped each
+  `Error` in lenient mode and kept only a counter. Failed records are now listed
+  on stderr with their index and stable code. `encode` no longer advises
+  `--fail-fast=false`, a form the flag does not accept, nor suggests re-running
+  with `--fail-fast` for detail that is now printed either way.
 - **codec**: `encode` no longer writes zeros over a numeric field whose JSON
   value it cannot use. Zoned, packed, edited-numeric, and binary fields skipped
   any present-but-unusable value and left the field at its default bytes, so

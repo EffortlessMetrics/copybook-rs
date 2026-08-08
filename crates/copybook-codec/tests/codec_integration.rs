@@ -557,3 +557,67 @@ fn pipeline_preserves_spaces_in_alpha() {
     // Alpha fields should preserve leading/trailing spaces through round-trip
     assert_eq!(encoded.len(), 8);
 }
+
+#[test]
+fn decode_summary_reports_which_records_failed() {
+    let schema = parse_copybook("01 REC.\n   05 FLD PIC 9(3).").unwrap();
+    // Three records: valid, invalid, valid.
+    let data = b"123XYZ456";
+    let mut output = Vec::new();
+    let opts = DecodeOptions::new()
+        .with_codepage(Codepage::ASCII)
+        .with_format(RecordFormat::Fixed);
+    let summary =
+        decode_file_to_jsonl(&schema, Cursor::new(&data[..]), &mut output, &opts).unwrap();
+
+    assert_eq!(summary.records_with_errors, 1);
+    assert_eq!(
+        summary.failures.len(),
+        1,
+        "the failed record must be reported, not just counted"
+    );
+    assert_eq!(
+        summary.failures[0].record_index, 2,
+        "record index should be 1-based and name the record that actually failed"
+    );
+    assert_eq!(summary.undisclosed_failure_count(), 0);
+}
+
+#[test]
+fn encode_summary_reports_which_records_failed() {
+    let schema = parse_copybook("01 REC.\n   05 FLD PIC 9(3).").unwrap();
+    let jsonl = "{\"FLD\":\"123\"}\n{\"FLD\":456}\n";
+    let mut output = Vec::new();
+    let opts = ascii_encode_opts();
+    let summary =
+        encode_jsonl_to_file(&schema, Cursor::new(jsonl.as_bytes()), &mut output, &opts).unwrap();
+
+    assert_eq!(summary.records_with_errors, 1);
+    assert_eq!(summary.failures.len(), 1);
+    assert_eq!(summary.failures[0].record_index, 2);
+    assert_eq!(
+        summary.failures[0].error.code(),
+        ErrorCode::CBKE501_JSON_TYPE_MISMATCH
+    );
+}
+
+#[test]
+fn summary_caps_retained_failures_and_reports_the_remainder() {
+    let schema = parse_copybook("01 REC.\n   05 FLD PIC 9(3).").unwrap();
+    // 15 records, all invalid, exceeding MAX_CAPTURED_FAILURES.
+    let data = "XYZ".repeat(15);
+    let mut output = Vec::new();
+    let opts = DecodeOptions::new()
+        .with_codepage(Codepage::ASCII)
+        .with_format(RecordFormat::Fixed);
+    let summary =
+        decode_file_to_jsonl(&schema, Cursor::new(data.as_bytes()), &mut output, &opts).unwrap();
+
+    assert_eq!(summary.records_with_errors, 15);
+    assert_eq!(
+        summary.failures.len(),
+        copybook_codec::MAX_CAPTURED_FAILURES,
+        "retained detail must stay bounded"
+    );
+    assert_eq!(summary.undisclosed_failure_count(), 5);
+}

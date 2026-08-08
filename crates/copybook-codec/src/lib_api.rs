@@ -25,7 +25,7 @@ mod telemetry;
 mod warnings;
 
 use envelope::build_json_envelope;
-pub use run_summary::RunSummary;
+pub use run_summary::{MAX_CAPTURED_FAILURES, RecordFailure, RunSummary};
 pub use warnings::increment_warning_counter;
 use warnings::{reset_warning_counter, warning_count};
 
@@ -2651,9 +2651,8 @@ fn process_fixed_records<R: Read, W: Write>(
                 summary.records_processed += 1;
             }
             Err(error) => {
-                summary.records_with_errors += 1;
-                let family = error.family_prefix();
-                telemetry::record_error(family);
+                summary.note_failure(record_index, &error);
+                telemetry::record_error(error.family_prefix());
                 if options.strict_mode {
                     return Err(error);
                 }
@@ -2673,6 +2672,8 @@ struct DecodeWork {
 struct DecodeOutcome {
     result: Result<Value>,
     warnings: u64,
+    /// Carried back from the work item so a failure can name its record.
+    record_index: u64,
 }
 
 fn effective_worker_count(requested: usize) -> usize {
@@ -2704,7 +2705,11 @@ fn decode_worker_pool(
                 scratch,
             );
             let warnings = warning_count().saturating_sub(warning_count_before);
-            DecodeOutcome { result, warnings }
+            DecodeOutcome {
+                result,
+                warnings,
+                record_index: work.record_index,
+            }
         },
     )
 }
@@ -2737,15 +2742,15 @@ fn process_decode_batch<W: Write>(
             continue;
         }
 
+        let record_index = outcome.record_index;
         match outcome.result {
             Ok(json_value) => {
                 write_json_record(output, &json_value)?;
                 summary.records_processed += 1;
             }
             Err(error) => {
-                summary.records_with_errors += 1;
-                let family = error.family_prefix();
-                telemetry::record_error(family);
+                summary.note_failure(record_index, &error);
+                telemetry::record_error(error.family_prefix());
                 if options.strict_mode {
                     first_error = Some(error);
                 }
@@ -2882,9 +2887,8 @@ fn process_rdw_records<R: Read, W: Write>(
         {
             let error = rdw_underflow_error(schema_lrecl, rdw_record.payload.len());
 
-            summary.records_with_errors += 1;
-            let family = error.family_prefix();
-            telemetry::record_error(family);
+            summary.note_failure(record_index, &error);
+            telemetry::record_error(error.family_prefix());
             if options.strict_mode {
                 return Err(error);
             }
@@ -2906,9 +2910,8 @@ fn process_rdw_records<R: Read, W: Write>(
                 summary.records_processed += 1;
             }
             Err(error) => {
-                summary.records_with_errors += 1;
-                let family = error.family_prefix();
-                telemetry::record_error(family);
+                summary.note_failure(record_index, &error);
+                telemetry::record_error(error.family_prefix());
                 if options.strict_mode {
                     return Err(error);
                 }
@@ -2985,9 +2988,8 @@ fn process_rdw_records_parallel<R: Read, W: Write>(
         {
             let error = rdw_underflow_error(schema_lrecl, rdw_record.payload.len());
 
-            summary.records_with_errors += 1;
-            let family = error.family_prefix();
-            telemetry::record_error(family);
+            summary.note_failure(record_index, &error);
+            telemetry::record_error(error.family_prefix());
             if options.strict_mode {
                 let pending_result = if batch_len > 0 {
                     process_decode_batch(&mut pool, batch_len, output, options, summary)
@@ -3118,7 +3120,8 @@ fn process_encode_batch<W: Write>(
                 summary.bytes_processed += binary_data.len() as u64;
             }
             Err(error) => {
-                summary.records_with_errors += 1;
+                // `position` is batch-relative; report the record's absolute index.
+                summary.note_failure(records_before_batch + position as u64 + 1, &error);
                 telemetry::record_error(error.family_prefix());
                 if options.strict_mode {
                     first_error = Some((position as u64 + 1, error));
@@ -3360,15 +3363,19 @@ pub fn encode_jsonl_to_file(
                 .map_err(|e| Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, e.to_string()))?;
 
             // Encode to binary
-            if let Ok(binary_data) = encode_record(schema, &json_value, options) {
-                output
-                    .write_all(&binary_data)
-                    .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-                summary.bytes_processed += binary_data.len() as u64;
-            } else {
-                summary.records_with_errors += 1;
-                if options.strict_mode {
-                    break;
+            match encode_record(schema, &json_value, options) {
+                Ok(binary_data) => {
+                    output.write_all(&binary_data).map_err(|e| {
+                        Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
+                    })?;
+                    summary.bytes_processed += binary_data.len() as u64;
+                }
+                Err(error) => {
+                    summary.note_failure(record_count, &error);
+                    telemetry::record_error(error.family_prefix());
+                    if options.strict_mode {
+                        break;
+                    }
                 }
             }
         }

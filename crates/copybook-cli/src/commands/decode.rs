@@ -4,10 +4,13 @@
 use crate::exit_codes::ExitCode;
 use crate::subcode;
 use crate::utils::{
-    ParseOptionsConfig, SummaryIssueCountStyle, append_processing_summary, determine_exit_code,
-    effective_error_policy, log_strict_comments, parse_projected_schema, run_with_output,
+    ParseOptionsConfig, SummaryIssueCountStyle, append_processing_summary, append_record_failures,
+    determine_exit_code, effective_error_policy, log_strict_comments, parse_projected_schema,
+    run_with_output,
 };
-use crate::{ExitDiagnostics, Stage, emit_exit_diagnostics_stage, write_stdout_all};
+use crate::{
+    ExitDiagnostics, Stage, emit_exit_diagnostics_stage, write_stderr_all, write_stdout_all,
+};
 use copybook_codec::{
     Codepage, DecodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
@@ -138,6 +141,13 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
         )?;
 
         write_stdout_all(summary_output.as_bytes())?;
+    }
+
+    // Failure detail goes to stderr so it survives `-o -` and shell redirection.
+    let mut failure_output = String::new();
+    append_record_failures(&mut failure_output, &summary)?;
+    if !failure_output.is_empty() {
+        write_stderr_all(failure_output.as_bytes())?;
     }
 
     info!("Decode completed successfully");

@@ -33,6 +33,10 @@ jobs:
               - 'crates/copybook/**'
               - 'crates/copybook-rs/**'
               - 'crates/copybook-codec/**'
+              - 'crates/copybook-fixed/**'
+              - 'crates/copybook-rdw/**'
+              - 'crates/copybook-cli/**'
+              - 'crates/copybook-record-io/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'scripts/bench/**'
@@ -46,6 +50,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Install nextest

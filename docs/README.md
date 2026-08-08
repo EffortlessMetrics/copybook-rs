@@ -31,6 +31,7 @@ Start with **[START_HERE.md](START_HERE.md)** for the hand-maintained navigation
 - [Internal feature specs](internal/features/) -- dialect lever, edited PIC
 
 ### Evidence
+
 - [Fixed/RDW pipeline registry](evidence/fixed-rdw-pipeline.toml) -- current-main scenario and test-anchor evidence
 
 ### Diataxis Framework

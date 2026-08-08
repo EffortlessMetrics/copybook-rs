@@ -1,7 +1,7 @@
 #![no_main]
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use copybook_overpunch::{
+use copybook_codec::numeric::overpunch::{
     ZeroSignPolicy, decode_overpunch_byte, encode_overpunch_byte, is_valid_overpunch,
 };
 use copybook_charset::Codepage;

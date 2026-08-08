@@ -120,7 +120,6 @@
 
 use crate::memory::ScratchBuffers;
 use crate::options::Codepage;
-use crate::zoned_overpunch::{ZeroSignPolicy, encode_overpunch_byte};
 use copybook_core::{Error, ErrorCode, Result, SignPlacement, SignSeparateInfo};
 use std::convert::TryFrom;
 use tracing::warn;
@@ -130,6 +129,7 @@ mod binary;
 mod branch;
 mod decimal;
 mod float;
+pub mod overpunch;
 pub mod zoned;
 
 pub use alphanumeric::encode_alphanumeric;
@@ -141,6 +141,11 @@ use branch::{likely, unlikely};
 pub use decimal::{SmallDecimal, ZonedEncodingInfo};
 use decimal::{create_normalized_decimal, digit_from_value, scale_abs_to_u32};
 pub use float::*;
+pub use overpunch::{
+    ZeroSignPolicy, decode_ebcdic_overpunch_zone, decode_overpunch_byte,
+    encode_ebcdic_overpunch_zone, encode_overpunch_byte, get_all_valid_overpunch_bytes,
+    is_valid_overpunch,
+};
 pub use zoned::{ParseZonedEncodingFormatError, ZonedEncodingFormat};
 
 /// Nibble zones for ASCII/EBCDIC digits (high bits in zoned bytes).

@@ -9,6 +9,9 @@
 
 use std::panic::catch_unwind;
 
+use copybook_codec::numeric::overpunch::{
+    ZeroSignPolicy, decode_overpunch_byte, encode_overpunch_byte,
+};
 use copybook_codec::numeric::{
     decode_binary_int, decode_packed_decimal, decode_zoned_decimal,
     decode_zoned_decimal_sign_separate, encode_binary_int, encode_packed_decimal,
@@ -19,7 +22,6 @@ use copybook_codec::{
 };
 use copybook_core::parse_copybook;
 use copybook_core::{SignPlacement, SignSeparateInfo};
-use copybook_overpunch::{ZeroSignPolicy, decode_overpunch_byte, encode_overpunch_byte};
 use proptest::prelude::*;
 
 use super::config::{DEFAULT_CASES, QUICK_CASES};

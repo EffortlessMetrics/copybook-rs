@@ -21,10 +21,11 @@ all-features = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-copybook-charset.workspace = true
-copybook-error.workspace = true
+copybook-codec.workspace = true
 
 [dev-dependencies]
+copybook-charset.workspace = true
+copybook-error.workspace = true
 proptest.workspace = true
 
 [lints]

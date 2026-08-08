@@ -72,7 +72,7 @@ pub mod overflow {
 
 /// Zoned decimal overpunch encode/decode primitives.
 pub mod overpunch {
-    pub use copybook_overpunch::*;
+    pub use copybook_codec::numeric::overpunch::*;
 }
 
 /// RDW framing primitives.

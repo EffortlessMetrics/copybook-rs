@@ -35,7 +35,7 @@ Each module re-exports the corresponding published component crate:
 | `governance_contracts` | `copybook-governance-contracts` |
 | `options` | `copybook-codec` |
 | `overflow` | `copybook-overflow` |
-| `overpunch` | `copybook-overpunch` |
+| `overpunch` | `copybook-codec::numeric::overpunch` |
 | `rdw` | `copybook-rdw` |
 | `record_io` | `copybook-codec` |
 | `support_matrix` | `copybook-support-matrix` |

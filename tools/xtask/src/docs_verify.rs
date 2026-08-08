@@ -19,7 +19,7 @@ use xtask::perf;
 type Verifier = (&'static str, fn() -> Result<()>);
 
 pub(crate) fn run() -> Result<()> {
-    let checks: [Verifier; 15] = [
+    let checks: [Verifier; 16] = [
         (
             "workspace-version-and-msrv",
             verify_workspace_version_and_msrv,
@@ -30,6 +30,7 @@ pub(crate) fn run() -> Result<()> {
             verify_copybook_rs_redirect_invariant,
         ),
         ("error-code-inventory", verify_error_code_inventory),
+        ("record-pipeline-evidence", verify_record_pipeline_evidence),
         ("test-status", verify_test_status_if_present),
         ("support-matrix", verify_support_matrix),
         (
@@ -60,6 +61,10 @@ pub(crate) fn run() -> Result<()> {
 pub(crate) fn run_contracts_command() -> Result<()> {
     generate_stable_contract_manifest()
         .and_then(|manifest| persist_stable_contract_manifest(&manifest))
+}
+
+pub(crate) fn verify_record_pipeline_command() -> Result<()> {
+    verify_record_pipeline_evidence()
 }
 
 pub(crate) fn run_freeze_contract_checks() -> Result<()> {
@@ -187,6 +192,15 @@ fn workspace_root() -> PathBuf {
 
 const STABILITY_SCHEMA_VERSION: &str = "1.0.0";
 const STABILITY_REGISTRY_PATH: &str = "docs/stability/surface-registry.json";
+const RECORD_PIPELINE_EVIDENCE_PATH: &str = "docs/evidence/fixed-rdw-pipeline.toml";
+const RECORD_PIPELINE_SOURCE_PATHS: [&str; 6] = [
+    "crates/copybook-codec",
+    "crates/copybook-fixed",
+    "crates/copybook-rdw",
+    "crates/copybook-cli",
+    "crates/copybook-record-io",
+    "tests/e2e",
+];
 const STABLE_CONTRACT_SCHEMA_VERSION: &str = "1.0.0";
 const STABLE_CONTRACT_MANIFEST_PATH: &str = "docs/contracts/stable-surface-contract.json";
 const STABLE_CONTRACT_SOURCE_PATHS: [&str; 6] = [
@@ -227,6 +241,209 @@ struct ContractCliInventory {
 #[derive(Debug, Serialize, Deserialize)]
 struct ContractErrorInventory {
     variants: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RecordPipelineEvidence {
+    schema_version: u32,
+    scope: String,
+    verified_against: String,
+    scenarios: Vec<RecordPipelineScenario>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RecordPipelineScenario {
+    id: String,
+    record_formats: Vec<String>,
+    api_tests: Vec<String>,
+    cli_tests: Vec<String>,
+    error_codes: Vec<String>,
+    cli_commands: Vec<String>,
+    known_limitation: String,
+}
+
+fn verify_record_pipeline_evidence() -> Result<()> {
+    let root = workspace_root();
+    let registry_path = root.join(RECORD_PIPELINE_EVIDENCE_PATH);
+    let source = fs::read_to_string(&registry_path).with_context(|| {
+        format!(
+            "loading fixed/RDW evidence registry {}",
+            registry_path.display()
+        )
+    })?;
+    let registry: RecordPipelineEvidence =
+        toml::from_str(&source).with_context(|| format!("parsing {}", registry_path.display()))?;
+
+    if registry.schema_version != 1 {
+        bail!(
+            "unsupported fixed/RDW evidence registry schema version {}",
+            registry.schema_version
+        );
+    }
+    if registry.scope != "fixed-rdw-pipeline" {
+        bail!(
+            "unexpected fixed/RDW evidence registry scope `{}`",
+            registry.scope
+        );
+    }
+    if registry.scenarios.is_empty() {
+        bail!("fixed/RDW evidence registry contains no scenarios");
+    }
+
+    let sha = registry.verified_against.trim();
+    if sha.len() != 40 || !sha.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        bail!("verified_against must be a 40-character commit SHA, found `{sha}`");
+    }
+
+    let commit_check = Command::new("git")
+        .current_dir(&root)
+        .args(["cat-file", "-e", &format!("{sha}^{{commit}}")])
+        .output()
+        .context("checking fixed/RDW evidence registry commit")?;
+    match commit_check.status.code() {
+        Some(0) => verify_record_pipeline_commit_ancestry(&root, sha)?,
+        Some(1) if is_shallow_repository(&root)? => {
+            println!(
+                "fixed/RDW evidence commit `{sha}` unavailable in shallow checkout; ancestry and drift checks skipped"
+            );
+        }
+        Some(1) => bail!("fixed/RDW evidence registry commit `{sha}` is not available"),
+        other => bail!(
+            "git cat-file failed while checking fixed/RDW evidence registry commit (exit {other:?}): {}",
+            String::from_utf8_lossy(&commit_check.stderr).trim()
+        ),
+    }
+
+    let error_code_source = fs::read_to_string(root.join("crates/copybook-error/src/lib.rs"))
+        .context("loading crates/copybook-error/src/lib.rs")?;
+    let error_codes = parse_error_code_variants(&error_code_source)?;
+    verify_record_pipeline_scenarios(&root, &registry.scenarios, &error_codes)?;
+
+    println!(
+        "fixed/RDW evidence registry verified: {} scenarios at {}",
+        registry.scenarios.len(),
+        sha
+    );
+    Ok(())
+}
+
+fn verify_record_pipeline_commit_ancestry(root: &Path, sha: &str) -> Result<()> {
+    let ancestor_check = Command::new("git")
+        .current_dir(root)
+        .args(["merge-base", "--is-ancestor", sha, "HEAD"])
+        .output()
+        .context("checking fixed/RDW evidence registry commit ancestry")?;
+    match ancestor_check.status.code() {
+        Some(0) => {}
+        Some(1) => {
+            bail!(
+                "fixed/RDW evidence was verified against `{sha}`, which is not an ancestor of HEAD"
+            )
+        }
+        other => bail!(
+            "git merge-base failed while checking fixed/RDW evidence ancestry (exit {other:?}): {}",
+            String::from_utf8_lossy(&ancestor_check.stderr).trim()
+        ),
+    }
+
+    let diff_check = Command::new("git")
+        .current_dir(root)
+        .args(["diff", "--quiet", &format!("{sha}..HEAD"), "--"])
+        .args(RECORD_PIPELINE_SOURCE_PATHS)
+        .output()
+        .context("checking fixed/RDW evidence source drift")?;
+    match diff_check.status.code() {
+        Some(0) => {}
+        Some(1) => bail!(
+            "fixed/RDW evidence source paths changed after verified commit `{sha}`; update the registry"
+        ),
+        other => bail!(
+            "git diff failed while checking fixed/RDW evidence source drift (exit {other:?}): {}",
+            String::from_utf8_lossy(&diff_check.stderr).trim()
+        ),
+    }
+    Ok(())
+}
+
+fn is_shallow_repository(root: &Path) -> Result<bool> {
+    let output = Command::new("git")
+        .current_dir(root)
+        .args(["rev-parse", "--is-shallow-repository"])
+        .output()
+        .context("checking repository depth for fixed/RDW evidence")?;
+    Ok(output.status.success() && String::from_utf8_lossy(&output.stdout).trim() == "true")
+}
+
+fn verify_record_pipeline_scenarios(
+    root: &Path,
+    scenarios: &[RecordPipelineScenario],
+    error_codes: &[String],
+) -> Result<()> {
+    let mut scenario_ids = BTreeSet::new();
+    for scenario in scenarios {
+        if !scenario_ids.insert(&scenario.id) {
+            bail!("duplicate fixed/RDW evidence scenario `{}`", scenario.id);
+        }
+        if scenario.record_formats.is_empty() {
+            bail!("scenario `{}` has no record format", scenario.id);
+        }
+        if scenario
+            .record_formats
+            .iter()
+            .any(|format| !matches!(format.as_str(), "fixed" | "rdw"))
+        {
+            bail!(
+                "scenario `{}` contains a record format outside the fixed/RDW scope",
+                scenario.id
+            );
+        }
+        if scenario.api_tests.is_empty() && scenario.cli_tests.is_empty() {
+            bail!("scenario `{}` has no test anchor", scenario.id);
+        }
+        if scenario.cli_tests.is_empty() != scenario.cli_commands.is_empty() {
+            bail!(
+                "scenario `{}` must keep CLI command and CLI test anchors in sync",
+                scenario.id
+            );
+        }
+        if scenario.known_limitation.trim().is_empty() {
+            bail!("scenario `{}` has no limitation statement", scenario.id);
+        }
+        for anchor in scenario.api_tests.iter().chain(&scenario.cli_tests) {
+            verify_test_anchor(root, anchor, &scenario.id)?;
+        }
+        for error_code in &scenario.error_codes {
+            if !error_codes.contains(error_code) {
+                bail!(
+                    "scenario `{}` references unknown stable error code `{error_code}`",
+                    scenario.id
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+fn verify_test_anchor(root: &Path, anchor: &str, scenario_id: &str) -> Result<()> {
+    let (path, symbol) = anchor.rsplit_once("::").ok_or_else(|| {
+        anyhow::anyhow!(
+            "scenario `{scenario_id}` has malformed test anchor `{anchor}`; expected path::function"
+        )
+    })?;
+    let source_path = root.join(path);
+    let source = fs::read_to_string(&source_path)
+        .with_context(|| format!("loading test anchor `{anchor}` for scenario `{scenario_id}`"))?;
+    let function_anchor = format!("fn {symbol}");
+    let declares_function = source.match_indices(&function_anchor).any(|(index, _)| {
+        source[index + function_anchor.len()..]
+            .chars()
+            .next()
+            .is_none_or(|next| !next.is_alphanumeric() && next != '_')
+    });
+    if !declares_function {
+        bail!("scenario `{scenario_id}` anchor `{anchor}` does not name an existing function");
+    }
+    Ok(())
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -3029,6 +3246,76 @@ mod tests {
             output_deprecated_keys.contains("__raw_b64"),
             "surface deprecation audit missing deprecated output key `__raw_b64`"
         );
+    }
+
+    #[test]
+    fn record_pipeline_registry_rejects_missing_required_fields() {
+        let result = toml::from_str::<RecordPipelineEvidence>(
+            "schema_version = 1\nscope = 'fixed-rdw-pipeline'\n",
+        );
+        assert!(
+            result.is_err(),
+            "incomplete evidence registry must be rejected"
+        );
+    }
+
+    #[test]
+    fn record_pipeline_anchor_rejects_missing_file() {
+        let root = tempfile::tempdir().expect("create temporary workspace");
+        let result = verify_test_anchor(
+            root.path(),
+            "tests/missing.rs::missing_test",
+            "format.fixed.basic",
+        );
+        assert!(result.is_err(), "missing test anchor must be rejected");
+    }
+
+    #[test]
+    fn record_pipeline_anchor_accepts_exact_function_name() {
+        let root = tempfile::tempdir().expect("create temporary workspace");
+        fs::create_dir_all(root.path().join("tests")).expect("create anchor fixture directory");
+        let source_path = root.path().join("tests/anchors.rs");
+        fs::write(
+            &source_path,
+            "fn exact_anchor() {}\nfn exact_anchor_parallel() {}\n",
+        )
+        .expect("write anchor fixture");
+
+        verify_test_anchor(
+            root.path(),
+            "tests/anchors.rs::exact_anchor",
+            "format.rdw.odo_variable",
+        )
+        .expect("exact function anchor must be accepted");
+        assert!(
+            verify_test_anchor(
+                root.path(),
+                "tests/anchors.rs::exact_anchor_missing",
+                "format.rdw.odo_variable",
+            )
+            .is_err(),
+            "prefix collision must not satisfy an anchor"
+        );
+    }
+
+    #[test]
+    fn record_pipeline_scenarios_accept_valid_row() {
+        let root = tempfile::tempdir().expect("create temporary workspace");
+        fs::create_dir_all(root.path().join("tests")).expect("create anchor fixture directory");
+        let source_path = root.path().join("tests/anchors.rs");
+        fs::write(&source_path, "fn valid_anchor() {}\n").expect("write anchor fixture");
+        let scenarios = vec![RecordPipelineScenario {
+            id: "format.fixed.basic".to_string(),
+            record_formats: vec!["fixed".to_string()],
+            api_tests: vec!["tests/anchors.rs::valid_anchor".to_string()],
+            cli_tests: Vec::new(),
+            error_codes: Vec::new(),
+            cli_commands: Vec::new(),
+            known_limitation: "fixture-only acceptance row".to_string(),
+        }];
+
+        verify_record_pipeline_scenarios(root.path(), &scenarios, &[])
+            .expect("valid scenario row must be accepted");
     }
 
     #[test]

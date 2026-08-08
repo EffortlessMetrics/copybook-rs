@@ -1,0 +1,109 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Current-main evidence coordinator for issue #572.
+# This registry covers the fixed/RDW pipeline plane. It is intentionally not
+# the complete stable-error registry requested by issue #576.
+schema_version = 1
+scope = "fixed-rdw-pipeline"
+verified_against = "87e6f1986e7b894412480359cb50baea8c406645"
+
+[[scenarios]]
+id = "format.fixed.basic"
+record_formats = ["fixed"]
+api_tests = ["crates/copybook-codec/tests/streaming_file_tests.rs::decode_file_jsonl_format_lines"]
+cli_tests = ["tests/e2e/e2e_decode_option_interactions.rs::decode_multi_record_with_threads"]
+error_codes = []
+cli_commands = ["decode --format fixed"]
+known_limitation = "The registry anchor proves the normal streaming decode path; fixture breadth remains in the codec and e2e suites."
+
+[[scenarios]]
+id = "format.fixed.framing.rejection"
+record_formats = ["fixed"]
+api_tests = ["crates/copybook-codec/tests/streaming_file_tests.rs::cobol_record_iterator_truncated_record_returns_typed_error"]
+cli_tests = ["tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkr101_fixed_record_error_for_truncated_fixed_record"]
+error_codes = ["CBKR101_FIXED_RECORD_ERROR"]
+cli_commands = ["decode --format fixed --fail-fast"]
+known_limitation = "The direct trigger covers a truncated fixed input; oversized and IO variants remain linked to their focused crate tests."
+
+[[scenarios]]
+id = "format.rdw.basic"
+record_formats = ["rdw"]
+api_tests = ["crates/copybook-codec/tests/comprehensive_rdw_tests.rs::test_rdw_multiple_records"]
+cli_tests = ["tests/e2e/e2e_cli_decode_flags.rs::decode_rdw_record_raw_cli_preserves_physical_frames"]
+error_codes = []
+cli_commands = ["decode --format rdw"]
+known_limitation = "Encode and round-trip anchors remain in the comprehensive RDW suite and are not duplicated here."
+
+[[scenarios]]
+id = "format.rdw.header.rejection"
+record_formats = ["rdw"]
+api_tests = [
+  "crates/copybook-codec/tests/comprehensive_rdw_tests.rs::test_rdw_underflow_error",
+  "crates/copybook-codec/tests/streaming_file_tests.rs::decode_rdw_suspect_ascii_header_is_fatal",
+]
+cli_tests = [
+  "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkf221_rdw_short_header_exits_format",
+  "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkf102_rdw_truncated_payload_exits_format",
+]
+error_codes = ["CBKF102_RECORD_LENGTH_INVALID", "CBKF104_RDW_SUSPECT_ASCII", "CBKF221_RDW_UNDERFLOW"]
+cli_commands = ["decode --format rdw --fail-fast"]
+known_limitation = "Reserved-byte strict and lenient policy anchors are recorded in the raw-mode scenario and focused streaming tests."
+
+[[scenarios]]
+id = "format.rdw.odo_variable"
+record_formats = ["rdw"]
+api_tests = [
+  "crates/copybook-codec/tests/comprehensive_rdw_tests.rs::test_rdw_with_odo_variable_length",
+  "crates/copybook-codec/tests/comprehensive_rdw_tests.rs::test_rdw_with_odo_variable_length_parallel",
+]
+cli_tests = []
+error_codes = []
+cli_commands = []
+known_limitation = "The current coordinator anchors library sequential and parallel RDW+ODO behavior; CLI coverage is not claimed by this row."
+
+[[scenarios]]
+id = "format.fixed_rdw.raw_mode"
+record_formats = ["fixed", "rdw"]
+api_tests = [
+  "crates/copybook-codec/tests/streaming_file_tests.rs::decode_file_to_jsonl_raw_mode_records_emit_fixed_raw_payload",
+  "crates/copybook-codec/tests/streaming_file_tests.rs::decode_file_to_jsonl_raw_mode_rdw_emits_header_and_payload",
+]
+cli_tests = ["tests/e2e/e2e_cli_decode_flags.rs::decode_rdw_record_raw_cli_preserves_physical_frames"]
+error_codes = []
+cli_commands = ["decode --format rdw --emit-raw record+rdw"]
+known_limitation = "Field raw-mode coverage remains in the codec streaming suite and is not duplicated in this registry row."
+
+[[scenarios]]
+id = "format.fixed_rdw.accounting"
+record_formats = ["fixed", "rdw"]
+api_tests = ["crates/copybook-codec/tests/streaming_file_tests.rs::decode_file_to_jsonl_emit_meta_reports_physical_offsets_across_formats"]
+cli_tests = ["tests/e2e/e2e_cli_decode_flags.rs::decode_rdw_record_raw_cli_preserves_physical_frames"]
+error_codes = []
+cli_commands = ["decode --format rdw --emit-meta"]
+known_limitation = "The aggregate summary and worker accounting contracts are linked by separate issue #652 evidence comments."
+
+[[scenarios]]
+id = "format.fixed_rdw.workers"
+record_formats = ["fixed", "rdw"]
+api_tests = [
+  "crates/copybook-codec/tests/streaming_file_tests.rs::decode_fixed_threaded_deterministic",
+  "crates/copybook-codec/tests/streaming_file_tests.rs::decode_rdw_threaded_deterministic",
+]
+cli_tests = [
+  "tests/e2e/e2e_parallel_determinism.rs::test_decode_deterministic_across_thread_counts",
+  "tests/e2e/e2e_parallel_determinism.rs::test_encode_deterministic_across_thread_counts",
+]
+error_codes = []
+cli_commands = ["decode --threads 1", "decode --threads 8"]
+known_limitation = "The current anchors prove ordered deterministic output across worker configurations; throughput is governed by the performance receipt, not this registry."
+
+[[scenarios]]
+id = "format.fixed_rdw.cli"
+record_formats = ["fixed", "rdw"]
+api_tests = []
+cli_tests = [
+  "tests/e2e/e2e_cli_decode_flags.rs::decode_emit_meta_includes_metadata_fields",
+  "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkf102_rdw_truncated_payload_exits_format",
+]
+error_codes = ["CBKF102_RECORD_LENGTH_INVALID"]
+cli_commands = ["decode --format fixed", "decode --format rdw"]
+known_limitation = "Verify, encode, projection, and determinism command rows remain separate CLI evidence planes."

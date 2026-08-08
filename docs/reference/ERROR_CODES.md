@@ -645,6 +645,17 @@ Fixed format iterator requires LRECL; set schema.lrecl_fixed or use RecordFormat
 
 Errors in file operations and transfer corruption detection.
 
+#### CBKF001_FILE_READ_ERROR
+**Description**: A file named on the command line could not be opened or read
+**Severity**: Fatal
+**Context**: The path, and which argument it came from (copybook or input file)
+**Resolution**: Check the path, spelling, and read permissions
+
+```
+Error: CBKF001_FILE_READ_ERROR
+failed to read copybook '/nope.cpy': No such file or directory (os error 2)
+```
+
 #### CBKF102_RECORD_LENGTH_INVALID
 **Description**: RDW header length references an incomplete or oversized payload
 **Severity**: Fatal
@@ -887,7 +898,7 @@ Errors in Apache Arrow and Parquet conversion (copybook-arrow integration).
 
 ## Error Code Index
 
-All 64 stable error codes across 10 families:
+All 65 stable error codes across 10 families:
 
 | Code | Category | Severity | Description |
 |------|----------|----------|-------------|
@@ -946,6 +957,7 @@ All 64 stable error codes across 10 families:
 | CBKE521 | Encode | Fatal | Array length OOB |
 | CBKE530 | Encode | Error | SIGN SEPARATE encode error |
 | CBKE531 | Encode | Error | Float encode overflow (f64 to f32) |
+| CBKF001 | File | Fatal | Input file could not be read |
 | CBKF102 | File | Fatal | RDW length invalid |
 | CBKF104 | File | Warning | RDW suspect ASCII |
 | CBKF221 | File | Fatal | RDW underflow |

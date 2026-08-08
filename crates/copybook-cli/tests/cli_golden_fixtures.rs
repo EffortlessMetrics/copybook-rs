@@ -386,10 +386,12 @@ fn test_cli_encode_fail_fast() -> TestResult<()> {
         .arg("cp037")
         .arg("--fail-fast");
 
-    // Should fail with detailed error message
-    cmd.assert().failure().stderr(predicate::str::contains(
-        "Encoding failed with 1 error(s) in fail-fast mode",
-    ));
+    // Should fail naming the record and its stable code, and exit 3 (CBKE) rather
+    // than 5 — a bad input record is not an internal error.
+    cmd.assert()
+        .code(3)
+        .stderr(predicate::str::contains("CBKE"))
+        .stderr(predicate::str::contains("record 1"));
 
     Ok(())
 }

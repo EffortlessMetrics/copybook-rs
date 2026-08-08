@@ -362,6 +362,8 @@ impl ErrorReporter {
             | ErrorCode::CBKR101_FIXED_RECORD_ERROR
             | ErrorCode::CBKR201_RDW_READ_ERROR
             | ErrorCode::CBKR202_RDW_WRITE_ERROR
+            // A file the user named cannot be read: nothing downstream can proceed
+            | ErrorCode::CBKF001_FILE_READ_ERROR
             // Iterator/internal state errors are fatal
             | ErrorCode::CBKI001_INVALID_STATE => ErrorSeverity::Fatal,
 

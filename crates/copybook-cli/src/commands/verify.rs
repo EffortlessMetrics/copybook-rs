@@ -6,8 +6,8 @@
 use super::verify_report::{VerifyCliEcho, VerifyError, VerifyReport, VerifySample};
 use crate::exit_codes::ExitCode;
 use crate::utils::{
-    ParseOptionsConfig, apply_field_projection, atomic_write, build_parse_options,
-    read_file_or_stdin,
+    InputRole, ParseOptionsConfig, apply_field_projection, atomic_write, build_parse_options,
+    read_input_or_stdin,
 };
 use crate::write_stdout_all;
 use anyhow::bail;
@@ -19,7 +19,7 @@ use copybook_core::parse_copybook_with_options;
 use std::fmt::Write as _;
 use std::fs::{File, metadata};
 use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};
 
 // Hex display constants for consistent output formatting
@@ -63,8 +63,8 @@ pub struct VerifyOptions<'a> {
 
 #[allow(clippy::too_many_lines)]
 pub fn run(
-    copybook_path: &PathBuf,
-    input: &PathBuf,
+    copybook_path: &Path,
+    input: &Path,
     report: Option<PathBuf>,
     opts: &VerifyOptions,
 ) -> anyhow::Result<ExitCode> {
@@ -75,7 +75,7 @@ pub fn run(
     }
 
     // Read copybook file or stdin
-    let copybook_text = read_file_or_stdin(copybook_path)?;
+    let copybook_text = read_input_or_stdin(InputRole::Copybook, copybook_path)?;
 
     // Parse copybook with options
     let parse_options = build_parse_options(&ParseOptionsConfig {

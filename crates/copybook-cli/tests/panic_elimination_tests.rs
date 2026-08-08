@@ -37,8 +37,10 @@ fn panic_elimination_cli_smoke() -> TestResult<()> {
     let assert = cmd.assert().failure();
     let output = assert.get_output();
     let stderr = String::from_utf8_lossy(&output.stderr);
+    // Match panic markers, not the bare substring "panic": the error now names the
+    // file it could not read, and this test's own temp path contains "panic".
     assert!(
-        !stderr.contains("panic"),
+        !stderr.contains("panicked at") && !stderr.contains("thread 'main' panicked"),
         "panic elimination smoke test observed panic output: {stderr}"
     );
     Ok(())

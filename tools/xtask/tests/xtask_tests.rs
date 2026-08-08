@@ -80,6 +80,15 @@ fn usage_lists_docs_verify_record_pipeline() {
 }
 
 #[test]
+fn usage_lists_docs_verify_stable_errors() {
+    let output = std::process::Command::new(xtask_bin())
+        .output()
+        .expect("failed to run xtask");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("docs verify-stable-errors"));
+}
+
+#[test]
 fn usage_lists_docs_contracts_generate() {
     let output = std::process::Command::new(xtask_bin())
         .output()

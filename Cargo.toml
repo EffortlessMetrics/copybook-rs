@@ -132,7 +132,7 @@ regex = "1.12.4"
 
 # Crypto dependencies
 sha2 = "0.10.9"
-base64 = "0.22.1"
+base64 = "0.23.1"
 blake3 = "1.8.5"
 
 # Testing dependencies

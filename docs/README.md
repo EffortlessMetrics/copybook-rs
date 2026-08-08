@@ -30,6 +30,9 @@ Start with **[START_HERE.md](START_HERE.md)** for the hand-maintained navigation
 - [Agentic PR Operations](design/AGENTIC_PR_OPERATIONS.md) -- delegated lane authority and review-to-merge state machine
 - [Internal feature specs](internal/features/) -- dialect lever, edited PIC
 
+### Evidence
+- [Fixed/RDW pipeline registry](evidence/fixed-rdw-pipeline.toml) -- current-main scenario and test-anchor evidence
+
 ### Diataxis Framework
 Documentation follows [Diataxis](https://diataxis.fr/). Category indexes:
 [tutorials/](tutorials/README.md) | [how-to/](how-to/README.md) | [explanation/](explanation/README.md) | [reference/](reference/README.md)

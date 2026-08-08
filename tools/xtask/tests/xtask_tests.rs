@@ -71,6 +71,15 @@ fn usage_lists_docs_verify_support_matrix() {
 }
 
 #[test]
+fn usage_lists_docs_verify_record_pipeline() {
+    let output = std::process::Command::new(xtask_bin())
+        .output()
+        .expect("failed to run xtask");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("docs verify-record-pipeline"));
+}
+
+#[test]
 fn usage_lists_docs_contracts_generate() {
     let output = std::process::Command::new(xtask_bin())
         .output()

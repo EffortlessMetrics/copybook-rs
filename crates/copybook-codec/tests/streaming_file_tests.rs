@@ -1008,6 +1008,56 @@ fn decode_file_to_jsonl_raw_mode_rdw_emits_header_and_payload() {
 }
 
 #[test]
+fn decode_file_to_jsonl_raw_mode_rdw_is_stable_across_workers() {
+    let rdw_schema = parse_copybook(RDW_SCHEMA).unwrap();
+    let rdw_data = [
+        [0x00, 0x05, 0x00, 0x00, b'A', b'B', b'C', b'D', b'E'],
+        [0x00, 0x05, 0x12, 0x34, b'F', b'G', b'H', b'I', b'J'],
+    ]
+    .concat();
+    let expected_raw = vec![
+        vec![0x00, 0x05, 0x00, 0x00, b'A', b'B', b'C', b'D', b'E'],
+        vec![0x00, 0x05, 0x12, 0x34, b'F', b'G', b'H', b'I', b'J'],
+    ];
+    let mut baseline_output = None;
+
+    for threads in [1_usize, 4] {
+        let opts = ascii_decode_opts()
+            .with_format(RecordFormat::RDW)
+            .with_emit_raw(RawMode::RecordRDW)
+            .with_threads(threads);
+        let mut output = Vec::new();
+        let summary =
+            decode_file_to_jsonl(&rdw_schema, Cursor::new(&rdw_data), &mut output, &opts).unwrap();
+
+        assert_eq!(summary.records_processed, 2);
+        assert_eq!(summary.bytes_processed, 18);
+        assert_eq!(summary.warnings, 1);
+        assert_eq!(summary.threads_used, threads);
+        let lines: Vec<_> = String::from_utf8(output.clone())
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+            .collect();
+        for line in &lines {
+            assert!(line.get("raw_b64").is_some());
+            assert!(line.get("__raw_b64").is_some());
+        }
+        let actual_raw: Vec<_> = lines.iter().map(parse_raw_b64_field).collect();
+        assert_eq!(actual_raw, expected_raw);
+
+        if let Some(baseline) = &baseline_output {
+            assert_eq!(
+                output, *baseline,
+                "raw RDW output differs for {threads} threads"
+            );
+        } else {
+            baseline_output = Some(output);
+        }
+    }
+}
+
+#[test]
 fn decode_file_to_jsonl_raw_mode_rdw_strict_reserved_rejects_nonzero() {
     let schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
     let data = b"\x00\x05\x12\x34HELLO";

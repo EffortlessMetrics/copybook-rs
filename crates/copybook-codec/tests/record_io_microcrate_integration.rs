@@ -9,7 +9,22 @@ use copybook_codec::{
     encode_jsonl_to_file,
 };
 use copybook_core::{ErrorCode, parse_copybook};
-use std::io::Cursor;
+use std::io::{self, Cursor, Write};
+
+struct FailingWriter;
+
+impl Write for FailingWriter {
+    fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
+        Err(io::Error::new(
+            io::ErrorKind::BrokenPipe,
+            "simulated write failure",
+        ))
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
 
 #[test]
 fn codec_facade_keeps_record_io_error_contract() {
@@ -17,6 +32,15 @@ fn codec_facade_keeps_record_io_error_contract() {
     let err = copybook_codec::record::read_record(&mut input, RecordFormat::Fixed, None)
         .expect_err("fixed dispatch should require lrecl");
     assert_eq!(err.code, ErrorCode::CBKI001_INVALID_STATE);
+}
+
+#[test]
+fn fixed_dispatch_maps_write_failure_to_fixed_framing_error() {
+    let error = codec_write_record(&mut FailingWriter, b"DATA", RecordFormat::Fixed)
+        .expect_err("fixed dispatch should report a failed writer");
+
+    assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
+    assert!(error.message.contains("simulated write failure"));
 }
 
 #[test]

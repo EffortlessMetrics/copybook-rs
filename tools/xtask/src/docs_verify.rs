@@ -1737,6 +1737,7 @@ struct StableErrorEntry {
     code: String,
     stability_class: String,
     evidence_status: String,
+    direct_test: Option<String>,
 }
 
 fn verify_stable_error_registry() -> Result<()> {
@@ -1765,6 +1766,7 @@ fn verify_stable_error_registry() -> Result<()> {
         .into_iter()
         .collect();
     validate_stable_error_registry(&registry, &expected)?;
+    verify_stable_error_anchors(&root, &registry)?;
     println!(
         "stable error registry verified: {} codes ({} direct, {} pending)",
         registry.errors.len(),
@@ -1827,6 +1829,15 @@ fn validate_stable_error_registry(
                 entry.code
             );
         }
+        if entry.evidence_status == "pending" && entry.direct_test.is_some() {
+            bail!(
+                "pending error `{}` cannot claim a direct test anchor",
+                entry.code
+            );
+        }
+        if entry.evidence_status == "direct" && entry.direct_test.is_none() {
+            bail!("direct error `{}` is missing a test anchor", entry.code);
+        }
     }
     if &seen != expected {
         let missing: BTreeSet<_> = expected.difference(&seen).collect();
@@ -1834,6 +1845,15 @@ fn validate_stable_error_registry(
         bail!(
             "stable error registry coverage drift: missing={missing:?} unknown={extra:?} | authoritative-source=crates/copybook-error/src/lib.rs and {STABLE_ERROR_REGISTRY_PATH}"
         );
+    }
+    Ok(())
+}
+
+fn verify_stable_error_anchors(root: &Path, registry: &StableErrorRegistry) -> Result<()> {
+    for entry in &registry.errors {
+        if let Some(anchor) = &entry.direct_test {
+            verify_test_anchor(root, anchor, &entry.code)?;
+        }
     }
     Ok(())
 }
@@ -3458,6 +3478,16 @@ mod tests {
         )
         .expect("parse registry fixture");
         let expected = BTreeSet::from(["CBKD431_FLOAT_NAN".to_string()]);
+        assert!(validate_stable_error_registry(&registry, &expected).is_err());
+    }
+
+    #[test]
+    fn stable_error_registry_rejects_direct_entry_without_anchor() {
+        let registry: StableErrorRegistry = toml::from_str(
+            "schema_version = 1\nscope = 'stable-errors'\n\n[[errors]]\ncode = 'CBKP001_SYNTAX'\nstability_class = 'stable'\nevidence_status = 'direct'\n",
+        )
+        .expect("parse registry fixture");
+        let expected = BTreeSet::from(["CBKP001_SYNTAX".to_string()]);
         assert!(validate_stable_error_registry(&registry, &expected).is_err());
     }
 

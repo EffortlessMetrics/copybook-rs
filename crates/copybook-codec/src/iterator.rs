@@ -211,6 +211,7 @@
 //! # }
 //! ```
 
+use crate::lib_api::decode_record_with_raw_data;
 use crate::options::{DecodeOptions, RecordFormat};
 use copybook_core::{Error, ErrorCode, ErrorContext, Result, Schema};
 use copybook_rdw::RdwHeader;
@@ -306,6 +307,8 @@ pub struct RecordIterator<R: Read> {
     eof_reached: bool,
     /// Buffer for reading record data
     buffer: Vec<u8>,
+    /// Complete RDW frame for `RawMode::RecordRDW` envelope capture.
+    raw_data_with_header: Option<Vec<u8>>,
 }
 
 impl<R: Read> RecordIterator<R> {
@@ -329,6 +332,7 @@ impl<R: Read> RecordIterator<R> {
             record_index: 0,
             eof_reached: false,
             buffer: Vec::new(),
+            raw_data_with_header: None,
         })
     }
 
@@ -420,6 +424,7 @@ impl<R: Read> RecordIterator<R> {
         }
 
         self.buffer.clear();
+        self.raw_data_with_header = None;
 
         let record_data = match self.options.format {
             RecordFormat::Fixed => {
@@ -499,6 +504,10 @@ impl<R: Read> RecordIterator<R> {
                 self.buffer.resize(length, 0);
                 match self.reader.read_exact(&mut self.buffer) {
                     Ok(()) => {
+                        let mut raw_data_with_header = Vec::with_capacity(4 + length);
+                        raw_data_with_header.extend_from_slice(&rdw_header);
+                        raw_data_with_header.extend_from_slice(&self.buffer);
+                        self.raw_data_with_header = Some(raw_data_with_header);
                         self.record_index += 1;
                         Some(self.buffer.clone())
                     }
@@ -523,7 +532,14 @@ impl<R: Read> RecordIterator<R> {
     fn decode_next_record(&mut self) -> Result<Option<Value>> {
         match self.read_raw_record()? {
             Some(record_bytes) => {
-                let json_value = crate::decode_record(&self.schema, &record_bytes, &self.options)?;
+                let raw_data_with_header = self.raw_data_with_header.take();
+                let json_value = decode_record_with_raw_data(
+                    &self.schema,
+                    &record_bytes,
+                    &self.options,
+                    raw_data_with_header.as_deref(),
+                    self.record_index,
+                )?;
                 Ok(Some(json_value))
             }
             None => Ok(None),

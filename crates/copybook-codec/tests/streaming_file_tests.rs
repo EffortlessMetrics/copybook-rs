@@ -203,6 +203,64 @@ fn iter_records_does_not_buffer_all() {
 }
 
 #[test]
+fn cobol_record_iterator_decode_emits_one_based_indices() -> Result<(), Box<dyn std::error::Error>>
+{
+    let schema = parse_copybook(SIMPLE_SCHEMA)?;
+    let data = build_pic9_5_data(2);
+    let opts = ascii_decode_opts();
+    let mut iter = copybook_codec::RecordIterator::new(Cursor::new(data), &schema, &opts)?;
+
+    let first = iter
+        .next()
+        .ok_or_else(|| std::io::Error::other("missing first iterator record"))??;
+    assert_eq!(first["record_index"], 1);
+
+    let second = iter
+        .next()
+        .ok_or_else(|| std::io::Error::other("missing second iterator record"))??;
+    assert_eq!(second["record_index"], 2);
+
+    Ok(())
+}
+
+#[test]
+fn cobol_record_iterator_truncated_record_returns_typed_error()
+-> Result<(), Box<dyn std::error::Error>> {
+    let schema = parse_copybook(SIMPLE_SCHEMA)?;
+    let opts = ascii_decode_opts();
+    let mut iter = copybook_codec::RecordIterator::new(Cursor::new(b"1234"), &schema, &opts)?;
+
+    let error = match iter.next() {
+        Some(Err(error)) => error,
+        Some(Ok(_)) => return Err("truncated record unexpectedly decoded".into()),
+        None => return Err("truncated record was silently treated as EOF".into()),
+    };
+    assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
+
+    Ok(())
+}
+
+#[test]
+fn cobol_record_iterator_rdw_raw_mode_preserves_header() -> Result<(), Box<dyn std::error::Error>> {
+    let schema = parse_copybook("01 RECORD PIC X(5).")?;
+    let frame = [0x00, 0x05, 0xA5, 0x5A, b'H', b'E', b'L', b'L', b'O'];
+    let opts = DecodeOptions::new()
+        .with_format(RecordFormat::RDW)
+        .with_codepage(Codepage::ASCII)
+        .with_emit_raw(RawMode::RecordRDW);
+    let mut iter = copybook_codec::RecordIterator::new(Cursor::new(frame), &schema, &opts)?;
+
+    let decoded = iter
+        .next()
+        .ok_or_else(|| std::io::Error::other("missing RDW iterator record"))??;
+    let expected = base64::engine::general_purpose::STANDARD.encode(frame);
+    assert_eq!(decoded["raw_b64"], expected);
+    assert_eq!(decoded["__raw_b64"], expected);
+
+    Ok(())
+}
+
+#[test]
 fn record_iterator_raw_record_access() {
     let schema = parse_copybook(SIMPLE_SCHEMA).unwrap();
     let data = b"0000100002";

@@ -115,7 +115,6 @@ dependencies = [
  "copybook-corruption",
  "copybook-error",
  "copybook-fixed",
- "copybook-overpunch",
  "copybook-rdw",
  "crossbeam-channel",
  "indexmap",
@@ -210,14 +209,6 @@ dependencies = [
 name = "copybook-overflow"
 version = "0.5.0"
 dependencies = [
- "copybook-error",
-]
-
-[[package]]
-name = "copybook-overpunch"
-version = "0.5.0"
-dependencies = [
- "copybook-charset",
  "copybook-error",
 ]
 

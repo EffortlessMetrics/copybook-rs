@@ -1418,7 +1418,13 @@ fn verify_facade_invariants() -> Result<()> {
     verify_facade_module_dependency_invariant(
         &lib_module_set,
         &dep_module_set,
-        &["codepage", "determinism", "options", "record_io"],
+        &[
+            "codepage",
+            "determinism",
+            "options",
+            "overpunch",
+            "record_io",
+        ],
     )?;
 
     let (readme_only, lib_readme_only) = symmetric_diff(&readme_module_set, &lib_module_set);

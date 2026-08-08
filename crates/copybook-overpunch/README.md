@@ -1,10 +1,10 @@
 # copybook-overpunch
 
-Zoned decimal overpunch encoding and decoding primitives for copybook-rs.
+Compatibility crate for zoned decimal overpunch encoding and decoding.
 
-This crate isolates one responsibility:
-last-digit overpunch mapping for ASCII and EBCDIC codepages, including
-sign policy handling and validation helpers.
+The implementation is now owned by `copybook-codec`, which provides one
+overpunch contract for ASCII and EBCDIC codepages. This package forwards the
+historical API for migration compatibility.
 
 ## Public API
 
@@ -15,3 +15,5 @@ sign policy handling and validation helpers.
 - `decode_overpunch_byte`
 - `is_valid_overpunch`
 - `get_all_valid_overpunch_bytes`
+
+New code should import `copybook_codec::numeric::overpunch`.

@@ -745,7 +745,6 @@ dependencies = [
  "copybook-fixed",
  "copybook-governance-contracts",
  "copybook-overflow",
- "copybook-overpunch",
  "copybook-rdw",
  "copybook-support-matrix",
  "copybook-utils",
@@ -871,7 +870,6 @@ dependencies = [
  "copybook-error",
  "copybook-fixed",
  "copybook-options",
- "copybook-overpunch",
  "copybook-rdw",
  "crossbeam-channel",
  "hex",
@@ -1106,6 +1104,7 @@ name = "copybook-overpunch"
 version = "0.5.0"
 dependencies = [
  "copybook-charset",
+ "copybook-codec",
  "copybook-error",
  "proptest",
 ]
@@ -1128,7 +1127,6 @@ dependencies = [
  "copybook-governance-grid",
  "copybook-governance-runtime",
  "copybook-overflow",
- "copybook-overpunch",
  "copybook-rdw",
  "copybook-rdw-predicates",
  "copybook-record-io",

@@ -166,6 +166,10 @@ fn disable_comp1_rejects_comp1_copybook() {
     );
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
+        stderr.contains("CBKP011_UNSUPPORTED_CLAUSE"),
+        "disabled COMP-1 must report CBKP011, got: {stderr}"
+    );
+    assert!(
         stderr.contains("COMP-1") || stderr.contains("comp_1"),
         "error should mention COMP-1 or comp_1, got: {stderr}"
     );
@@ -185,6 +189,10 @@ fn disable_sign_separate_rejects_sign_separate_copybook() {
         "parse should fail when sign_separate is disabled"
     );
     let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("CBKP051_UNSUPPORTED_EDITED_PIC"),
+        "disabled SIGN SEPARATE must report CBKP051, got: {stderr}"
+    );
     assert!(
         stderr.contains("SIGN") || stderr.contains("sign_separate"),
         "error should mention SIGN, got: {stderr}"

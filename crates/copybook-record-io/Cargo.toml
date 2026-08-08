@@ -26,7 +26,6 @@ copybook-codec.workspace = true
 [dev-dependencies]
 proptest.workspace = true
 copybook-error.workspace = true
-copybook-options.workspace = true
 
 [lints]
 workspace = true

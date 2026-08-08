@@ -1,12 +1,12 @@
 # copybook-options
 
-Configuration primitives for copybook codec behavior.
+Compatibility forwarding package for copybook codec options.
 
 ## Overview
 
-Defines the `DecodeOptions` and `EncodeOptions` structs that control record format, codepage,
-JSON number mode, raw capture, zoned encoding preferences, and float format. These option
-types are the shared configuration surface used by the codec and CLI layers.
+The option contracts now live under `copybook_codec::options`, where codec-owned operation
+policy belongs. This published package remains available as a forwarding compatibility path
+for existing 0.5 consumers.
 
 ## Usage
 
@@ -20,7 +20,7 @@ let options = DecodeOptions::new()
     .with_threads(4);
 ```
 
-## Public API
+## Forwarded API
 
 - `DecodeOptions` / `EncodeOptions` — Builder-pattern configuration structs
 - `RecordFormat` — `Fixed` or `RDW`

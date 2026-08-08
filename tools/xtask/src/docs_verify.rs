@@ -79,6 +79,24 @@ fn verify_contracts_with_strictness(
     current: &StableSurfaceContractManifest,
     fail_on_additions: bool,
 ) -> Result<()> {
+    let expected_source_paths: BTreeSet<String> = STABLE_CONTRACT_SOURCE_PATHS
+        .iter()
+        .map(ToString::to_string)
+        .collect();
+    let baseline_source_paths: BTreeSet<String> = baseline.source_paths.iter().cloned().collect();
+    if baseline_source_paths != expected_source_paths {
+        bail!(
+            "stable-contract manifest source paths are stale: expected {expected_source_paths:?}, found {baseline_source_paths:?} | run `cargo run -p xtask -- docs contracts generate`"
+        );
+    }
+
+    let current_source_paths: BTreeSet<String> = current.source_paths.iter().cloned().collect();
+    if current_source_paths != expected_source_paths {
+        bail!(
+            "stable-contract collector source paths drifted: expected {expected_source_paths:?}, found {current_source_paths:?}"
+        );
+    }
+
     let deltas = diff_contracts(baseline, current);
 
     if !deltas.removed.is_empty() {
@@ -175,7 +193,7 @@ const STABLE_CONTRACT_SOURCE_PATHS: [&str; 6] = [
     "crates/copybook-cli/src/main.rs",
     "crates/copybook-cli/src/exit_codes.rs",
     "crates/copybook-error/src/lib.rs",
-    "crates/copybook-options/src/lib.rs",
+    "crates/copybook-codec/src/options.rs",
     "schemas/record-format.json",
     "docs/CLI_REFERENCE.md",
 ];
@@ -634,8 +652,8 @@ fn collect_stable_contract_inventory() -> Result<StableSurfaceContractManifest> 
         .context("loading crates/copybook-cli/src/exit_codes.rs")?;
     let error_source = fs::read_to_string("crates/copybook-error/src/lib.rs")
         .context("loading crates/copybook-error/src/lib.rs")?;
-    let raw_mode_source = fs::read_to_string("crates/copybook-options/src/lib.rs")
-        .context("loading crates/copybook-options/src/lib.rs")?;
+    let raw_mode_source = fs::read_to_string("crates/copybook-codec/src/options.rs")
+        .context("loading crates/copybook-codec/src/options.rs")?;
     let jsonl_schema_source = fs::read_to_string("schemas/record-format.json")
         .context("loading schemas/record-format.json")?;
 
@@ -733,11 +751,10 @@ fn diff_contracts(
         removed: Vec::new(),
     };
 
-    let mut expected_source_paths = BTreeSet::new();
-    expected_source_paths.extend(STABLE_CONTRACT_SOURCE_PATHS.iter().map(ToString::to_string));
+    let baseline_source_paths: BTreeSet<String> = baseline.source_paths.iter().cloned().collect();
     let current_paths: BTreeSet<String> = current.source_paths.iter().cloned().collect();
     classify_delta_items(
-        &expected_source_paths,
+        &baseline_source_paths,
         &current_paths,
         "contract-source-path",
         &mut deltas,
@@ -1399,7 +1416,7 @@ fn verify_facade_invariants() -> Result<()> {
     // they intentionally have no compatibility-crate dependency so the
     // facade does not reintroduce an old ownership edge.
     let mut dependency_modules = lib_module_set.clone();
-    for alias in ["codepage", "record_io"] {
+    for alias in ["codepage", "options", "record_io"] {
         if !dep_module_set.contains(alias) {
             dependency_modules.remove(alias);
         }

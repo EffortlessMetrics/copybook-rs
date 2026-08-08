@@ -103,9 +103,9 @@ dependencies = [
  "copybook-determinism",
  "copybook-error",
  "copybook-fixed",
- "copybook-options",
  "copybook-overpunch",
  "copybook-rdw",
+ "copybook-zoned-format",
  "indexmap",
  "serde",
  "serde_json",
@@ -224,7 +224,6 @@ dependencies = [
  "copybook-determinism",
  "copybook-fixed",
  "copybook-governance-runtime",
- "copybook-options",
  "copybook-overpunch",
  "copybook-rdw",
  "copybook-rdw-predicates",
@@ -258,15 +257,6 @@ name = "copybook-governance-runtime"
 version = "0.5.0"
 dependencies = [
  "copybook-governance-grid",
- "serde",
-]
-
-[[package]]
-name = "copybook-options"
-version = "0.5.0"
-dependencies = [
- "copybook-charset",
- "copybook-zoned-format",
  "serde",
 ]
 

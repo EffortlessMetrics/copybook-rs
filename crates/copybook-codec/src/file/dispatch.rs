@@ -5,8 +5,8 @@
 //! format choice used by codec operations and keeps the legacy single-record
 //! helpers available through [`crate::record`].
 
+use crate::options::RecordFormat;
 use copybook_error::{Error, ErrorCode, Result};
-use copybook_options::RecordFormat;
 use std::io::{Read, Write};
 
 pub use copybook_fixed::{FixedRecordReader, FixedRecordWriter};

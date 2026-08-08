@@ -1,7 +1,7 @@
 #![no_main]
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use copybook_options::RecordFormat;
+use copybook_codec::options::RecordFormat;
 use copybook_record_io::{read_record, write_record};
 use libfuzzer_sys::fuzz_target;
 use std::io::Cursor;

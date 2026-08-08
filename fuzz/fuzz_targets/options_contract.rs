@@ -1,7 +1,7 @@
 #![no_main]
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use copybook_options::{
+use copybook_codec::options::{
     DecodeOptions, EncodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat,
     ZonedEncodingFormat,
 };

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #![allow(clippy::expect_used)]
 
-use copybook_options::RecordFormat;
+use copybook_codec::options::RecordFormat;
 use copybook_record_io::{
     FixedRecordReader, FixedRecordWriter, RDWRecordReader, RDWRecordWriter, read_record,
     write_record,

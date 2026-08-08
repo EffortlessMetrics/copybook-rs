@@ -1,13 +1,13 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-07-25T19:21:28.602743586+00:00",
+  "generated_at": "2026-08-08T10:45:35.608951404+00:00",
   "generated_by": "cargo run -p xtask -- docs contracts generate",
-  "source_revision": "46613ace970ed3fb8ad5ed2a7302a2e65c9f64bd",
+  "source_revision": "ad4c3b7c5628d1088ee43d9eb781976c85e1fd92",
   "source_paths": [
     "crates/copybook-cli/src/main.rs",
     "crates/copybook-cli/src/exit_codes.rs",
     "crates/copybook-error/src/lib.rs",
-    "crates/copybook-options/src/lib.rs",
+    "crates/copybook-codec/src/options.rs",
     "schemas/record-format.json",
     "docs/CLI_REFERENCE.md"
   ],
@@ -49,6 +49,7 @@
       "max-errors",
       "metrics-grace-ms",
       "metrics-listen",
+      "no-fail-fast",
       "no-strict-policy",
       "on-decode-unmappable",
       "output",
@@ -102,6 +103,7 @@
       "CBKE521_ARRAY_LEN_OOB",
       "CBKE530_SIGN_SEPARATE_ENCODE_ERROR",
       "CBKE531_FLOAT_ENCODE_OVERFLOW",
+      "CBKF001_FILE_READ_ERROR",
       "CBKF102_RECORD_LENGTH_INVALID",
       "CBKF104_RDW_SUSPECT_ASCII",
       "CBKF221_RDW_UNDERFLOW",

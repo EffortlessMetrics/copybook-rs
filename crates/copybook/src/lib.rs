@@ -57,8 +57,12 @@ pub mod governance_contracts {
 }
 
 /// Configuration option contracts shared across codec workflows.
+#[deprecated(
+    since = "0.6.0",
+    note = "use copybook::codec::options for codec operation options"
+)]
 pub mod options {
-    pub use copybook_options::*;
+    pub use copybook_codec::options::*;
 }
 
 /// Overflow-safe integer narrowing and bounds arithmetic.

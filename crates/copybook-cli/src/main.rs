@@ -330,9 +330,21 @@ Field Projection:\n\
         /// Maximum errors before stopping
         #[arg(long)]
         max_errors: Option<u64>,
-        /// Stop on first error (default: true)
-        #[arg(long, default_value = "true")]
+        /// Stop on the first record that fails to encode. This is the default;
+        /// pass --no-fail-fast to encode the remaining records instead.
+        #[arg(
+            long,
+            action = clap::ArgAction::SetTrue,
+            conflicts_with = "no_fail_fast"
+        )]
         fail_fast: bool,
+        /// Continue past records that fail to encode, listing them when the run ends
+        #[arg(
+            long = "no-fail-fast",
+            action = clap::ArgAction::SetTrue,
+            conflicts_with = "fail_fast"
+        )]
+        no_fail_fast: bool,
         /// Number of threads for parallel processing
         #[arg(long, default_value = "1")]
         threads: usize,

@@ -9,7 +9,7 @@ copybook-rs emits a versioned JSON envelope for each decoded record. Each line i
 | Key | Type | Description |
 | --- | ---- | ----------- |
 | `schema` | string | Schema version identifier (`copybook.v1`). |
-| `record_index` | integer | Zero-based record number in the decoded stream. |
+| `record_index` | integer | One-based record number in the decoded stream; the first record is `1`. |
 | `codepage` | string | Decoder code page (e.g., `cp037`, `ascii`). |
 | `fields` | object | Map of decoded field values. Nested groups are represented as objects. |
 | `schema_fingerprint` | string | Optional SHA-256 fingerprint of the copybook (present when `--emit-meta`). |
@@ -320,7 +320,7 @@ uses a non-default encoding (e.g., ASCII zoned decimals in an EBCDIC file).
 ```json
 {
   "schema": "copybook.v1",
-  "record_index": 0,
+  "record_index": 1,
   "codepage": "cp037",
   "fields": {
     "AMOUNT": "123"

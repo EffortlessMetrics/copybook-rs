@@ -9,12 +9,12 @@
 #![allow(clippy::missing_inline_in_public_items)]
 
 // Re-export from copybook-charset for public API
+/// Zoned decimal encoding format (ASCII, EBCDIC, or auto-detect).
+pub use crate::numeric::ZonedEncodingFormat;
 /// Codepage identifier for EBCDIC/ASCII character encoding.
 pub use copybook_charset::Codepage;
 /// Policy for handling unmappable characters during codepage conversion.
 pub use copybook_charset::UnmappablePolicy;
-/// Zoned decimal encoding format (ASCII, EBCDIC, or auto-detect).
-pub use copybook_zoned_format::ZonedEncodingFormat;
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 

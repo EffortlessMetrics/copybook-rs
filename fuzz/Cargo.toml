@@ -35,7 +35,6 @@ copybook-rdw-predicates = { path = "../crates/copybook-rdw-predicates" }
 copybook-safe-ops = { path = "../crates/copybook-safe-ops" }
 copybook-safe-index = { path = "../crates/copybook-safe-index" }
 copybook-safe-text = { path = "../crates/copybook-safe-text" }
-copybook-zoned-format = { path = "../crates/copybook-zoned-format" }
 copybook-overpunch = { path = "../crates/copybook-overpunch" }
 copybook-charset = { path = "../crates/copybook-charset" }
 copybook-governance-runtime = { path = "../crates/copybook-governance-runtime" }

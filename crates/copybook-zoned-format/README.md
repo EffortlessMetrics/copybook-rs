@@ -1,11 +1,12 @@
 # copybook-zoned-format
 
-Single-purpose crate for zoned-decimal format detection and representation.
+Compatibility crate for zoned-decimal format detection and representation.
 
 ## Purpose
 
-This crate centralizes `ZonedEncodingFormat` so all clients share a consistent
-definition for ASCII vs. EBCDIC zoned decimal zone-nibble detection.
+The implementation is now owned by `copybook-codec`, so codec consumers share
+one definition for ASCII vs. EBCDIC zoned decimal zone-nibble detection. This
+package forwards the historical API for migration compatibility.
 
 ## Public API
 
@@ -15,3 +16,5 @@ definition for ASCII vs. EBCDIC zoned decimal zone-nibble detection.
 - `ZonedEncodingFormat::is_ebcdic`
 - `ZonedEncodingFormat::is_auto`
 - `ZonedEncodingFormat::description`
+
+New code should import `copybook_codec::numeric::zoned::ZonedEncodingFormat`.

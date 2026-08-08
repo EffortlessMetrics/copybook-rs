@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Decimal value and zoned-encoding metadata helpers for numeric codecs.
 
-use crate::options::ZonedEncodingFormat;
+use super::zoned::ZonedEncodingFormat;
 use copybook_core::{Error, ErrorCode, Result};
 use std::fmt::Write;
 

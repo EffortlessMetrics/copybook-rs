@@ -3,7 +3,7 @@
 
 use libfuzzer_sys::fuzz_target;
 
-use copybook_zoned_format::ZonedEncodingFormat;
+use copybook_codec::numeric::zoned::ZonedEncodingFormat;
 
 fuzz_target!(|data: &[u8]| {
     let byte = data.first().copied().unwrap_or(0);

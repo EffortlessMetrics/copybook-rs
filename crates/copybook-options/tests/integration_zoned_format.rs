@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Integration-level checks for zoned-format extraction and re-export compatibility.
 
+use copybook_codec::numeric::zoned::ZonedEncodingFormat as Zf;
 use copybook_options::ZonedEncodingFormat;
-use copybook_zoned_format::ZonedEncodingFormat as Zf;
 
 #[test]
 fn options_reexports_zoned_encoding_format_without_behavior_drift() {

@@ -22,6 +22,8 @@ const SIMPLE_CPY: &str = "\
            05  AMOUNT   PIC 9(5).
 ";
 
+const RDW_CPY: &str = "01 FIELD PIC X(5).\n";
+
 /// Build ASCII record: 10 bytes name + 5 bytes amount = 15 bytes.
 fn make_ascii_record(name: &str, amount: &str) -> Vec<u8> {
     let mut rec = vec![b' '; 15];
@@ -164,6 +166,66 @@ fn decode_emit_raw_record_includes_base64() {
         decoded, record,
         "Decoded raw bytes should match input record"
     );
+}
+
+#[test]
+fn decode_rdw_record_raw_cli_preserves_physical_frames() {
+    let rdw_data = [
+        [0x00, 0x05, 0x00, 0x00, b'A', b'B', b'C', b'D', b'E'],
+        [0x00, 0x05, 0x12, 0x34, b'F', b'G', b'H', b'I', b'J'],
+    ]
+    .concat();
+    let (dir, cpy, data) = setup(RDW_CPY, &rdw_data);
+    let out = dir.path().join("out.jsonl");
+
+    cmd()
+        .args([
+            "decode",
+            "--format",
+            "rdw",
+            "--codepage",
+            "ascii",
+            "--emit-meta",
+            "--emit-raw",
+            "record+rdw",
+            "--threads",
+            "4",
+            "--output",
+        ])
+        .arg(&out)
+        .arg(&cpy)
+        .arg(&data)
+        .assert()
+        .success();
+
+    use base64::Engine;
+    let lines: Vec<Value> = std::fs::read_to_string(&out)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert_eq!(lines.len(), 2);
+
+    let expected_raw = [
+        vec![0x00, 0x05, 0x00, 0x00, b'A', b'B', b'C', b'D', b'E'],
+        vec![0x00, 0x05, 0x12, 0x34, b'F', b'G', b'H', b'I', b'J'],
+    ];
+    for (index, line) in lines.iter().enumerate() {
+        assert!(line.get("raw_b64").is_some());
+        assert!(line.get("__raw_b64").is_some());
+        assert_eq!(line["length"], 5);
+        assert_eq!(line["__length"], 5);
+        assert_eq!(line["record_index"], index + 1);
+        assert_eq!(line["__record_index"], index + 1);
+        let raw = base64::engine::general_purpose::STANDARD
+            .decode(line["raw_b64"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(raw, expected_raw[index]);
+        let compatibility_raw = base64::engine::general_purpose::STANDARD
+            .decode(line["__raw_b64"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(compatibility_raw, raw);
+    }
 }
 
 #[test]

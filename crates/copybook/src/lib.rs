@@ -77,8 +77,12 @@ pub mod rdw {
 }
 
 /// Record-format dispatch across fixed and RDW framing.
+#[deprecated(
+    since = "0.6.0",
+    note = "use copybook::codec::record or copybook::codec::file::dispatch"
+)]
 pub mod record_io {
-    pub use copybook_record_io::*;
+    pub use copybook_codec::record::*;
 }
 
 /// COBOL feature support matrix contracts.

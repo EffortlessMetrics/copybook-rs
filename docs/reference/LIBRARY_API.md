@@ -31,6 +31,17 @@ copybook = "0.5"
 For direct character conversion, use `copybook::charset`; the older
 `copybook::codepage` path is retained only as a deprecated migration alias.
 
+### Record-format dispatch ownership
+
+Record-format dispatch is owned by `copybook-codec`. New callers should use
+`copybook::codec::record` or `copybook::codec::file::dispatch`; the
+`copybook::record_io` facade and `copybook-record-io` package are compatibility
+forwarders for the 0.5 surface.
+
+The payload-oriented `read_record` helper is suitable for normal codec
+operations. Use `read_rdw_record` when RDW header and reserved bytes must be
+preserved losslessly.
+
 Basic usage:
 
 ```rust

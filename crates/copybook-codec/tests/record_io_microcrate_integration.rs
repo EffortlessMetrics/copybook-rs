@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
+use copybook_codec::record::{
+    read_rdw_record, read_record as codec_read_record, write_record as codec_write_record,
+};
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, RecordFormat, decode_file_to_jsonl,
     encode_jsonl_to_file,
 };
 use copybook_core::{ErrorCode, parse_copybook};
-use copybook_record_io::{read_record as micro_read_record, write_record as micro_write_record};
 use std::io::Cursor;
 
 #[test]
@@ -18,7 +20,7 @@ fn codec_facade_keeps_record_io_error_contract() {
 }
 
 #[test]
-fn fixed_encode_output_roundtrips_through_record_io_microcrate() {
+fn fixed_encode_output_roundtrips_through_codec_dispatch() {
     let schema = parse_copybook(
         r"
         01 FIXED-RECORD PIC X(8).
@@ -41,24 +43,24 @@ fn fixed_encode_output_roundtrips_through_record_io_microcrate() {
     .expect("fixed encode should succeed");
 
     let mut cursor = Cursor::new(encoded.clone());
-    let payload = micro_read_record(&mut cursor, RecordFormat::Fixed, Some(8))
-        .expect("microcrate should parse fixed record")
+    let payload = codec_read_record(&mut cursor, RecordFormat::Fixed, Some(8))
+        .expect("codec dispatch should parse fixed record")
         .expect("one fixed record expected");
     assert_eq!(payload, b"ABCDEFGH");
 
     let mut rebuilt = Vec::new();
-    micro_write_record(&mut rebuilt, &payload, RecordFormat::Fixed)
-        .expect("microcrate should serialize fixed payload");
+    codec_write_record(&mut rebuilt, &payload, RecordFormat::Fixed)
+        .expect("codec dispatch should serialize fixed payload");
     assert_eq!(rebuilt, encoded);
     assert!(
-        micro_read_record(&mut cursor, RecordFormat::Fixed, Some(8))
+        codec_read_record(&mut cursor, RecordFormat::Fixed, Some(8))
             .expect("EOF read should succeed")
             .is_none()
     );
 }
 
 #[test]
-fn rdw_encode_output_roundtrips_through_record_io_microcrate() {
+fn rdw_encode_output_roundtrips_through_codec_dispatch() {
     let schema = parse_copybook(
         r"
         01 RDW-RECORD PIC X(5).
@@ -81,19 +83,19 @@ fn rdw_encode_output_roundtrips_through_record_io_microcrate() {
     .expect("rdw encode should succeed");
 
     let mut cursor = Cursor::new(encoded.clone());
-    let payload = micro_read_record(&mut cursor, RecordFormat::RDW, None)
-        .expect("microcrate should parse rdw record")
+    let payload = codec_read_record(&mut cursor, RecordFormat::RDW, None)
+        .expect("codec dispatch should parse rdw record")
         .expect("one rdw record expected");
     assert_eq!(payload, b"HELLO");
 
     let mut rebuilt = Vec::new();
-    micro_write_record(&mut rebuilt, &payload, RecordFormat::RDW)
-        .expect("microcrate should serialize rdw payload");
+    codec_write_record(&mut rebuilt, &payload, RecordFormat::RDW)
+        .expect("codec dispatch should serialize rdw payload");
     assert_eq!(rebuilt, encoded);
 }
 
 #[test]
-fn record_io_microcrate_output_decodes_with_codec() {
+fn codec_dispatch_output_decodes_with_codec() {
     let schema = parse_copybook(
         r"
         01 SIMPLE-RECORD PIC X(5).
@@ -102,8 +104,8 @@ fn record_io_microcrate_output_decodes_with_codec() {
     .expect("schema should parse");
 
     let mut encoded = Vec::new();
-    micro_write_record(&mut encoded, b"HELLO", RecordFormat::RDW)
-        .expect("microcrate should emit rdw-framed payload");
+    codec_write_record(&mut encoded, b"HELLO", RecordFormat::RDW)
+        .expect("codec dispatch should emit rdw-framed payload");
 
     let options = DecodeOptions::new()
         .with_format(RecordFormat::RDW)
@@ -115,4 +117,18 @@ fn record_io_microcrate_output_decodes_with_codec() {
 
     let output = String::from_utf8(jsonl).expect("jsonl should be utf8");
     assert!(output.contains("HELLO"));
+}
+
+#[test]
+fn codec_lossless_rdw_dispatch_preserves_reserved_header_bytes() {
+    let wire = [0x00, 0x05, 0x12, 0x34, b'H', b'E', b'L', b'L', b'O'];
+    let mut input = Cursor::new(wire);
+
+    let record = read_rdw_record(&mut input, false)
+        .expect("lossless rdw dispatch should succeed")
+        .expect("one rdw record expected");
+
+    assert_eq!(record.header, [0x00, 0x05, 0x12, 0x34]);
+    assert_eq!(record.payload, b"HELLO");
+    assert_eq!(record.as_bytes(), wire);
 }

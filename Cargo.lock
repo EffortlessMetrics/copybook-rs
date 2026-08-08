@@ -749,7 +749,6 @@ dependencies = [
  "copybook-overflow",
  "copybook-overpunch",
  "copybook-rdw",
- "copybook-record-io",
  "copybook-support-matrix",
  "copybook-utils",
 ]
@@ -877,7 +876,6 @@ dependencies = [
  "copybook-options",
  "copybook-overpunch",
  "copybook-rdw",
- "copybook-record-io",
  "hex",
  "indexmap",
  "metrics",
@@ -1178,10 +1176,9 @@ dependencies = [
 name = "copybook-record-io"
 version = "0.5.0"
 dependencies = [
+ "copybook-codec",
  "copybook-error",
- "copybook-fixed",
  "copybook-options",
- "copybook-rdw",
  "proptest",
 ]
 

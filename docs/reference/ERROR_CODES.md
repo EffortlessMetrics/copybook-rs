@@ -743,23 +743,44 @@ Errors in Apache Arrow and Parquet conversion (copybook-arrow integration).
 
 ## Error Handling Modes
 
+The processing mode controls whether recoverable record problems stop the
+operation or are accumulated; it does not replace the taxonomy-based process
+exit contract. When a command reports an error, use the emitted `CBK*` code as
+the precise remediation key and the family mapping below as the automation
+key.
+
 ### Strict Mode (`--strict`)
 - Stop processing on first data error
 - ODO out-of-bounds → fatal error
 - RDW reserved bytes non-zero → fatal error
-- Exit code: 2 (fatal error)
+- The exit code remains the code for the emitted error family (for example,
+  `CBKD*` → 2 or `CBKR*` → 4).
 
 ### Lenient Mode (default)
 - Continue processing after recoverable errors
 - ODO out-of-bounds → clamp with warning
 - RDW reserved bytes non-zero → warning
 - Skip bad records and continue
-- Exit code: 1 if any errors occurred, 0 if warnings only
+- Warnings alone exit 0. Errors still return the code for the emitted error
+  family; lenient processing does not turn them into exit code 1.
 
 ### Max Errors (`--max-errors N`)
 - Stop after N errors in lenient mode
 - Useful for large files with systematic issues
-- Exit code: 1 (completed with errors)
+- When the limit is reached, return the code for the emitted error family.
+
+### Exit-code remediation map
+
+| Error family | Process exit | First remediation step |
+|:---:|---:|---|
+| `CBKD*` | 2 | Inspect the data value, record bytes, and code-page/format options. |
+| `CBKE*`, `CBKP*`, `CBKS*` | 3 | Fix the encode input, copybook syntax, or schema constraint named by the code. |
+| `CBKF*`, `CBKR*` | 4 | Check the input path, transfer integrity, record boundaries, or RDW framing. |
+| `CBKI*` | 5 | Preserve the full diagnostic and report an internal orchestration failure. |
+
+The complete command-level table, including `CBK?` and command-specific
+`verify`/`determinism` semantics, is maintained in
+[`docs/CLI_REFERENCE.md`](../CLI_REFERENCE.md#exit-codes).
 
 ## Troubleshooting Guide
 

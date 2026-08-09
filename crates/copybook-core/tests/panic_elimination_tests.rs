@@ -96,7 +96,9 @@ mod panic_elimination_parser_tests {
                 assert!(
                     matches!(
                         error.code,
-                        ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
+                        ErrorCode::CBKP001_SYNTAX
+                            | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
+                            | ErrorCode::CBKP101_INVALID_PIC
                     ),
                     "Position bounds error should use CBKP* error code, got {:?}",
                     error.code
@@ -417,7 +419,9 @@ mod panic_elimination_pic_tests {
                 assert!(
                     matches!(
                         error.code,
-                        ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+                        ErrorCode::CBKP001_SYNTAX
+                            | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+                            | ErrorCode::CBKP101_INVALID_PIC
                     ),
                     "PIC digit parsing error should use CBKP* error code, got {:?}",
                     error.code
@@ -442,7 +446,9 @@ mod panic_elimination_pic_tests {
                 assert!(
                     matches!(
                         error.code,
-                        ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+                        ErrorCode::CBKP001_SYNTAX
+                            | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+                            | ErrorCode::CBKP101_INVALID_PIC
                     ),
                     "PIC parentheses parsing error should use CBKP* error code, got {:?}",
                     error.code
@@ -472,7 +478,9 @@ mod panic_elimination_pic_tests {
                     assert!(
                         matches!(
                             error.code,
-                            ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+                            ErrorCode::CBKP001_SYNTAX
+                                | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+                                | ErrorCode::CBKP101_INVALID_PIC
                         ),
                         "PIC size validation error should use CBKP* error code for '{}', got {:?}",
                         pic_copybook,
@@ -504,7 +512,9 @@ mod panic_elimination_pic_tests {
                     assert!(
                         matches!(
                             error.code,
-                            ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
+                            ErrorCode::CBKP001_SYNTAX
+                                | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
+                                | ErrorCode::CBKP101_INVALID_PIC
                         ),
                         "PIC type validation error should use CBKP* error code for '{}', got {:?}",
                         pic_copybook,
@@ -815,6 +825,7 @@ mod panic_elimination_integration_tests {
                             | ErrorCode::CBKP021_ODO_NOT_TAIL
                             | ErrorCode::CBKS121_COUNTER_NOT_FOUND
                             | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+                            | ErrorCode::CBKP101_INVALID_PIC
                     ),
                     "Comprehensive test error should use appropriate error code, got {:?}",
                     error.code

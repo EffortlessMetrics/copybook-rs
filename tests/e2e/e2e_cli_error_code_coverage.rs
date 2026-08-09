@@ -120,9 +120,9 @@ fn cli_cbkp001_syntax_empty_inspect() {
     );
 }
 
-/// CBKP001: Invalid PIC character triggers syntax error.
+/// CBKP101: Invalid PIC character triggers the specific PIC parse error.
 #[test]
-fn cli_cbkp001_syntax_invalid_pic_char() {
+fn cli_cbkp101_invalid_pic_char() {
     let dir = write_temp_file(
         "bad_pic.cpy",
         b"       01  REC.\n           05  FLD   PIC Q(5).\n",
@@ -139,8 +139,8 @@ fn cli_cbkp001_syntax_invalid_pic_char() {
     let se = stderr_str(&output);
     assert_no_panic(&se);
     assert!(
-        se.contains("CBKP001_SYNTAX"),
-        "Expected CBKP001_SYNTAX for invalid PIC char: {se}"
+        se.contains("CBKP101_INVALID_PIC"),
+        "Expected CBKP101_INVALID_PIC for invalid PIC char: {se}"
     );
 }
 

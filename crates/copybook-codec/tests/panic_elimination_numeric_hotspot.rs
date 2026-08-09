@@ -526,7 +526,9 @@ mod zoned_overpunch_hotspot_safety {
                 assert!(
                     matches!(
                         error.code,
-                        ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
+                        ErrorCode::CBKP001_SYNTAX
+                            | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
+                            | ErrorCode::CBKP101_INVALID_PIC
                     ),
                     "Edge case schema error should use CBKP* code, got {:?}",
                     error.code

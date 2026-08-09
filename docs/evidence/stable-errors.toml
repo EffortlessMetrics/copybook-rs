@@ -40,7 +40,8 @@ direct_test = "tests/e2e/e2e_cli_feature_flags.rs::disable_sign_separate_rejects
 [[errors]]
 code = "CBKP101_INVALID_PIC"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-core/tests/parser_edge_cases_deep.rs::parsing_invalid_pic_uses_specific_error_code"
 [[errors]]
 code = "CBKS121_COUNTER_NOT_FOUND"
 stability_class = "stable"

@@ -47,6 +47,25 @@ fn renames_unknown_thru_field() {
     assert!(err.to_string().contains("UNKNOWN-FIELD"));
 }
 
+/// Test CBKS608: a qualified RENAMES path must resolve to the requested scope.
+#[test]
+fn renames_qualified_name_not_found() {
+    let cb = "
+01 ROOT-REC.
+   05 FIELD-A PIC X(5).
+   05 FIELD-B PIC 9(3).
+   66 ALIAS RENAMES FIELD-A OF WRONG-REC THRU FIELD-B OF WRONG-REC.
+";
+    let result = parse_copybook(cb);
+    assert!(
+        result.is_err(),
+        "Should fail when a qualified path is wrong"
+    );
+    let err = result.unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND);
+    assert!(err.to_string().contains("WRONG-REC"));
+}
+
 /// Test CBKS604: RENAMES reversed range (from comes after thru)
 #[test]
 fn renames_reversed_range() {
@@ -170,7 +189,7 @@ fn renames_thru_is_occurs() {
 
 /// Test R4: RENAMES range crosses REDEFINES (flag disabled)
 ///
-/// Note: With RenamesR4R6 disabled, any REDEFINES in the RENAMES span
+/// Note: With `RenamesR4R6` disabled, any REDEFINES in the RENAMES span
 /// is rejected with CBKS609, regardless of offset contiguity.
 #[test]
 fn renames_not_contiguous_gap() {

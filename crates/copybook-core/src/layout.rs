@@ -688,18 +688,39 @@ fn detect_tail_odo(schema: &mut Schema, context: &LayoutContext, dialect: Dialec
     }
 }
 
-fn head_ident_of_qname(q: &str) -> &str {
-    // QNAME ::= IDENT ('OF' IDENT)* — current implementation uses only the head IDENT.
-    q.split_whitespace().next().unwrap_or(q)
+fn qname_parts(q: &str) -> Vec<&str> {
+    q.split_whitespace()
+        .filter(|part| !part.eq_ignore_ascii_case("OF"))
+        .collect()
+}
+
+fn qname_matches_field(qname: &str, field: &crate::schema::Field) -> bool {
+    let parts = qname_parts(qname);
+    if parts.len() == 1 {
+        return field.name.trim().eq_ignore_ascii_case(parts[0].trim());
+    }
+
+    let path_parts: Vec<&str> = field.path.split('.').collect();
+    if parts.len() > path_parts.len() {
+        return false;
+    }
+
+    parts
+        .iter()
+        .zip(path_parts.iter().rev())
+        .all(|(requested, actual)| requested.eq_ignore_ascii_case(actual))
+}
+
+fn is_qualified_qname(q: &str) -> bool {
+    qname_parts(q).len() > 1
 }
 
 fn find_sibling_index_by_qname(siblings: &[crate::schema::Field], qname: &str) -> Option<usize> {
-    let needle = head_ident_of_qname(qname).trim();
     siblings
         .iter()
         .enumerate()
         .filter(|(_, f)| f.level != 66 && f.level != 88) // storage-bearing fields only
-        .find(|(_, f)| f.name.trim().eq_ignore_ascii_case(needle))
+        .find(|(_, f)| qname_matches_field(qname, f))
         .map(|(i, _)| i)
 }
 
@@ -709,12 +730,9 @@ fn find_field_by_name<'a>(
     fields: &'a [crate::schema::Field],
     name: &str,
 ) -> Option<&'a crate::schema::Field> {
-    let needle = head_ident_of_qname(name).trim();
-
     for field in fields {
         // Check current field (exclude non-storage: 66, 88)
-        if field.level != 66 && field.level != 88 && field.name.trim().eq_ignore_ascii_case(needle)
-        {
+        if field.level != 66 && field.level != 88 && qname_matches_field(name, field) {
             return Some(field);
         }
 
@@ -837,8 +855,13 @@ fn resolve_renames_aliases(
             if is_nested_single_group {
                 // R3: Nested group RENAMES - find target anywhere in subtree
                 let target_field = find_field_by_name(fields, from_field).ok_or_else(|| {
+                    let code = if is_qualified_qname(from_field) {
+                        ErrorCode::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND
+                    } else {
+                        ErrorCode::CBKS601_RENAME_UNKNOWN_FROM
+                    };
                     error!(
-                        ErrorCode::CBKS601_RENAME_UNKNOWN_FROM,
+                        code,
                         "RENAMES nested target field '{}' not found", from_field
                     )
                 })?;
@@ -859,16 +882,20 @@ fn resolve_renames_aliases(
 
             // R1/R2: Same-scope RENAMES - use sibling lookup
             let from_i = from_i_opt.ok_or_else(|| {
-                error!(
-                    ErrorCode::CBKS601_RENAME_UNKNOWN_FROM,
-                    "RENAMES from field '{}' not found", from_field
-                )
+                let code = if is_qualified_qname(from_field) {
+                    ErrorCode::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND
+                } else {
+                    ErrorCode::CBKS601_RENAME_UNKNOWN_FROM
+                };
+                error!(code, "RENAMES from field '{}' not found", from_field)
             })?;
             let thru_i = thru_i_opt.ok_or_else(|| {
-                error!(
-                    ErrorCode::CBKS602_RENAME_UNKNOWN_THRU,
-                    "RENAMES thru field '{}' not found", thru_field
-                )
+                let code = if is_qualified_qname(thru_field) {
+                    ErrorCode::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND
+                } else {
+                    ErrorCode::CBKS602_RENAME_UNKNOWN_THRU
+                };
+                error!(code, "RENAMES thru field '{}' not found", thru_field)
             })?;
 
             if from_i > thru_i {

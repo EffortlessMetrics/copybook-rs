@@ -1026,10 +1026,31 @@ fn resolve_renames_aliases(
                 }
             }
 
-            // Note: We do NOT enforce strict byte-level contiguity (CBKS603).
-            // COBOL RENAMES requires fields to be in source order within the same group,
-            // but REDEFINES can create overlapping offsets which is valid.
-            // The key validations are: same group, no OCCURS, no cross-branch, from before thru.
+            // Validate byte-level contiguity for ranges. Positive gaps are invalid,
+            // while overlapping offsets remain valid for supported REDEFINES layouts.
+            // Level-88 conditions and level-66 aliases consume no storage and do not
+            // interrupt the range.
+            if !is_single_group_rename {
+                let mut previous_storage_field: Option<&Field> = None;
+                for current in &fields[from_i..=thru_i] {
+                    if current.level == 66 || current.level == 88 {
+                        continue;
+                    }
+                    if let Some(previous) = previous_storage_field {
+                        let previous_end = u64::from(previous.offset) + u64::from(previous.len);
+                        if u64::from(current.offset) > previous_end {
+                            return Err(error!(
+                                ErrorCode::CBKS603_RENAME_NOT_CONTIGUOUS,
+                                "RENAMES alias '{}' has a byte gap between '{}' and '{}'",
+                                field.name,
+                                previous.name,
+                                current.name
+                            ));
+                        }
+                    }
+                    previous_storage_field = Some(current);
+                }
+            }
 
             // Compute (offset, length) and members (storage-bearing only).
             let offset = fields[from_i].offset;

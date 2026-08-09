@@ -72,7 +72,9 @@ mod hotspot_parser_safety {
                 assert!(
                     matches!(
                         error.code,
-                        ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
+                        ErrorCode::CBKP001_SYNTAX
+                            | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
+                            | ErrorCode::CBKP101_INVALID_PIC
                     ),
                     "Token bounds error should use CBKP* code, got {:?}",
                     error.code
@@ -407,6 +409,7 @@ mod hotspot_pic_safety {
                             ErrorCode::CBKP001_SYNTAX
                                 | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
                                 | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+                                | ErrorCode::CBKP101_INVALID_PIC
                         ),
                         "PIC parsing error should use CBKP* code for '{}', got {:?}",
                         invalid_pic,
@@ -436,7 +439,9 @@ mod hotspot_pic_safety {
                 assert!(
                     matches!(
                         error.code,
-                        ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
+                        ErrorCode::CBKP001_SYNTAX
+                            | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
+                            | ErrorCode::CBKP101_INVALID_PIC
                     ),
                     "Numeric PIC validation error should use CBKP* code for '{}', got {:?}",
                     invalid_pic,
@@ -465,7 +470,9 @@ mod hotspot_pic_safety {
                 assert!(
                     matches!(
                         error.code,
-                        ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
+                        ErrorCode::CBKP001_SYNTAX
+                            | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
+                            | ErrorCode::CBKP101_INVALID_PIC
                     ),
                     "COMP usage validation error should use CBKP* code for '{}', got {:?}",
                     invalid_comp,
@@ -507,6 +514,7 @@ mod hotspot_pic_safety {
                             ErrorCode::CBKP001_SYNTAX
                                 | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
                                 | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+                                | ErrorCode::CBKP101_INVALID_PIC
                         ),
                         "Complex PIC error should use CBKP* code for '{}', got {:?}",
                         complex_pic,

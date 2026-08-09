@@ -199,7 +199,8 @@ direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkd411_zoned_bad_s
 [[errors]]
 code = "CBKD412_ZONED_BLANK_IS_ZERO"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-codec/tests/zoned_blank_when_zero_error_codes.rs::cbkd412_zoned_blank_is_zero_warning_is_emitted"
 [[errors]]
 code = "CBKD413_ZONED_INVALID_ENCODING"
 stability_class = "stable"

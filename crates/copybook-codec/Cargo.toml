@@ -49,6 +49,7 @@ assert_cmd.workspace = true
 predicates.workspace = true
 copybook-options = { path = "../copybook-options" }
 copybook-determinism = { path = "../copybook-determinism" }
+tracing-subscriber.workspace = true
 
 [features]
 default = ["comp3_fast"]

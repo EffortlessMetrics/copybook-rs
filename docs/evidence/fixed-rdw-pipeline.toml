@@ -4,7 +4,7 @@
 # the complete stable-error registry requested by issue #576.
 schema_version = 1
 scope = "fixed-rdw-pipeline"
-verified_against = "63de7b5303390f46995829a1a316cd091da94692"
+verified_against = "4dc30c04471da6051fb8bb1313a2fd965a7cacca"
 
 [[scenarios]]
 id = "format.fixed.basic"

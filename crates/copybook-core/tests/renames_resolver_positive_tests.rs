@@ -190,3 +190,36 @@ fn renames_r3_nested_group() {
     assert!(rr.members.iter().any(|p| p.contains("START-DATE")));
     assert!(rr.members.iter().any(|p| p.contains("END-DATE")));
 }
+
+#[test]
+fn renames_r3_nested_qualified_name_is_case_insensitive() {
+    let cb = "
+01 POLICY-RECORD.
+   05 POLICY-INFO.
+      10 POLICY-DATES.
+         15 START-DATE PIC X(8).
+         15 END-DATE PIC X(8).
+   66 POLICY-PERIOD RENAMES policy-dates OF policy-info OF policy-record THRU POLICY-DATES OF POLICY-INFO OF POLICY-RECORD.
+";
+    let schema = parse_copybook(cb).expect("parse ok");
+    let alias = schema.fields[0]
+        .children
+        .iter()
+        .find(|field| field.name == "POLICY-PERIOD")
+        .expect("POLICY-PERIOD alias");
+    let resolved = alias.resolved_renames.as_ref().expect("resolved renames");
+
+    assert_eq!(resolved.members.len(), 2);
+    assert!(
+        resolved
+            .members
+            .iter()
+            .any(|path| path.ends_with("START-DATE"))
+    );
+    assert!(
+        resolved
+            .members
+            .iter()
+            .any(|path| path.ends_with("END-DATE"))
+    );
+}

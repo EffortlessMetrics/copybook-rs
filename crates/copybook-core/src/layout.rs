@@ -715,6 +715,16 @@ fn is_qualified_qname(q: &str) -> bool {
     qname_parts(q).len() > 1
 }
 
+fn qnames_equivalent(left: &str, right: &str) -> bool {
+    let left_parts = qname_parts(left);
+    let right_parts = qname_parts(right);
+    left_parts.len() == right_parts.len()
+        && left_parts
+            .iter()
+            .zip(right_parts.iter())
+            .all(|(left, right)| left.eq_ignore_ascii_case(right))
+}
+
 fn find_sibling_index_by_qname(siblings: &[crate::schema::Field], qname: &str) -> Option<usize> {
     siblings
         .iter()
@@ -849,8 +859,9 @@ fn resolve_renames_aliases(
             let thru_i_opt = find_sibling_index_by_qname(fields, thru_field);
 
             // Check if this is a nested single-group RENAMES (R3 case)
-            let is_nested_single_group =
-                from_i_opt.is_none() && thru_i_opt.is_none() && from_field == thru_field;
+            let is_nested_single_group = from_i_opt.is_none()
+                && thru_i_opt.is_none()
+                && qnames_equivalent(from_field, thru_field);
 
             if is_nested_single_group {
                 // R3: Nested group RENAMES - find target anywhere in subtree

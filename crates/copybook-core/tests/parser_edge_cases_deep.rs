@@ -58,6 +58,12 @@ fn test_newlines_only_returns_error() {
     assert_eq!(err.code(), ErrorCode::CBKP001_SYNTAX);
 }
 
+#[test]
+fn test_invalid_pic_uses_specific_error_code() {
+    let err = parse_copybook("01 REC.\n   05 FIELD PIC QQQ.").unwrap_err();
+    assert_eq!(err.code(), ErrorCode::CBKP101_INVALID_PIC);
+}
+
 // ===========================================================================
 // 2. Single-field copybook (minimal valid input)
 // ===========================================================================

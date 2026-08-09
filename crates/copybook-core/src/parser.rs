@@ -830,7 +830,12 @@ impl Parser {
         }
 
         let pic_str = pic_parts.join("");
-        let pic = PicClause::parse(&pic_str)?;
+        let pic = PicClause::parse(&pic_str).map_err(|mut err| {
+            if err.code == ErrorCode::CBKP001_SYNTAX {
+                err.code = ErrorCode::CBKP101_INVALID_PIC;
+            }
+            err
+        })?;
 
         field.kind = match pic.kind {
             crate::pic::PicKind::Alphanumeric => FieldKind::Alphanum {

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Phase E1: Codec rejection tests for edited PIC
+//! Legacy taxonomy coverage for the retired CBKD302 edited-PIC boundary.
 //!
-//! Tests that edited PIC fields properly reject during decode/encode operations
-//! with CBKD302_EDITED_PIC_NOT_IMPLEMENTED error code.
+//! Edited PIC decode and encode are implemented in the current codec. These
+//! checks retain compatibility coverage for the historical error identifier;
+//! they do not claim that current runtime paths emit CBKD302.
 
 use copybook_core::{ErrorCode, parse_copybook};
 

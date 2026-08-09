@@ -835,14 +835,22 @@ pub fn decode_zoned_decimal_with_encoding(
         None
     };
 
-    // Check for mixed encoding error
+    // Reject mixed encoding and data with no determinable zoned encoding
     if let Some(ref info) = encoding_info
-        && info.has_mixed_encoding
+        && info.detected_format == ZonedEncodingFormat::Auto
     {
-        return Err(Error::new(
-            ErrorCode::CBKD414_ZONED_MIXED_ENCODING,
-            "Mixed ASCII/EBCDIC encoding detected within zoned decimal field",
-        ));
+        let (code, message) = if info.has_mixed_encoding {
+            (
+                ErrorCode::CBKD414_ZONED_MIXED_ENCODING,
+                "Mixed ASCII/EBCDIC encoding detected within zoned decimal field",
+            )
+        } else {
+            (
+                ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS,
+                "Unable to determine ASCII or EBCDIC encoding for zoned decimal field",
+            )
+        };
+        return Err(Error::new(code, message));
     }
 
     let (value, is_negative) =

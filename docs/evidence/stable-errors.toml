@@ -214,7 +214,8 @@ direct_test = "crates/copybook-core/tests/zoned_encoding_error_codes_tests.rs::t
 [[errors]]
 code = "CBKD415_ZONED_ENCODING_AMBIGUOUS"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-codec/tests/zoned_encoding_ambiguity_error_codes.rs::cbkd415_zoned_encoding_ambiguous_is_emitted_for_undetectable_data"
 [[errors]]
 code = "CBKD421_EDITED_PIC_INVALID_FORMAT"
 stability_class = "stable"

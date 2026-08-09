@@ -42,18 +42,18 @@ impl EncodingAnalysisStats {
     /// Determine the overall format and mixed encoding status from collected statistics
     ///
     /// # Logic
-    /// - If invalid zones exist: Auto format with mixed encoding flag
+    /// - If invalid zones exist without both known formats: Auto format without a mixed flag
     /// - If both ASCII and EBCDIC zones exist: Auto format with mixed encoding flag
     /// - If only ASCII zones: ASCII format, no mixing
     /// - If only EBCDIC zones: EBCDIC format, no mixing
     /// - If no valid zones: Auto format, no mixing (empty or all invalid)
     fn determine_overall_format(&self) -> (ZonedEncodingFormat, bool) {
-        if self.invalid_count > 0 {
-            // Invalid zones detected - cannot determine format reliably
-            (ZonedEncodingFormat::Auto, true)
-        } else if self.ascii_count > 0 && self.ebcdic_count > 0 {
+        if self.ascii_count > 0 && self.ebcdic_count > 0 {
             // Mixed ASCII and EBCDIC zones within the same field
             (ZonedEncodingFormat::Auto, true)
+        } else if self.invalid_count > 0 {
+            // No unambiguous format can be determined from the invalid zones
+            (ZonedEncodingFormat::Auto, false)
         } else if self.ascii_count > 0 {
             // Consistent ASCII encoding throughout the field
             (ZonedEncodingFormat::Ascii, false)

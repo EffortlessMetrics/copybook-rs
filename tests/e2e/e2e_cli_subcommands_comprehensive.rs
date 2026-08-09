@@ -834,11 +834,11 @@ fn full_pipeline_round_trip_fidelity() {
 // =========================================================================
 
 #[test]
-fn rdw_odo_cli_round_trip_preserves_variable_frames() {
+fn rdw_odo_cli_round_trip_preserves_variable_frames() -> Result<(), Box<dyn std::error::Error>> {
     let payloads = [b"002ABCDWXYZ".as_slice(), b"001EFGH".as_slice()];
     let mut original = Vec::new();
     for payload in payloads {
-        let length = u16::try_from(payload.len()).unwrap();
+        let length = u16::try_from(payload.len())?;
         original.extend_from_slice(&length.to_be_bytes());
         original.extend_from_slice(&[0, 0]);
         original.extend_from_slice(payload);
@@ -875,7 +875,8 @@ fn rdw_odo_cli_round_trip_preserves_variable_frames() {
         .assert()
         .success();
 
-    assert_eq!(std::fs::read(&encoded).unwrap(), original);
+    assert_eq!(std::fs::read(&encoded)?, original);
+    Ok(())
 }
 
 // =========================================================================

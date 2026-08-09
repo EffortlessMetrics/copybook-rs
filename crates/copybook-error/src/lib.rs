@@ -189,7 +189,7 @@ pub enum ErrorCode {
     CBKD101_INVALID_FIELD_TYPE,
     /// CBKD301: Record data too short for field requirements
     CBKD301_RECORD_TOO_SHORT,
-    /// CBKD302: Edited PIC field encountered during decode (Phase E1: not implemented)
+    /// CBKD302: Legacy edited PIC identifier retained for compatibility; not emitted by current paths.
     CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
     /// CBKD401: Invalid packed decimal nibble value
     CBKD401_COMP3_INVALID_NIBBLE,

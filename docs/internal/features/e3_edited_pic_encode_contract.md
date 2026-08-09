@@ -325,7 +325,7 @@ The following patterns are explicitly NOT supported in v0.5.0 and should return 
 
 | Code | Description | Severity | Usage |
 |------|-------------|----------|-------|
-| `CBKD302_EDITED_PIC_NOT_IMPLEMENTED` | Encode not implemented (E3) | Error | Temporary error during implementation |
+| `CBKD302_EDITED_PIC_NOT_IMPLEMENTED` | Legacy identifier retained for compatibility; no current encode or decode path emits it | Not emitted | Historical Phase E1/E3 implementation boundary |
 | `CBKD421_EDITED_PIC_INVALID_FORMAT` | Input doesn't match pattern | Error | When input value cannot be encoded to the pattern |
 | `CBKD422_EDITED_PIC_SIGN_MISMATCH` | Sign editing symbol mismatch | Error | When sign handling fails |
 | `CBKD423_EDITED_PIC_BLANK_WHEN_ZERO` | Field is blank (warning) | Warning | When decoding blank fields (E2 only) |

@@ -413,10 +413,10 @@ Record 15 too short: expected 120 bytes, got 85 bytes
 ```
 
 #### CBKD302_EDITED_PIC_NOT_IMPLEMENTED
-**Description**: Edited PIC field encountered during decode when edited PIC decoding is not available (Phase E1)
-**Severity**: Error
-**Context**: Field path, PIC clause
-**Resolution**: Upgrade to a version with Phase E2 edited PIC decode support, or remove edited PIC fields from the decode path
+**Description**: Legacy taxonomy identifier retained for compatibility; current edited PIC decode is implemented in Phase E2 and does not emit CBKD302
+**Severity**: Legacy, not emitted by current decode paths
+**Context**: Historical Phase E1 edited PIC decode boundary
+**Resolution**: Use the current edited PIC diagnostics: CBKD421 for invalid format, CBKD422 for sign mismatch, and CBKD423 for blank-when-zero warnings
 
 #### CBKD401_COMP3_INVALID_NIBBLE
 **Description**: Invalid nibble in packed decimal field

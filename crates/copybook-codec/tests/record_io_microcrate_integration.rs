@@ -144,6 +144,32 @@ fn codec_dispatch_output_decodes_with_codec() {
 }
 
 #[test]
+fn decode_jsonl_output_write_failure_reports_cbkc201() {
+    let schema = parse_copybook(
+        r"
+        01 SIMPLE-RECORD PIC X(5).
+    ",
+    )
+    .expect("schema should parse");
+
+    let options = DecodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII);
+    let mut output = FailingWriter;
+
+    let error = decode_file_to_jsonl(
+        &schema,
+        Cursor::new(b"HELLO".as_slice()),
+        &mut output,
+        &options,
+    )
+    .expect_err("JSONL output failure should be surfaced");
+
+    assert_eq!(error.code, ErrorCode::CBKC201_JSON_WRITE_ERROR);
+    assert!(error.message.contains("simulated write failure"));
+}
+
+#[test]
 fn codec_lossless_rdw_dispatch_preserves_reserved_header_bytes() {
     let wire = [0x00, 0x05, 0x12, 0x34, b'H', b'E', b'L', b'L', b'O'];
     let mut input = Cursor::new(wire);

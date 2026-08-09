@@ -1802,10 +1802,15 @@ fn encode_fields_to_bytes(
     json: &Value,
     options: &EncodeOptions,
 ) -> Result<Vec<u8>> {
-    let record_length = schema.lrecl_fixed.unwrap_or_else(|| {
+    let maximum_record_length = schema.lrecl_fixed.unwrap_or_else(|| {
         // For variable length, estimate based on schema
         schema.fields.iter().map(|f| f.len).sum::<u32>()
     }) as usize;
+    let record_length = if options.format == RecordFormat::RDW {
+        rdw_record_length_for_json(schema, json).unwrap_or(maximum_record_length)
+    } else {
+        maximum_record_length
+    };
 
     let mut buffer = vec![0u8; record_length];
 
@@ -1825,6 +1830,24 @@ fn encode_fields_to_bytes(
     }
 
     Ok(buffer)
+}
+
+/// Return the payload length required by one JSON record for RDW encoding.
+///
+/// `Schema::lrecl_fixed` is the maximum allocation for a tail ODO layout. RDW
+/// records are variable-length, so retaining that allocation would silently
+/// add zero-filled occurrences during a decode → encode round-trip.
+fn rdw_record_length_for_json(schema: &Schema, json: &Value) -> Option<usize> {
+    let array_field = schema
+        .all_fields()
+        .into_iter()
+        .find(|field| matches!(field.occurs, Some(copybook_core::Occurs::ODO { .. })))?;
+    let array = json_lookup_array(json, &array_field.path)
+        .or_else(|| json_lookup_array(json, &array_field.name))?;
+    let count = u32::try_from(array.len()).ok()?;
+    let array_bytes = array_field.len.checked_mul(count)?;
+    let payload_length = array_field.offset.checked_add(array_bytes)?;
+    usize::try_from(payload_length).ok()
 }
 
 /// Recursively encode fields into the buffer

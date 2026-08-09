@@ -189,7 +189,7 @@ Field CUSTOMER-NAM not found in record scope
 **Description**: RENAMES range is not contiguous (gap between `from` and `THRU` fields)
 **Severity**: Fatal
 **Context**: RENAMES alias name, `from`/`THRU` field offsets
-**Resolution**: Adjust the RENAMES range so it covers a contiguous byte range. Note: strict byte-level contiguity is not currently enforced by layout resolution; this code is reserved for that validation.
+**Resolution**: Adjust the RENAMES range so it covers a contiguous byte range. Positive alignment gaps are rejected; overlapping offsets remain valid only where the applicable REDEFINES policy permits them.
 
 #### CBKS604_RENAME_REVERSED_RANGE
 **Description**: RENAMES range is reversed (`from` field starts after the `THRU` field)

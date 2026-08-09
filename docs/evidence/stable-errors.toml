@@ -74,7 +74,8 @@ direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbks602_rename_unkn
 [[errors]]
 code = "CBKS603_RENAME_NOT_CONTIGUOUS"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-core/tests/renames_resolver_negative_tests.rs::renames_not_contiguous_alignment_gap"
 [[errors]]
 code = "CBKS604_RENAME_REVERSED_RANGE"
 stability_class = "stable"

@@ -515,7 +515,7 @@ pub enum FieldKind {
 - **CBKS605/606**: Cross-group boundaries (from/thru have storage-bearing children)
 - **CBKS607**: OCCURS boundary violation (array in RENAMES range)
 - **CBKS608**: Qualified name resolution failure
-- **CBKS603**: Defined but NOT enforced (REDEFINES overlaps valid; source-order only)
+- **CBKS603**: Byte gaps in RENAMES ranges are rejected; overlapping offsets remain governed by the applicable REDEFINES policy
 
 **Layout Impact:** Level-66 fields consume zero bytes, implementing COBOL non-storage semantics. Resolver computes `(offset, length)` and populates `resolved_renames.members` with storage-bearing child paths.
 

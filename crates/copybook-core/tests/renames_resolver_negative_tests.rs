@@ -209,12 +209,25 @@ fn renames_not_contiguous_gap() {
     assert_eq!(err.code, ErrorCode::CBKS609_RENAME_OVER_REDEFINES);
 }
 
-/// Test CBKS603: Non-contiguous range with actual gap
-///
-/// This creates a scenario where fields are not adjacent in sibling order
-/// but we try to RENAMES across them. Due to how the parser works, this
-/// is hard to construct without OCCURS or groups, which are caught by other
-/// validations. This test documents the contiguity check behavior.
+/// Test CBKS603: Non-contiguous range with an actual alignment gap.
+#[test]
+fn renames_not_contiguous_alignment_gap() {
+    let cb = "
+01 ROOT-REC.
+   05 FIELD-A PIC X(1).
+   05 FIELD-B PIC 9(3) COMP SYNCHRONIZED.
+   66 ALIAS RENAMES FIELD-A THRU FIELD-B.
+";
+    let result = parse_copybook(cb);
+    assert!(
+        result.is_err(),
+        "An alignment gap should reject the RENAMES range"
+    );
+    let err = result.unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKS603_RENAME_NOT_CONTIGUOUS);
+}
+
+/// Level-88 conditions consume no storage and do not interrupt contiguity.
 #[test]
 fn renames_contiguity_check_with_level88() {
     let cb = "

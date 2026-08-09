@@ -55,10 +55,10 @@ api_tests = [
   "crates/copybook-codec/tests/comprehensive_rdw_tests.rs::test_rdw_with_odo_variable_length",
   "crates/copybook-codec/tests/comprehensive_rdw_tests.rs::test_rdw_with_odo_variable_length_parallel",
 ]
-cli_tests = []
+cli_tests = ["tests/e2e/e2e_cli_decode_flags.rs::decode_rdw_odo_cli_accepts_variable_payloads"]
 error_codes = []
-cli_commands = []
-known_limitation = "The current coordinator anchors library sequential and parallel RDW+ODO behavior; CLI coverage is not claimed by this row."
+cli_commands = ["decode --format rdw --codepage ascii --emit-meta"]
+known_limitation = "The current anchors cover sequential and parallel library behavior plus sequential CLI decoding; CLI worker-count parity remains covered by the broader determinism matrix."
 
 [[scenarios]]
 id = "format.fixed_rdw.raw_mode"

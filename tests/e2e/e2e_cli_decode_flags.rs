@@ -24,6 +24,12 @@ const SIMPLE_CPY: &str = "\
 
 const RDW_CPY: &str = "01 FIELD PIC X(5).\n";
 
+const RDW_ODO_CPY: &str = "\
+       01  REC.\n\
+           05  CNT    PIC 9(3).\n\
+           05  ITEMS  OCCURS 1 TO 5 DEPENDING ON CNT\n\
+                      PIC X(4).\n";
+
 /// Build ASCII record: 10 bytes name + 5 bytes amount = 15 bytes.
 fn make_ascii_record(name: &str, amount: &str) -> Vec<u8> {
     let mut rec = vec![b' '; 15];
@@ -236,6 +242,49 @@ fn decode_rdw_record_raw_cli_preserves_physical_frames() {
             .unwrap();
         assert_eq!(compatibility_raw, raw);
     }
+}
+
+#[test]
+fn decode_rdw_odo_cli_accepts_variable_payloads() {
+    let payloads = [b"002ABCDWXYZ".as_slice(), b"001EFGH".as_slice()];
+    let mut rdw_data = Vec::new();
+    for payload in payloads {
+        let length = u16::try_from(payload.len()).unwrap();
+        rdw_data.extend_from_slice(&length.to_be_bytes());
+        rdw_data.extend_from_slice(&[0, 0]);
+        rdw_data.extend_from_slice(payload);
+    }
+    let (dir, cpy, data) = setup(RDW_ODO_CPY, &rdw_data);
+    let out = dir.path().join("out.jsonl");
+
+    cmd()
+        .args([
+            "decode",
+            "--format",
+            "rdw",
+            "--codepage",
+            "ascii",
+            "--emit-meta",
+            "--output",
+        ])
+        .arg(&out)
+        .arg(&cpy)
+        .arg(&data)
+        .assert()
+        .success();
+
+    let lines: Vec<Value> = std::fs::read_to_string(&out)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[0]["CNT"], "002");
+    assert_eq!(lines[0]["ITEMS"], serde_json::json!(["ABCD", "WXYZ"]));
+    assert_eq!(lines[1]["CNT"], "001");
+    assert_eq!(lines[1]["ITEMS"], serde_json::json!(["EFGH"]));
+    assert_eq!(lines[0]["length"], 11);
+    assert_eq!(lines[1]["length"], 7);
 }
 
 #[test]

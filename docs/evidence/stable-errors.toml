@@ -98,7 +98,8 @@ direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbks607_rename_cros
 [[errors]]
 code = "CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "direct"
+direct_test = "crates/copybook-core/tests/renames_resolver_negative_tests.rs::renames_qualified_name_not_found"
 [[errors]]
 code = "CBKS609_RENAME_OVER_REDEFINES"
 stability_class = "stable"

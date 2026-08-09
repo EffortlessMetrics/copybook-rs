@@ -6,7 +6,7 @@
 //! - CBKS611_RENAME_PARTIAL_OCCURS: Partial array span in RENAMES (R5 flag)
 //! - CBKA001_BASELINE_ERROR: Performance baseline I/O error (audit feature)
 //!
-//! Note: CBKS603, CBKS608 are defined but never emitted by production code.
+//! Note: CBKS603 is defined but not emitted by production code yet.
 //! CBKD302 is vestigial (E2/E3 are now complete). CBKC201 is an I/O error
 //! that requires failing writes to trigger.
 

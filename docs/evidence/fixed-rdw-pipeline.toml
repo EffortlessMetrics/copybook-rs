@@ -4,7 +4,7 @@
 # the complete stable-error registry requested by issue #576.
 schema_version = 1
 scope = "fixed-rdw-pipeline"
-verified_against = "ab58e1ecbba8d85c334bfb3f05234acc8f992921"
+verified_against = "8505e9df540a6f67eb85991fd5e29d3e49b4f98e"
 
 [[scenarios]]
 id = "format.fixed.basic"
@@ -55,10 +55,17 @@ api_tests = [
   "crates/copybook-codec/tests/comprehensive_rdw_tests.rs::test_rdw_with_odo_variable_length",
   "crates/copybook-codec/tests/comprehensive_rdw_tests.rs::test_rdw_with_odo_variable_length_parallel",
 ]
-cli_tests = ["tests/e2e/e2e_cli_decode_flags.rs::decode_rdw_odo_cli_accepts_variable_payloads"]
+cli_tests = [
+  "tests/e2e/e2e_cli_decode_flags.rs::decode_rdw_odo_cli_accepts_variable_payloads",
+  "tests/e2e/e2e_cli_subcommands_comprehensive.rs::rdw_odo_cli_round_trip_preserves_variable_frames",
+]
 error_codes = []
-cli_commands = ["decode --format rdw --codepage ascii --emit-meta"]
-known_limitation = "The current anchors cover sequential and parallel library behavior plus sequential CLI decoding; CLI worker-count parity remains covered by the broader determinism matrix."
+cli_commands = [
+  "decode --format rdw --codepage ascii --emit-meta",
+  "encode --format rdw --codepage ascii",
+  "verify --format rdw --codepage ascii",
+]
+known_limitation = "The current anchors cover sequential and parallel library behavior plus sequential CLI decode/encode/verify; CLI worker-count parity remains covered by the broader determinism matrix."
 
 [[scenarios]]
 id = "format.fixed_rdw.raw_mode"

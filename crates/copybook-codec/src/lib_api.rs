@@ -1802,10 +1802,15 @@ fn encode_fields_to_bytes(
     json: &Value,
     options: &EncodeOptions,
 ) -> Result<Vec<u8>> {
-    let record_length = schema.lrecl_fixed.unwrap_or_else(|| {
+    let maximum_record_length = schema.lrecl_fixed.unwrap_or_else(|| {
         // For variable length, estimate based on schema
         schema.fields.iter().map(|f| f.len).sum::<u32>()
     }) as usize;
+    let record_length = if options.format == RecordFormat::RDW {
+        rdw_record_length_for_json(schema, json).unwrap_or(maximum_record_length)
+    } else {
+        maximum_record_length
+    };
 
     let mut buffer = vec![0u8; record_length];
 
@@ -1825,6 +1830,37 @@ fn encode_fields_to_bytes(
     }
 
     Ok(buffer)
+}
+
+/// Return the payload length required by one JSON record for RDW encoding.
+///
+/// `Schema::lrecl_fixed` is the maximum allocation for an ODO layout. RDW
+/// records are variable-length, so retaining that allocation would silently
+/// add zero-filled occurrences during a decode → encode round-trip. Preserve
+/// any fixed storage after a nested ODO group when calculating the length.
+fn rdw_record_length_for_json(schema: &Schema, json: &Value) -> Option<usize> {
+    let array_field = schema
+        .all_fields()
+        .into_iter()
+        .find(|field| matches!(field.occurs, Some(copybook_core::Occurs::ODO { .. })))?;
+    let Some(copybook_core::Occurs::ODO { max, .. }) = array_field.occurs else {
+        return None;
+    };
+    let field_offset = usize::try_from(array_field.offset).ok()?;
+    let field_length = usize::try_from(array_field.len).ok()?;
+    let maximum_array_end = array_field
+        .offset
+        .checked_add(array_field.len.checked_mul(max)?)?;
+    let maximum_array_end = usize::try_from(maximum_array_end).ok()?;
+    let schema_length = usize::try_from(schema.lrecl_fixed?).ok()?;
+    let trailing_length = schema_length.checked_sub(maximum_array_end)?;
+    let array = json_lookup_array(json, &array_field.path)
+        .or_else(|| json_lookup_array(json, &array_field.name))?;
+    let count = array.len();
+    let array_bytes = field_length.checked_mul(count)?;
+    field_offset
+        .checked_add(array_bytes)?
+        .checked_add(trailing_length)
 }
 
 /// Recursively encode fields into the buffer
@@ -3578,6 +3614,27 @@ mod tests {
         // The result should be a properly encoded binary record
         // For this basic test, just verify it's the expected length
         assert_eq!(result.len(), 8); // 3 digits for ID + 5 chars for NAME
+        Ok(())
+    }
+
+    #[test]
+    fn rdw_odo_length_preserves_storage_after_nested_group() -> Result<()> {
+        let copybook_text = r"
+            01 RECORD.
+               05 HEADER PIC X(1).
+               05 WRAP.
+                  10 CNT PIC 9(3).
+                  10 ITEMS OCCURS 1 TO 5 DEPENDING ON CNT PIC X(4).
+               05 TRAILER PIC X(2).
+        ";
+        let schema = parse_copybook(copybook_text)?;
+        let json = serde_json::json!({
+            "HEADER": "H",
+            "WRAP": {"CNT": "002", "ITEMS": ["ABCD", "WXYZ"]},
+            "TRAILER": "TT"
+        });
+
+        assert_eq!(rdw_record_length_for_json(&schema, &json), Some(14));
         Ok(())
     }
 

@@ -43,6 +43,13 @@ const COMP3_CPY: &str = "\
            05  PKD    PIC S9(5) COMP-3.
 ";
 
+const RDW_ODO_CPY: &str = "\
+       01  REC.
+           05  CNT    PIC 9(3).
+           05  ITEMS  OCCURS 1 TO 5 DEPENDING ON CNT
+                      PIC X(4).
+";
+
 #[allow(dead_code)]
 /// Copybook with ODO (Occurs Depending On).
 const ODO_CPY: &str = "\
@@ -823,7 +830,57 @@ fn full_pipeline_round_trip_fidelity() {
 }
 
 // =========================================================================
-// 32. DECODE: --emit-filler flag accepted
+// 32. RDW + ODO: CLI decode → encode preserves variable physical frames
+// =========================================================================
+
+#[test]
+fn rdw_odo_cli_round_trip_preserves_variable_frames() -> Result<(), Box<dyn std::error::Error>> {
+    let payloads = [b"002ABCDWXYZ".as_slice(), b"001EFGH".as_slice()];
+    let mut original = Vec::new();
+    for payload in payloads {
+        let length = u16::try_from(payload.len())?;
+        original.extend_from_slice(&length.to_be_bytes());
+        original.extend_from_slice(&[0, 0]);
+        original.extend_from_slice(payload);
+    }
+    let dir = setup(RDW_ODO_CPY, &original);
+    let jsonl = p(&dir, "decoded.jsonl");
+    let encoded = p(&dir, "encoded.bin");
+
+    cmd()
+        .args(["decode"])
+        .arg(p(&dir, "schema.cpy"))
+        .arg(p(&dir, "data.bin"))
+        .arg("--output")
+        .arg(&jsonl)
+        .args(["--format", "rdw", "--codepage", "ascii"])
+        .assert()
+        .success();
+
+    cmd()
+        .args(["encode"])
+        .arg(p(&dir, "schema.cpy"))
+        .arg(&jsonl)
+        .arg("--output")
+        .arg(&encoded)
+        .args(["--format", "rdw", "--codepage", "ascii"])
+        .assert()
+        .success();
+
+    cmd()
+        .args(["verify"])
+        .arg(p(&dir, "schema.cpy"))
+        .arg(&encoded)
+        .args(["--format", "rdw", "--codepage", "ascii"])
+        .assert()
+        .success();
+
+    assert_eq!(std::fs::read(&encoded)?, original);
+    Ok(())
+}
+
+// =========================================================================
+// 33. DECODE: --emit-filler flag accepted
 // =========================================================================
 
 #[test]
@@ -843,7 +900,7 @@ fn decode_emit_filler_flag_accepted() {
 }
 
 // =========================================================================
-// 33. DECODE: --strict flag accepted
+// 34. DECODE: --strict flag accepted
 // =========================================================================
 
 #[test]

@@ -42,6 +42,13 @@ const MULTI_RECORD_COPYBOOK: &str = "\
            05  AGE    PIC 9(3).
 ";
 
+const RDW_ODO_COPYBOOK: &str = "\
+       01  REC.
+           05  CNT    PIC 9(3).
+           05  ITEMS  OCCURS 1 TO 5 DEPENDING ON CNT
+                      PIC X(4).
+";
+
 /// Build 20 EBCDIC records for multi-thread testing.
 /// Each record: NAME (10 bytes CP037) + AGE (3 bytes CP037).
 fn build_multi_records() -> Vec<u8> {
@@ -91,6 +98,24 @@ fn setup_multi_record_dir() -> tempfile::TempDir {
     std::fs::write(dir.path().join("schema.cpy"), MULTI_RECORD_COPYBOOK).unwrap();
     std::fs::write(dir.path().join("data.bin"), build_multi_records()).unwrap();
     dir
+}
+
+fn setup_rdw_odo_dir() -> Result<(tempfile::TempDir, Vec<u8>), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
+    let mut data = Vec::new();
+    for payload in [b"002ABCDWXYZ".as_slice(), b"001EFGH".as_slice()]
+        .iter()
+        .cycle()
+        .take(8)
+    {
+        let length = u16::try_from(payload.len())?;
+        data.extend_from_slice(&length.to_be_bytes());
+        data.extend_from_slice(&[0, 0]);
+        data.extend_from_slice(payload);
+    }
+    std::fs::write(dir.path().join("schema.cpy"), RDW_ODO_COPYBOOK)?;
+    std::fs::write(dir.path().join("data.bin"), &data)?;
+    Ok((dir, data))
 }
 
 /// Run decode with given thread count, return the JSONL output bytes.
@@ -433,4 +458,78 @@ fn test_encode_deterministic_across_thread_counts() {
             result.len()
         );
     }
+}
+
+// =========================================================================
+// 7. CLI RDW + ODO worker parity
+// =========================================================================
+
+#[test]
+fn test_rdw_odo_cli_deterministic_across_thread_counts() -> Result<(), Box<dyn std::error::Error>> {
+    let (dir, original) = setup_rdw_odo_dir()?;
+    let mut decoded_baseline = None;
+
+    for threads in [1, 4] {
+        let output_path = dir.path().join(format!("decoded_{threads}t.jsonl"));
+        let output = Command::cargo_bin("copybook")?
+            .args(["decode"])
+            .arg(dir.path().join("schema.cpy"))
+            .arg(dir.path().join("data.bin"))
+            .arg("--output")
+            .arg(&output_path)
+            .args([
+                "--format",
+                "rdw",
+                "--codepage",
+                "ascii",
+                "--threads",
+                &threads.to_string(),
+            ])
+            .output()?;
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{threads}-thread decode failed: {}",
+            stderr_str(&output)
+        );
+        assert_no_panic(&stderr_str(&output));
+        let result = std::fs::read(&output_path)?;
+        if let Some(baseline) = &decoded_baseline {
+            assert_eq!(
+                baseline, &result,
+                "decode output changed at {threads} threads"
+            );
+        } else {
+            decoded_baseline = Some(result);
+        }
+    }
+
+    for threads in [1, 4] {
+        let encoded_path = dir.path().join(format!("encoded_{threads}t.bin"));
+        let output = Command::cargo_bin("copybook")?
+            .args(["encode"])
+            .arg(dir.path().join("schema.cpy"))
+            .arg(dir.path().join("decoded_1t.jsonl"))
+            .arg("--output")
+            .arg(&encoded_path)
+            .args([
+                "--format",
+                "rdw",
+                "--codepage",
+                "ascii",
+                "--threads",
+                &threads.to_string(),
+            ])
+            .output()?;
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{threads}-thread encode failed: {}",
+            stderr_str(&output)
+        );
+        assert_no_panic(&stderr_str(&output));
+        assert_eq!(std::fs::read(&encoded_path)?, original);
+    }
+
+    Ok(())
 }

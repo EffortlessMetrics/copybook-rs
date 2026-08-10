@@ -4,7 +4,7 @@
 # the complete stable-error registry requested by issue #576.
 schema_version = 1
 scope = "fixed-rdw-pipeline"
-verified_against = "8505e9df540a6f67eb85991fd5e29d3e49b4f98e"
+verified_against = "2b384a87bf8114ae1126d210f0c51415a8516269"
 
 [[scenarios]]
 id = "format.fixed.basic"
@@ -58,6 +58,7 @@ api_tests = [
 cli_tests = [
   "tests/e2e/e2e_cli_decode_flags.rs::decode_rdw_odo_cli_accepts_variable_payloads",
   "tests/e2e/e2e_cli_subcommands_comprehensive.rs::rdw_odo_cli_round_trip_preserves_variable_frames",
+  "tests/e2e/e2e_parallel_determinism.rs::test_rdw_odo_cli_deterministic_across_thread_counts",
 ]
 error_codes = []
 cli_commands = [
@@ -65,7 +66,7 @@ cli_commands = [
   "encode --format rdw --codepage ascii",
   "verify --format rdw --codepage ascii",
 ]
-known_limitation = "The current anchors cover sequential and parallel library behavior plus sequential CLI decode/encode/verify; CLI worker-count parity remains covered by the broader determinism matrix."
+known_limitation = "The current anchors cover sequential and parallel library behavior plus sequential CLI decode/encode/verify and 1-versus-4-worker CLI decode/encode parity; broader worker-count stress remains covered by the determinism matrix."
 
 [[scenarios]]
 id = "format.fixed_rdw.raw_mode"

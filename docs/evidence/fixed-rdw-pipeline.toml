@@ -6,7 +6,7 @@
 # never a PR-branch commit; squash merges drop branch commits from history.
 schema_version = 1
 scope = "fixed-rdw-pipeline"
-verified_against = "d2efe1a45e265ea45ee0d14ab4c2b762922441eb"
+verified_against = "7e218aa4b36dd2d542f1eea0a6d2ef1872d63b23"
 
 [[scenarios]]
 id = "format.fixed.basic"
@@ -123,12 +123,13 @@ id = "format.fixed_rdw.raw_mode.legacy_alias"
 record_formats = ["fixed", "rdw"]
 api_tests = [
   "crates/copybook-codec/tests/streaming_file_tests.rs::decode_file_to_jsonl_raw_mode_rdw_is_stable_across_workers",
-  "crates/copybook-codec/tests/streaming_file_tests.rs::decode_rdw_legacy_raw_mode_key_alias_is_accepted_in_encode",
+  "crates/copybook-codec/tests/streaming_file_tests.rs::rdw_legacy_raw_mode_key_alias_is_accepted_in_encode",
+  "crates/copybook-codec/tests/streaming_file_tests.rs::decode_fixed_legacy_raw_mode_key_alias_is_accepted_in_encode",
 ]
 cli_tests = ["tests/e2e/e2e_cli_decode_flags.rs::decode_rdw_record_raw_cli_preserves_physical_frames"]
 error_codes = []
 cli_commands = ["decode --format rdw --emit-raw record+rdw"]
-known_limitation = "Dual emission of canonical raw_b64 and legacy __raw_b64 plus legacy-alias encode acceptance are anchored for RDW; the fixed-format alias path shares the same envelope code and remains covered by the codec streaming suite."
+known_limitation = "Canonical/legacy dual emission and RDW header+payload legacy encode acceptance are directly anchored; the RDW field-recomputation path (fields edited relative to raw payload) remains covered by the codec RDW suite rather than this row."
 
 [[scenarios]]
 id = "package.record_io.shim_compile_contract"

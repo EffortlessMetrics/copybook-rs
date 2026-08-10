@@ -24,8 +24,9 @@ updates:
           - "*"
         update-types: ["patch", "minor"]
     commit-message:
+      # No "include: scope": it produces "build(deps)(deps): ..." titles,
+      # which the commit-lint PR-title validator rejects.
       prefix: "build(deps)"
-      include: "scope"
 
   # GitHub Actions dependencies
   - package-ecosystem: "github-actions"
@@ -45,4 +46,3 @@ updates:
           - "*"
     commit-message:
       prefix: "build(deps)"
-      include: "scope"

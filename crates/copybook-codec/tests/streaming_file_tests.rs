@@ -1232,7 +1232,7 @@ fn decode_rdw_suspect_ascii_header_is_fatal() {
 }
 
 #[test]
-fn decode_rdw_legacy_raw_mode_key_alias_is_accepted_in_encode() {
+fn decode_fixed_legacy_raw_mode_key_alias_is_accepted_in_encode() {
     let schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
     let encoded = base64::engine::general_purpose::STANDARD.encode(b"HELLO");
     let jsonl = format!("{{\"__raw_b64\":\"{encoded}\"}}\n");
@@ -1245,6 +1245,25 @@ fn decode_rdw_legacy_raw_mode_key_alias_is_accepted_in_encode() {
         .expect("encoding should accept legacy __raw_b64");
 
     assert_eq!(output, b"HELLO");
+}
+
+#[test]
+fn rdw_legacy_raw_mode_key_alias_is_accepted_in_encode() {
+    // RDW raw capture stores header plus payload; a legacy `__raw_b64` frame
+    // whose fields agree with the payload must round-trip byte-identically.
+    let schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
+    let frame = [0x00, 0x05, 0x00, 0x00, b'H', b'E', b'L', b'L', b'O'];
+    let encoded = base64::engine::general_purpose::STANDARD.encode(frame);
+    let jsonl = format!("{{\"FIELD\":\"HELLO\",\"__raw_b64\":\"{encoded}\"}}\n");
+    let mut output = Vec::new();
+    let opts = ascii_encode_opts()
+        .with_format(RecordFormat::RDW)
+        .with_use_raw(true);
+
+    encode_jsonl_to_file(&schema, Cursor::new(jsonl.as_bytes()), &mut output, &opts)
+        .expect("encoding should accept legacy __raw_b64 for RDW");
+
+    assert_eq!(output, frame);
 }
 
 // ===========================================================================

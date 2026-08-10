@@ -83,7 +83,8 @@ pub(crate) fn sync_record_pipeline_command() -> Result<()> {
     let mut digest_written = false;
     for line in source.lines() {
         if line.starts_with("content_digest") {
-            updated.push_str(&format!("content_digest = \"{digest}\""));
+            use std::fmt::Write as _;
+            let _ = write!(updated, "content_digest = \"{digest}\"");
             digest_written = true;
         } else if line.starts_with("verified_against") {
             // Legacy commit anchor (#753): dropped on sync; the content
@@ -91,7 +92,8 @@ pub(crate) fn sync_record_pipeline_command() -> Result<()> {
         } else {
             updated.push_str(line);
             if line.starts_with("scope =") && !digest_written {
-                updated.push_str(&format!("\ncontent_digest = \"{digest}\""));
+                use std::fmt::Write as _;
+                let _ = write!(updated, "\ncontent_digest = \"{digest}\"");
                 digest_written = true;
             }
         }

@@ -491,7 +491,7 @@ impl<R: Read> RecordIterator<R> {
                     }
                     Err(e) => {
                         return Err(Error::new(
-                            ErrorCode::CBKF221_RDW_UNDERFLOW,
+                            ErrorCode::CBKR201_RDW_READ_ERROR,
                             format!("Failed to read RDW header: {e}"),
                         ));
                     }
@@ -512,10 +512,15 @@ impl<R: Read> RecordIterator<R> {
                         Some(self.buffer.clone())
                     }
                     Err(e) => {
-                        return Err(Error::new(
-                            ErrorCode::CBKF221_RDW_UNDERFLOW,
-                            format!("Failed to read RDW payload: {e}"),
-                        ));
+                        // A short payload is a data underflow; any other failure
+                        // is a genuine I/O read error and uses the record family,
+                        // matching copybook-rdw and the fixed branch above.
+                        let code = if e.kind() == std::io::ErrorKind::UnexpectedEof {
+                            ErrorCode::CBKF221_RDW_UNDERFLOW
+                        } else {
+                            ErrorCode::CBKR201_RDW_READ_ERROR
+                        };
+                        return Err(Error::new(code, format!("Failed to read RDW payload: {e}")));
                     }
                 }
             }
@@ -1222,6 +1227,69 @@ mod tests {
 
         let error = iterator.read_raw_record().unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
+    }
+
+    #[test]
+    fn test_iterator_rdw_header_read_error_code() {
+        // A genuine I/O failure while reading the RDW header is a record read
+        // error, not an underflow data condition.
+        let schema = eight_byte_schema();
+        let options = DecodeOptions::default()
+            .with_format(RecordFormat::RDW)
+            .with_codepage(Codepage::ASCII);
+        let mut iterator =
+            RecordIterator::new(FailingReader::default(), &schema, &options).unwrap();
+
+        let error = iterator.read_raw_record().unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKR201_RDW_READ_ERROR);
+    }
+
+    /// Reader that serves one valid RDW header and then fails the payload read.
+    struct FailAfterHeaderReader {
+        header: Option<[u8; 4]>,
+    }
+
+    impl Read for FailAfterHeaderReader {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            if let Some(header) = self.header.take() {
+                buf[..4].copy_from_slice(&header);
+                Ok(4)
+            } else {
+                Err(io::Error::other("forced payload read error"))
+            }
+        }
+    }
+
+    #[test]
+    fn rdw_payload_io_error_maps_to_read_error() {
+        let schema = eight_byte_schema();
+        let options = DecodeOptions::default()
+            .with_format(RecordFormat::RDW)
+            .with_codepage(Codepage::ASCII);
+        let reader = FailAfterHeaderReader {
+            header: Some([0x00, 0x08, 0x00, 0x00]),
+        };
+        let mut iterator = RecordIterator::new(reader, &schema, &options).unwrap();
+
+        let error = iterator.read_raw_record().unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKR201_RDW_READ_ERROR);
+    }
+
+    #[test]
+    fn rdw_truncated_payload_keeps_underflow_identity() {
+        // A payload shorter than the declared RDW length is a data underflow
+        // condition, distinct from a genuine I/O failure.
+        let mut data = vec![0x00, 0x08, 0x00, 0x00];
+        data.extend_from_slice(b"ABC");
+
+        let schema = eight_byte_schema();
+        let options = DecodeOptions::default()
+            .with_format(RecordFormat::RDW)
+            .with_codepage(Codepage::ASCII);
+        let mut iterator = RecordIterator::new(Cursor::new(data), &schema, &options).unwrap();
+
+        let error = iterator.read_raw_record().unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
     }
 
     /// Reader that hands out one byte per call, so `read_exact` cannot fill the

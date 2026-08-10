@@ -68,6 +68,45 @@ pub(crate) fn verify_record_pipeline_command() -> Result<()> {
     verify_record_pipeline_evidence()
 }
 
+pub(crate) fn sync_record_pipeline_command() -> Result<()> {
+    let root = workspace_root();
+    let registry_path = root.join(RECORD_PIPELINE_EVIDENCE_PATH);
+    let source = fs::read_to_string(&registry_path).with_context(|| {
+        format!(
+            "loading fixed/RDW evidence registry {}",
+            registry_path.display()
+        )
+    })?;
+    let digest = compute_record_pipeline_digest(&root)?;
+
+    let mut updated = String::new();
+    let mut digest_written = false;
+    for line in source.lines() {
+        if line.starts_with("content_digest") {
+            updated.push_str(&format!("content_digest = \"{digest}\""));
+            digest_written = true;
+        } else if line.starts_with("verified_against") {
+            // Legacy commit anchor (#753): dropped on sync; the content
+            // digest is topology-independent and survives squash merges.
+        } else {
+            updated.push_str(line);
+            if line.starts_with("scope =") && !digest_written {
+                updated.push_str(&format!("\ncontent_digest = \"{digest}\""));
+                digest_written = true;
+            }
+        }
+        updated.push('\n');
+    }
+    fs::write(&registry_path, updated).with_context(|| {
+        format!(
+            "writing fixed/RDW evidence registry {}",
+            registry_path.display()
+        )
+    })?;
+    println!("fixed/RDW evidence content digest synced: {digest}");
+    Ok(())
+}
+
 pub(crate) fn verify_stable_error_registry_command() -> Result<()> {
     verify_stable_error_registry()
 }
@@ -252,7 +291,10 @@ struct ContractErrorInventory {
 struct RecordPipelineEvidence {
     schema_version: u32,
     scope: String,
-    verified_against: String,
+    #[serde(default)]
+    verified_against: Option<String>,
+    #[serde(default)]
+    content_digest: Option<String>,
     scenarios: Vec<RecordPipelineScenario>,
 }
 
@@ -295,29 +337,29 @@ fn verify_record_pipeline_evidence() -> Result<()> {
         bail!("fixed/RDW evidence registry contains no scenarios");
     }
 
-    let sha = registry.verified_against.trim();
-    if sha.len() != 40 || !sha.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        bail!("verified_against must be a 40-character commit SHA, found `{sha}`");
-    }
-
-    let commit_check = Command::new("git")
-        .current_dir(&root)
-        .args(["cat-file", "-e", &format!("{sha}^{{commit}}")])
-        .output()
-        .context("checking fixed/RDW evidence registry commit")?;
-    match commit_check.status.code() {
-        Some(0) => verify_record_pipeline_commit_ancestry(&root, sha)?,
-        Some(1) if is_shallow_repository(&root)? => {
-            println!(
-                "fixed/RDW evidence commit `{sha}` unavailable in shallow checkout; ancestry and drift checks skipped"
-            );
+    let anchor_description = match registry.content_digest.as_deref().map(str::trim) {
+        Some(digest) if !digest.is_empty() => {
+            verify_record_pipeline_content_digest(&root, digest)?;
+            format!("content digest {digest}")
         }
-        Some(1) => bail!("fixed/RDW evidence registry commit `{sha}` is not available"),
-        other => bail!(
-            "git cat-file failed while checking fixed/RDW evidence registry commit (exit {other:?}): {}",
-            String::from_utf8_lossy(&commit_check.stderr).trim()
-        ),
-    }
+        _ => {
+            let sha = registry
+                .verified_against
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "fixed/RDW evidence registry must set content_digest or verified_against"
+                    )
+                })?;
+            println!(
+                "warning: verified_against commit anchoring is deprecated (#753); run `cargo run -p xtask -- docs sync-record-pipeline` to migrate to content_digest"
+            );
+            verify_record_pipeline_commit_anchor(&root, sha)?;
+            format!("commit {sha}")
+        }
+    };
 
     let error_code_source = fs::read_to_string(root.join("crates/copybook-error/src/lib.rs"))
         .context("loading crates/copybook-error/src/lib.rs")?;
@@ -327,9 +369,114 @@ fn verify_record_pipeline_evidence() -> Result<()> {
     println!(
         "fixed/RDW evidence registry verified: {} scenarios at {}",
         registry.scenarios.len(),
-        sha
+        anchor_description
     );
     Ok(())
+}
+
+/// Files excluded from the record-pipeline content digest: dependency
+/// manifest churn is not record-pipeline behavior (#753).
+const RECORD_PIPELINE_DIGEST_EXCLUDED_BASENAMES: [&str; 2] = ["Cargo.toml", "Cargo.lock"];
+
+fn verify_record_pipeline_content_digest(root: &Path, expected: &str) -> Result<()> {
+    if expected.len() != 64 || !expected.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        bail!("content_digest must be a 64-character SHA-256 hex string, found `{expected}`");
+    }
+    let actual = compute_record_pipeline_digest(root)?;
+    if actual != expected {
+        bail!(
+            "fixed/RDW evidence content digest mismatch: registry records `{expected}`, workspace computes `{actual}`; run `cargo run -p xtask -- docs sync-record-pipeline` and commit the update"
+        );
+    }
+    Ok(())
+}
+
+fn compute_record_pipeline_digest(root: &Path) -> Result<String> {
+    use sha2::Digest as _;
+
+    let mut files = Vec::new();
+    for rel in RECORD_PIPELINE_SOURCE_PATHS {
+        collect_record_pipeline_digest_files(&root.join(rel), rel, &mut files)?;
+    }
+    files.sort();
+
+    let mut state = sha2::Sha256::new();
+    for rel in &files {
+        state.update(rel.as_bytes());
+        state.update([0]);
+        let bytes = fs::read(root.join(rel))
+            .with_context(|| format!("reading record-pipeline digest input `{rel}`"))?;
+        state.update(&bytes);
+        state.update([0]);
+    }
+    let digest = state.finalize();
+    let mut hex = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        use std::fmt::Write as _;
+        let _ = write!(hex, "{byte:02x}");
+    }
+    Ok(hex)
+}
+
+fn collect_record_pipeline_digest_files(
+    dir: &Path,
+    rel_prefix: &str,
+    out: &mut Vec<String>,
+) -> Result<()> {
+    if !dir.is_dir() {
+        bail!(
+            "record-pipeline digest input path `{}` is missing",
+            dir.display()
+        );
+    }
+    for entry in fs::read_dir(dir)
+        .with_context(|| format!("listing record-pipeline digest path `{}`", dir.display()))?
+    {
+        let entry = entry?;
+        let name = entry.file_name();
+        let Some(name_str) = name.to_str() else {
+            continue;
+        };
+        if name_str == ".git" || name_str == "target" {
+            continue;
+        }
+        let entry_path = entry.path();
+        let rel = format!("{rel_prefix}/{name_str}");
+        if entry_path.is_dir() {
+            collect_record_pipeline_digest_files(&entry_path, &rel, out)?;
+        } else if entry_path.is_file()
+            && !RECORD_PIPELINE_DIGEST_EXCLUDED_BASENAMES.contains(&name_str)
+        {
+            out.push(rel);
+        }
+    }
+    Ok(())
+}
+
+fn verify_record_pipeline_commit_anchor(root: &Path, sha: &str) -> Result<()> {
+    if sha.len() != 40 || !sha.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        bail!("verified_against must be a 40-character commit SHA, found `{sha}`");
+    }
+
+    let commit_check = Command::new("git")
+        .current_dir(root)
+        .args(["cat-file", "-e", &format!("{sha}^{{commit}}")])
+        .output()
+        .context("checking fixed/RDW evidence registry commit")?;
+    match commit_check.status.code() {
+        Some(0) => verify_record_pipeline_commit_ancestry(root, sha),
+        Some(1) if is_shallow_repository(root)? => {
+            println!(
+                "fixed/RDW evidence commit `{sha}` unavailable in shallow checkout; ancestry and drift checks skipped"
+            );
+            Ok(())
+        }
+        Some(1) => bail!("fixed/RDW evidence registry commit `{sha}` is not available"),
+        other => bail!(
+            "git cat-file failed while checking fixed/RDW evidence registry commit (exit {other:?}): {}",
+            String::from_utf8_lossy(&commit_check.stderr).trim()
+        ),
+    }
 }
 
 fn verify_record_pipeline_commit_ancestry(root: &Path, sha: &str) -> Result<()> {
@@ -2547,6 +2694,64 @@ mod tests {
     )]
     fn ok() -> Result<()> {
         Ok(())
+    }
+
+    fn scaffold_record_pipeline_paths(root: &Path) {
+        for rel in RECORD_PIPELINE_SOURCE_PATHS {
+            std::fs::create_dir_all(root.join(rel).join("src")).unwrap();
+            std::fs::write(root.join(rel).join("src/code.rs"), b"fn code() {}\n").unwrap();
+            std::fs::write(root.join(rel).join("Cargo.toml"), b"[package]\n").unwrap();
+        }
+    }
+
+    #[test]
+    fn record_pipeline_digest_is_deterministic() {
+        let temp = tempfile::tempdir().unwrap();
+        scaffold_record_pipeline_paths(temp.path());
+
+        let first = compute_record_pipeline_digest(temp.path()).unwrap();
+        let second = compute_record_pipeline_digest(temp.path()).unwrap();
+
+        assert_eq!(first, second);
+        assert_eq!(first.len(), 64);
+    }
+
+    #[test]
+    fn record_pipeline_digest_ignores_manifest_churn() {
+        let temp = tempfile::tempdir().unwrap();
+        scaffold_record_pipeline_paths(temp.path());
+        let before = compute_record_pipeline_digest(temp.path()).unwrap();
+
+        std::fs::write(
+            temp.path().join("crates/copybook-cli/Cargo.toml"),
+            b"[package]\n# dependency bump\n",
+        )
+        .unwrap();
+
+        let after = compute_record_pipeline_digest(temp.path()).unwrap();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn record_pipeline_digest_detects_source_change() {
+        let temp = tempfile::tempdir().unwrap();
+        scaffold_record_pipeline_paths(temp.path());
+        let before = compute_record_pipeline_digest(temp.path()).unwrap();
+
+        std::fs::write(
+            temp.path().join("crates/copybook-codec/src/code.rs"),
+            b"fn code() { changed(); }\n",
+        )
+        .unwrap();
+
+        let after = compute_record_pipeline_digest(temp.path()).unwrap();
+        assert_ne!(before, after);
+    }
+
+    #[test]
+    fn record_pipeline_digest_missing_path_errors() {
+        let temp = tempfile::tempdir().unwrap();
+        assert!(compute_record_pipeline_digest(temp.path()).is_err());
     }
 
     #[test]

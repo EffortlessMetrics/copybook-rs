@@ -2,11 +2,13 @@
 # Current-main evidence coordinator for issue #572.
 # This registry covers the fixed/RDW pipeline plane. It is intentionally not
 # the complete stable-error registry requested by issue #576.
-# Anchor rule (#753): verified_against must name a commit already on main,
-# never a PR-branch commit; squash merges drop branch commits from history.
+# Anchor rule (#753): content_digest is a SHA-256 over the gated source paths
+# (excluding Cargo.toml/Cargo.lock manifests). Any PR that changes those paths
+# must refresh it via `cargo run -p xtask -- docs sync-record-pipeline`. The
+# digest is content-addressed, so squash merges cannot invalidate it.
 schema_version = 1
 scope = "fixed-rdw-pipeline"
-verified_against = "7e218aa4b36dd2d542f1eea0a6d2ef1872d63b23"
+content_digest = "022184dc9946cfc16e021210215421e75711327a9a37fc334b72d53e04470e7d"
 
 [[scenarios]]
 id = "format.fixed.basic"

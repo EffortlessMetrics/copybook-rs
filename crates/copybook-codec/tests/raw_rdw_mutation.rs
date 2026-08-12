@@ -5,16 +5,16 @@ use base64::Engine;
 use copybook_codec::{EncodeOptions, encode_jsonl_to_file, encode_record};
 use copybook_core::{ErrorCode, parse_copybook};
 use copybook_options::{Codepage, RecordFormat};
-use serde_json::json;
+use serde_json::{Value, json};
 
 const RESERVED: [u8; 2] = [0xA5, 0x5A];
 
-fn rdw_options(use_raw: bool, threads: usize) -> EncodeOptions {
+fn rdw_options(use_raw: bool, threads: usize, strict_mode: bool) -> EncodeOptions {
     EncodeOptions::new()
         .with_codepage(Codepage::ASCII)
         .with_format(RecordFormat::RDW)
         .with_use_raw(use_raw)
-        .with_strict_mode(true)
+        .with_strict_mode(strict_mode)
         .with_threads(threads)
 }
 
@@ -38,7 +38,7 @@ fn raw_rdw_unchanged_replay_is_byte_identical_and_canonical_key_wins() -> Result
         "__raw_b64": legacy,
     });
 
-    let encoded = encode_record(&schema, &json, &rdw_options(true, 1))?;
+    let encoded = encode_record(&schema, &json, &rdw_options(true, 1, true))?;
 
     anyhow::ensure!(encoded == [b"\0\x03\xA5\x5A".as_slice(), b"ABC"].concat());
     Ok(())
@@ -53,7 +53,7 @@ fn raw_rdw_mutation_preserves_reserved_bytes_at_max_payload() -> Result<()> {
         "raw_b64": raw_b64(b"", RESERVED)?,
     });
 
-    let encoded = encode_record(&schema, &json, &rdw_options(true, 1))?;
+    let encoded = encode_record(&schema, &json, &rdw_options(true, 1, true))?;
 
     anyhow::ensure!(encoded.len() == u16::MAX as usize + 4);
     anyhow::ensure!(encoded.get(..4) == Some([0xFF, 0xFF, 0xA5, 0x5A].as_slice()));
@@ -69,7 +69,7 @@ fn raw_rdw_mutation_above_max_payload_is_cbkf102() -> Result<()> {
         "raw_b64": raw_b64(b"", RESERVED)?,
     });
 
-    let error = encode_record(&schema, &json, &rdw_options(true, 1))
+    let error = encode_record(&schema, &json, &rdw_options(true, 1, true))
         .err()
         .context("oversized raw RDW mutation unexpectedly succeeded")?;
     anyhow::ensure!(error.code == ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
@@ -85,7 +85,7 @@ fn raw_rdw_short_headers_fail_before_field_fallback() -> Result<()> {
             "fields": {"REC": "A"},
             "raw_b64": base64::engine::general_purpose::STANDARD.encode(vec![0x7E; raw_len]),
         });
-        let error = encode_record(&schema, &json, &rdw_options(true, 1))
+        let error = encode_record(&schema, &json, &rdw_options(true, 1, true))
             .err()
             .with_context(|| format!("{raw_len}-byte raw RDW unexpectedly succeeded"))?;
         anyhow::ensure!(error.code == ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
@@ -102,7 +102,7 @@ fn use_raw_false_ignores_short_raw_rdw() -> Result<()> {
         "raw_b64": base64::engine::general_purpose::STANDARD.encode([0x7E; 3]),
     });
 
-    let encoded = encode_record(&schema, &json, &rdw_options(false, 1))?;
+    let encoded = encode_record(&schema, &json, &rdw_options(false, 1, true))?;
 
     anyhow::ensure!(encoded == b"\0\x01\0\0A");
     Ok(())
@@ -123,15 +123,66 @@ fn jsonl_routes_retain_cbkf102_failure_detail() -> Result<()> {
             &schema,
             input.as_bytes(),
             &mut output,
-            &rdw_options(true, threads),
+            &rdw_options(true, threads, true),
         )?;
+        anyhow::ensure!(summary.records_processed == 0);
         anyhow::ensure!(summary.records_with_errors == 1);
+        anyhow::ensure!(summary.total_records() == 1);
         anyhow::ensure!(summary.failures.len() == 1);
         anyhow::ensure!(
             summary.failures.first().map(|failure| failure.error.code)
                 == Some(ErrorCode::CBKF102_RECORD_LENGTH_INVALID)
         );
         anyhow::ensure!(output.is_empty());
+    }
+
+    Ok(())
+}
+
+#[test]
+fn jsonl_success_and_failure_accounting_matches_across_routes() -> Result<()> {
+    let schema = parse_copybook("01 REC PIC X.")?;
+    let malformed_raw = base64::engine::general_purpose::STANDARD.encode([0x7E; 3]);
+    let records = [
+        json!({"fields": {"REC": "A"}}),
+        json!({"fields": {"REC": "B"}, "raw_b64": malformed_raw}),
+        json!({"fields": {"REC": "C"}}),
+    ];
+    let input = records
+        .iter()
+        .map(Value::to_string)
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+
+    for threads in [1, 2] {
+        for strict_mode in [true, false] {
+            let mut output = Vec::new();
+            let summary = encode_jsonl_to_file(
+                &schema,
+                input.as_bytes(),
+                &mut output,
+                &rdw_options(true, threads, strict_mode),
+            )?;
+            let expected_processed = if strict_mode { 1 } else { 2 };
+            let expected_output = if strict_mode {
+                b"\0\x01\0\0A".as_slice()
+            } else {
+                b"\0\x01\0\0A\0\x01\0\0C".as_slice()
+            };
+
+            anyhow::ensure!(summary.records_processed == expected_processed);
+            anyhow::ensure!(summary.records_with_errors == 1);
+            anyhow::ensure!(summary.total_records() == expected_processed + 1);
+            anyhow::ensure!(summary.failures.len() == 1);
+            let failure = summary
+                .failures
+                .first()
+                .context("expected retained JSONL encode failure")?;
+            anyhow::ensure!(failure.record_index == 2);
+            anyhow::ensure!(failure.error.code == ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+            anyhow::ensure!(output == expected_output);
+        }
     }
 
     Ok(())

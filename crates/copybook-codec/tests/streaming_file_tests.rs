@@ -921,8 +921,13 @@ fn encode_parallel_strict_mode_stops_in_input_order() {
     .unwrap();
 
     assert_eq!(summary.threads_used, 4);
-    assert_eq!(summary.records_processed, 2);
+    assert_eq!(summary.records_processed, 1);
     assert_eq!(summary.records_with_errors, 1);
+    assert_eq!(summary.total_records(), 2);
+    assert_eq!(
+        summary.failures.first().map(|failure| failure.record_index),
+        Some(2)
+    );
     assert_eq!(output, b"00001");
 }
 

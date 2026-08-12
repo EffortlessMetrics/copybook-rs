@@ -3211,7 +3211,7 @@ fn process_encode_batch<W: Write>(
     options: &EncodeOptions,
     summary: &mut RunSummary,
 ) -> Result<bool> {
-    let mut first_error = None;
+    let mut stop_after_error = false;
 
     for position in 0..batch_len {
         let result = pool
@@ -3224,7 +3224,7 @@ fn process_encode_batch<W: Write>(
                 )
             })?;
 
-        if first_error.is_some() {
+        if stop_after_error {
             continue;
         }
 
@@ -3234,24 +3234,20 @@ fn process_encode_batch<W: Write>(
                     Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, error.to_string())
                 })?;
                 summary.bytes_processed += binary_data.len() as u64;
+                summary.records_processed += 1;
             }
             Err(error) => {
                 // `position` is batch-relative; report the record's absolute index.
                 summary.note_failure(records_before_batch + position as u64 + 1, &error);
                 telemetry::record_error(error.family_prefix());
                 if options.strict_mode {
-                    first_error = Some((position as u64 + 1, error));
+                    stop_after_error = true;
                 }
             }
         }
     }
 
-    if let Some((position, _error)) = first_error {
-        summary.records_processed = records_before_batch + position;
-        return Ok(true);
-    }
-
-    Ok(false)
+    Ok(stop_after_error)
 }
 
 fn shutdown_encode_pool(pool: crate::memory::WorkerPool<Value, Result<Vec<u8>>>) -> Result<()> {
@@ -3406,8 +3402,7 @@ fn process_encode_jsonl_parallel<R: BufRead, W: Write>(
     }
 
     shutdown_encode_pool(pool)?;
-    summary.records_processed = records_seen;
-    Ok(records_seen)
+    Ok(summary.records_processed)
 }
 
 /// Encode JSONL to binary file
@@ -3462,7 +3457,8 @@ pub fn encode_jsonl_to_file(
     let record_count = if options.threads > 1 {
         process_encode_jsonl_parallel(schema, reader, &mut output, options, &mut summary)?
     } else {
-        let mut record_count = 0u64;
+        let mut records_seen = 0u64;
+        let mut records_processed = 0u64;
 
         for line in reader.lines() {
             let line =
@@ -3472,7 +3468,7 @@ pub fn encode_jsonl_to_file(
                 continue;
             }
 
-            record_count += 1;
+            records_seen += 1;
 
             // Parse JSON
             let json_value: Value = serde_json::from_str(&line)
@@ -3485,9 +3481,10 @@ pub fn encode_jsonl_to_file(
                         Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
                     })?;
                     summary.bytes_processed += binary_data.len() as u64;
+                    records_processed += 1;
                 }
                 Err(error) => {
-                    summary.note_failure(record_count, &error);
+                    summary.note_failure(records_seen, &error);
                     telemetry::record_error(error.family_prefix());
                     if options.strict_mode {
                         break;
@@ -3496,7 +3493,7 @@ pub fn encode_jsonl_to_file(
             }
         }
 
-        record_count
+        records_processed
     };
 
     summary.records_processed = record_count;

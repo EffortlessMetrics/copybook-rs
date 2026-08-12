@@ -627,6 +627,8 @@ mod tests {
             "9((2))",
             "9 (2)",
             "X\t(2)",
+            "9( 2)",
+            "9(2 )",
             "9(2)(3)",
             "9V(2)",
             "S(2)9",
@@ -637,6 +639,8 @@ mod tests {
             "Z(65536)",
             "Z (2)",
             "*\t(2)",
+            "Z( 2)",
+            "Z(2 )",
             "Z(2)(3)",
             "ZV(2)",
             "Z)",
@@ -696,10 +700,70 @@ mod tests {
         for copybook in [
             "01 ROOT.\n   05 FIELD PIC 9 (2).",
             "01 ROOT.\n   05 FIELD PIC Z\t(2).",
+            "01 ROOT.\n   05 FIELD PIC 9( 2).",
+            "01 ROOT.\n   05 FIELD PIC 9(\t2).",
+            "01 ROOT.\n   05 FIELD PIC Z( 2).",
+            "01 ROOT.\n   05 FIELD PIC Z(\t2).",
+            "01 ROOT.\n   05 FIELD PIC 9(2 ).",
+            "01 ROOT.\n   05 FIELD PIC 9(2\t).",
+            "01 ROOT.\n   05 FIELD PIC Z(2 ).",
+            "01 ROOT.\n   05 FIELD PIC Z(2\t).",
         ] {
             let error = crate::parse_copybook(copybook).unwrap_err();
             assert_eq!(error.code, ErrorCode::CBKP101_INVALID_PIC, "{copybook}");
             assert!(error.message.contains("must be attached"), "{copybook}");
+        }
+
+        for copybook in [
+            "01 ROOT.\n   05 FIELD PIC 9(\n2).",
+            "01 ROOT.\n   05 FIELD PIC Z(2\n).",
+        ] {
+            let error = crate::parse_copybook(copybook).unwrap_err();
+            assert_eq!(error.code, ErrorCode::CBKP101_INVALID_PIC, "{copybook}");
+        }
+    }
+
+    #[test]
+    fn parser_preserves_immediate_repetitions_and_ordinary_pic_whitespace() {
+        assert_eq!(PicClause::parse("9(2)9(3)").unwrap().digits, 5);
+        assert_eq!(PicClause::parse("Z(2)Z(3)").unwrap().digits, 5);
+
+        let repeated = crate::parse_copybook("01 ROOT.\n   05 FIELD PIC 9(2)9(3).").unwrap();
+        let field = repeated.find_field("ROOT.FIELD").unwrap();
+        assert!(
+            matches!(
+                field.kind,
+                crate::schema::FieldKind::ZonedDecimal { digits: 5, .. }
+            ),
+            "{:?}",
+            field.kind
+        );
+
+        let edited = crate::parse_copybook("01 ROOT.\n   05 FIELD PIC Z(2)Z(3).").unwrap();
+        let field = edited.find_field("ROOT.FIELD").unwrap();
+        assert!(
+            matches!(
+                field.kind,
+                crate::schema::FieldKind::EditedNumeric { width: 5, .. }
+            ),
+            "{:?}",
+            field.kind
+        );
+
+        for copybook in [
+            "01 ROOT.\n   05 FIELD PIC 9(2) 9(3).",
+            "01 ROOT.\n   05 FIELD PIC Z(2)\tZ(3).",
+        ] {
+            let error = crate::parse_copybook(copybook).unwrap_err();
+            assert_eq!(error.code, ErrorCode::CBKP101_INVALID_PIC, "{copybook}");
+            assert!(error.message.contains("must be attached"), "{copybook}");
+        }
+
+        for copybook in [
+            "01 ROOT.\n   05 FIELD PIC 9 9.",
+            "01 ROOT.\n   05 FIELD PIC Z Z.",
+        ] {
+            assert!(crate::parse_copybook(copybook).is_ok(), "{copybook}");
         }
     }
 }

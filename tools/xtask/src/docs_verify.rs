@@ -1503,29 +1503,34 @@ fn parse_error_code_variants(source: &str) -> Result<Vec<String>> {
         .end();
 
     let mut depth = 1i32;
-    let mut end = source.len();
+    let mut end = None;
     for (offset, ch) in source[start..].char_indices() {
         match ch {
             '{' => depth += 1,
             '}' => {
                 depth -= 1;
                 if depth == 0 {
-                    end = start + offset;
+                    end = Some(start + offset);
                     break;
                 }
             }
             _ => {}
         }
     }
-    if end <= start {
-        bail!("could not parse ErrorCode enum body");
-    }
+    let end = end.ok_or_else(|| anyhow::anyhow!("could not parse ErrorCode enum body"))?;
 
     let remainder = &source[start..end];
-    let variant_re = Regex::new(r"(?m)^\s*([A-Z][A-Z0-9_]*)\s*(?:=\s*[^,]+)?\s*,(?:\s*//.*)?$")?;
+    let variant_re =
+        Regex::new(r"^([A-Z][A-Z0-9_]*)[ \t]*(?:=[ \t]*[^,]+)?[ \t]*,[ \t]*(?://.*)?$")?;
+    let variant_candidate_re = Regex::new(r"^[A-Z][A-Z0-9_]*\b")?;
     let mut variants = BTreeSet::new();
-    for capture in variant_re.captures_iter(remainder) {
-        variants.insert(capture[1].to_string());
+    for line in remainder.lines() {
+        let line = line.trim();
+        if let Some(capture) = variant_re.captures(line) {
+            variants.insert(capture[1].to_string());
+        } else if variant_candidate_re.is_match(line) {
+            bail!("malformed ErrorCode variant line `{line}`");
+        }
     }
     if variants.is_empty() {
         bail!("no ErrorCode variants parsed");
@@ -2738,29 +2743,7 @@ fn parse_cli_command_variants(source: &str) -> Result<Vec<String>> {
 }
 
 fn parse_error_code_variant_count(source: &str) -> Result<usize> {
-    let start_re = Regex::new(r"(?m)^pub enum ErrorCode \{")?;
-    let start = start_re
-        .find(source)
-        .ok_or_else(|| anyhow::anyhow!("could not find ErrorCode enum"))?
-        .end();
-
-    let variant_re = Regex::new(r"(?m)^[A-Z][A-Z0-9_]+\s*(?:=\s*[^,]+)?\s*,(?:\s*//.*)?$")?;
-    let mut count = 0usize;
-    for line in source[start..].lines() {
-        let line = line.trim();
-        if line.trim() == "}" {
-            break;
-        }
-        if variant_re.is_match(line) {
-            count += 1;
-        }
-    }
-
-    if count == 0 {
-        bail!("no ErrorCode variants found");
-    }
-
-    Ok(count)
+    Ok(parse_error_code_variants(source)?.len())
 }
 
 fn parse_error_index_count(source: &str) -> Result<usize> {
@@ -3227,7 +3210,43 @@ mod tests {
     CBK003_FLAG, // plain variant
 }"#;
 
+        assert_eq!(
+            parse_error_code_variants(source).unwrap(),
+            vec![
+                "CBK001_ORDINAL".to_string(),
+                "CBK002_COMMENTS".to_string(),
+                "CBK003_FLAG".to_string(),
+            ]
+        );
         assert_eq!(parse_error_code_variant_count(source).unwrap(), 3);
+    }
+
+    #[test]
+    fn parse_error_code_variants_is_line_ending_invariant_for_final_member() {
+        let lf = "pub enum ErrorCode {\n    CBK001_FIRST,\n    CBK002_FINAL,\n}\n";
+        let crlf = lf.replace('\n', "\r\n");
+        let expected = vec!["CBK001_FIRST".to_string(), "CBK002_FINAL".to_string()];
+
+        assert_eq!(parse_error_code_variants(lf).unwrap(), expected);
+        assert_eq!(parse_error_code_variants(&crlf).unwrap(), expected);
+        assert_eq!(parse_error_code_variant_count(lf).unwrap(), expected.len());
+        assert_eq!(
+            parse_error_code_variant_count(&crlf).unwrap(),
+            expected.len()
+        );
+    }
+
+    #[test]
+    fn parse_error_code_variants_rejects_missing_or_empty_enum() {
+        assert!(parse_error_code_variants("pub enum Other { CBK001_VALUE, }").is_err());
+        assert!(parse_error_code_variants("pub enum ErrorCode {\n").is_err());
+        assert!(parse_error_code_variants("pub enum ErrorCode {\n}\n").is_err());
+        assert!(
+            parse_error_code_variants(
+                "pub enum ErrorCode {\n    CBK001_VALID,\n    CBK002_MISSING_COMMA\n}\n"
+            )
+            .is_err()
+        );
     }
 
     #[test]

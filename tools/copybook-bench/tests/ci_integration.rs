@@ -48,6 +48,46 @@ fn find_workspace_root() -> PathBuf {
         .unwrap_or_else(|_| manifest_dir.join("..").join(".."))
 }
 
+fn has_adjacent_workflow_lines(workflow: &str, first: &str, second: &str) -> bool {
+    let mut previous = None;
+    for line in workflow.lines() {
+        if previous == Some(first) && line == second {
+            return true;
+        }
+        previous = Some(line);
+    }
+    false
+}
+
+#[test]
+fn workflow_line_adjacency_is_eol_agnostic_but_whitespace_sensitive() {
+    let first = "      - name: Evidence summary";
+    let second = "        if: always()";
+
+    for workflow in [
+        "      - name: Evidence summary\n        if: always()\n",
+        "      - name: Evidence summary\r\n        if: always()\r\n",
+    ] {
+        assert!(has_adjacent_workflow_lines(workflow, first, second));
+    }
+
+    assert!(!has_adjacent_workflow_lines(
+        "      - name: Evidence summary\n\n        if: always()\n",
+        first,
+        second,
+    ));
+    assert!(!has_adjacent_workflow_lines(
+        "      - name: Evidence summary\n       if: always()\n",
+        first,
+        second,
+    ));
+    assert!(!has_adjacent_workflow_lines(
+        "        if: always()\n      - name: Evidence summary\n",
+        first,
+        second,
+    ));
+}
+
 /// AC3: Test PR comment generation format
 ///
 /// Tests feature spec: docs/reference/benchmark-api-contracts.md#ci-integration-contracts
@@ -986,8 +1026,16 @@ fn weekly_benchmark_gate_has_truthful_inputs_and_decision() {
     assert!(workflow.contains("steps.measurement.outcome != 'success'"));
     assert!(workflow.contains("steps.receipt.outcome != 'success'"));
     assert!(workflow.contains("steps.gate.outcome != 'success'"));
-    assert!(workflow.contains("name: Perf headline (summary)\n        if: always()"));
-    assert!(workflow.contains("name: Upload perf artifact\n        if: always()"));
+    assert!(has_adjacent_workflow_lines(
+        &workflow,
+        "      - name: Perf headline (summary)",
+        "        if: always()",
+    ));
+    assert!(has_adjacent_workflow_lines(
+        &workflow,
+        "      - name: Upload perf artifact",
+        "        if: always()",
+    ));
     assert!(workflow.contains("Measurement failed: no current receipt was produced."));
     assert!(workflow.contains("if-no-files-found: ignore"));
     assert!(workflow.contains("name: Enforce benchmark evidence and gate result"));

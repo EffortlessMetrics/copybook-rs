@@ -1535,12 +1535,13 @@ fn parse_error_code_variants(source: &str) -> Result<Vec<String>> {
 struct RustLineState {
     block_comment_depth: usize,
     quoted: Option<char>,
+    raw_string_hashes: Option<usize>,
     escaped: bool,
 }
 
 impl RustLineState {
     fn is_code(&self) -> bool {
-        self.block_comment_depth == 0 && self.quoted.is_none()
+        self.block_comment_depth == 0 && self.quoted.is_none() && self.raw_string_hashes.is_none()
     }
 }
 
@@ -1548,6 +1549,19 @@ fn rust_code_on_line(line: &str, state: &mut RustLineState) -> String {
     let mut code = String::with_capacity(line.len());
     let mut chars = line.chars().peekable();
     while let Some(ch) = chars.next() {
+        if let Some(hash_count) = state.raw_string_hashes {
+            if ch == '"' {
+                let mut lookahead = chars.clone();
+                let closes = (0..hash_count).all(|_| lookahead.next() == Some('#'));
+                if closes {
+                    for _ in 0..hash_count {
+                        let _ = chars.next();
+                    }
+                    state.raw_string_hashes = None;
+                }
+            }
+            continue;
+        }
         if let Some(quote) = state.quoted {
             if state.escaped {
                 state.escaped = false;
@@ -1575,6 +1589,21 @@ fn rust_code_on_line(line: &str, state: &mut RustLineState) -> String {
             let _ = chars.next();
             state.block_comment_depth = 1;
             continue;
+        }
+        if ch == 'r' {
+            let mut lookahead = chars.clone();
+            let mut hash_count = 0usize;
+            while lookahead.peek() == Some(&'#') {
+                let _ = lookahead.next();
+                hash_count += 1;
+            }
+            if lookahead.next() == Some('"') {
+                for _ in 0..=hash_count {
+                    let _ = chars.next();
+                }
+                state.raw_string_hashes = Some(hash_count);
+                continue;
+            }
         }
         if matches!(ch, '\'' | '"') {
             state.quoted = Some(ch);
@@ -3287,16 +3316,20 @@ mod tests {
 
     #[test]
     fn parse_error_code_variants_ignores_braces_outside_enum_syntax() {
-        let lf = r#"pub enum ErrorCode {
+        let lf = r##"pub enum ErrorCode {
     /// A doc comment containing } and { braces.
     #[doc = "an attribute string containing } and {"]
+    #[doc = r#"a raw attribute string containing
+       " and a delimiter-looking line:
+       }
+       {"#]
     CBK001_FIRST,
     /* A block comment starts with {
        } and neither brace is an enum delimiter. */
     CBK002_FINAL, // trailing } comment
 } // actual enum terminator
 CBK999_OUTSIDE,
-"#;
+"##;
         let crlf = lf.replace('\n', "\r\n");
         let expected = vec!["CBK001_FIRST".to_string(), "CBK002_FINAL".to_string()];
 

@@ -1536,6 +1536,9 @@ fn condition_value(values: &[String], prefix: &str) -> Value {
 ///
 /// # Errors
 /// Returns an error if the JSON data cannot be encoded according to the schema.
+/// RDW raw replay also returns `CBKF102_RECORD_LENGTH_INVALID` when the decoded
+/// raw value is shorter than its four-byte header or a changed payload exceeds
+/// the format's `u16` payload-length field.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> Result<Vec<u8>> {
@@ -1576,37 +1579,32 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
 
         match options.format {
             RecordFormat::RDW => {
-                // For RDW, we need to validate/recompute length if payload changed
-                if raw_data.len() >= 4 {
-                    let mut rdw_record = raw_data.clone();
+                let (raw_header, raw_payload) = raw_data.split_at_checked(4).ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+                        format!(
+                            "Raw RDW record is {} bytes; expected at least a 4-byte header",
+                            raw_data.len()
+                        ),
+                    )
+                })?;
+                let header_bytes: [u8; 4] = raw_header.try_into().map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+                        "Raw RDW record does not contain a complete 4-byte header",
+                    )
+                })?;
+                let reserved = copybook_rdw::RdwHeader::from_bytes(header_bytes).reserved();
+                let field_payload = encode_fields_to_bytes(schema, fields_value, options)?;
 
-                    // Extract the payload portion (everything after 4-byte header)
-                    let payload = &rdw_record[4..];
-
-                    // Check if we need to recompute length based on field changes
-                    let mut should_recompute = false;
-
-                    // Encode the fields to see if payload changed
-                    let field_payload = encode_fields_to_bytes(schema, fields_value, options)?;
-                    if field_payload != payload {
-                        should_recompute = true;
-                    }
-
-                    if should_recompute {
-                        // Recompute length header
-                        let capped_len = field_payload.len().min(u16::MAX as usize);
-                        let new_length = u16::try_from(capped_len).unwrap_or(u16::MAX);
-                        let length_bytes = new_length.to_be_bytes();
-                        rdw_record[0] = length_bytes[0];
-                        rdw_record[1] = length_bytes[1];
-                        // Preserve reserved bytes [2] and [3]
-
-                        // Replace payload
-                        rdw_record.splice(4.., field_payload);
-                    }
-
-                    return Ok(rdw_record);
+                if field_payload == raw_payload {
+                    return Ok(raw_data);
                 }
+
+                return Ok(
+                    crate::record::RDWRecord::try_with_reserved(field_payload, reserved)?
+                        .as_bytes(),
+                );
             }
             RecordFormat::Fixed => {
                 return Ok(raw_data);

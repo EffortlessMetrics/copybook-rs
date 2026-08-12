@@ -1505,14 +1505,14 @@ fn parse_error_code_variants(source: &str) -> Result<Vec<String>> {
     let variant_re =
         Regex::new(r"^([A-Z][A-Z0-9_]*)[ \t]*(?:=[ \t]*[^,]+)?[ \t]*,[ \t]*(?://.*)?$")?;
     let variant_candidate_re = Regex::new(r"^[A-Z][A-Z0-9_]*\b")?;
-    let closing_re = Regex::new(r"^}[ \t]*[;,]?$")?;
+    let closing_re = Regex::new(r"^}$")?;
     let mut lexical_state = RustLineState::default();
     let mut variants = BTreeSet::new();
     let mut found_end = false;
     for line in source[start..].lines() {
         let code = rust_code_on_line(line, &mut lexical_state);
         let line = code.trim();
-        if lexical_state.is_code() && closing_re.is_match(line) {
+        if closing_re.is_match(line) {
             found_end = true;
             break;
         }
@@ -1537,12 +1537,6 @@ struct RustLineState {
     quoted: Option<char>,
     raw_string_hashes: Option<usize>,
     escaped: bool,
-}
-
-impl RustLineState {
-    fn is_code(&self) -> bool {
-        self.block_comment_depth == 0 && self.quoted.is_none() && self.raw_string_hashes.is_none()
-    }
 }
 
 fn rust_code_on_line(line: &str, state: &mut RustLineState) -> String {
@@ -3316,20 +3310,29 @@ mod tests {
 
     #[test]
     fn parse_error_code_variants_ignores_braces_outside_enum_syntax() {
-        let lf = r##"pub enum ErrorCode {
+        let lf = r###"pub enum ErrorCode {
     /// A doc comment containing } and { braces.
     #[doc = "an attribute string containing } and {"]
+    #[doc = "an ordinary string with an escaped quote: \"
+       }
+       and more content"]
     #[doc = r#"a raw attribute string containing
        " and a delimiter-looking line:
        }
        {"#]
+    #[parser_fixture = br##"a byte raw string containing
+       " and }# without the two-hash terminator,
+       }
+       plus more content"##]
     CBK001_FIRST,
     /* A block comment starts with {
+       /* nested } and { block comment */
        } and neither brace is an enum delimiter. */
     CBK002_FINAL, // trailing } comment
-} // actual enum terminator
+} /* actual enum terminator with a multiline trailing comment
+*/
 CBK999_OUTSIDE,
-"##;
+"###;
         let crlf = lf.replace('\n', "\r\n");
         let expected = vec!["CBK001_FIRST".to_string(), "CBK002_FINAL".to_string()];
 
@@ -3347,6 +3350,12 @@ CBK999_OUTSIDE,
         assert!(parse_error_code_variants("pub enum Other { CBK001_VALUE, }").is_err());
         assert!(parse_error_code_variants("pub enum ErrorCode {\n").is_err());
         assert!(parse_error_code_variants("pub enum ErrorCode {\n}\n").is_err());
+        assert!(
+            parse_error_code_variants("pub enum ErrorCode {\n    CBK001_VALID,\n};\n").is_err()
+        );
+        assert!(
+            parse_error_code_variants("pub enum ErrorCode {\n    CBK001_VALID,\n},\n").is_err()
+        );
         assert!(
             parse_error_code_variants(
                 "pub enum ErrorCode {\n    CBK001_VALID,\n    CBK002_MISSING_COMMA\n}\n"

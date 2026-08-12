@@ -1453,7 +1453,7 @@ fn validate_performance_values(receipt: &Value) -> Result<()> {
             let top_level = top_level
                 .as_f64()
                 .with_context(|| format!("required number field is invalid: {field}"))?;
-            if top_level != summary_value {
+            if top_level.to_bits() != summary_value.to_bits() {
                 bail!(
                     "âŒ Duplicate metric mismatch for {field}: top-level {top_level} != summary {summary_value}"
                 );

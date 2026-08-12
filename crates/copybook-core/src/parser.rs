@@ -700,6 +700,7 @@ impl Parser {
 
         // Track the starting line for same-line checks
         let token_line = self.current_token().map_or(0, |t| t.line);
+        let mut previous_pic_end = self.current_token().map(|t| t.span.end);
 
         // First token should be a PIC clause or identifier
         match self.current_token() {
@@ -749,25 +750,36 @@ impl Parser {
         while let Some(token) = self.current_token() {
             match &token.token {
                 Token::LeftParen => {
+                    if previous_pic_end.is_some_and(|end| end != token.span.start) {
+                        return Err(Error::new(
+                            ErrorCode::CBKP101_INVALID_PIC,
+                            "PIC repetition count must be attached to its symbol",
+                        ));
+                    }
+                    previous_pic_end = Some(token.span.end);
                     paren_depth += 1;
                     pic_parts.push("(".to_string());
                     self.advance();
                 }
                 Token::Number(n) if paren_depth > 0 => {
+                    previous_pic_end = Some(token.span.end);
                     pic_parts.push(n.to_string());
                     self.advance();
                 }
                 Token::RightParen if paren_depth > 0 => {
+                    previous_pic_end = Some(token.span.end);
                     paren_depth -= 1;
                     pic_parts.push(")".to_string());
                     self.advance();
                 }
                 Token::Comma => {
+                    previous_pic_end = Some(token.span.end);
                     // Comma in edited PIC patterns like $ZZ,ZZZ.99
                     pic_parts.push(",".to_string());
                     self.advance();
                 }
                 Token::EditedPic(ep) => {
+                    previous_pic_end = Some(token.span.end);
                     // Continuation of edited PIC after comma/period
                     pic_parts.push(ep.clone());
                     self.advance();
@@ -794,6 +806,7 @@ impl Parser {
                                 | Token::Identifier(_)
                         );
                         if next.line == token_line && is_pic_continuation {
+                            previous_pic_end = Some(token.span.end);
                             pic_parts.push(".".to_string());
                             self.advance();
                             continue;
@@ -805,6 +818,7 @@ impl Parser {
                     // Number outside parens on same line (e.g., "ZZZ9" split as EditedPic + Number)
                     let t = token.clone();
                     if t.line == token_line {
+                        previous_pic_end = Some(token.span.end);
                         pic_parts.push(n.to_string());
                         self.advance();
                     } else {
@@ -812,6 +826,7 @@ impl Parser {
                     }
                 }
                 Token::Identifier(id) if id.starts_with('V') || id.starts_with('v') => {
+                    previous_pic_end = Some(token.span.end);
                     pic_parts.push(id.clone());
                     self.advance();
                 }
@@ -819,6 +834,7 @@ impl Parser {
                 Token::Identifier(id) => {
                     let id_upper = id.to_ascii_uppercase();
                     if id_upper == "CR" || id_upper == "DB" {
+                        previous_pic_end = Some(token.span.end);
                         pic_parts.push(id.clone());
                         self.advance();
                     } else {

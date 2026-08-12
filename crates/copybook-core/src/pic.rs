@@ -182,6 +182,7 @@ impl PicClause {
                 }
                 ' ' | '\t' => {
                     // Skip whitespace
+                    repetition_eligible = false;
                 }
                 _ => {
                     return Err(Error::new(
@@ -423,6 +424,7 @@ fn compute_edited_pic_width(pic_str: &str) -> Result<u16> {
             // Whitespace
             ' ' | '\t' => {
                 // Skip
+                repetition_eligible = false;
             }
             '(' | ')' => {
                 let reason = if ch == '(' && !repetition_eligible {
@@ -623,6 +625,8 @@ mod tests {
             "9(65536)",
             "9(999999999999999999999999999999)",
             "9((2))",
+            "9 (2)",
+            "X\t(2)",
             "9(2)(3)",
             "9V(2)",
             "S(2)9",
@@ -631,6 +635,8 @@ mod tests {
             "Z()",
             "Z(0)",
             "Z(65536)",
+            "Z (2)",
+            "*\t(2)",
             "Z(2)(3)",
             "ZV(2)",
             "Z)",
@@ -663,6 +669,12 @@ mod tests {
     }
 
     #[test]
+    fn ordinary_pic_whitespace_remains_supported_without_detached_repetition() {
+        assert_eq!(PicClause::parse("9 9").unwrap().digits, 2);
+        assert_eq!(PicClause::parse("Z Z").unwrap().digits, 2);
+    }
+
+    #[test]
     fn mixed_type_validation_precedes_later_repetition_overflow() {
         let error = PicClause::parse("9X(65536)").unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
@@ -679,6 +691,15 @@ mod tests {
         ] {
             let error = crate::parse_copybook(copybook).unwrap_err();
             assert_eq!(error.code, ErrorCode::CBKP101_INVALID_PIC, "{copybook}");
+        }
+
+        for copybook in [
+            "01 ROOT.\n   05 FIELD PIC 9 (2).",
+            "01 ROOT.\n   05 FIELD PIC Z\t(2).",
+        ] {
+            let error = crate::parse_copybook(copybook).unwrap_err();
+            assert_eq!(error.code, ErrorCode::CBKP101_INVALID_PIC, "{copybook}");
+            assert!(error.message.contains("must be attached"), "{copybook}");
         }
     }
 }

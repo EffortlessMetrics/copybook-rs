@@ -58,7 +58,9 @@ The PR lane runs on every pull request to `main` and `develop` branches. All job
 
 ## Scheduled Lane (Stochastic/Expensive)
 
-The scheduled lane runs on a nightly schedule and can be manually triggered via `workflow_dispatch`. These jobs are non-blocking and provide additional quality signals.
+The scheduled lane runs on workflow-specific nightly or weekly cadences. Where
+configured, it can also be triggered manually via `workflow_dispatch`. These
+jobs are non-blocking and provide additional quality signals.
 
 ### Jobs
 
@@ -69,6 +71,7 @@ The scheduled lane runs on a nightly schedule and can be manually triggered via 
 | `fuzz` | Timeboxed fuzzing with crash artifacts | Weekly | ~60 min |
 | `mutants` | Timeboxed mutation testing | Weekly | ~30 min |
 | `bench` | Performance benchmarks with receipts | Nightly | ~20 min |
+| `soak` | Generated workload matrix with performance/SLO receipts | Weekly | Matrix-dependent |
 
 ### Job Details
 
@@ -100,6 +103,13 @@ The scheduled lane runs on a nightly schedule and can be manually triggered via 
 - Generates receipts in JSON format
 - Compares against baseline for regression detection
 - Uploads artifacts for historical tracking
+
+#### `soak`
+- Is owned by the dedicated `.github/workflows/soak.yml` workflow
+- Exercises fixed and RDW workloads across workload, size, and code-page axes
+- Publishes per-cell performance receipts and `soak:*` check runs
+- Can be manually dispatched with `bash scripts/soak-dispatch.sh`
+- Provides workload/resource telemetry, not leak-detection proof
 
 ## Promoting Tests from Scheduled to PR Lane
 
@@ -152,6 +162,7 @@ just mutants
 | `.github/workflows/ci-fuzz.yml` | Scheduled | `workflow_dispatch` |
 | `.github/workflows/ci-mutants.yml` | Scheduled | `schedule`, `workflow_dispatch` |
 | `.github/workflows/perf.yml` | Scheduled | `schedule`, `workflow_dispatch` |
+| `.github/workflows/soak.yml` | Scheduled | `schedule`, `workflow_dispatch` |
 | `.github/workflows/determinism-smoke.yml` | PR (advisory) | `push`, `pull_request`, `workflow_dispatch` |
 
 ## CI Status Checks

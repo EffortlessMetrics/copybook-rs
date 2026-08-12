@@ -276,56 +276,51 @@ Tests use tags for categorization:
 
 #### ci.yml (Main CI Pipeline)
 **Test Jobs**:
-1. **nightly-soak** (scheduled, serial)
-   - Feature: soak tests with `COPYBOOK_TEST_SLOW=1`
-   - Runs on: ubuntu-latest, macos-latest, windows-latest
-   - Ignores: only ignored tests, single-threaded
-
-2. **test** (pull_request, push, scheduled)
+1. **test** (pull_request, push, scheduled)
    - Feature matrix: default features, `comp3_fast`, `audit`
    - Rust matrix: MSRV 1.95.0, stable, beta
    - Platform matrix: ubuntu-latest, macos-latest, windows-latest
    - Command: `cargo test --workspace`
 
-3. **rdw-iterator-tests** (ubuntu-latest)
+2. **rdw-iterator-tests** (ubuntu-latest)
    - PROPTEST_CASES: 512 (seeded: "copybook-rs-perf")
    - Property tests: ASCII/CP037 zoned parity
    - Iterator smoke tests
 
-4. **exit-code-matrix** (ubuntu-latest, windows-latest)
+3. **exit-code-matrix** (ubuntu-latest, windows-latest)
    - Exit code mapping: CBKD (2), CBKE (3), CBKF (4), CBKI (5)
    - Single test file validation
 
-5. **fmt** (ubuntu-latest)
+4. **fmt** (ubuntu-latest)
    - Rustfmt check: `cargo fmt --all -- --check`
 
-6. **clippy** (ubuntu-latest)
+5. **clippy** (ubuntu-latest)
    - Lint levels: `-D warnings -W clippy::pedantic`
    - Panic prevention: `-D clippy::unwrap_used -D clippy::expect_used -D clippy::panic`
    - Test lints: `-D clippy::unwrap_used -D clippy::expect_used` (stricter for tests)
 
-7. **deny** (cargo-deny)
+6. **deny** (cargo-deny)
    - Supply chain security check
 
-8. **docs** (ubuntu-latest)
+7. **docs** (ubuntu-latest)
    - Documentation generation: `cargo doc --all-features --no-deps`
    - Flag: `RUSTDOCFLAGS: -D warnings`
 
-9. **coverage** (ubuntu-latest)
+8. **coverage** (ubuntu-latest)
    - Tool: cargo-llvm-cov
    - Output: lcov.info (Codecov)
 
-10. **strict-comments** (ubuntu-latest)
+9. **strict-comments** (ubuntu-latest)
     - Feature: `COPYBOOK_TEST_STRICT_COMMENTS=1`
     - Validates inline comment handling
 
-11. **result-docs-advisory** (permissive)
+10. **result-docs-advisory** (permissive)
     - Checks public Result documentation
 
-12. **publish-dry-run** (ubuntu-latest)
+11. **publish-dry-run** (ubuntu-latest)
     - Preflight packaging: `cargo publish --dry-run` for `copybook-core`; `cargo package --list` for `copybook-codec`/`copybook-cli` (full downstream dry-runs happen just-in-time in `publish.yml`)
 
-13. **security-audit** (ubuntu-latest)
+12. **security-audit** (ubuntu-latest)
     - Tool: cargo-audit (security vulnerabilities)
     - Output: security.audit.json artifact
 
@@ -343,9 +338,12 @@ Tests use tags for categorization:
 - Pedantic linting validation
 - Diff-based checking
 
-#### soak.yml (Long-Running Tests)
-- Scheduled soak tests
-- Extended timeout handling
+#### soak.yml (Canonical Workload Soak)
+- Runs weekly at 3:00 AM UTC on Saturday and supports manual dispatch
+- Exercises a 60-cell Ubuntu matrix across record format, workload, dataset
+  size, and code page
+- Generates performance receipts and publishes per-cell `soak:*` check runs
+- Can be triggered manually with `bash scripts/soak-dispatch.sh`
 
 #### security-scan.yml (Security Validation)
 - Security scanning integration
@@ -370,10 +368,12 @@ cargo test --workspace --features comp3_fast,audit
 PROPTEST_CASES=512 PROPTEST_SEED="copybook-rs-perf" cargo test
 ```
 
-**Soak Tests (Serial, Slow)**:
+**Workload Soak (manual workflow dispatch)**:
 ```bash
-COPYBOOK_TEST_SLOW=1 cargo test --ignored --test-threads=1
+bash scripts/soak-dispatch.sh
 ```
+
+The dedicated workflow is workload/SLO evidence, not leak-detection proof.
 
 **Performance Tests (Gated)**:
 ```bash

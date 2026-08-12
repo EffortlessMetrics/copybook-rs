@@ -38,7 +38,7 @@ This document provides a canonical reference for all testing commands in copyboo
 | **Fuzzing** | `cargo fuzz run <target> -- -runs=0 -max_total_time=300` | Scheduled | 5-10 min per target | `fuzz/artifacts/<target>/`, `fuzz/corpus/<target>/` |
 | **Mutation Testing** | `cargo mutants --package <crate> --timeout <timeout> --test-tool nextest --in-place --json --file mutants.toml` | Local only (`just mutants`); CI uses the advisory RIPR lane instead | 15-60 min per crate | `mutants.out/outcomes.json`, `mutants-summary.csv` |
 | **Performance Benchmarks** | `BENCH_FILTER=slo_validation bash scripts/bench.sh` | Scheduled | 10-15 min | `target/perf.json` |
-| **Soak Tests** | `cargo test -p copybook-cli --features soak -- --ignored --test-threads=1 --nocapture` | Scheduled | 10-20 min | None |
+| **Workload Soak** | `bash scripts/soak-dispatch.sh` | Weekly + manual | Matrix-dependent | `scripts/bench/perf.json`, `soak:*` check runs |
 
 ---
 
@@ -658,29 +658,30 @@ cat target/perf.json
 
 ---
 
-### Soak Tests
+### Workload Soak
 
-**Purpose**: Long-running tests to catch memory leaks and resource issues.
+**Purpose**: Exercise generated fixed and RDW workloads across the supported
+code-page matrix and publish performance/SLO evidence. This is workload and
+resource telemetry; it is not leak-detection proof.
 
-**Exact Command**:
+**Manual dispatch**:
 ```bash
-cargo test -p copybook-cli --features soak -- --ignored --test-threads=1 --nocapture
+bash scripts/soak-dispatch.sh
 ```
 
 **What it validates**:
-- No memory leaks over long-running operations
-- No resource exhaustion
-- Stable behavior over extended periods
+- Generated fixed and RDW workloads complete across the configured matrix
+- Performance receipts satisfy the configured SLO checks
+- Host and resource telemetry is captured in the published receipts
 
-**How to run locally**:
-```bash
-# Run soak tests
-COPYBOOK_TEST_SLOW=1 cargo test -p copybook-cli --features soak -- --ignored --test-threads=1 --nocapture
-```
+The dispatcher triggers `.github/workflows/soak.yml`; reproduce an individual
+matrix cell locally with the dataset, benchmark, annotation, and aggregation
+commands defined by that workflow.
 
-**Expected runtime**: 10-20 minutes
+**Expected runtime**: Matrix-dependent
 
-**Trigger schedule**: Daily at 3:23 AM UTC (via `ci.yml`, schedule only)
+**Trigger schedule**: Weekly at 3:00 AM UTC on Saturday, plus manual dispatch,
+via `.github/workflows/soak.yml`
 
 ---
 

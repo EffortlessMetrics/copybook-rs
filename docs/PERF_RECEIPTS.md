@@ -31,7 +31,7 @@ This generates [`scripts/bench/perf.json`](../scripts/bench/perf.json) with the 
   "timestamp": "2025-12-16T17:05:22Z",
   "commit": "85b9f07",
   "toolchain": "cargo bench (criterion)",
-  "status": "pass",
+  "status": "measured",
   "display_mibps": 3545.011041717901,
   "comp3_mibps": 26.04498724409417,
   "benchmarks": [...],
@@ -49,6 +49,12 @@ This generates [`scripts/bench/perf.json`](../scripts/bench/perf.json) with the 
   }
 }
 ```
+
+`measured` records that the producer completed a measurement; it is not a gate
+decision. The generic receipt schema continues to accept historical
+`pass`/`fail`/`warn` and `success`/`failure`/`warning` values, while the weekly
+benchmark workflow requires `measured`, the exact workflow commit, and a
+separate successful threshold evaluation.
 
 ### CI/CD Generation
 

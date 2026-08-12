@@ -71,7 +71,7 @@ jobs are non-blocking and provide additional quality signals.
 | `fuzz` | Timeboxed fuzzing with crash artifacts | Weekly | ~60 min |
 | `mutants` | Timeboxed mutation testing | Weekly | ~30 min |
 | `bench` | Performance benchmarks with receipts | Nightly | ~20 min |
-| `soak` | Generated workload matrix with performance/SLO receipts | Weekly | Matrix-dependent |
+| `soak` | Sealed benchmark receipt plus enforced absolute floors | Weekly | ~20 min |
 
 ### Job Details
 
@@ -106,10 +106,11 @@ jobs are non-blocking and provide additional quality signals.
 
 #### `soak`
 - Is owned by the dedicated `.github/workflows/soak.yml` workflow
-- Exercises fixed and RDW workloads across workload, size, and code-page axes
-- Publishes per-cell performance receipts and `soak:*` check runs
+- Runs the canonical in-memory DISPLAY-heavy and COMP-3-heavy Criterion workloads
+- Validates the sealed receipt, then evaluates the 80/8 MiB/s absolute floors
+- Publishes the receipt; the workflow job conclusion records the gate decision
 - Can be manually dispatched with `bash scripts/soak-dispatch.sh`
-- Provides workload/resource telemetry, not leak-detection proof
+- Does not exercise generated fixed/RDW datasets, code-page/size axes, or prove leak absence
 
 ## Promoting Tests from Scheduled to PR Lane
 

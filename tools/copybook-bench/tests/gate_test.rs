@@ -13,6 +13,9 @@ use copybook_bench::slo::{
     COMP3_CI_FLOOR_MIBPS, COMP3_FLOOR_MIBPS, DISPLAY_FLOOR_MIBPS, REGRESSION_THRESHOLD_PCT,
     evaluate_metric as eval,
 };
+use std::fs;
+use std::process::Command;
+use tempfile::tempdir;
 
 const THRESHOLD: f64 = REGRESSION_THRESHOLD_PCT;
 
@@ -209,6 +212,62 @@ fn regression_exactly_at_threshold_passes() {
         "regression exactly at threshold should pass: {}",
         d.reasons.join("; ")
     );
+}
+
+#[test]
+fn absolute_floor_boundaries_pass() {
+    let display = GateMetric {
+        label: "DISPLAY",
+        current: DISPLAY_FLOOR_MIBPS,
+        baseline: None,
+    };
+    let comp3 = GateMetric {
+        label: "COMP-3",
+        current: COMP3_CI_FLOOR_MIBPS,
+        baseline: None,
+    };
+
+    assert!(!evaluate_metric(&display, true, DISPLAY_FLOOR_MIBPS, THRESHOLD).failed);
+    assert!(!evaluate_metric(&comp3, true, COMP3_CI_FLOOR_MIBPS, THRESHOLD).failed);
+}
+
+#[test]
+fn gate_cli_fails_closed_for_missing_and_malformed_receipts() {
+    let temp = tempdir().expect("create gate fixture directory");
+    let missing = temp.path().join("missing.json");
+    let malformed = temp.path().join("malformed.json");
+    fs::write(&malformed, "{not-json").expect("write malformed gate fixture");
+
+    for receipt in [&missing, &malformed] {
+        let status = Command::new(env!("CARGO_BIN_EXE_bench-report"))
+            .args(["gate", receipt.to_str().expect("fixture path is UTF-8")])
+            .status()
+            .expect("run bench-report gate");
+        assert!(!status.success(), "invalid receipt must fail closed");
+    }
+}
+
+#[test]
+fn gate_cli_exit_status_matches_absolute_floor_decision() {
+    let temp = tempdir().expect("create gate fixture directory");
+    let passing = temp.path().join("passing.json");
+    let failing = temp.path().join("failing.json");
+    fs::write(&passing, r#"{"display_mibps":80.0,"comp3_mibps":8.0}"#)
+        .expect("write passing gate fixture");
+    fs::write(&failing, r#"{"display_mibps":79.9,"comp3_mibps":7.9}"#)
+        .expect("write failing gate fixture");
+
+    let pass_status = Command::new(env!("CARGO_BIN_EXE_bench-report"))
+        .args(["gate", passing.to_str().expect("fixture path is UTF-8")])
+        .status()
+        .expect("run passing bench-report gate fixture");
+    let fail_status = Command::new(env!("CARGO_BIN_EXE_bench-report"))
+        .args(["gate", failing.to_str().expect("fixture path is UTF-8")])
+        .status()
+        .expect("run failing bench-report gate fixture");
+
+    assert!(pass_status.success(), "exact floor boundary must pass");
+    assert!(!fail_status.success(), "below-floor receipt must fail");
 }
 
 // ---------------------------------------------------------------------------

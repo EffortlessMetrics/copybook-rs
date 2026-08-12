@@ -38,7 +38,7 @@ This document provides a canonical reference for all testing commands in copyboo
 | **Fuzzing** | `cargo fuzz run <target> -- -runs=0 -max_total_time=300` | Scheduled | 5-10 min per target | `fuzz/artifacts/<target>/`, `fuzz/corpus/<target>/` |
 | **Mutation Testing** | `cargo mutants --package <crate> --timeout <timeout> --test-tool nextest --in-place --json --file mutants.toml` | Local only (`just mutants`); CI uses the advisory RIPR lane instead | 15-60 min per crate | `mutants.out/outcomes.json`, `mutants-summary.csv` |
 | **Performance Benchmarks** | `BENCH_FILTER=slo_validation bash scripts/bench.sh` | Scheduled | 10-15 min | `target/perf.json` |
-| **Workload Soak** | `bash scripts/soak-dispatch.sh` | Weekly + manual | Matrix-dependent | `scripts/bench/perf.json`, `soak:*` check runs |
+| **Weekly Benchmark Gate** | `bash scripts/soak-dispatch.sh` | Weekly + manual | ~20 min | Sealed `scripts/bench/perf.json`, workflow job conclusion |
 
 ---
 
@@ -658,11 +658,11 @@ cat target/perf.json
 
 ---
 
-### Workload Soak
+### Weekly Benchmark Gate
 
-**Purpose**: Exercise generated fixed and RDW workloads across the supported
-code-page matrix and publish performance/SLO evidence. This is workload and
-resource telemetry; it is not leak-detection proof.
+**Purpose**: Run the canonical in-memory DISPLAY-heavy and COMP-3-heavy
+Criterion workloads, preserve their sealed receipt, and enforce the configured
+80 MiB/s DISPLAY and 8 MiB/s COMP-3 floors with `bench-report gate`.
 
 **Manual dispatch**:
 ```bash
@@ -670,15 +670,15 @@ bash scripts/soak-dispatch.sh
 ```
 
 **What it validates**:
-- Generated fixed and RDW workloads complete across the configured matrix
-- Performance receipts satisfy the configured SLO checks
-- Host and resource telemetry is captured in the published receipts
+- The canonical Criterion receipt contains DISPLAY and COMP-3 measurements
+- Measurements satisfy the configured absolute floors
+- The sealed receipt carries the measured environment and percentile context
 
-The dispatcher triggers `.github/workflows/soak.yml`; reproduce an individual
-matrix cell locally with the dataset, benchmark, annotation, and aggregation
-commands defined by that workflow.
+The dispatcher triggers `.github/workflows/soak.yml`. Despite the retained file
+and command name, this workflow does not consume generated fixed/RDW datasets,
+vary code pages, or prove absence of memory leaks.
 
-**Expected runtime**: Matrix-dependent
+**Expected runtime**: Approximately 20 minutes
 
 **Trigger schedule**: Weekly at 3:00 AM UTC on Saturday, plus manual dispatch,
 via `.github/workflows/soak.yml`

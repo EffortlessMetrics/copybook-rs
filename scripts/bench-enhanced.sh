@@ -204,7 +204,9 @@ report = {
         "wsl2_detected": wsl2_detected
     },
     "toolchain": "cargo bench (criterion)",
-    "status": "pass",
+    # Receipt generation records measurements; `bench-report gate` owns the
+    # separate pass/fail policy decision and never mutates this sealed receipt.
+    "status": "measured",
     "display_mibps": display["mean_mibps"],
     "display_gibps": display["mean_mibps"] / 1024.0,
     "comp3_mibps": comp3["mean_mibps"],

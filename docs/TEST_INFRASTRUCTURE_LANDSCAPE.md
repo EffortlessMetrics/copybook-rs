@@ -338,11 +338,11 @@ Tests use tags for categorization:
 - Pedantic linting validation
 - Diff-based checking
 
-#### soak.yml (Canonical Workload Soak)
+#### soak.yml (Canonical Weekly Benchmark Gate)
 - Runs weekly at 3:00 AM UTC on Saturday and supports manual dispatch
-- Exercises a 60-cell Ubuntu matrix across record format, workload, dataset
-  size, and code page
-- Generates performance receipts and publishes per-cell `soak:*` check runs
+- Runs the canonical in-memory DISPLAY-heavy and COMP-3-heavy Criterion workloads
+- Validates a sealed receipt and enforces the 80/8 MiB/s absolute floors
+- Publishes one receipt artifact; the job conclusion records the gate decision
 - Can be triggered manually with `bash scripts/soak-dispatch.sh`
 
 #### security-scan.yml (Security Validation)
@@ -368,12 +368,14 @@ cargo test --workspace --features comp3_fast,audit
 PROPTEST_CASES=512 PROPTEST_SEED="copybook-rs-perf" cargo test
 ```
 
-**Workload Soak (manual workflow dispatch)**:
+**Weekly Benchmark Gate (manual workflow dispatch)**:
 ```bash
 bash scripts/soak-dispatch.sh
 ```
 
-The dedicated workflow is workload/SLO evidence, not leak-detection proof.
+The dedicated workflow proves only its canonical in-memory Criterion workloads
+and absolute-floor decision. Generated RDW, dataset-size, code-page, external-
+input, and leak-absence claims are not proven.
 
 **Performance Tests (Gated)**:
 ```bash

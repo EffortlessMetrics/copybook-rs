@@ -964,3 +964,49 @@ fn test_artifact_naming() {
         "Baseline artifacts must have 90-day retention"
     );
 }
+
+/// The legacy `soak.yml` filename is retained for dispatcher compatibility,
+/// but the workflow owns one canonical benchmark gate rather than an
+/// unconsumed generated-dataset matrix.
+#[test]
+fn weekly_benchmark_gate_has_truthful_inputs_and_decision() {
+    let base_path = find_workspace_root();
+    let workflow = std::fs::read_to_string(base_path.join(".github/workflows/soak.yml"))
+        .expect("Failed to read soak workflow YAML");
+
+    assert!(workflow.contains("cron: \"0 3 * * 6\""));
+    assert!(workflow.contains("workflow_dispatch: {}"));
+    assert!(workflow.contains("bash scripts/bench-enhanced.sh"));
+    assert!(workflow.contains("bash scripts/validate-perf-receipt.sh"));
+    assert!(workflow.contains("bench-report gate scripts/bench/perf.json"));
+    assert_eq!(workflow.matches("continue-on-error: true").count(), 3);
+    assert!(workflow.contains("steps.measurement.outcome != 'success'"));
+    assert!(workflow.contains("steps.receipt.outcome != 'success'"));
+    assert!(workflow.contains("steps.gate.outcome != 'success'"));
+    assert!(workflow.contains("name: Perf headline (summary)\n        if: always()"));
+    assert!(workflow.contains("name: Upload perf artifact\n        if: always()"));
+    assert!(workflow.contains("name: Enforce benchmark evidence and gate result"));
+    assert!(workflow.contains("always() &&"));
+    assert!(!workflow.contains("--baseline"));
+    assert!(!workflow.contains("checks: write"));
+    assert!(!workflow.contains("github.rest.checks.create"));
+
+    assert!(!workflow.contains("BENCH_INPUT"));
+    assert!(!workflow.contains("scripts/gen_dataset.sh"));
+    assert!(!workflow.contains("matrix:"));
+}
+
+#[test]
+fn benchmark_receipt_does_not_claim_pass_before_gate_evaluation() {
+    let base_path = find_workspace_root();
+    let bench_script = std::fs::read_to_string(base_path.join("scripts/bench.sh"))
+        .expect("Failed to read benchmark script");
+
+    assert!(bench_script.contains("\"status\": \"measured\""));
+    assert!(!bench_script.contains("\"status\": \"pass\""));
+
+    let enhanced_script = std::fs::read_to_string(base_path.join("scripts/bench-enhanced.sh"))
+        .expect("Failed to read enhanced benchmark script");
+    assert!(enhanced_script.contains("\"status\": \"measured\""));
+    assert!(!enhanced_script.contains("\"status\": \"pass\""));
+}

@@ -1736,6 +1736,7 @@ pub fn encode_value(
             "commit": "abcdef1",
             "build_profile": "release",
             "target_cpu": "native",
+            "status": "measured",
             "environment": {
                 "os": "linux",
                 "kernel": "test",
@@ -1781,6 +1782,23 @@ pub fn encode_value(
                 .and_then(Value::as_str),
             Some(hash.as_str())
         );
+        validate_receipt_integrity(&receipt)
+    }
+
+    #[test]
+    fn measured_receipt_seals_and_validates_without_claiming_gate_status() -> Result<()> {
+        let mut receipt = valid_receipt();
+        seal_receipt_integrity(&mut receipt)?;
+
+        assert_eq!(
+            receipt.get("status").and_then(Value::as_str),
+            Some("measured")
+        );
+        validate_receipt_structure(&receipt)?;
+        validate_format_version_value(&receipt)?;
+        validate_timestamp_value(&receipt)?;
+        validate_commit_hash_value(&receipt)?;
+        validate_performance_values(&receipt)?;
         validate_receipt_integrity(&receipt)
     }
 

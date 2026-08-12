@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-name: Soak
+name: Weekly Benchmark Gate
 
 on:
   workflow_dispatch: {}
@@ -12,97 +12,65 @@ concurrency:
 
 permissions:
   contents: read
-  checks: write
 
 jobs:
-  soak:
+  benchmark-gate:
+    name: Benchmark SLO gate
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        format: [fixed, rdw]
-        workload: [mixed, display-heavy, comp3-heavy]
-        size: [128MiB, 256MiB]
-        codepage: [cp037, cp273, cp500, cp1047, cp1140]
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Build release
-        run: cargo build --workspace --release
+      - name: Run canonical SLO benchmarks
+        id: measurement
+        continue-on-error: true
+        run: BUILD_PROFILE=release bash scripts/bench-enhanced.sh
 
-      - name: Generate dataset
-        env:
-          WORKLOAD: ${{ matrix.workload }}
-          ZONED_POLICY: preferred
-          SOAK_SEED: soak-${{ matrix.format }}-${{ matrix.workload }}-${{ matrix.size }}-${{ matrix.codepage }}
+      - name: Validate sealed receipt
+        id: receipt
+        if: always()
+        continue-on-error: true
+        run: bash scripts/validate-perf-receipt.sh scripts/bench/perf.json
+
+      - name: Build gate tool
+        if: always()
+        run: cargo build --release -p copybook-bench --bin bench-report
+
+      - name: Evaluate measured thresholds
+        id: gate
+        if: always()
+        continue-on-error: true
         run: |
-          DATASET="/tmp/dataset-${{ matrix.format }}-${{ matrix.workload }}-${{ matrix.size }}-${{ matrix.codepage }}.bin"
-          scripts/gen_dataset.sh "${{ matrix.format }}" "${{ matrix.codepage }}" "${{ matrix.size }}" "${DATASET}"
-          echo "DATASET=${DATASET}" >> "$GITHUB_ENV"
-
-      - name: Run benches (BENCH_FILTER=slo_validation)
-        run: |
-          : "${DATASET:?missing dataset path}"
-          BENCH_INPUT="${DATASET}" bash scripts/bench.sh
-
-      - name: Annotate perf with host info
-        run: bash scripts/perf-annotate-host.sh
-
-      - name: Aggregate percentiles
-        run: bash scripts/soak-aggregate.sh
+          ./target/release/bench-report gate scripts/bench/perf.json \
+            --regression-threshold 5.0
 
       - name: Perf headline (summary)
+        if: always()
         run: |
           jq -r '
             (.summary // {}) as $s
-            | ([
-                $s.host_cpu,
-                (if $s.host_cores != null then ($s.host_cores|tostring + "c") else empty end),
-                (if ($s.host_os // "") != "" or ($s.host_kernel // "") != "" then [($s.host_os // ""), ($s.host_kernel // "")] | join("/") else empty end)
-              ] | map(select(. != "")) | join(" • ")) as $host
-            | "DISPLAY: \($s.display_mibps // "n/a") MiB/s\nCOMP-3: \($s.comp3_mibps // "n/a") MiB/s\nMax RSS: \($s.max_rss_mib // "n/a") MiB\nHost: \($host // "n/a")\nP50/P90/P99: \($s.p50_mibps // "n/a")/\($s.p90_mibps // "n/a")/\($s.p99_mibps // "n/a") MiB/s"
+            | "DISPLAY: \($s.display_mibps // "n/a") MiB/s\nCOMP-3: \($s.comp3_mibps // "n/a") MiB/s\nP50/P90/P99: \($s.p50_mibps // "n/a")/\($s.p90_mibps // "n/a")/\($s.p99_mibps // "n/a") MiB/s"
           ' scripts/bench/perf.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload perf artifact
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: perf-${{ matrix.format }}-${{ matrix.workload }}-${{ matrix.size }}-${{ matrix.codepage }}
+          name: weekly-benchmark-${{ github.sha }}
           path: scripts/bench/perf.json
           retention-days: 90
+          if-no-files-found: warn
 
-      - name: Publish soak check-run
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const fs = require('fs');
-            const path = 'scripts/bench/perf.json';
-            const perf = JSON.parse(fs.readFileSync(path, 'utf8'));
-            const summary = perf.summary || {};
-            const hostParts = [
-              summary.host_cpu,
-              summary.host_cores != null ? `${summary.host_cores}c` : null,
-              summary.host_os && summary.host_kernel ? `${summary.host_os}/${summary.host_kernel}` :
-                (summary.host_os || summary.host_kernel || null),
-            ].filter(Boolean).join(' • ');
-            await github.rest.checks.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              name: `soak:${{ matrix.format }}:${{ matrix.workload }}:${{ matrix.size }}:${{ matrix.codepage }}`,
-              head_sha: context.sha,
-              status: "completed",
-              conclusion: "success",
-              output: {
-                title: "Soak SLOs",
-                summary:
-                  `DISPLAY: ${summary.display_mibps ?? 'n/a'} MiB/s\n` +
-                  `COMP-3:  ${summary.comp3_mibps ?? 'n/a'} MiB/s\n` +
-                  `Max RSS: ${summary.max_rss_mib ?? 'n/a'} MiB\n` +
-                  `P50/P90/P99: ${summary.p50_mibps ?? 'n/a'}/${summary.p90_mibps ?? 'n/a'}/${summary.p99_mibps ?? 'n/a'} MiB/s\n` +
-                  (hostParts ? `Host: ${hostParts}` : '')
-              }
-            });
+      - name: Enforce benchmark evidence and gate result
+        if: >-
+          always() &&
+          (steps.measurement.outcome != 'success' ||
+           steps.receipt.outcome != 'success' ||
+           steps.gate.outcome != 'success')
+        run: exit 1

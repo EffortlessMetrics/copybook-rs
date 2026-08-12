@@ -32,6 +32,12 @@ enum CommandKind {
         #[arg(value_name = "RECEIPT_FILE", default_value = "scripts/bench/perf.json")]
         receipt_file: PathBuf,
     },
+    ValidateSoakReceipt {
+        #[arg(value_name = "RECEIPT_FILE")]
+        receipt_file: PathBuf,
+        #[arg(value_name = "EXPECTED_COMMIT")]
+        expected_commit: String,
+    },
     SealPerfReceipt {
         #[arg(value_name = "RECEIPT_FILE", default_value = "scripts/bench/perf.json")]
         receipt_file: PathBuf,
@@ -62,6 +68,10 @@ fn main() -> Result<()> {
         CommandKind::SoakAggregate => soak_aggregate(),
         CommandKind::SoakDispatch => soak_dispatch(),
         CommandKind::ValidatePerfReceipt { receipt_file } => validate_perf_receipt(&receipt_file),
+        CommandKind::ValidateSoakReceipt {
+            receipt_file,
+            expected_commit,
+        } => validate_soak_receipt(&receipt_file, &expected_commit),
         CommandKind::SealPerfReceipt { receipt_file } => seal_perf_receipt(&receipt_file),
         CommandKind::AuditScriptMigrations => audit_script_migrations(),
         CommandKind::CleanMergeConflicts { file } => clean_merge_conflicts(file),
@@ -1288,10 +1298,62 @@ fn validate_perf_receipt(receipt_file: &Path) -> Result<()> {
     validate_format_version_value(&receipt)?;
     validate_timestamp_value(&receipt)?;
     validate_commit_hash_value(&receipt)?;
+    validate_optional_status_value(&receipt)?;
     validate_performance_values(&receipt)?;
     validate_receipt_integrity(&receipt)?;
 
     println!("✅ All receipt validations passed");
+    Ok(())
+}
+
+fn read_and_validate_perf_receipt(receipt_file: &Path) -> Result<Value> {
+    if !receipt_file.is_file() {
+        bail!("receipt file not found: {}", receipt_file.display());
+    }
+    let receipt: Value = serde_json::from_str(
+        &fs::read_to_string(receipt_file)
+            .with_context(|| format!("failed to read {}", receipt_file.display()))?,
+    )
+    .context("invalid receipt JSON format")?;
+    validate_receipt_structure(&receipt)?;
+    validate_format_version_value(&receipt)?;
+    validate_timestamp_value(&receipt)?;
+    validate_commit_hash_value(&receipt)?;
+    validate_optional_status_value(&receipt)?;
+    validate_performance_values(&receipt)?;
+    validate_receipt_integrity(&receipt)?;
+    Ok(receipt)
+}
+
+fn validate_soak_receipt(receipt_file: &Path, expected_commit: &str) -> Result<()> {
+    let receipt = read_and_validate_perf_receipt(receipt_file)?;
+    let status = required_string(&receipt, "status")?;
+    if status != "measured" {
+        bail!("soak receipt status must be 'measured', found '{status}'");
+    }
+
+    let commit = required_string(&receipt, "commit")?;
+    if commit != expected_commit {
+        bail!("soak receipt commit '{commit}' does not match workflow commit '{expected_commit}'");
+    }
+    println!("âœ… Soak receipt belongs to {expected_commit} and has measured status");
+    Ok(())
+}
+
+fn validate_optional_status_value(receipt: &Value) -> Result<()> {
+    let Some(status) = receipt.get("status") else {
+        return Ok(());
+    };
+    let status = status
+        .as_str()
+        .context("optional string field is invalid: status")?;
+    if ![
+        "measured", "pass", "fail", "warn", "success", "failure", "warning",
+    ]
+    .contains(&status)
+    {
+        bail!("unsupported performance receipt status: {status}");
+    }
     Ok(())
 }
 
@@ -1382,6 +1444,22 @@ fn validate_performance_values(receipt: &Value) -> Result<()> {
         .context("missing required object field: summary")?;
     let display_mibps = required_number(summary, "display_mibps")?;
     let comp3_mibps = required_number(summary, "comp3_mibps")?;
+
+    for (field, summary_value) in [
+        ("display_mibps", display_mibps),
+        ("comp3_mibps", comp3_mibps),
+    ] {
+        if let Some(top_level) = receipt.get(field) {
+            let top_level = top_level
+                .as_f64()
+                .with_context(|| format!("required number field is invalid: {field}"))?;
+            if top_level != summary_value {
+                bail!(
+                    "âŒ Duplicate metric mismatch for {field}: top-level {top_level} != summary {summary_value}"
+                );
+            }
+        }
+    }
 
     if display_mibps < 0.0 {
         bail!("❌ Invalid DISPLAY throughput: {display_mibps} MiB/s (must be >= 0)");
@@ -1798,8 +1876,80 @@ pub fn encode_value(
         validate_format_version_value(&receipt)?;
         validate_timestamp_value(&receipt)?;
         validate_commit_hash_value(&receipt)?;
+        validate_optional_status_value(&receipt)?;
         validate_performance_values(&receipt)?;
         validate_receipt_integrity(&receipt)
+    }
+
+    #[test]
+    fn soak_receipt_requires_measured_status_and_exact_commit() -> Result<()> {
+        let path = temp_shadow_path("test-soak-receipt");
+        let mut receipt = valid_receipt();
+        seal_receipt_integrity(&mut receipt)?;
+        fs::write(&path, serde_json::to_string_pretty(&receipt)?)?;
+
+        validate_soak_receipt(&path, "abcdef1")?;
+        for status in [None, Some("pass"), Some("wrong"), Some("unknown")] {
+            let mut candidate = valid_receipt();
+            match status {
+                Some(value) => candidate["status"] = Value::String(value.to_string()),
+                None => {
+                    candidate
+                        .as_object_mut()
+                        .context("receipt fixture must be an object")?
+                        .remove("status");
+                }
+            }
+            seal_receipt_integrity(&mut candidate)?;
+            fs::write(&path, serde_json::to_string_pretty(&candidate)?)?;
+            assert!(validate_soak_receipt(&path, "abcdef1").is_err());
+        }
+
+        let mut wrong_commit = valid_receipt();
+        seal_receipt_integrity(&mut wrong_commit)?;
+        fs::write(&path, serde_json::to_string_pretty(&wrong_commit)?)?;
+        assert!(validate_soak_receipt(&path, "abcdef2").is_err());
+        let _ = fs::remove_file(path);
+        Ok(())
+    }
+
+    #[test]
+    fn generic_receipt_validation_preserves_known_legacy_statuses() -> Result<()> {
+        let path = temp_shadow_path("test-legacy-receipt-status");
+        for status in [None, Some("pass"), Some("failure"), Some("measured")] {
+            let mut receipt = valid_receipt();
+            match status {
+                Some(value) => receipt["status"] = Value::String(value.to_string()),
+                None => {
+                    receipt
+                        .as_object_mut()
+                        .context("receipt fixture must be an object")?
+                        .remove("status");
+                }
+            }
+            seal_receipt_integrity(&mut receipt)?;
+            fs::write(&path, serde_json::to_string_pretty(&receipt)?)?;
+            validate_perf_receipt(&path)?;
+        }
+
+        let mut unknown = valid_receipt();
+        unknown["status"] = Value::String("unknown".to_string());
+        seal_receipt_integrity(&mut unknown)?;
+        fs::write(&path, serde_json::to_string_pretty(&unknown)?)?;
+        assert!(validate_perf_receipt(&path).is_err());
+        let _ = fs::remove_file(path);
+        Ok(())
+    }
+
+    #[test]
+    fn duplicate_performance_metrics_must_match_summary() {
+        let mut receipt = valid_receipt();
+        receipt["display_mibps"] = json!(127.0);
+        assert!(validate_performance_values(&receipt).is_err());
+
+        receipt["display_mibps"] = json!(128.0);
+        receipt["comp3_mibps"] = json!(64.0);
+        assert!(validate_performance_values(&receipt).is_ok());
     }
 
     #[test]

@@ -21,6 +21,7 @@
 use copybook_bench::baseline::BaselineStore;
 use copybook_bench::reporting::PerformanceReport;
 use std::path::PathBuf;
+use std::process::Command;
 
 /// Find workspace root by traversing upward from `CARGO_MANIFEST_DIR`
 fn find_workspace_root() -> PathBuf {
@@ -977,7 +978,9 @@ fn weekly_benchmark_gate_has_truthful_inputs_and_decision() {
     assert!(workflow.contains("cron: \"0 3 * * 6\""));
     assert!(workflow.contains("workflow_dispatch: {}"));
     assert!(workflow.contains("bash scripts/bench-enhanced.sh"));
-    assert!(workflow.contains("bash scripts/validate-perf-receipt.sh"));
+    assert!(workflow.contains(
+        "bash scripts/ci/validate-soak-receipt.sh scripts/bench/perf.json \"$GITHUB_SHA\""
+    ));
     assert!(workflow.contains("bench-report gate scripts/bench/perf.json"));
     assert_eq!(workflow.matches("continue-on-error: true").count(), 3);
     assert!(workflow.contains("steps.measurement.outcome != 'success'"));
@@ -985,15 +988,63 @@ fn weekly_benchmark_gate_has_truthful_inputs_and_decision() {
     assert!(workflow.contains("steps.gate.outcome != 'success'"));
     assert!(workflow.contains("name: Perf headline (summary)\n        if: always()"));
     assert!(workflow.contains("name: Upload perf artifact\n        if: always()"));
+    assert!(workflow.contains("Measurement failed: no current receipt was produced."));
+    assert!(workflow.contains("if-no-files-found: ignore"));
     assert!(workflow.contains("name: Enforce benchmark evidence and gate result"));
     assert!(workflow.contains("always() &&"));
     assert!(!workflow.contains("--baseline"));
+    assert!(!workflow.contains("--regression-threshold"));
     assert!(!workflow.contains("checks: write"));
     assert!(!workflow.contains("github.rest.checks.create"));
 
     assert!(!workflow.contains("BENCH_INPUT"));
     assert!(!workflow.contains("scripts/gen_dataset.sh"));
     assert!(!workflow.contains("matrix:"));
+}
+
+#[test]
+fn failed_measurement_removes_preexisting_receipt_and_criterion_outputs() {
+    let base_path = find_workspace_root();
+    let temp = tempfile::Builder::new()
+        .prefix("soak-failure-")
+        .tempdir_in(base_path.join("target"))
+        .expect("create benchmark failure fixture");
+    let receipt = temp.path().join("perf.json");
+    let criterion = temp.path().join("criterion");
+    for benchmark in ["display_heavy_slo_80mbps", "comp3_heavy_slo_40mbps"] {
+        let output = criterion.join(benchmark).join("new");
+        std::fs::create_dir_all(&output).expect("create stale criterion output");
+        std::fs::write(output.join("estimates.json"), "{}").expect("write stale criterion output");
+    }
+    std::fs::copy(base_path.join("scripts/bench/perf.json"), &receipt)
+        .expect("preseed a schema-valid stale receipt");
+
+    let relative_receipt = receipt
+        .strip_prefix(&base_path)
+        .expect("receipt fixture is inside workspace");
+    let relative_criterion = criterion
+        .strip_prefix(&base_path)
+        .expect("criterion fixture is inside workspace");
+    let slash_path = |path: &std::path::Path| path.to_string_lossy().replace('\\', "/");
+    let command = format!(
+        "COPYBOOK_BENCH_FORCE_FAILURE=1 PERF_RECEIPT_PATH='{}' CRITERION_ROOT='{}' bash scripts/bench-enhanced.sh",
+        slash_path(relative_receipt),
+        slash_path(relative_criterion)
+    );
+    let result = Command::new("bash")
+        .args(["-c", &command])
+        .current_dir(&base_path)
+        .status()
+        .expect("run forced benchmark failure");
+
+    assert!(!result.success());
+    assert!(
+        !receipt.exists(),
+        "stale receipt must not survive measurement"
+    );
+    assert!(!receipt.with_extension("json.tmp").exists());
+    assert!(!criterion.join("display_heavy_slo_80mbps/new").exists());
+    assert!(!criterion.join("comp3_heavy_slo_40mbps/new").exists());
 }
 
 #[test]

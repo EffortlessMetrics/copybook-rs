@@ -36,7 +36,7 @@ jobs:
         id: receipt
         if: always()
         continue-on-error: true
-        run: bash scripts/validate-perf-receipt.sh scripts/bench/perf.json
+        run: bash scripts/ci/validate-soak-receipt.sh scripts/bench/perf.json "$GITHUB_SHA"
 
       - name: Build gate tool
         if: always()
@@ -46,17 +46,19 @@ jobs:
         id: gate
         if: always()
         continue-on-error: true
-        run: |
-          ./target/release/bench-report gate scripts/bench/perf.json \
-            --regression-threshold 5.0
+        run: ./target/release/bench-report gate scripts/bench/perf.json
 
       - name: Perf headline (summary)
         if: always()
         run: |
-          jq -r '
-            (.summary // {}) as $s
-            | "DISPLAY: \($s.display_mibps // "n/a") MiB/s\nCOMP-3: \($s.comp3_mibps // "n/a") MiB/s\nP50/P90/P99: \($s.p50_mibps // "n/a")/\($s.p90_mibps // "n/a")/\($s.p99_mibps // "n/a") MiB/s"
-          ' scripts/bench/perf.json >> "$GITHUB_STEP_SUMMARY"
+          if [[ -f scripts/bench/perf.json ]]; then
+            jq -r '
+              (.summary // {}) as $s
+              | "DISPLAY: \($s.display_mibps // "n/a") MiB/s\nCOMP-3: \($s.comp3_mibps // "n/a") MiB/s\nP50/P90/P99: \($s.p50_mibps // "n/a")/\($s.p90_mibps // "n/a")/\($s.p99_mibps // "n/a") MiB/s"
+            ' scripts/bench/perf.json >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Measurement failed: no current receipt was produced." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload perf artifact
         if: always()
@@ -65,7 +67,7 @@ jobs:
           name: weekly-benchmark-${{ github.sha }}
           path: scripts/bench/perf.json
           retention-days: 90
-          if-no-files-found: warn
+          if-no-files-found: ignore
 
       - name: Enforce benchmark evidence and gate result
         if: >-

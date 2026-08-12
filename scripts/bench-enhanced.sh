@@ -2,6 +2,24 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 set -euo pipefail
 
+PERF_RECEIPT_PATH="${PERF_RECEIPT_PATH:-scripts/bench/perf.json}"
+PERF_RECEIPT_TMP="${PERF_RECEIPT_PATH}.tmp"
+CRITERION_ROOT="${CRITERION_ROOT:-target/criterion/slo_validation}"
+
+# A failed measurement must not leave a committed or prior-run receipt looking
+# current. Criterion's `new` directories are likewise cleared so the receipt
+# assembler cannot reuse stale estimates after a partial benchmark run.
+rm -f "${PERF_RECEIPT_PATH}" "${PERF_RECEIPT_TMP}"
+rm -rf \
+  "${CRITERION_ROOT}/display_heavy_slo_80mbps/new" \
+  "${CRITERION_ROOT}/comp3_heavy_slo_40mbps/new"
+trap 'rm -f "${PERF_RECEIPT_TMP}"' EXIT
+
+if [[ "${COPYBOOK_BENCH_FORCE_FAILURE:-0}" == "1" ]]; then
+  echo "forced benchmark failure after stale evidence cleanup" >&2
+  exit 42
+fi
+
 # Run only the SLO validation benchmarks to capture throughput receipts by default.
 # tripwire: no-op change to trigger perf workflow without affecting behavior.
 # Allow callers to widen scope by exporting BENCH_FILTER. The documented value
@@ -75,15 +93,26 @@ get_kernel_version() {
   fi
 }
 
-python3 <<PY
+WSL2_DETECTED="$(detect_wsl2)" \
+CPU_MODEL="$(get_cpu_info)" \
+CPU_CORES="$(get_cpu_cores)" \
+OS_NAME="$(get_os_info)" \
+KERNEL_VERSION="$(get_kernel_version)" \
+BUILD_PROFILE="${BUILD_PROFILE}" \
+TARGET_CPU="${TARGET_CPU}" \
+PERF_RECEIPT_TMP="${PERF_RECEIPT_TMP}" \
+CRITERION_ROOT="${CRITERION_ROOT}" \
+python3 <<'PY'
 import datetime
 import json
+import os
 import pathlib
 import subprocess
 import sys
 
 ROOT = pathlib.Path.cwd()
-CRITERION_ROOT = ROOT / "target" / "criterion" / "slo_validation"
+CRITERION_ROOT = pathlib.Path(os.environ["CRITERION_ROOT"])
+OUTPUT_PATH = pathlib.Path(os.environ["PERF_RECEIPT_TMP"])
 
 def load_throughput(name: str):
     bench_dir = CRITERION_ROOT / name / "new"
@@ -159,21 +188,19 @@ def compute_percentiles(benchmark_names: list) -> dict:
 
 
 # Get environment data from shell
-build_profile = """${BUILD_PROFILE}"""
-target_cpu = """${TARGET_CPU}"""
-wsl2_detected = """$(detect_wsl2)""" == "true"
-cpu_model = """$(get_cpu_info)"""
-cpu_cores = int("""$(get_cpu_cores)""")
-os_name = """$(get_os_info)"""
-kernel_version = """$(get_kernel_version)"""
+build_profile = os.environ["BUILD_PROFILE"]
+target_cpu = os.environ["TARGET_CPU"]
+wsl2_detected = os.environ["WSL2_DETECTED"] == "true"
+cpu_model = os.environ["CPU_MODEL"]
+cpu_cores = int(os.environ["CPU_CORES"])
+os_name = os.environ["OS_NAME"]
+kernel_version = os.environ["KERNEL_VERSION"]
 
 display = load_throughput("display_heavy_slo_80mbps")
 comp3 = load_throughput("comp3_heavy_slo_40mbps")
 
 timestamp = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-commit = subprocess.check_output(
-    ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, text=True
-).strip()
+commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
 
 # Compute percentiles from criterion sample data BEFORE building report
 benchmark_names = ["display_heavy_slo_80mbps", "comp3_heavy_slo_40mbps"]
@@ -214,13 +241,13 @@ report = {
     "summary": summary
 }
 
-output_dir = ROOT / "scripts" / "bench"
-output_dir.mkdir(parents=True, exist_ok=True)
-output_path = output_dir / "perf.json"
-output_path.write_text(json.dumps(report, indent=2) + "\n")
+OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+OUTPUT_PATH.write_text(json.dumps(report, indent=2) + "\n")
 PY
 
-cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- seal-perf-receipt scripts/bench/perf.json
+cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- seal-perf-receipt "${PERF_RECEIPT_TMP}"
+mv "${PERF_RECEIPT_TMP}" "${PERF_RECEIPT_PATH}"
+trap - EXIT
 
 # Receipt is complete and immutable - no post-write modifications
 # Note: Percentile aggregation is now done in the Python block above,

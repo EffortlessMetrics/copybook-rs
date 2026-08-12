@@ -360,7 +360,7 @@ let decode_opts = DecodeOptions::new()
     .with_emit_raw(RawMode::RecordRDW);
 let json_value = decode_record(&schema, &original_data, &decode_opts)?;
 
-// Encode using raw data (preserves reserved bytes, avoids recomputation)
+// Encode using raw data (unchanged valid RDW data replays byte-for-byte)
 let encode_opts = EncodeOptions::new()
     .with_use_raw(true);
 let encoded_data = encode_record(&schema, &json_value, &encode_opts)?;
@@ -371,7 +371,14 @@ assert_eq!(original_data, encoded_data);
 
 **RDW-Specific Considerations**:
 - **Reserved Bytes**: `RawMode::RecordRDW` preserves bytes 2-3 of RDW header (reserved, typically zero)
-- **Length Recomputation**: When `use_raw=false`, encoder recomputes RDW length from payload size
+- **Raw Capture Mode**: RDW `use_raw=true` replay requires raw data captured with
+  `RawMode::RecordRDW`; payload-only `RawMode::Record` does not carry an RDW header
+- **Length Recomputation**: When fields change under `use_raw=true`, the encoder recomputes the
+  RDW payload length while preserving reserved bytes. Unchanged valid raw RDW data is replayed
+  byte-for-byte. With `use_raw=false`, the encoder constructs a new RDW header from the payload.
+- **Framing Bounds**: Raw RDW values shorter than the 4-byte header, frames whose declared payload
+  length disagrees with the bytes present, and mutated payloads larger than 65,535 bytes fail with
+  `CBKF102_RECORD_LENGTH_INVALID`
 - **Truncation Detection**: Fixed-format records validate expected length against actual data
 - **Error Codes**:
   - `CBKR202_RDW_WRITE_ERROR` - RDW header, payload, or flush write failure

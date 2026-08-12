@@ -1536,6 +1536,9 @@ fn condition_value(values: &[String], prefix: &str) -> Value {
 ///
 /// # Errors
 /// Returns an error if the JSON data cannot be encoded according to the schema.
+/// RDW raw replay also returns `CBKF102_RECORD_LENGTH_INVALID` when the decoded
+/// raw value is shorter than its four-byte header or a changed payload exceeds
+/// the format's `u16` payload-length field.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> Result<Vec<u8>> {
@@ -1576,37 +1579,43 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
 
         match options.format {
             RecordFormat::RDW => {
-                // For RDW, we need to validate/recompute length if payload changed
-                if raw_data.len() >= 4 {
-                    let mut rdw_record = raw_data.clone();
-
-                    // Extract the payload portion (everything after 4-byte header)
-                    let payload = &rdw_record[4..];
-
-                    // Check if we need to recompute length based on field changes
-                    let mut should_recompute = false;
-
-                    // Encode the fields to see if payload changed
-                    let field_payload = encode_fields_to_bytes(schema, fields_value, options)?;
-                    if field_payload != payload {
-                        should_recompute = true;
-                    }
-
-                    if should_recompute {
-                        // Recompute length header
-                        let capped_len = field_payload.len().min(u16::MAX as usize);
-                        let new_length = u16::try_from(capped_len).unwrap_or(u16::MAX);
-                        let length_bytes = new_length.to_be_bytes();
-                        rdw_record[0] = length_bytes[0];
-                        rdw_record[1] = length_bytes[1];
-                        // Preserve reserved bytes [2] and [3]
-
-                        // Replace payload
-                        rdw_record.splice(4.., field_payload);
-                    }
-
-                    return Ok(rdw_record);
+                let (raw_header, raw_payload) = raw_data.split_at_checked(4).ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+                        format!(
+                            "Raw RDW record is {} bytes; expected at least a 4-byte header",
+                            raw_data.len()
+                        ),
+                    )
+                })?;
+                let header_bytes: [u8; 4] = raw_header.try_into().map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+                        "Raw RDW record does not contain a complete 4-byte header",
+                    )
+                })?;
+                let header = copybook_rdw::RdwHeader::from_bytes(header_bytes);
+                let declared_payload_len = usize::from(header.length());
+                if declared_payload_len != raw_payload.len() {
+                    return Err(Error::new(
+                        ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+                        format!(
+                            "Raw RDW header declares {declared_payload_len} payload bytes, but {} bytes follow",
+                            raw_payload.len()
+                        ),
+                    ));
                 }
+                let reserved = header.reserved();
+                let field_payload = encode_fields_to_bytes(schema, fields_value, options)?;
+
+                if field_payload == raw_payload {
+                    return Ok(raw_data);
+                }
+
+                return Ok(
+                    crate::record::RDWRecord::try_with_reserved(field_payload, reserved)?
+                        .as_bytes(),
+                );
             }
             RecordFormat::Fixed => {
                 return Ok(raw_data);
@@ -3213,7 +3222,7 @@ fn process_encode_batch<W: Write>(
     options: &EncodeOptions,
     summary: &mut RunSummary,
 ) -> Result<bool> {
-    let mut first_error = None;
+    let mut stop_after_error = false;
 
     for position in 0..batch_len {
         let result = pool
@@ -3226,7 +3235,7 @@ fn process_encode_batch<W: Write>(
                 )
             })?;
 
-        if first_error.is_some() {
+        if stop_after_error {
             continue;
         }
 
@@ -3236,24 +3245,20 @@ fn process_encode_batch<W: Write>(
                     Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, error.to_string())
                 })?;
                 summary.bytes_processed += binary_data.len() as u64;
+                summary.records_processed += 1;
             }
             Err(error) => {
                 // `position` is batch-relative; report the record's absolute index.
                 summary.note_failure(records_before_batch + position as u64 + 1, &error);
                 telemetry::record_error(error.family_prefix());
                 if options.strict_mode {
-                    first_error = Some((position as u64 + 1, error));
+                    stop_after_error = true;
                 }
             }
         }
     }
 
-    if let Some((position, _error)) = first_error {
-        summary.records_processed = records_before_batch + position;
-        return Ok(true);
-    }
-
-    Ok(false)
+    Ok(stop_after_error)
 }
 
 fn shutdown_encode_pool(pool: crate::memory::WorkerPool<Value, Result<Vec<u8>>>) -> Result<()> {
@@ -3408,8 +3413,7 @@ fn process_encode_jsonl_parallel<R: BufRead, W: Write>(
     }
 
     shutdown_encode_pool(pool)?;
-    summary.records_processed = records_seen;
-    Ok(records_seen)
+    Ok(summary.records_processed)
 }
 
 /// Encode JSONL to binary file
@@ -3464,7 +3468,8 @@ pub fn encode_jsonl_to_file(
     let record_count = if options.threads > 1 {
         process_encode_jsonl_parallel(schema, reader, &mut output, options, &mut summary)?
     } else {
-        let mut record_count = 0u64;
+        let mut records_seen = 0u64;
+        let mut records_processed = 0u64;
 
         for line in reader.lines() {
             let line =
@@ -3474,7 +3479,7 @@ pub fn encode_jsonl_to_file(
                 continue;
             }
 
-            record_count += 1;
+            records_seen += 1;
 
             // Parse JSON
             let json_value: Value = serde_json::from_str(&line)
@@ -3487,9 +3492,10 @@ pub fn encode_jsonl_to_file(
                         Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
                     })?;
                     summary.bytes_processed += binary_data.len() as u64;
+                    records_processed += 1;
                 }
                 Err(error) => {
-                    summary.note_failure(record_count, &error);
+                    summary.note_failure(records_seen, &error);
                     telemetry::record_error(error.family_prefix());
                     if options.strict_mode {
                         break;
@@ -3498,7 +3504,7 @@ pub fn encode_jsonl_to_file(
             }
         }
 
-        record_count
+        records_processed
     };
 
     summary.records_processed = record_count;

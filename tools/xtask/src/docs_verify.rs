@@ -1502,35 +1502,114 @@ fn parse_error_code_variants(source: &str) -> Result<Vec<String>> {
         .ok_or_else(|| anyhow::anyhow!("could not find ErrorCode enum"))?
         .end();
 
-    let mut depth = 1i32;
-    let mut end = source.len();
-    for (offset, ch) in source[start..].char_indices() {
-        match ch {
-            '{' => depth += 1,
-            '}' => {
-                depth -= 1;
-                if depth == 0 {
-                    end = start + offset;
-                    break;
-                }
+    let variant_re =
+        Regex::new(r"^([A-Z][A-Z0-9_]*)[ \t]*(?:=[ \t]*[^,]+)?[ \t]*,[ \t]*(?://.*)?$")?;
+    let variant_candidate_re = Regex::new(r"^[A-Z][A-Z0-9_]*\b")?;
+    let mut lexical_state = RustLineState::default();
+    let mut variants = BTreeSet::new();
+    let mut found_end = false;
+    for line in source[start..].lines() {
+        let code = rust_code_on_line(line, &mut lexical_state);
+        let line = code.trim();
+        if line.starts_with('}') {
+            if line == "}" {
+                found_end = true;
+                break;
             }
-            _ => {}
+            bail!("malformed ErrorCode enum terminator `{line}`");
+        }
+        if let Some(capture) = variant_re.captures(line) {
+            variants.insert(capture[1].to_string());
+        } else if variant_candidate_re.is_match(line) {
+            bail!("malformed ErrorCode variant line `{line}`");
         }
     }
-    if end <= start {
+    if !found_end {
         bail!("could not parse ErrorCode enum body");
-    }
-
-    let remainder = &source[start..end];
-    let variant_re = Regex::new(r"(?m)^\s*([A-Z][A-Z0-9_]*)\s*(?:=\s*[^,]+)?\s*,(?:\s*//.*)?$")?;
-    let mut variants = BTreeSet::new();
-    for capture in variant_re.captures_iter(remainder) {
-        variants.insert(capture[1].to_string());
     }
     if variants.is_empty() {
         bail!("no ErrorCode variants parsed");
     }
     Ok(variants.into_iter().collect())
+}
+
+#[derive(Default)]
+struct RustLineState {
+    block_comment_depth: usize,
+    quoted: Option<char>,
+    raw_string_hashes: Option<usize>,
+    escaped: bool,
+}
+
+fn rust_code_on_line(line: &str, state: &mut RustLineState) -> String {
+    let mut code = String::with_capacity(line.len());
+    let mut chars = line.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if let Some(hash_count) = state.raw_string_hashes {
+            if ch == '"' {
+                let mut lookahead = chars.clone();
+                let closes = (0..hash_count).all(|_| lookahead.next() == Some('#'));
+                if closes {
+                    for _ in 0..hash_count {
+                        let _ = chars.next();
+                    }
+                    state.raw_string_hashes = None;
+                }
+            }
+            continue;
+        }
+        if let Some(quote) = state.quoted {
+            if state.escaped {
+                state.escaped = false;
+            } else if ch == '\\' {
+                state.escaped = true;
+            } else if ch == quote {
+                state.quoted = None;
+            }
+            continue;
+        }
+        if state.block_comment_depth > 0 {
+            if ch == '/' && chars.peek() == Some(&'*') {
+                let _ = chars.next();
+                state.block_comment_depth += 1;
+            } else if ch == '*' && chars.peek() == Some(&'/') {
+                let _ = chars.next();
+                state.block_comment_depth -= 1;
+            }
+            continue;
+        }
+        if ch == '/' && chars.peek() == Some(&'/') {
+            break;
+        }
+        if ch == '/' && chars.peek() == Some(&'*') {
+            let _ = chars.next();
+            state.block_comment_depth = 1;
+            continue;
+        }
+        if ch == 'r' {
+            let mut lookahead = chars.clone();
+            let mut hash_count = 0usize;
+            while lookahead.peek() == Some(&'#') {
+                let _ = lookahead.next();
+                hash_count += 1;
+            }
+            if lookahead.next() == Some('"') {
+                for _ in 0..=hash_count {
+                    let _ = chars.next();
+                }
+                state.raw_string_hashes = Some(hash_count);
+                continue;
+            }
+        }
+        if matches!(ch, '\'' | '"') {
+            state.quoted = Some(ch);
+            state.escaped = false;
+            continue;
+        }
+        code.push(ch);
+    }
+    state.escaped = false;
+    code
 }
 
 fn parse_jsonl_schema_inventory(source: &str) -> Result<(Vec<String>, Vec<String>, Vec<String>)> {
@@ -2738,29 +2817,7 @@ fn parse_cli_command_variants(source: &str) -> Result<Vec<String>> {
 }
 
 fn parse_error_code_variant_count(source: &str) -> Result<usize> {
-    let start_re = Regex::new(r"(?m)^pub enum ErrorCode \{")?;
-    let start = start_re
-        .find(source)
-        .ok_or_else(|| anyhow::anyhow!("could not find ErrorCode enum"))?
-        .end();
-
-    let variant_re = Regex::new(r"(?m)^[A-Z][A-Z0-9_]+\s*(?:=\s*[^,]+)?\s*,(?:\s*//.*)?$")?;
-    let mut count = 0usize;
-    for line in source[start..].lines() {
-        let line = line.trim();
-        if line.trim() == "}" {
-            break;
-        }
-        if variant_re.is_match(line) {
-            count += 1;
-        }
-    }
-
-    if count == 0 {
-        bail!("no ErrorCode variants found");
-    }
-
-    Ok(count)
+    Ok(parse_error_code_variants(source)?.len())
 }
 
 fn parse_error_index_count(source: &str) -> Result<usize> {
@@ -3227,7 +3284,92 @@ mod tests {
     CBK003_FLAG, // plain variant
 }"#;
 
+        assert_eq!(
+            parse_error_code_variants(source).unwrap(),
+            vec![
+                "CBK001_ORDINAL".to_string(),
+                "CBK002_COMMENTS".to_string(),
+                "CBK003_FLAG".to_string(),
+            ]
+        );
         assert_eq!(parse_error_code_variant_count(source).unwrap(), 3);
+    }
+
+    #[test]
+    fn parse_error_code_variants_is_line_ending_invariant_for_final_member() {
+        let lf = "pub enum ErrorCode {\n    CBK001_FIRST,\n    CBK002_FINAL,\n}\n";
+        let crlf = lf.replace('\n', "\r\n");
+        let expected = vec!["CBK001_FIRST".to_string(), "CBK002_FINAL".to_string()];
+
+        assert_eq!(parse_error_code_variants(lf).unwrap(), expected);
+        assert_eq!(parse_error_code_variants(&crlf).unwrap(), expected);
+        assert_eq!(parse_error_code_variant_count(lf).unwrap(), expected.len());
+        assert_eq!(
+            parse_error_code_variant_count(&crlf).unwrap(),
+            expected.len()
+        );
+    }
+
+    #[test]
+    fn parse_error_code_variants_ignores_braces_outside_enum_syntax() {
+        let lf = r###"pub enum ErrorCode {
+    /// A doc comment containing } and { braces.
+    #[doc = "an attribute string containing } and {"]
+    #[doc = "an ordinary string with an escaped quote: \"
+       }
+       and more content"]
+    #[doc = r#"a raw attribute string containing
+       " and a delimiter-looking line:
+       }
+       {"#]
+    #[parser_fixture = br##"a byte raw string containing
+       " and }# without the two-hash terminator,
+       }
+       plus more content"##]
+    CBK001_FIRST,
+    /* A block comment starts with {
+       /* nested } and { block comment */
+       } and neither brace is an enum delimiter. */
+    CBK002_FINAL, // trailing } comment
+} /* actual enum terminator with a multiline trailing comment
+*/
+CBK999_OUTSIDE,
+"###;
+        let crlf = lf.replace('\n', "\r\n");
+        let expected = vec!["CBK001_FIRST".to_string(), "CBK002_FINAL".to_string()];
+
+        assert_eq!(parse_error_code_variants(lf).unwrap(), expected);
+        assert_eq!(parse_error_code_variants(&crlf).unwrap(), expected);
+        assert_eq!(parse_error_code_variant_count(lf).unwrap(), expected.len());
+        assert_eq!(
+            parse_error_code_variant_count(&crlf).unwrap(),
+            expected.len()
+        );
+    }
+
+    #[test]
+    fn parse_error_code_variants_rejects_missing_or_empty_enum() {
+        assert!(parse_error_code_variants("pub enum Other { CBK001_VALUE, }").is_err());
+        assert!(parse_error_code_variants("pub enum ErrorCode {\n").is_err());
+        assert!(parse_error_code_variants("pub enum ErrorCode {\n}\n").is_err());
+        assert!(
+            parse_error_code_variants(
+                "pub enum ErrorCode {\n    CBK001_VALID,\n};\nimpl Outside {\n}\nCBK999_OUTSIDE,\n"
+            )
+            .is_err()
+        );
+        assert!(
+            parse_error_code_variants(
+                "pub enum ErrorCode {\n    CBK001_VALID,\n},\n}\nCBK999_OUTSIDE,\n"
+            )
+            .is_err()
+        );
+        assert!(
+            parse_error_code_variants(
+                "pub enum ErrorCode {\n    CBK001_VALID,\n    CBK002_MISSING_COMMA\n}\n"
+            )
+            .is_err()
+        );
     }
 
     #[test]

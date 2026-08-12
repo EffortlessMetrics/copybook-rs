@@ -6,9 +6,10 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from itertools import product
 from pathlib import Path
 
-from classify_security_audit import classify
+from classify_security_audit import classify, evaluate_outcome
 
 
 class ClassifySecurityAuditTests(unittest.TestCase):
@@ -57,6 +58,47 @@ class ClassifySecurityAuditTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "count does not match"):
                 classify(path)
+
+    def test_gate_outcome_cross_product_has_exactly_one_pass_state(self) -> None:
+        deny_statuses = ("0", "1", "2", "")
+        audit_statuses = ("0", "1", "2", "")
+        classification_outcomes = ("success", "failure")
+        decisions = ("no_action", "create_or_update", "")
+
+        for deny, audit, classification, decision in product(
+            deny_statuses,
+            audit_statuses,
+            classification_outcomes,
+            decisions,
+        ):
+            with self.subTest(
+                deny=deny,
+                audit=audit,
+                classification=classification,
+                decision=decision,
+            ):
+                passed, _reason = evaluate_outcome(
+                    deny, audit, classification, decision
+                )
+                expected = (deny, audit, classification, decision) == (
+                    "0",
+                    "0",
+                    "success",
+                    "no_action",
+                )
+                self.assertEqual(passed, expected)
+
+    def test_findings_fail_even_when_both_tools_exit_zero(self) -> None:
+        passed, reason = evaluate_outcome("0", "0", "success", "create_or_update")
+        self.assertFalse(passed)
+        self.assertIn("vulnerabilities", reason)
+
+    def test_combined_failure_preserves_deny_and_findings_diagnostics(self) -> None:
+        passed, reason = evaluate_outcome("2", "1", "success", "create_or_update")
+        self.assertFalse(passed)
+        self.assertIn("cargo-deny failed", reason)
+        self.assertIn("cargo-audit failed", reason)
+        self.assertIn("vulnerabilities", reason)
 
 
 if __name__ == "__main__":

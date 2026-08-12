@@ -167,6 +167,9 @@ copybook-rs implements comprehensive dependency and security scanning to protect
 - Automatic GitHub issue creation/update on vulnerability detection
 - Manual trigger available via GitHub Actions workflow_dispatch
 - Raw `cargo audit --json` output uploaded as an artifact with 90-day retention
+- Marker-based pagination, duplicate suppression, and close-on-clean behavior
+  for the findings issue are separate lifecycle work tracked in
+  [#763](https://github.com/EffortlessMetrics/copybook-rs/issues/763).
 
 **Dependency Automation (Dependabot)**:
 - Weekly dependency update PRs for Cargo ecosystem (Monday 09:00 UTC)

@@ -41,10 +41,19 @@ jobs:
         run: cargo install cargo-audit --locked
 
       - name: Run cargo deny check
-        run: cargo deny check --config deny.toml
+        id: deny
+        continue-on-error: true
+        run: |
+          set +e
+          cargo deny check --config deny.toml
+          deny_status=$?
+          set -e
+          echo "exit_status=${deny_status}" >> "$GITHUB_OUTPUT"
+          exit "${deny_status}"
 
       - name: Run cargo audit
         id: audit
+        if: always()
         # cargo audit exits 1 on warnings (e.g. unmaintained crates) AND
         # vulnerabilities. Capture JSON regardless; continue-on-error lets
         # the issue step below report actual vulnerabilities.
@@ -63,6 +72,7 @@ jobs:
         if: always()
         run: |
           python3 scripts/ci/classify_security_audit.py \
+            classify \
             target/security.audit.json \
             --github-output "$GITHUB_OUTPUT"
 
@@ -97,28 +107,9 @@ jobs:
 
       - name: Enforce audit and classification outcome
         if: always()
-        env:
-          AUDIT_EXIT_STATUS: ${{ steps.audit.outputs.exit_status }}
-          CLASSIFY_OUTCOME: ${{ steps.classify.outcome }}
         run: |
-          if [ "$CLASSIFY_OUTCOME" != "success" ]; then
-            echo "cargo-audit output classification failed"
-            exit 1
-          fi
-          case "$AUDIT_EXIT_STATUS" in
-            0)
-              exit 0
-              ;;
-            1)
-              if [ "${{ steps.classify.outputs.decision }}" = "create_or_update" ]; then
-                echo "cargo-audit reported vulnerabilities; roll-up issue updated"
-              else
-                echo "cargo-audit exited 1 without vulnerability findings"
-              fi
-              exit 1
-              ;;
-            *)
-              echo "cargo-audit tool error (exit status: ${AUDIT_EXIT_STATUS:-missing})"
-              exit 1
-              ;;
-          esac
+          python3 scripts/ci/classify_security_audit.py enforce \
+            --deny-exit-status "${{ steps.deny.outputs.exit_status }}" \
+            --audit-exit-status "${{ steps.audit.outputs.exit_status }}" \
+            --classification-outcome "${{ steps.classify.outcome }}" \
+            --decision "${{ steps.classify.outputs.decision }}"

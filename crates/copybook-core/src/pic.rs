@@ -25,6 +25,8 @@
 use crate::error::ErrorCode;
 use crate::{Error, Result};
 use std::fmt;
+use std::iter::Peekable;
+use std::str::Chars;
 
 /// Parsed PIC clause information
 ///
@@ -103,6 +105,7 @@ impl PicClause {
         let mut scale = 0i16;
         let mut kind = None;
         let mut found_v = false;
+        let mut repetition_eligible = false;
 
         // Check for leading S (signed)
         if chars.peek() == Some(&'S') || chars.peek() == Some(&'s') {
@@ -120,7 +123,8 @@ impl PicClause {
                         ));
                     }
                     kind = Some(PicKind::Alphanumeric);
-                    digits += 1;
+                    digits = checked_add_u16(digits, 1, pic_str, "PIC width")?;
+                    repetition_eligible = true;
                 }
                 '9' => {
                     if kind.is_some() && kind != Some(PicKind::NumericDisplay) {
@@ -130,10 +134,11 @@ impl PicClause {
                         ));
                     }
                     kind = Some(PicKind::NumericDisplay);
-                    digits += 1;
+                    digits = checked_add_u16(digits, 1, pic_str, "PIC width")?;
                     if found_v {
-                        scale += 1;
+                        scale = checked_add_i16(scale, 1, pic_str, "PIC scale")?;
                     }
+                    repetition_eligible = true;
                 }
                 'V' => {
                     if found_v {
@@ -149,51 +154,31 @@ impl PicClause {
                         ));
                     }
                     found_v = true;
+                    repetition_eligible = false;
                 }
                 '(' => {
-                    // Parse repetition count
-                    let mut count_str = String::new();
-                    while let Some(&ch) = chars.peek() {
-                        if ch == ')' {
-                            chars.next(); // consume ')'
-                            break;
-                        }
-                        if ch.is_ascii_digit() {
-                            if let Some(digit_char) = chars.next() {
-                                count_str.push(digit_char);
-                            } else {
-                                return Err(Error::new(
-                                    ErrorCode::CBKP001_SYNTAX,
-                                    format!("Unexpected end of digit sequence in PIC: {}", pic_str),
-                                ));
-                            }
-                        } else {
-                            return Err(Error::new(
-                                ErrorCode::CBKP001_SYNTAX,
-                                format!("Invalid repetition count: {}", pic_str),
-                            ));
-                        }
-                    }
-
-                    let count: u16 = count_str.parse().map_err(|_| {
-                        Error::new(
-                            ErrorCode::CBKP001_SYNTAX,
-                            format!("Invalid repetition count: {}", count_str),
-                        )
-                    })?;
-
-                    if count == 0 {
-                        return Err(Error::new(
-                            ErrorCode::CBKP001_SYNTAX,
-                            "Repetition count cannot be zero".to_string(),
+                    if !repetition_eligible {
+                        return Err(invalid_pic(
+                            pic_str,
+                            "repetition count must follow `X` or `9`",
                         ));
                     }
+                    let count = parse_repetition_count(&mut chars, pic_str)?;
 
                     // Subtract 1 because we already counted the character before '('
-                    digits = digits.saturating_sub(1) + count;
+                    let prefix = digits.checked_sub(1).ok_or_else(|| {
+                        invalid_pic(pic_str, "repetition count has no preceding PIC symbol")
+                    })?;
+                    digits = checked_add_u16(prefix, count, pic_str, "PIC width")?;
                     if found_v {
-                        scale = scale.saturating_sub(1) + count as i16;
+                        let count = i16::try_from(count)
+                            .map_err(|_| invalid_pic(pic_str, "PIC scale exceeds i16::MAX"))?;
+                        let prefix = scale.checked_sub(1).ok_or_else(|| {
+                            invalid_pic(pic_str, "repetition count has no fractional PIC symbol")
+                        })?;
+                        scale = checked_add_i16(prefix, count, pic_str, "PIC scale")?;
                     }
+                    repetition_eligible = false;
                 }
                 ' ' | '\t' => {
                     // Skip whitespace
@@ -320,11 +305,69 @@ fn is_edited_pic(pic_str: &str) -> bool {
         || pic_str.contains("db")
 }
 
+fn invalid_pic(pic_str: &str, reason: &str) -> Error {
+    Error::new(
+        ErrorCode::CBKP001_SYNTAX,
+        format!("Invalid PIC clause `{pic_str}`: {reason}"),
+    )
+}
+
+fn parse_repetition_count(chars: &mut Peekable<Chars<'_>>, pic_str: &str) -> Result<u16> {
+    let mut count_str = String::new();
+    let mut closed = false;
+    while let Some(&ch) = chars.peek() {
+        if ch == ')' {
+            let _ = chars.next();
+            closed = true;
+            break;
+        }
+        if !ch.is_ascii_digit() {
+            return Err(invalid_pic(
+                pic_str,
+                "repetition count must contain only digits",
+            ));
+        }
+        count_str.push(ch);
+        let _ = chars.next();
+    }
+
+    if !closed {
+        return Err(invalid_pic(
+            pic_str,
+            "repetition count is missing closing `)`",
+        ));
+    }
+    if count_str.is_empty() {
+        return Err(invalid_pic(pic_str, "repetition count cannot be empty"));
+    }
+
+    let count = count_str
+        .parse::<u16>()
+        .map_err(|_| invalid_pic(pic_str, "repetition count exceeds u16::MAX"))?;
+    if count == 0 {
+        return Err(invalid_pic(pic_str, "repetition count cannot be zero"));
+    }
+    Ok(count)
+}
+
+fn checked_add_u16(value: u16, increment: u16, pic_str: &str, name: &str) -> Result<u16> {
+    value
+        .checked_add(increment)
+        .ok_or_else(|| invalid_pic(pic_str, &format!("{name} exceeds u16::MAX")))
+}
+
+fn checked_add_i16(value: i16, increment: i16, pic_str: &str, name: &str) -> Result<i16> {
+    value
+        .checked_add(increment)
+        .ok_or_else(|| invalid_pic(pic_str, &format!("{name} exceeds i16::MAX")))
+}
+
 /// Compute display width from edited PIC string
 /// Example: "ZZ,ZZZ.99" → 8 (including comma and decimal point)
 fn compute_edited_pic_width(pic_str: &str) -> Result<u16> {
     let mut width = 0u16;
     let mut chars = pic_str.chars().peekable();
+    let mut repetition_eligible = false;
 
     while let Some(ch) = chars.next() {
         match ch.to_ascii_uppercase() {
@@ -333,43 +376,28 @@ fn compute_edited_pic_width(pic_str: &str) -> Result<u16> {
                 // Check for repetition count
                 if chars.peek() == Some(&'(') {
                     chars.next(); // consume '('
-                    let mut count_str = String::new();
-                    while let Some(&ch) = chars.peek() {
-                        if ch == ')' {
-                            chars.next(); // consume ')'
-                            break;
-                        } else if ch.is_ascii_digit() {
-                            count_str.push(ch);
-                            chars.next();
-                        } else {
-                            return Err(Error::new(
-                                ErrorCode::CBKP001_SYNTAX,
-                                format!("Invalid repetition count in edited PIC: {}", pic_str),
-                            ));
-                        }
-                    }
-                    let count: u16 = count_str.parse().map_err(|_| {
-                        Error::new(
-                            ErrorCode::CBKP001_SYNTAX,
-                            format!("Invalid repetition count: {}", count_str),
-                        )
-                    })?;
-                    width = width.saturating_add(count);
+                    let count = parse_repetition_count(&mut chars, pic_str)?;
+                    width = checked_add_u16(width, count, pic_str, "edited PIC width")?;
+                    repetition_eligible = false;
                 } else {
-                    width = width.saturating_add(1);
+                    width = checked_add_u16(width, 1, pic_str, "edited PIC width")?;
+                    repetition_eligible = true;
                 }
             }
             // Insertion characters (commas, slashes, etc.)
             ',' | '/' | '.' => {
-                width = width.saturating_add(1);
+                width = checked_add_u16(width, 1, pic_str, "edited PIC width")?;
+                repetition_eligible = false;
             }
             // Currency symbol
             '$' => {
-                width = width.saturating_add(1);
+                width = checked_add_u16(width, 1, pic_str, "edited PIC width")?;
+                repetition_eligible = false;
             }
             // Sign symbols
             '+' | '-' => {
-                width = width.saturating_add(1);
+                width = checked_add_u16(width, 1, pic_str, "edited PIC width")?;
+                repetition_eligible = false;
             }
             // CR/DB handling (2 characters)
             'C' | 'D' => {
@@ -378,20 +406,31 @@ fn compute_edited_pic_width(pic_str: &str) -> Result<u16> {
                         || (ch == 'D' && (next_ch == 'B' || next_ch == 'b')))
                 {
                     chars.next(); // consume second character
-                    width = width.saturating_add(2);
+                    width = checked_add_u16(width, 2, pic_str, "edited PIC width")?;
                 }
+                repetition_eligible = false;
             }
             // V is non-display (implied decimal)
             'V' => {
                 // Don't add to width
+                repetition_eligible = false;
             }
             // S prefix is non-display
             'S' => {
                 // Don't add to width
+                repetition_eligible = false;
             }
             // Whitespace
             ' ' | '\t' => {
                 // Skip
+            }
+            '(' | ')' => {
+                let reason = if ch == '(' && !repetition_eligible {
+                    "repetition count must follow `9`, `Z`, `*`, or `0`"
+                } else {
+                    "malformed repetition delimiter"
+                };
+                return Err(invalid_pic(pic_str, reason));
             }
             _ => {
                 // Unknown character - for now, just skip it
@@ -429,6 +468,7 @@ fn compute_edited_pic_scale(pic_str: &str) -> Result<i16> {
     let mut chars = pic_str.chars().peekable();
     let mut found_decimal = false;
     let mut scale = 0i16;
+    let mut repetition_eligible = false;
 
     // Skip leading 'S' if present
     if chars.peek() == Some(&'S') || chars.peek() == Some(&'s') {
@@ -445,6 +485,7 @@ fn compute_edited_pic_scale(pic_str: &str) -> Result<i16> {
                     ));
                 }
                 found_decimal = true;
+                repetition_eligible = false;
             }
             'V' => {
                 // Implicit decimal point
@@ -455,42 +496,35 @@ fn compute_edited_pic_scale(pic_str: &str) -> Result<i16> {
                     ));
                 }
                 found_decimal = true;
+                repetition_eligible = false;
             }
             '9' | 'Z' | '*' | '0' => {
                 // Check for repetition count
-                let count = if chars.peek() == Some(&'(') {
+                let repeated = chars.peek() == Some(&'(');
+                let count = if repeated {
                     chars.next(); // consume '('
-                    let mut count_str = String::new();
-                    while let Some(&ch) = chars.peek() {
-                        if ch == ')' {
-                            chars.next(); // consume ')'
-                            break;
-                        } else if ch.is_ascii_digit() {
-                            count_str.push(ch);
-                            chars.next();
-                        } else {
-                            return Err(Error::new(
-                                ErrorCode::CBKP001_SYNTAX,
-                                format!("Invalid repetition count in edited PIC: {pic_str}"),
-                            ));
-                        }
-                    }
-                    count_str.parse::<i16>().map_err(|_| {
-                        Error::new(
-                            ErrorCode::CBKP001_SYNTAX,
-                            format!("Invalid repetition count: {count_str}"),
-                        )
-                    })?
+                    parse_repetition_count(&mut chars, pic_str)?
                 } else {
                     1
                 };
 
                 if found_decimal {
-                    scale = scale.saturating_add(count);
+                    let count = i16::try_from(count)
+                        .map_err(|_| invalid_pic(pic_str, "PIC scale exceeds i16::MAX"))?;
+                    scale = checked_add_i16(scale, count, pic_str, "PIC scale")?;
                 }
+                repetition_eligible = !repeated;
+            }
+            '(' | ')' => {
+                let reason = if ch == '(' && !repetition_eligible {
+                    "repetition count must follow `9`, `Z`, `*`, or `0`"
+                } else {
+                    "malformed repetition delimiter"
+                };
+                return Err(invalid_pic(pic_str, reason));
             }
             // Other characters (comma, slash, $, +, -, etc.) don't affect scale
-            _ => {}
+            _ => repetition_eligible = false,
         }
     }
 
@@ -578,5 +612,73 @@ mod tests {
             "S9(7)V9(2)"
         );
         assert_eq!(PicClause::parse("9V9").unwrap().to_string(), "9V9");
+    }
+
+    #[test]
+    fn repetition_counts_require_positive_closed_u16_values() {
+        for invalid in [
+            "9(10",
+            "9()",
+            "9(0)",
+            "9(65536)",
+            "9(999999999999999999999999999999)",
+            "9((2))",
+            "9(2)(3)",
+            "9V(2)",
+            "S(2)9",
+            "9)",
+            "Z(10",
+            "Z()",
+            "Z(0)",
+            "Z(65536)",
+            "Z(2)(3)",
+            "ZV(2)",
+            "Z)",
+        ] {
+            let error = PicClause::parse(invalid).unwrap_err();
+            assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX, "{invalid}");
+        }
+    }
+
+    #[test]
+    fn repetition_arithmetic_preserves_maximum_boundaries() {
+        let plain = PicClause::parse("9(65535)").unwrap();
+        assert_eq!(plain.digits, u16::MAX);
+        assert_eq!(plain.scale, 0);
+
+        let edited = PicClause::parse("Z(65535)").unwrap();
+        assert_eq!(edited.digits, u16::MAX);
+        assert_eq!(edited.scale, 0);
+
+        let fractional = PicClause::parse("ZV9(32767)").unwrap();
+        assert_eq!(fractional.scale, i16::MAX);
+
+        for invalid in ["9(65535)9", "Z(65535)9", "ZV9(32767)9"] {
+            let error = PicClause::parse(invalid).unwrap_err();
+            assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX, "{invalid}");
+        }
+
+        let error = PicClause::parse("Z(65535)V9(32768)").unwrap_err();
+        assert!(error.message.contains("edited PIC width"));
+    }
+
+    #[test]
+    fn mixed_type_validation_precedes_later_repetition_overflow() {
+        let error = PicClause::parse("9X(65536)").unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
+        assert!(error.message.contains("Mixed PIC types"));
+    }
+
+    #[test]
+    fn parser_maps_hostile_repetitions_to_invalid_pic() {
+        for copybook in [
+            "01 ROOT.\n   05 FIELD PIC 9(10",
+            "01 ROOT.\n   05 FIELD PIC 9(65535)9.",
+            "01 ROOT.\n   05 FIELD PIC Z(10",
+            "01 ROOT.\n   05 FIELD PIC Z(65535)9.",
+        ] {
+            let error = crate::parse_copybook(copybook).unwrap_err();
+            assert_eq!(error.code, ErrorCode::CBKP101_INVALID_PIC, "{copybook}");
+        }
     }
 }

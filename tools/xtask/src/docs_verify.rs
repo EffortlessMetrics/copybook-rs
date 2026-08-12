@@ -1505,16 +1505,18 @@ fn parse_error_code_variants(source: &str) -> Result<Vec<String>> {
     let variant_re =
         Regex::new(r"^([A-Z][A-Z0-9_]*)[ \t]*(?:=[ \t]*[^,]+)?[ \t]*,[ \t]*(?://.*)?$")?;
     let variant_candidate_re = Regex::new(r"^[A-Z][A-Z0-9_]*\b")?;
-    let closing_re = Regex::new(r"^}$")?;
     let mut lexical_state = RustLineState::default();
     let mut variants = BTreeSet::new();
     let mut found_end = false;
     for line in source[start..].lines() {
         let code = rust_code_on_line(line, &mut lexical_state);
         let line = code.trim();
-        if closing_re.is_match(line) {
-            found_end = true;
-            break;
+        if line.starts_with('}') {
+            if line == "}" {
+                found_end = true;
+                break;
+            }
+            bail!("malformed ErrorCode enum terminator `{line}`");
         }
         if let Some(capture) = variant_re.captures(line) {
             variants.insert(capture[1].to_string());
@@ -3351,10 +3353,16 @@ CBK999_OUTSIDE,
         assert!(parse_error_code_variants("pub enum ErrorCode {\n").is_err());
         assert!(parse_error_code_variants("pub enum ErrorCode {\n}\n").is_err());
         assert!(
-            parse_error_code_variants("pub enum ErrorCode {\n    CBK001_VALID,\n};\n").is_err()
+            parse_error_code_variants(
+                "pub enum ErrorCode {\n    CBK001_VALID,\n};\nimpl Outside {\n}\nCBK999_OUTSIDE,\n"
+            )
+            .is_err()
         );
         assert!(
-            parse_error_code_variants("pub enum ErrorCode {\n    CBK001_VALID,\n},\n").is_err()
+            parse_error_code_variants(
+                "pub enum ErrorCode {\n    CBK001_VALID,\n},\n}\nCBK999_OUTSIDE,\n"
+            )
+            .is_err()
         );
         assert!(
             parse_error_code_variants(

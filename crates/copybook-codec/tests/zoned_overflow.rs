@@ -32,6 +32,15 @@ fn ensure_overflow(error: &Error) -> Result<()> {
     Ok(())
 }
 
+fn ensure_bad_sign(error: &Error) -> Result<()> {
+    ensure!(
+        error.code == ErrorCode::CBKD411_ZONED_BAD_SIGN,
+        "expected CBKD411_ZONED_BAD_SIGN, got {}",
+        error.code
+    );
+    Ok(())
+}
+
 fn ebcdic_unsigned(ascii_digits: &[u8]) -> Vec<u8> {
     ascii_digits
         .iter()
@@ -223,5 +232,71 @@ fn decode_record_pic_9_19_preserves_typed_field_context() -> Result<()> {
     ensure!(scratch_context.record_index == Some(0));
     ensure!(scratch_context.field_path.as_deref() == Some("REC.AMOUNT"));
     ensure!(scratch_context.byte_offset == Some(0));
+    Ok(())
+}
+
+#[test]
+fn unsigned_bad_sign_precedes_last_digit_overflow_across_decode_paths() -> Result<()> {
+    let mut bad_sign_and_overflow = I64_OVERFLOW_DIGITS.to_vec();
+    bad_sign_and_overflow[18] = b'Q';
+
+    ensure_bad_sign(&require_error(decode_zoned_decimal(
+        &bad_sign_and_overflow,
+        19,
+        0,
+        false,
+        Codepage::ASCII,
+        false,
+    ))?)?;
+
+    ensure_bad_sign(&require_error(decode_zoned_decimal_with_encoding(
+        &bad_sign_and_overflow,
+        19,
+        0,
+        false,
+        Codepage::ASCII,
+        false,
+        false,
+    ))?)?;
+
+    let mut scratch = ScratchBuffers::new();
+    ensure_bad_sign(&require_error(decode_zoned_decimal_with_scratch(
+        &bad_sign_and_overflow,
+        19,
+        0,
+        false,
+        Codepage::ASCII,
+        false,
+        &mut scratch,
+    ))?)?;
+    ensure_bad_sign(&require_error(
+        decode_zoned_decimal_to_string_with_scratch(
+            &bad_sign_and_overflow,
+            19,
+            0,
+            false,
+            Codepage::ASCII,
+            false,
+            &mut scratch,
+        ),
+    )?)?;
+
+    let schema = parse_copybook("01 REC. 05 AMOUNT PIC 9(19).")?;
+    let options = DecodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII)
+        .with_json_number_mode(JsonNumberMode::Lossless);
+    ensure_bad_sign(&require_error(decode_record(
+        &schema,
+        &bad_sign_and_overflow,
+        &options,
+    ))?)?;
+    ensure_bad_sign(&require_error(decode_record_with_scratch(
+        &schema,
+        &bad_sign_and_overflow,
+        &options,
+        &mut scratch,
+    ))?)?;
+
     Ok(())
 }

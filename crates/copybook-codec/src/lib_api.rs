@@ -654,8 +654,14 @@ fn process_array_field(
         } => {
             // Find the counter field and get its value
             let scratch = scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
-            let counter_value =
-                find_and_read_counter_field(counter_path, all_fields, data, options, scratch)?;
+            let counter_value = find_and_read_counter_field(
+                counter_path,
+                all_fields,
+                data,
+                options,
+                scratch,
+                record_index,
+            )?;
 
             let counter_field = find_field_by_path(all_fields, counter_path)?;
             let validation_context = crate::odo_redefines::OdoValidationContext {
@@ -775,8 +781,14 @@ fn process_array_field_with_scratch(
             counter_path,
         } => {
             // Find the counter field and get its value
-            let counter_value =
-                find_and_read_counter_field(counter_path, all_fields, data, options, scratch)?;
+            let counter_value = find_and_read_counter_field(
+                counter_path,
+                all_fields,
+                data,
+                options,
+                scratch,
+                record_index,
+            )?;
 
             let counter_field = find_field_by_path(all_fields, counter_path)?;
             let validation_context = crate::odo_redefines::OdoValidationContext {
@@ -881,6 +893,7 @@ fn find_and_read_counter_field(
     data: &[u8],
     options: &DecodeOptions,
     scratch: &mut crate::memory::ScratchBuffers,
+    record_index: u64,
 ) -> Result<u32> {
     // Find the counter field by path
     let counter_field = find_field_by_path(all_fields, counter_path)?;
@@ -924,7 +937,8 @@ fn find_and_read_counter_field(
                     options.codepage,
                     counter_field.blank_when_zero,
                     scratch,
-                )?;
+                )
+                .map_err(|error| add_zoned_overflow_context(error, counter_field, record_index))?;
                 decimal_str.parse::<u32>().map_err(|_| {
                     Error::new(
                         ErrorCode::CBKS121_COUNTER_NOT_FOUND,

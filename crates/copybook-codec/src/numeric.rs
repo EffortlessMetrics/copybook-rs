@@ -2452,12 +2452,12 @@ pub fn decode_zoned_decimal_with_scratch(
         zoned_process_non_final_digits(non_final, expected_zone, codepage, scratch)?;
     let (last_digit, negative) = zoned_decode_last_byte(last_byte, codepage)?;
     scratch.digit_buffer.push(last_digit);
-    let value = zoned_append_digit(partial_value, last_digit, non_final.len())?;
     let is_negative = if signed {
         negative
     } else {
         zoned_ensure_unsigned(last_byte, expected_zone, codepage, negative)?
     };
+    let value = zoned_append_digit(partial_value, last_digit, non_final.len())?;
     let mut decimal = SmallDecimal::new(value, scale, is_negative);
     decimal.normalize();
 

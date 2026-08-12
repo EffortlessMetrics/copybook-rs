@@ -2,13 +2,15 @@
 # Current-main evidence coordinator for issue #572.
 # This registry covers the fixed/RDW pipeline plane. It is intentionally not
 # the complete stable-error registry requested by issue #576.
-# Anchor rule (#753): content_digest is a SHA-256 over the gated source paths
-# (excluding Cargo.toml/Cargo.lock manifests). Any PR that changes those paths
-# must refresh it via `cargo run -p xtask -- docs sync-record-pipeline`. The
-# digest is content-addressed, so squash merges cannot invalidate it.
+# Anchor rule (#753): content_digest is a SHA-256 over the canonical staged Git
+# blobs and modes in the gated source paths, including behavior-affecting
+# manifests. Untracked files are excluded and unstaged gated changes are
+# rejected. Stage intended gated changes, then refresh via
+# `cargo run -p xtask -- docs sync-record-pipeline`. The digest is
+# content-addressed, so squash merges cannot invalidate it.
 schema_version = 1
 scope = "fixed-rdw-pipeline"
-content_digest = "022184dc9946cfc16e021210215421e75711327a9a37fc334b72d53e04470e7d"
+content_digest = "5652932f8ab184d0b06c413c40566fb7792f198d651494df59d896f91e96e5b7"
 
 [[scenarios]]
 id = "format.fixed.basic"

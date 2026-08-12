@@ -115,6 +115,16 @@ fields for schema validity:
 These fields add scan context and SIEM integration data but are not required
 for schema validation:
 
+### Deprecated v1 Producer Metadata
+
+The optional `compliance_metadata` object and its `*_compliant` booleans remain
+in the v1 schema only to avoid breaking existing producers and fixtures. They
+are deprecated, producer-supplied metadata. Neither the security scan nor JSON
+Schema validation establishes their values, and consumers must not interpret
+them as certification or a regulatory determination. Boolean defaults and
+examples are `false`. Removal or redesign in a future schema version is owned
+by [#761](https://github.com/EffortlessMetrics/copybook-rs/issues/761).
+
 ### Scan Metadata
 
 - **`scan_duration_ms`** (integer ≥ 0): Scan execution time in milliseconds for performance monitoring

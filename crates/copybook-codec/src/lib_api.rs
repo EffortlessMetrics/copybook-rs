@@ -297,6 +297,7 @@ fn process_fields_recursive(
                     json_obj,
                     options,
                     scratch_buffers,
+                    record_index,
                     encoding_acc,
                 )?;
             }
@@ -385,6 +386,7 @@ fn process_fields_recursive_with_scratch(
                     json_obj,
                     options,
                     scratch,
+                    record_index,
                     encoding_acc,
                 )?;
             }
@@ -417,6 +419,7 @@ fn process_scalar_field_standard(
     json_obj: &mut serde_json::Map<String, Value>,
     options: &DecodeOptions,
     scratch_buffers: &mut Option<crate::memory::ScratchBuffers>,
+    record_index: u64,
     encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
     // Special handling for RENAMES fields - they use resolved metadata, not field offset/len
@@ -485,7 +488,8 @@ fn process_scalar_field_standard(
     }
 
     let field_data = &data[field_start..field_end];
-    let value = decode_scalar_field_value_standard(field, field_data, options, scratch_buffers)?;
+    let value = decode_scalar_field_value_standard(field, field_data, options, scratch_buffers)
+        .map_err(|error| add_zoned_overflow_context(error, field, record_index))?;
 
     // Collect zoned encoding metadata when preservation is enabled
     if options.preserve_zoned_encoding {
@@ -514,6 +518,7 @@ fn process_scalar_field_with_scratch(
     json_obj: &mut serde_json::Map<String, Value>,
     options: &DecodeOptions,
     scratch: &mut crate::memory::ScratchBuffers,
+    record_index: u64,
     encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
     // Special handling for RENAMES fields - they use resolved metadata, not field offset/len
@@ -589,7 +594,8 @@ fn process_scalar_field_with_scratch(
     }
 
     let field_data = &data[field_start..field_end];
-    let value = decode_scalar_field_value_with_scratch(field, field_data, options, scratch)?;
+    let value = decode_scalar_field_value_with_scratch(field, field_data, options, scratch)
+        .map_err(|error| add_zoned_overflow_context(error, field, record_index))?;
 
     // Collect zoned encoding metadata when preservation is enabled
     if options.preserve_zoned_encoding {
@@ -606,6 +612,22 @@ fn process_scalar_field_with_scratch(
     }
 
     Ok(())
+}
+
+#[inline]
+fn add_zoned_overflow_context(
+    error: Error,
+    field: &copybook_core::Field,
+    record_index: u64,
+) -> Error {
+    if error.code == ErrorCode::CBKD410_ZONED_OVERFLOW {
+        error
+            .with_record(record_index)
+            .with_field(field.path.clone())
+            .with_offset(u64::from(field.offset))
+    } else {
+        error
+    }
 }
 
 /// Process an array field (with OCCURS clause)
@@ -632,8 +654,14 @@ fn process_array_field(
         } => {
             // Find the counter field and get its value
             let scratch = scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
-            let counter_value =
-                find_and_read_counter_field(counter_path, all_fields, data, options, scratch)?;
+            let counter_value = find_and_read_counter_field(
+                counter_path,
+                all_fields,
+                data,
+                options,
+                scratch,
+                record_index,
+            )?;
 
             let counter_field = find_field_by_path(all_fields, counter_path)?;
             let validation_context = crate::odo_redefines::OdoValidationContext {
@@ -713,7 +741,8 @@ fn process_array_field(
                     element_data,
                     options,
                     scratch_buffers,
-                )?;
+                )
+                .map_err(|error| add_zoned_overflow_context(error, field, record_index))?;
                 if options.preserve_zoned_encoding {
                     collect_zoned_encoding_info(field, element_data, options, encoding_acc);
                 }
@@ -752,8 +781,14 @@ fn process_array_field_with_scratch(
             counter_path,
         } => {
             // Find the counter field and get its value
-            let counter_value =
-                find_and_read_counter_field(counter_path, all_fields, data, options, scratch)?;
+            let counter_value = find_and_read_counter_field(
+                counter_path,
+                all_fields,
+                data,
+                options,
+                scratch,
+                record_index,
+            )?;
 
             let counter_field = find_field_by_path(all_fields, counter_path)?;
             let validation_context = crate::odo_redefines::OdoValidationContext {
@@ -835,7 +870,8 @@ fn process_array_field_with_scratch(
             FieldKind::Condition { values } => condition_value(values, "CONDITION_ARRAY"),
             _ => {
                 let val =
-                    decode_scalar_field_value_with_scratch(field, element_data, options, scratch)?;
+                    decode_scalar_field_value_with_scratch(field, element_data, options, scratch)
+                        .map_err(|error| add_zoned_overflow_context(error, field, record_index))?;
                 if options.preserve_zoned_encoding {
                     collect_zoned_encoding_info(field, element_data, options, encoding_acc);
                 }
@@ -857,6 +893,7 @@ fn find_and_read_counter_field(
     data: &[u8],
     options: &DecodeOptions,
     scratch: &mut crate::memory::ScratchBuffers,
+    record_index: u64,
 ) -> Result<u32> {
     // Find the counter field by path
     let counter_field = find_field_by_path(all_fields, counter_path)?;
@@ -900,7 +937,8 @@ fn find_and_read_counter_field(
                     options.codepage,
                     counter_field.blank_when_zero,
                     scratch,
-                )?;
+                )
+                .map_err(|error| add_zoned_overflow_context(error, counter_field, record_index))?;
                 decimal_str.parse::<u32>().map_err(|_| {
                     Error::new(
                         ErrorCode::CBKS121_COUNTER_NOT_FOUND,

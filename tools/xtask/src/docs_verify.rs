@@ -500,7 +500,7 @@ fn compute_record_pipeline_digest(root: &Path) -> Result<String> {
         reader
             .read_exact(&mut terminator)
             .with_context(|| format!("reading git blob terminator for `{}`", file.path))?;
-        if terminator != [b'\n'] {
+        if terminator != *b"\n" {
             bail!(
                 "git returned an invalid blob terminator for `{}`",
                 file.path

@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 name: Security (weekly)
 
+# Canonical owner for raw audit artifacts and the findings roll-up issue.
+# ci-security.yml remains the minimal weekly cargo-deny/cargo-audit policy gate.
+
 on:
   schedule:
     - cron: "0 9 * * 1"   # Mondays 09:00 UTC
@@ -20,6 +23,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -36,47 +41,84 @@ jobs:
         run: cargo install cargo-audit --locked
 
       - name: Run cargo deny check
-        run: |
-          cargo deny check --workspace --config deny.toml
+        run: cargo deny check --config deny.toml
 
       - name: Run cargo audit
+        id: audit
         # cargo audit exits 1 on warnings (e.g. unmaintained crates) AND
         # vulnerabilities. Capture JSON regardless; continue-on-error lets
         # the issue step below report actual vulnerabilities.
         continue-on-error: true
-        run: cargo audit -q --json > target/security.audit.json
+        run: |
+          mkdir -p target
+          set +e
+          cargo audit -q --json > target/security.audit.json
+          audit_status=$?
+          set -e
+          echo "exit_status=${audit_status}" >> "$GITHUB_OUTPUT"
+          exit "${audit_status}"
+
+      - name: Classify raw cargo-audit output
+        id: classify
+        if: always()
+        run: |
+          python3 scripts/ci/classify_security_audit.py \
+            target/security.audit.json \
+            --github-output "$GITHUB_OUTPUT"
 
       - name: Open/update roll-up issue on findings
+        if: steps.classify.outcome == 'success' && steps.classify.outputs.decision == 'create_or_update'
         uses: actions/github-script@v9
+        env:
+          FINDING_COUNT: ${{ steps.classify.outputs.finding_count }}
         with:
           script: |
-            const fs = require('fs');
-            let txt = '';
-            let toolFailed = false;
-            try { txt = fs.readFileSync('target/security.audit.json','utf8'); } catch { toolFailed = true; }
-            if (toolFailed) {
-              core.setFailed('cargo-audit produced no output — tool failure');
-              return;
-            }
-            const hasFindings = txt.includes('"vulnerabilities"') && !txt.includes('"list":[]');
             const title = "Weekly Security Audit Findings";
             const { data: issues } = await github.rest.issues.listForRepo({
               owner: context.repo.owner, repo: context.repo.repo, state: "open", labels: "security"
             });
-            const body = hasFindings
-              ? "New vulnerabilities detected. See artifact `security.audit.json`."
-              : "No vulnerabilities detected by cargo-audit.";
+            const body = `${process.env.FINDING_COUNT} vulnerabilities detected. ` +
+              `See raw cargo-audit artifact \`cargo-audit-raw-${context.runId}\`.`;
             const existing = issues.find(i => i.title === title);
             if (existing) {
               await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body });
-            } else if (hasFindings) {
+            } else {
               await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ["security","infrastructure"] });
             }
 
-      - name: Upload security receipts
+      - name: Upload raw cargo-audit output
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: security-scan-weekly-${{ github.run_id }}
+          name: cargo-audit-raw-${{ github.run_id }}
           path: target/security.audit.json
           retention-days: 90
+          if-no-files-found: warn
+
+      - name: Enforce audit and classification outcome
+        if: always()
+        env:
+          AUDIT_EXIT_STATUS: ${{ steps.audit.outputs.exit_status }}
+          CLASSIFY_OUTCOME: ${{ steps.classify.outcome }}
+        run: |
+          if [ "$CLASSIFY_OUTCOME" != "success" ]; then
+            echo "cargo-audit output classification failed"
+            exit 1
+          fi
+          case "$AUDIT_EXIT_STATUS" in
+            0)
+              exit 0
+              ;;
+            1)
+              if [ "${{ steps.classify.outputs.decision }}" = "create_or_update" ]; then
+                echo "cargo-audit reported vulnerabilities; roll-up issue updated"
+              else
+                echo "cargo-audit exited 1 without vulnerability findings"
+              fi
+              exit 1
+              ;;
+            *)
+              echo "cargo-audit tool error (exit status: ${AUDIT_EXIT_STATUS:-missing})"
+              exit 1
+              ;;
+          esac

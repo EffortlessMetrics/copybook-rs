@@ -36,18 +36,26 @@ The Security Receipt schema provides a standardized, cryptographically-verifiabl
 - **Traceability**: Links scan results to specific code versions and toolchain configurations
 - **Supply Chain Verification**: Documents dependency ecosystem state at scan time
 
-### Generation Points
+### Generation Status
 
-Security receipts are generated at three key workflow execution points:
+This schema defines the contract for a normalized security receipt. Current CI
+workflows upload raw `cargo audit --json` scanner output, which is useful scan
+evidence but is **not** a schema-valid receipt. Normalized receipt generation is
+tracked separately in
+[#761](https://github.com/EffortlessMetrics/copybook-rs/issues/761).
 
-1. **PR Quality Gate** (`scan_type: "pr-gate"`): Every pull request via `.github/workflows/ci.yml`
-2. **Weekly Scanning** (`scan_type: "weekly-scan"`): Scheduled Monday 03:00 UTC via `.github/workflows/security-scan.yml`
-3. **Manual Audits** (`scan_type: "manual"`): Ad-hoc security audits via `workflow_dispatch`
+Intended generation contexts are:
+
+1. **PR Quality Gate** (`scan_type: "pr-gate"`)
+2. **Weekly Scanning** (`scan_type: "weekly-scan"`)
+3. **Manual Audits** (`scan_type: "manual"`)
 
 ### Storage & Retention
 
-- **GitHub Actions Artifacts**: 90-day retention policy (regulatory compliance)
-- **Artifact Naming**: `security-audit-YYYYMMDD-{commit-sha}.json` or `security-scan-YYYYMMDD-{commit-sha}.json`
+- **Normalized receipt retention**: to be defined and verified by the
+  receipt-generator lane
+- **Normalized receipt naming**: to be defined by the receipt-generator lane
+- **Current raw weekly artifact**: `cargo-audit-raw-{workflow-run-id}`
 - **Access**: Download via `gh run download <run-id> --name <artifact-name>`
 
 ---
@@ -485,8 +493,8 @@ check-jsonschema --schemafile docs/reference/security-receipt-schema.json \
 ### Example 4: Validate Real CI Artifact
 
 ```bash
-# Download security receipt from GitHub Actions
-gh run download <run-id> --name security-audit-<commit-sha>
+# Download a schema-valid security receipt after normalized generation exists
+gh run download <run-id> --name <normalized-receipt-artifact>
 
 # Validate downloaded artifact
 check-jsonschema --schemafile docs/reference/security-receipt-schema.json \

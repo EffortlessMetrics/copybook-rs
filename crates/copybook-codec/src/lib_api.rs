@@ -1594,7 +1594,18 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
                         "Raw RDW record does not contain a complete 4-byte header",
                     )
                 })?;
-                let reserved = copybook_rdw::RdwHeader::from_bytes(header_bytes).reserved();
+                let header = copybook_rdw::RdwHeader::from_bytes(header_bytes);
+                let declared_payload_len = usize::from(header.length());
+                if declared_payload_len != raw_payload.len() {
+                    return Err(Error::new(
+                        ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+                        format!(
+                            "Raw RDW header declares {declared_payload_len} payload bytes, but {} bytes follow",
+                            raw_payload.len()
+                        ),
+                    ));
+                }
+                let reserved = header.reserved();
                 let field_payload = encode_fields_to_bytes(schema, fields_value, options)?;
 
                 if field_payload == raw_payload {

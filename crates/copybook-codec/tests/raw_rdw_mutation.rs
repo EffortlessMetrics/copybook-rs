@@ -95,6 +95,38 @@ fn raw_rdw_short_headers_fail_before_field_fallback() -> Result<()> {
 }
 
 #[test]
+fn raw_rdw_declared_length_mismatch_is_cbkf102_before_replay_or_rebuild() -> Result<()> {
+    let schema = parse_copybook("01 REC PIC X(3).")?;
+
+    for declared_len in [1_u16, 5] {
+        let mismatched = [
+            declared_len.to_be_bytes().as_slice(),
+            RESERVED.as_slice(),
+            b"ABC",
+        ]
+        .concat();
+        let encoded_raw = base64::engine::general_purpose::STANDARD.encode(mismatched);
+
+        for raw_key in ["raw_b64", "__raw_b64"] {
+            for field_value in [json!("ABC"), json!("XYZ"), json!(123)] {
+                let mut json = json!({"fields": {"REC": field_value}});
+                json[raw_key] = Value::String(encoded_raw.clone());
+
+                let error = encode_record(&schema, &json, &rdw_options(true, 1, true))
+                    .err()
+                    .with_context(|| {
+                        format!(
+                            "RDW declaring {declared_len} bytes unexpectedly encoded from {raw_key} with field value {field_value}"
+                        )
+                    })?;
+                anyhow::ensure!(error.code == ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn use_raw_false_ignores_short_raw_rdw() -> Result<()> {
     let schema = parse_copybook("01 REC PIC X.")?;
     let json = json!({

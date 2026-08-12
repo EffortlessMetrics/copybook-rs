@@ -505,6 +505,61 @@ fn test_ac5_security_receipt_schema_completeness() {
     );
 }
 
+#[test]
+fn test_ac5_legacy_attestation_metadata_is_non_attesting() -> Result<(), Box<dyn std::error::Error>>
+{
+    let root = project_root();
+    let schema_path = root.join("docs/reference/security-receipt-schema.json");
+    let schema: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(schema_path)?)?;
+
+    if schema["title"] != "copybook-rs Normalized Security Evidence v1" {
+        return Err("schema title must describe normalized evidence".into());
+    }
+    let schema_description = schema["description"].as_str().unwrap_or_default();
+    if !schema_description.contains("does not establish security certification") {
+        return Err("schema description must disclaim certification".into());
+    }
+
+    let metadata = &schema["properties"]["compliance_metadata"];
+    if metadata["deprecated"] != true {
+        return Err("legacy compliance_metadata must be deprecated".into());
+    }
+
+    for field in [
+        "sox_compliant",
+        "hipaa_compliant",
+        "pci_dss_compliant",
+        "gdpr_compliant",
+    ] {
+        let property = &metadata["properties"][field];
+        if property["deprecated"] != true || property["default"] != false {
+            return Err(format!("{field} must be deprecated and default false").into());
+        }
+        let description = property["description"].as_str().unwrap_or_default();
+        if !description.contains("do not establish")
+            || !description.contains("must not treat this value as certification")
+        {
+            return Err(format!("{field} must disclaim scan-derived attestation").into());
+        }
+    }
+
+    for example in schema["examples"].as_array().into_iter().flatten() {
+        let example_metadata = &example["compliance_metadata"];
+        for field in [
+            "sox_compliant",
+            "hipaa_compliant",
+            "pci_dss_compliant",
+            "gdpr_compliant",
+        ] {
+            if example_metadata[field] != false {
+                return Err(format!("schema example {field} must be false").into());
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// Tests feature spec: docs/reference/security-receipt-schema.json
 /// AC:5 - Validate test fixtures conform to schema
 #[test]

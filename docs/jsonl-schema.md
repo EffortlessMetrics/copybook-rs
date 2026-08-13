@@ -47,7 +47,9 @@ copybook-rs emits a versioned JSON envelope for each decoded record. Each line i
 
 `raw_capture` is the authoritative provenance for newly emitted whole-record
 raw data. During RDW encoding with `--use-raw`, `record` is wrapped in a new RDW
-header and `record+rdw` is validated as an existing frame. For compatibility,
+header and `record+rdw` is validated as an existing frame whose reserved bytes
+are preserved when changed fields rebuild its payload and length. The marker
+selects framing, not immutability. For compatibility,
 an input with `raw_b64` or legacy `__raw_b64` but no marker retains the
 historical RDW header-plus-payload interpretation; the encoder never guesses
 from byte length or contents.

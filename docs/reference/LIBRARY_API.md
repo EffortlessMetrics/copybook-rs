@@ -376,8 +376,10 @@ assert_eq!(original_data, encoded_data);
 **RDW-Specific Considerations**:
 - **Reserved Bytes**: `RawMode::RecordRDW` preserves bytes 2-3 of RDW header (reserved, typically zero)
 - **Raw Capture Mode**: RDW `use_raw=true` wraps `raw_capture: "record"` bytes in a new header;
-  `raw_capture: "record+rdw"` validates and preserves the supplied header. Missing markers retain
-  the legacy framed interpretation; provenance is never inferred from byte length or contents.
+  `raw_capture: "record+rdw"` validates the supplied frame and preserves its reserved bytes.
+  The marker selects framing, not immutability: changed fields rebuild the framed payload and
+  length. Missing markers retain the legacy framed interpretation; provenance is never inferred
+  from byte length or contents.
 - **Length Recomputation**: When fields change under `use_raw=true`, the encoder recomputes the
   RDW payload length while preserving reserved bytes. Unchanged valid raw RDW data is replayed
   byte-for-byte. With `use_raw=false`, the encoder constructs a new RDW header from the payload.

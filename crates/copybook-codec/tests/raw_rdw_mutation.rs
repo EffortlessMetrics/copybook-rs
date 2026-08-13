@@ -136,16 +136,29 @@ fn explicit_record_rdw_provenance_rejects_malformed_frame() -> Result<()> {
 }
 
 #[test]
-fn explicit_record_rdw_provenance_rejects_field_payload_mismatch() -> Result<()> {
+fn explicit_record_rdw_provenance_rebuilds_changed_fields_and_preserves_reserved() -> Result<()> {
     let schema = parse_copybook("01 REC PIC X(3).")?;
     let json = json!({
         "fields": {"REC": "XYZ"},
         "raw_b64": raw_b64(b"ABC", RESERVED)?,
         "raw_capture": "record+rdw",
     });
+    let encoded = encode_record(&schema, &json, &rdw_options(true, 1, true))?;
+    anyhow::ensure!(encoded == [b"\0\x03\xA5\x5A".as_slice(), b"XYZ"].concat());
+    Ok(())
+}
+
+#[test]
+fn malformed_record_rdw_precedes_field_encode_errors() -> Result<()> {
+    let schema = parse_copybook("01 REC PIC 9.")?;
+    let json = json!({
+        "fields": {"REC": {"invalid": true}},
+        "raw_b64": payload_b64(&[0x7E; 3]),
+        "raw_capture": "record+rdw",
+    });
     let error = encode_record(&schema, &json, &rdw_options(true, 1, true))
         .err()
-        .context("explicit framed payload mismatch unexpectedly rebuilt")?;
+        .context("malformed explicit frame unexpectedly reached field encoding")?;
     anyhow::ensure!(error.code == ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
     Ok(())
 }
@@ -197,6 +210,20 @@ fn direct_record_rdw_capture_validates_frame_against_payload() -> Result<()> {
 }
 
 #[test]
+fn malformed_record_rdw_precedes_field_decode_errors() -> Result<()> {
+    let schema = parse_copybook("01 REC PIC 9.")?;
+    let options = DecodeOptions::new()
+        .with_codepage(Codepage::ASCII)
+        .with_format(RecordFormat::RDW)
+        .with_emit_raw(RawMode::RecordRDW);
+    let error = decode_record_with_raw_data(&schema, b"X", &options, Some(&[0x7E; 3]), 1)
+        .err()
+        .context("malformed captured frame unexpectedly reached field decoding")?;
+    anyhow::ensure!(error.code == ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+    Ok(())
+}
+
+#[test]
 fn scratch_record_capture_matches_normal_envelope() -> Result<()> {
     let schema = parse_copybook("01 REC PIC X(3).")?;
     let options = DecodeOptions::new()
@@ -219,6 +246,7 @@ fn raw_rdw_mutation_preserves_reserved_bytes_at_max_payload() -> Result<()> {
     let json = json!({
         "fields": {"REC": changed},
         "raw_b64": raw_b64(b"", RESERVED)?,
+        "raw_capture": "record+rdw",
     });
 
     let encoded = encode_record(&schema, &json, &rdw_options(true, 1, true))?;
@@ -235,6 +263,7 @@ fn raw_rdw_mutation_above_max_payload_is_cbkf102() -> Result<()> {
     let json = json!({
         "fields": {"A": "A".repeat(u16::MAX as usize), "B": "B"},
         "raw_b64": raw_b64(b"", RESERVED)?,
+        "raw_capture": "record+rdw",
     });
 
     let error = encode_record(&schema, &json, &rdw_options(true, 1, true))
@@ -277,7 +306,10 @@ fn raw_rdw_declared_length_mismatch_is_cbkf102_before_replay_or_rebuild() -> Res
 
         for raw_key in ["raw_b64", "__raw_b64"] {
             for field_value in [json!("ABC"), json!("XYZ"), json!(123)] {
-                let mut json = json!({"fields": {"REC": field_value}});
+                let mut json = json!({
+                    "fields": {"REC": field_value},
+                    "raw_capture": "record+rdw",
+                });
                 json[raw_key] = Value::String(encoded_raw.clone());
 
                 let error = encode_record(&schema, &json, &rdw_options(true, 1, true))

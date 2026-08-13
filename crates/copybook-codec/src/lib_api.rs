@@ -251,6 +251,10 @@ fn decode_record_with_raw_data_at_offset(
 ) -> Result<Value> {
     use serde_json::Map;
 
+    // Validate whole-record framing before field decoding so a malformed
+    // RecordRDW capture cannot be masked by an unrelated field error.
+    let record_raw = captured_raw_record(data, raw_data_with_header, options.emit_raw)?;
+
     let mut fields_map = Map::new();
     let mut scratch_buffers: Option<crate::memory::ScratchBuffers> = None;
     let mut encoding_acc = Vec::new();
@@ -264,8 +268,6 @@ fn decode_record_with_raw_data_at_offset(
         record_index,
         &mut encoding_acc,
     )?;
-
-    let record_raw = captured_raw_record(data, raw_data_with_header, options.emit_raw)?;
 
     Ok(build_json_envelope(
         fields_map,
@@ -1712,14 +1714,10 @@ fn encode_rdw_raw_replay(
         return Ok(crate::record::RDWRecord::try_with_reserved(raw_data, 0)?.as_bytes());
     }
 
-    let field_payload = encode_fields_to_bytes(schema, fields, options)?;
+    // Validate framing before field encoding so a malformed raw frame cannot
+    // be masked by an unrelated field error.
     let (reserved, raw_payload) = parse_raw_rdw_frame(&raw_data)?;
-    if matches!(capture, Some(RawCapture::RecordRdw)) && field_payload != raw_payload {
-        return Err(Error::new(
-            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
-            "raw_capture 'record+rdw' payload does not match encoded fields",
-        ));
-    }
+    let field_payload = encode_fields_to_bytes(schema, fields, options)?;
     if field_payload == raw_payload {
         return Ok(raw_data);
     }

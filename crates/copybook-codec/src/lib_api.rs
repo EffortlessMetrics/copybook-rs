@@ -31,6 +31,92 @@ use warnings::{reset_warning_counter, warning_count};
 
 const MAX_WORKERS: usize = 64;
 
+#[derive(Clone, Copy)]
+enum RawCapture {
+    Record,
+    RecordRdw,
+}
+
+impl RawCapture {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Record => "record",
+            Self::RecordRdw => "record+rdw",
+        }
+    }
+}
+
+struct RawRecord {
+    b64: String,
+    capture: RawCapture,
+}
+
+fn parse_raw_rdw_frame(frame: &[u8]) -> Result<(u16, &[u8])> {
+    let (raw_header, raw_payload) = frame.split_at_checked(4).ok_or_else(|| {
+        Error::new(
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+            format!(
+                "Raw RDW record is {} bytes; expected at least a 4-byte header",
+                frame.len()
+            ),
+        )
+    })?;
+    let header_bytes: [u8; 4] = raw_header.try_into().map_err(|_| {
+        Error::new(
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+            "Raw RDW record does not contain a complete 4-byte header",
+        )
+    })?;
+    let header = copybook_rdw::RdwHeader::from_bytes(header_bytes);
+    let declared_payload_len = usize::from(header.length());
+    if declared_payload_len != raw_payload.len() {
+        return Err(Error::new(
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+            format!(
+                "Raw RDW header declares {declared_payload_len} payload bytes, but {} bytes follow",
+                raw_payload.len()
+            ),
+        ));
+    }
+    Ok((header.reserved(), raw_payload))
+}
+
+fn validate_captured_raw_rdw(frame: &[u8], expected_payload: &[u8]) -> Result<()> {
+    let (_, raw_payload) = parse_raw_rdw_frame(frame)?;
+    if raw_payload != expected_payload {
+        return Err(Error::new(
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+            "Raw RDW payload does not match the decoded record payload",
+        ));
+    }
+    Ok(())
+}
+
+fn captured_raw_record(
+    data: &[u8],
+    supplied_raw: Option<&[u8]>,
+    mode: crate::options::RawMode,
+) -> Result<Option<RawRecord>> {
+    let (bytes, capture) = match mode {
+        crate::options::RawMode::Off | crate::options::RawMode::Field => return Ok(None),
+        crate::options::RawMode::Record => (data, RawCapture::Record),
+        crate::options::RawMode::RecordRDW => {
+            let frame = supplied_raw.ok_or_else(|| {
+                Error::new(
+                    ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+                    "RawMode::RecordRDW requires an RDW header plus payload",
+                )
+            })?;
+            validate_captured_raw_rdw(frame, data)?;
+            (frame, RawCapture::RecordRdw)
+        }
+    };
+    Ok(Some(RawRecord {
+        b64: base64::engine::general_purpose::STANDARD.encode(bytes),
+        capture,
+    }))
+}
+
 /// Decode one fixed-size COBOL record into the public JSON envelope.
 ///
 /// This uses the supplied schema and decode options, returning the same
@@ -97,7 +183,7 @@ fn decode_record_with_scratch_and_raw(
     schema: &Schema,
     data: &[u8],
     options: &DecodeOptions,
-    raw_data: Option<Vec<u8>>,
+    raw_data: Option<&[u8]>,
     record_index: u64,
     record_offset: Option<u64>,
     scratch: &mut crate::memory::ScratchBuffers,
@@ -105,17 +191,8 @@ fn decode_record_with_scratch_and_raw(
     use serde_json::Map;
 
     let mut fields_map = Map::new();
-    let mut record_raw = None;
     let mut encoding_acc = Vec::new();
-
-    if let Some(raw_bytes) = raw_data.filter(|_| {
-        matches!(
-            options.emit_raw,
-            crate::options::RawMode::Record | crate::options::RawMode::RecordRDW
-        )
-    }) {
-        record_raw = Some(base64::engine::general_purpose::STANDARD.encode(raw_bytes));
-    }
+    let record_raw = captured_raw_record(data, raw_data, options.emit_raw)?;
 
     process_fields_recursive_with_scratch(
         &schema.fields,
@@ -172,8 +249,11 @@ fn decode_record_with_raw_data_at_offset(
     record_index: u64,
     record_offset: Option<u64>,
 ) -> Result<Value> {
-    use crate::options::RawMode;
     use serde_json::Map;
+
+    // Validate whole-record framing before field decoding so a malformed
+    // RecordRDW capture cannot be masked by an unrelated field error.
+    let record_raw = captured_raw_record(data, raw_data_with_header, options.emit_raw)?;
 
     let mut fields_map = Map::new();
     let mut scratch_buffers: Option<crate::memory::ScratchBuffers> = None;
@@ -188,24 +268,6 @@ fn decode_record_with_raw_data_at_offset(
         record_index,
         &mut encoding_acc,
     )?;
-
-    let mut record_raw = None;
-    match options.emit_raw {
-        RawMode::Off | RawMode::Field => {}
-        RawMode::Record => {
-            let raw_b64 = base64::engine::general_purpose::STANDARD.encode(data);
-            record_raw = Some(raw_b64);
-        }
-        RawMode::RecordRDW => {
-            if let Some(full_raw) = raw_data_with_header {
-                let raw_b64 = base64::engine::general_purpose::STANDARD.encode(full_raw);
-                record_raw = Some(raw_b64);
-            } else {
-                let raw_b64 = base64::engine::general_purpose::STANDARD.encode(data);
-                record_raw = Some(raw_b64);
-            }
-        }
-    }
 
     Ok(build_json_envelope(
         fields_map,
@@ -1560,67 +1622,8 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
         json
     };
 
-    // Check if we should use raw data
-    if options.use_raw
-        && let Some(raw_b64_value) = root_obj
-            .get("raw_b64")
-            .or_else(|| root_obj.get("__raw_b64"))
-        && let Some(raw_str) = raw_b64_value.as_str()
-    {
-        // Decode base64 raw data
-        let raw_data = base64::engine::general_purpose::STANDARD
-            .decode(raw_str)
-            .map_err(|e| {
-                Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("Invalid base64 in raw_b64: {e}"),
-                )
-            })?;
-
-        match options.format {
-            RecordFormat::RDW => {
-                let (raw_header, raw_payload) = raw_data.split_at_checked(4).ok_or_else(|| {
-                    Error::new(
-                        ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
-                        format!(
-                            "Raw RDW record is {} bytes; expected at least a 4-byte header",
-                            raw_data.len()
-                        ),
-                    )
-                })?;
-                let header_bytes: [u8; 4] = raw_header.try_into().map_err(|_| {
-                    Error::new(
-                        ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
-                        "Raw RDW record does not contain a complete 4-byte header",
-                    )
-                })?;
-                let header = copybook_rdw::RdwHeader::from_bytes(header_bytes);
-                let declared_payload_len = usize::from(header.length());
-                if declared_payload_len != raw_payload.len() {
-                    return Err(Error::new(
-                        ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
-                        format!(
-                            "Raw RDW header declares {declared_payload_len} payload bytes, but {} bytes follow",
-                            raw_payload.len()
-                        ),
-                    ));
-                }
-                let reserved = header.reserved();
-                let field_payload = encode_fields_to_bytes(schema, fields_value, options)?;
-
-                if field_payload == raw_payload {
-                    return Ok(raw_data);
-                }
-
-                return Ok(
-                    crate::record::RDWRecord::try_with_reserved(field_payload, reserved)?
-                        .as_bytes(),
-                );
-            }
-            RecordFormat::Fixed => {
-                return Ok(raw_data);
-            }
-        }
+    if let Some(raw_replay) = encode_raw_replay(root_obj, fields_value, schema, options)? {
+        return Ok(raw_replay);
     }
 
     // No raw data or not using raw - encode from fields
@@ -1643,6 +1646,82 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
             Ok(result)
         }
     }
+}
+
+fn parse_raw_capture(root: &serde_json::Map<String, Value>) -> Result<Option<RawCapture>> {
+    match root.get("raw_capture") {
+        None => Ok(None),
+        Some(Value::String(value)) if value == "record" => Ok(Some(RawCapture::Record)),
+        Some(Value::String(value)) if value == "record+rdw" => Ok(Some(RawCapture::RecordRdw)),
+        Some(value) => Err(Error::new(
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            format!("Invalid raw_capture {value}; expected 'record' or 'record+rdw'"),
+        )),
+    }
+}
+
+fn encode_raw_replay(
+    root: &serde_json::Map<String, Value>,
+    fields: &Value,
+    schema: &Schema,
+    options: &EncodeOptions,
+) -> Result<Option<Vec<u8>>> {
+    if !options.use_raw {
+        return Ok(None);
+    }
+    let Some(raw_str) = root
+        .get("raw_b64")
+        .or_else(|| root.get("__raw_b64"))
+        .and_then(Value::as_str)
+    else {
+        return Ok(None);
+    };
+    let capture = parse_raw_capture(root)?;
+    let raw_data = base64::engine::general_purpose::STANDARD
+        .decode(raw_str)
+        .map_err(|error| {
+            Error::new(
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                format!("Invalid base64 in raw_b64: {error}"),
+            )
+        })?;
+
+    match options.format {
+        RecordFormat::Fixed => encode_fixed_raw_replay(raw_data, capture),
+        RecordFormat::RDW => encode_rdw_raw_replay(raw_data, capture, fields, schema, options),
+    }
+    .map(Some)
+}
+
+fn encode_fixed_raw_replay(raw_data: Vec<u8>, capture: Option<RawCapture>) -> Result<Vec<u8>> {
+    if matches!(capture, Some(RawCapture::RecordRdw)) {
+        return Err(Error::new(
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            "raw_capture 'record+rdw' conflicts with fixed record format",
+        ));
+    }
+    Ok(raw_data)
+}
+
+fn encode_rdw_raw_replay(
+    raw_data: Vec<u8>,
+    capture: Option<RawCapture>,
+    fields: &Value,
+    schema: &Schema,
+    options: &EncodeOptions,
+) -> Result<Vec<u8>> {
+    if matches!(capture, Some(RawCapture::Record)) {
+        return Ok(crate::record::RDWRecord::try_with_reserved(raw_data, 0)?.as_bytes());
+    }
+
+    // Validate framing before field encoding so a malformed raw frame cannot
+    // be masked by an unrelated field error.
+    let (reserved, raw_payload) = parse_raw_rdw_frame(&raw_data)?;
+    let field_payload = encode_fields_to_bytes(schema, fields, options)?;
+    if field_payload == raw_payload {
+        return Ok(raw_data);
+    }
+    Ok(crate::record::RDWRecord::try_with_reserved(field_payload, reserved)?.as_bytes())
 }
 
 /// Validate REDEFINES encoding constraints for direct `lib_api` encoding.
@@ -2753,7 +2832,7 @@ fn process_fixed_records<R: Read, W: Write>(
             schema,
             &record_data,
             options,
-            raw_data_for_decode,
+            raw_data_for_decode.as_deref(),
             record_index,
             Some(current_offset),
             &mut scratch,
@@ -2813,7 +2892,7 @@ fn decode_worker_pool(
                 &schema,
                 &work.payload,
                 &options,
-                work.raw_data,
+                work.raw_data.as_deref(),
                 work.record_index,
                 Some(work.record_offset),
                 scratch,
@@ -3022,7 +3101,7 @@ fn process_rdw_records<R: Read, W: Write>(
             schema,
             &rdw_record.payload,
             options,
-            full_raw_data,
+            full_raw_data.as_deref(),
             record_index,
             Some(current_offset),
             &mut scratch,

@@ -6,6 +6,8 @@ use crate::options::{DecodeOptions, ZonedEncodingFormat};
 use copybook_core::Schema;
 use serde_json::Value;
 
+use super::RawRecord;
+
 pub(super) struct RecordMetadata {
     pub(super) length: usize,
     pub(super) offset: Option<u64>,
@@ -37,7 +39,7 @@ pub(super) fn build_json_envelope(
     options: &DecodeOptions,
     record_index: u64,
     record_metadata: &RecordMetadata,
-    raw_b64: Option<String>,
+    raw_record: Option<RawRecord>,
     encoding_metadata: Vec<(String, ZonedEncodingFormat)>,
 ) -> Value {
     let mut root = serde_json::Map::new();
@@ -88,9 +90,14 @@ pub(super) fn build_json_envelope(
         }
     }
 
-    if let Some(raw) = raw_b64 {
+    if let Some(raw_record) = raw_record {
+        let raw = raw_record.b64;
         root.insert(String::from("raw_b64"), Value::String(raw.clone()));
         root.insert(String::from("__raw_b64"), Value::String(raw));
+        root.insert(
+            String::from("raw_capture"),
+            Value::String(raw_record.capture.as_str().into()),
+        );
     }
 
     if options.preserve_zoned_encoding && !encoding_metadata.is_empty() {

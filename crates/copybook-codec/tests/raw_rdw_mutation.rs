@@ -210,6 +210,23 @@ fn direct_record_rdw_capture_validates_frame_against_payload() -> Result<()> {
 }
 
 #[test]
+fn direct_record_capture_ignores_supplied_rdw_frame() -> Result<()> {
+    let schema = parse_copybook("01 REC PIC X(3).")?;
+    let options = DecodeOptions::new()
+        .with_codepage(Codepage::ASCII)
+        .with_format(RecordFormat::RDW)
+        .with_emit_raw(RawMode::Record);
+    let frame = [b"\0\x03\xA5\x5A".as_slice(), b"ABC"].concat();
+
+    let decoded = decode_record_with_raw_data(&schema, b"ABC", &options, Some(&frame), 1)?;
+
+    anyhow::ensure!(decoded["raw_capture"] == "record");
+    anyhow::ensure!(decoded["raw_b64"] == payload_b64(b"ABC"));
+    anyhow::ensure!(decoded["__raw_b64"] == payload_b64(b"ABC"));
+    Ok(())
+}
+
+#[test]
 fn malformed_record_rdw_precedes_field_decode_errors() -> Result<()> {
     let schema = parse_copybook("01 REC PIC 9.")?;
     let options = DecodeOptions::new()

@@ -99,7 +99,7 @@ fn captured_raw_record(
 ) -> Result<Option<RawRecord>> {
     let (bytes, capture) = match mode {
         crate::options::RawMode::Off | crate::options::RawMode::Field => return Ok(None),
-        crate::options::RawMode::Record => (supplied_raw.unwrap_or(data), RawCapture::Record),
+        crate::options::RawMode::Record => (data, RawCapture::Record),
         crate::options::RawMode::RecordRDW => {
             let frame = supplied_raw.ok_or_else(|| {
                 Error::new(

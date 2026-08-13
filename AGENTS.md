@@ -203,8 +203,10 @@ sampled locally via `just scheduled`.
 ### Raw capture contract
 
 - `RawMode::Record` emits the record payload as canonical `raw_b64`; legacy
-  `__raw_b64` is also emitted/accepted for compatibility.
+  `__raw_b64` is also emitted/accepted for compatibility. Whole-record raw
+  output includes `raw_capture: "record"` provenance.
 - `RawMode::RecordRDW` captures the RDW header plus record payload.
+  Whole-record raw output includes `raw_capture: "record+rdw"` provenance.
 - `RawMode::Field` emits only `<FIELD_NAME>_raw_b64` values and no whole-record
   raw payload.
 - `RawMode::Off` emits no raw payload.

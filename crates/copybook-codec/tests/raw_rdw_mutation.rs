@@ -2,9 +2,12 @@
 
 use anyhow::{Context, Result};
 use base64::Engine;
-use copybook_codec::{EncodeOptions, encode_jsonl_to_file, encode_record};
+use copybook_codec::{
+    DecodeOptions, EncodeOptions, decode_record, decode_record_with_scratch, encode_jsonl_to_file,
+    encode_record,
+};
 use copybook_core::{ErrorCode, parse_copybook};
-use copybook_options::{Codepage, RecordFormat};
+use copybook_options::{Codepage, RawMode, RecordFormat};
 use serde_json::{Value, json};
 
 const RESERVED: [u8; 2] = [0xA5, 0x5A];
@@ -27,6 +30,10 @@ fn raw_b64(payload: &[u8], reserved: [u8; 2]) -> Result<String> {
     Ok(base64::engine::general_purpose::STANDARD.encode(record))
 }
 
+fn payload_b64(payload: &[u8]) -> String {
+    base64::engine::general_purpose::STANDARD.encode(payload)
+}
+
 #[test]
 fn raw_rdw_unchanged_replay_is_byte_identical_and_canonical_key_wins() -> Result<()> {
     let schema = parse_copybook("01 REC PIC X(3).")?;
@@ -36,11 +43,114 @@ fn raw_rdw_unchanged_replay_is_byte_identical_and_canonical_key_wins() -> Result
         "fields": {"REC": "ABC"},
         "raw_b64": canonical,
         "__raw_b64": legacy,
+        "raw_capture": "record+rdw",
     });
 
     let encoded = encode_record(&schema, &json, &rdw_options(true, 1, true))?;
 
     anyhow::ensure!(encoded == [b"\0\x03\xA5\x5A".as_slice(), b"ABC"].concat());
+    Ok(())
+}
+
+#[test]
+fn raw_record_provenance_wraps_payload_without_length_guessing() -> Result<()> {
+    let schema = parse_copybook("01 REC PIC X.")?;
+    for payload in [
+        Vec::new(),
+        vec![b'A'],
+        vec![b'A', b'B'],
+        vec![b'A', b'B', b'C'],
+        vec![0, 0, 0xA5, 0x5A],
+        b"ABCDE".to_vec(),
+    ] {
+        let json = json!({
+            "raw_b64": payload_b64(&payload),
+            "raw_capture": "record",
+        });
+        let encoded = encode_record(&schema, &json, &rdw_options(true, 1, true))?;
+        let length = u16::try_from(payload.len()).context("fixture payload exceeds u16")?;
+        let expected = [length.to_be_bytes().as_slice(), &[0, 0], payload.as_slice()].concat();
+        anyhow::ensure!(encoded == expected);
+    }
+    Ok(())
+}
+
+#[test]
+fn invalid_or_conflicting_raw_capture_is_cbke501() -> Result<()> {
+    let schema = parse_copybook("01 REC PIC X.")?;
+    for marker in [json!("unknown"), json!(3)] {
+        let json = json!({
+            "raw_b64": payload_b64(b"A"),
+            "raw_capture": marker,
+        });
+        let error = encode_record(&schema, &json, &rdw_options(true, 1, true))
+            .err()
+            .context("invalid raw_capture unexpectedly succeeded")?;
+        anyhow::ensure!(error.code == ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    }
+
+    let fixed_options = EncodeOptions::new()
+        .with_codepage(Codepage::ASCII)
+        .with_format(RecordFormat::Fixed)
+        .with_use_raw(true);
+    let conflicting = json!({
+        "raw_b64": payload_b64(b"A"),
+        "raw_capture": "record+rdw",
+    });
+    let error = encode_record(&schema, &conflicting, &fixed_options)
+        .err()
+        .context("RDW provenance unexpectedly accepted for fixed replay")?;
+    anyhow::ensure!(error.code == ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    Ok(())
+}
+
+#[test]
+fn fixed_record_provenance_keeps_raw_replay_unchanged() -> Result<()> {
+    let schema = parse_copybook("01 REC PIC X(5).")?;
+    let fixed_options = EncodeOptions::new()
+        .with_codepage(Codepage::ASCII)
+        .with_format(RecordFormat::Fixed)
+        .with_use_raw(true);
+    let json = json!({
+        "fields": {"REC": "XXXXX"},
+        "raw_b64": payload_b64(b"HELLO"),
+        "raw_capture": "record",
+    });
+    anyhow::ensure!(encode_record(&schema, &json, &fixed_options)? == b"HELLO");
+    Ok(())
+}
+
+#[test]
+fn explicit_record_rdw_provenance_rejects_malformed_frame() -> Result<()> {
+    let schema = parse_copybook("01 REC PIC X.")?;
+    let json = json!({
+        "raw_b64": payload_b64(&[0x7E; 3]),
+        "raw_capture": "record+rdw",
+    });
+    let error = encode_record(&schema, &json, &rdw_options(true, 1, true))
+        .err()
+        .context("short explicit raw RDW unexpectedly succeeded")?;
+    anyhow::ensure!(error.code == ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+    Ok(())
+}
+
+#[test]
+fn direct_record_rdw_capture_without_header_is_cbkf102() -> Result<()> {
+    let schema = parse_copybook("01 REC PIC X.")?;
+    let options = DecodeOptions::new()
+        .with_codepage(Codepage::ASCII)
+        .with_format(RecordFormat::RDW)
+        .with_emit_raw(RawMode::RecordRDW);
+    let error = decode_record(&schema, b"A", &options)
+        .err()
+        .context("RecordRDW capture without a physical header unexpectedly succeeded")?;
+    anyhow::ensure!(error.code == ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+
+    let mut scratch = copybook_codec::runtime::ScratchBuffers::new();
+    let scratch_error = decode_record_with_scratch(&schema, b"A", &options, &mut scratch)
+        .err()
+        .context("scratch RecordRDW capture without a physical header unexpectedly succeeded")?;
+    anyhow::ensure!(scratch_error.code == ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
     Ok(())
 }
 

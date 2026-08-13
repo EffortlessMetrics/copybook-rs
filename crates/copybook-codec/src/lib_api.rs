@@ -31,6 +31,26 @@ use warnings::{reset_warning_counter, warning_count};
 
 const MAX_WORKERS: usize = 64;
 
+#[derive(Clone, Copy)]
+enum RawCapture {
+    Record,
+    RecordRdw,
+}
+
+impl RawCapture {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Record => "record",
+            Self::RecordRdw => "record+rdw",
+        }
+    }
+}
+
+struct RawRecord {
+    b64: String,
+    capture: RawCapture,
+}
+
 /// Decode one fixed-size COBOL record into the public JSON envelope.
 ///
 /// This uses the supplied schema and decode options, returning the same
@@ -104,6 +124,13 @@ fn decode_record_with_scratch_and_raw(
 ) -> Result<Value> {
     use serde_json::Map;
 
+    if matches!(options.emit_raw, crate::options::RawMode::RecordRDW) && raw_data.is_none() {
+        return Err(Error::new(
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+            "RawMode::RecordRDW requires an RDW header plus payload",
+        ));
+    }
+
     let mut fields_map = Map::new();
     let mut record_raw = None;
     let mut encoding_acc = Vec::new();
@@ -114,7 +141,13 @@ fn decode_record_with_scratch_and_raw(
             crate::options::RawMode::Record | crate::options::RawMode::RecordRDW
         )
     }) {
-        record_raw = Some(base64::engine::general_purpose::STANDARD.encode(raw_bytes));
+        record_raw = Some(RawRecord {
+            b64: base64::engine::general_purpose::STANDARD.encode(raw_bytes),
+            capture: match options.emit_raw {
+                crate::options::RawMode::RecordRDW => RawCapture::RecordRdw,
+                _ => RawCapture::Record,
+            },
+        });
     }
 
     process_fields_recursive_with_scratch(
@@ -194,16 +227,23 @@ fn decode_record_with_raw_data_at_offset(
         RawMode::Off | RawMode::Field => {}
         RawMode::Record => {
             let raw_b64 = base64::engine::general_purpose::STANDARD.encode(data);
-            record_raw = Some(raw_b64);
+            record_raw = Some(RawRecord {
+                b64: raw_b64,
+                capture: RawCapture::Record,
+            });
         }
         RawMode::RecordRDW => {
-            if let Some(full_raw) = raw_data_with_header {
-                let raw_b64 = base64::engine::general_purpose::STANDARD.encode(full_raw);
-                record_raw = Some(raw_b64);
-            } else {
-                let raw_b64 = base64::engine::general_purpose::STANDARD.encode(data);
-                record_raw = Some(raw_b64);
-            }
+            let full_raw = raw_data_with_header.ok_or_else(|| {
+                Error::new(
+                    ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+                    "RawMode::RecordRDW requires an RDW header plus payload",
+                )
+            })?;
+            let raw_b64 = base64::engine::general_purpose::STANDARD.encode(full_raw);
+            record_raw = Some(RawRecord {
+                b64: raw_b64,
+                capture: RawCapture::RecordRdw,
+            });
         }
     }
 
@@ -1567,6 +1607,17 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
             .or_else(|| root_obj.get("__raw_b64"))
         && let Some(raw_str) = raw_b64_value.as_str()
     {
+        let raw_capture = match root_obj.get("raw_capture") {
+            None => None,
+            Some(Value::String(value)) if value == "record" => Some(RawCapture::Record),
+            Some(Value::String(value)) if value == "record+rdw" => Some(RawCapture::RecordRdw),
+            Some(value) => {
+                return Err(Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!("Invalid raw_capture {value}; expected 'record' or 'record+rdw'"),
+                ));
+            }
+        };
         // Decode base64 raw data
         let raw_data = base64::engine::general_purpose::STANDARD
             .decode(raw_str)
@@ -1579,6 +1630,10 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
 
         match options.format {
             RecordFormat::RDW => {
+                if matches!(raw_capture, Some(RawCapture::Record)) {
+                    return Ok(crate::record::RDWRecord::try_with_reserved(raw_data, 0)?.as_bytes());
+                }
+
                 let (raw_header, raw_payload) = raw_data.split_at_checked(4).ok_or_else(|| {
                     Error::new(
                         ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
@@ -1618,6 +1673,12 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
                 );
             }
             RecordFormat::Fixed => {
+                if matches!(raw_capture, Some(RawCapture::RecordRdw)) {
+                    return Err(Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        "raw_capture 'record+rdw' conflicts with fixed record format",
+                    ));
+                }
                 return Ok(raw_data);
             }
         }

@@ -16,6 +16,7 @@ copybook-rs emits a versioned JSON envelope for each decoded record. Each line i
 | `offset` | integer | Optional byte offset in the source stream (present when `--emit-meta`). |
 | `length` | integer | Optional decoded record length in bytes (present when `--emit-meta`). |
 | `raw_b64` | string | Optional base64-encoded record bytes when `--emit-raw` is `record` or `record+rdw`. |
+| `raw_capture` | string | Present with whole-record `raw_b64`; `record` means payload only and `record+rdw` means a four-byte RDW header plus payload. |
 | `<field>_raw_b64` | string | Optional field-level payloads when `--emit-raw` is `field`. |
 | `_encoding_metadata` | object | Optional zoned encoding metadata (present when `--preserve-zoned-encoding`). |
 | `errors` | array | Optional structured error diagnostics for lenient decoding. |
@@ -39,9 +40,17 @@ copybook-rs emits a versioned JSON envelope for each decoded record. Each line i
   "schema_fingerprint": "4b0f5e64d9f6ec98f1a1d8e584c9d1e2f6879c16efac5aa1f77adbc2e7c8d2f5",
   "offset": 1280,
   "length": 80,
+  "raw_capture": "record",
   "raw_b64": "AAECAwQFBgcICQoLDA0ODxA="
 }
 ```
+
+`raw_capture` is the authoritative provenance for newly emitted whole-record
+raw data. During RDW encoding with `--use-raw`, `record` is wrapped in a new RDW
+header and `record+rdw` is validated as an existing frame. For compatibility,
+an input with `raw_b64` or legacy `__raw_b64` but no marker retains the
+historical RDW header-plus-payload interpretation; the encoder never guesses
+from byte length or contents.
 
 ## Field Ordering
 

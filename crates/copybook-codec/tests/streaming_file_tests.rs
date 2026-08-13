@@ -1024,6 +1024,7 @@ fn decode_file_to_jsonl_raw_mode_records_emit_fixed_raw_payload() {
 
     for decoded in lines.iter() {
         assert!(decoded.get("raw_b64").is_some());
+        assert_eq!(decoded["raw_capture"], "record");
         assert_eq!(
             parse_raw_b64_field_from_any(decoded, "raw_b64"),
             parse_raw_b64_field(decoded),
@@ -1067,6 +1068,52 @@ fn decode_file_to_jsonl_raw_mode_rdw_emits_header_and_payload() {
     assert_eq!(decoded_raws, rdw_raw_expectations);
     for decoded in lines.iter() {
         assert!(decoded.get("raw_b64").is_some());
+        assert_eq!(decoded["raw_capture"], "record+rdw");
+    }
+}
+
+#[test]
+fn rdw_payload_raw_capture_round_trips_across_workers() {
+    let schema = parse_copybook(RDW_SCHEMA).unwrap();
+    let rdw_data = build_rdw_records(&["ABCDE", "FGHIJ"]);
+    let mut baseline = None;
+
+    for threads in [1_usize, 4] {
+        let decode_options = ascii_decode_opts()
+            .with_format(RecordFormat::RDW)
+            .with_emit_raw(RawMode::Record)
+            .with_threads(threads);
+        let mut jsonl = Vec::new();
+        let summary =
+            decode_file_to_jsonl(&schema, Cursor::new(&rdw_data), &mut jsonl, &decode_options)
+                .unwrap();
+        assert_eq!(summary.records_processed, 2);
+
+        let values: Vec<serde_json::Value> = String::from_utf8(jsonl.clone())
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert!(values.iter().all(|value| value["raw_capture"] == "record"));
+        assert_eq!(parse_raw_b64_field(&values[0]), b"ABCDE");
+        assert_eq!(parse_raw_b64_field(&values[1]), b"FGHIJ");
+
+        let encode_options = ascii_encode_opts()
+            .with_format(RecordFormat::RDW)
+            .with_use_raw(true)
+            .with_threads(threads);
+        let mut encoded = Vec::new();
+        let encode_summary =
+            encode_jsonl_to_file(&schema, Cursor::new(jsonl), &mut encoded, &encode_options)
+                .unwrap();
+        assert_eq!(encode_summary.records_processed, 2);
+        assert_eq!(encoded, rdw_data);
+
+        if let Some(expected) = &baseline {
+            assert_eq!(&encoded, expected);
+        } else {
+            baseline = Some(encoded);
+        }
     }
 }
 
@@ -1105,6 +1152,7 @@ fn decode_file_to_jsonl_raw_mode_rdw_is_stable_across_workers() {
         for line in &lines {
             assert!(line.get("raw_b64").is_some());
             assert!(line.get("__raw_b64").is_some());
+            assert_eq!(line["raw_capture"], "record+rdw");
         }
         let actual_raw: Vec<_> = lines.iter().map(parse_raw_b64_field).collect();
         assert_eq!(actual_raw, expected_raw);

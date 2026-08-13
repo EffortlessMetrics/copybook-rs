@@ -211,7 +211,8 @@ copybook encode <COPYBOOK> <JSONL> [OPTIONS]
 - `--codepage <CP>` - Character encoding: cp037, cp273, cp500, cp1047, cp1140, ascii (default: cp037)
 
 **Encoding Options:**
-- `--use-raw` - Use raw bytes from `raw_b64` (or legacy `__raw_b64`) when available
+- `--use-raw` - Use raw bytes from `raw_b64` (or legacy `__raw_b64`) when available; `raw_capture`
+  distinguishes payload-only `record` bytes from framed `record+rdw` bytes for RDW output
 - `--bwz-encode` - Encode zero values as spaces for BLANK WHEN ZERO fields
 - `--coerce-numbers` - Coerce non-string JSON numbers to strings before encoding
 
@@ -668,6 +669,7 @@ Binary field sizes are determined by PIC digits: ≤4→16b, 5–9→32b, 10–1
 
 **Raw Bytes (--emit-raw):**
 - `raw_b64` - Canonical base64-encoded raw record bytes (record/record+rdw modes); legacy `__raw_b64` is also emitted for backward compatibility
+- `raw_capture` - Whole-record raw provenance: `record` for payload bytes or `record+rdw` for an RDW header plus payload
 - `<FIELD>__raw_b64` - Base64 payload for individual fields (field mode)
 - Enables byte-perfect round trips when re-encoding
 

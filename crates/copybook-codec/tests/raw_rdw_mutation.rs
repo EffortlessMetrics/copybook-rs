@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result};
 use base64::Engine;
+use copybook_codec::lib_api::decode_record_with_raw_data;
 use copybook_codec::{
     DecodeOptions, EncodeOptions, decode_record, decode_record_with_scratch, encode_jsonl_to_file,
     encode_record,
@@ -135,6 +136,21 @@ fn explicit_record_rdw_provenance_rejects_malformed_frame() -> Result<()> {
 }
 
 #[test]
+fn explicit_record_rdw_provenance_rejects_field_payload_mismatch() -> Result<()> {
+    let schema = parse_copybook("01 REC PIC X(3).")?;
+    let json = json!({
+        "fields": {"REC": "XYZ"},
+        "raw_b64": raw_b64(b"ABC", RESERVED)?,
+        "raw_capture": "record+rdw",
+    });
+    let error = encode_record(&schema, &json, &rdw_options(true, 1, true))
+        .err()
+        .context("explicit framed payload mismatch unexpectedly rebuilt")?;
+    anyhow::ensure!(error.code == ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+    Ok(())
+}
+
+#[test]
 fn direct_record_rdw_capture_without_header_is_cbkf102() -> Result<()> {
     let schema = parse_copybook("01 REC PIC X.")?;
     let options = DecodeOptions::new()
@@ -151,6 +167,48 @@ fn direct_record_rdw_capture_without_header_is_cbkf102() -> Result<()> {
         .err()
         .context("scratch RecordRDW capture without a physical header unexpectedly succeeded")?;
     anyhow::ensure!(scratch_error.code == ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+    Ok(())
+}
+
+#[test]
+fn direct_record_rdw_capture_validates_frame_against_payload() -> Result<()> {
+    let schema = parse_copybook("01 REC PIC X(3).")?;
+    let options = DecodeOptions::new()
+        .with_codepage(Codepage::ASCII)
+        .with_format(RecordFormat::RDW)
+        .with_emit_raw(RawMode::RecordRDW);
+    let valid = [b"\0\x03\xA5\x5A".as_slice(), b"ABC"].concat();
+    let decoded = decode_record_with_raw_data(&schema, b"ABC", &options, Some(&valid), 1)?;
+    anyhow::ensure!(decoded["raw_capture"] == "record+rdw");
+    anyhow::ensure!(decoded["raw_b64"] == payload_b64(&valid));
+
+    let malformed = [
+        vec![0x7E; 3],
+        [b"\0\x02\xA5\x5A".as_slice(), b"ABC"].concat(),
+        [b"\0\x03\xA5\x5A".as_slice(), b"XYZ"].concat(),
+    ];
+    for frame in malformed {
+        let error = decode_record_with_raw_data(&schema, b"ABC", &options, Some(&frame), 1)
+            .err()
+            .context("invalid captured RDW frame unexpectedly succeeded")?;
+        anyhow::ensure!(error.code == ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+    }
+    Ok(())
+}
+
+#[test]
+fn scratch_record_capture_matches_normal_envelope() -> Result<()> {
+    let schema = parse_copybook("01 REC PIC X(3).")?;
+    let options = DecodeOptions::new()
+        .with_codepage(Codepage::ASCII)
+        .with_format(RecordFormat::Fixed)
+        .with_emit_raw(RawMode::Record);
+    let normal = decode_record(&schema, b"ABC", &options)?;
+    let mut scratch = copybook_codec::runtime::ScratchBuffers::new();
+    let optimized = decode_record_with_scratch(&schema, b"ABC", &options, &mut scratch)?;
+    anyhow::ensure!(optimized == normal);
+    anyhow::ensure!(optimized["raw_b64"] == payload_b64(b"ABC"));
+    anyhow::ensure!(optimized["raw_capture"] == "record");
     Ok(())
 }
 

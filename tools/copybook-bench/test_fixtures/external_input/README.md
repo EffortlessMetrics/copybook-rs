@@ -10,6 +10,8 @@ to the parser. The loader deliberately performs no newline or whitespace
 normalization, so changing the copybook changes the manifest identity even when
 its calculated LRECL remains the same.
 
-The fixtures prove parsing, path safety, integrity, framing, and deterministic
-payload boundaries. They are not benchmark measurements, are not consumed by
-the weekly soak workflow, and establish no throughput or threshold claim.
+The fixtures prove parsing, path safety, integrity, framing, deterministic
+payload boundaries, and successful decode consumption through the private
+external-input preflight. They are not benchmark measurements, are not
+consumed by the weekly soak workflow, and establish no throughput or threshold
+claim.

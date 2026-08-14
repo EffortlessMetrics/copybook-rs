@@ -7,7 +7,10 @@ use std::ops::Range;
 use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context, Result, bail, ensure};
-use copybook_codec::{Codepage, DecodeOptions, RecordFormat};
+use copybook_codec::{
+    Codepage, DecodeOptions, RecordFormat, decode_record_with_scratch, memory::ScratchBuffers,
+};
+use copybook_core::Schema;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
@@ -160,6 +163,25 @@ pub struct ValidatedExternalInput {
     pub payload_ranges: Vec<Range<usize>>,
 }
 
+struct LoadedExternalInput {
+    validated: ValidatedExternalInput,
+    schema: Schema,
+    manifest_sha256: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExternalInputPreflight {
+    manifest_sha256: String,
+    record_format: ExternalRecordFormat,
+    codepage: ExternalCodepage,
+    workload: ExternalWorkload,
+    decoded_records: usize,
+    physical_bytes: usize,
+    payload_bytes: usize,
+    framing_bytes: usize,
+    payload_ranges: Vec<Range<usize>>,
+}
+
 impl ValidatedExternalInput {
     /// Build decode options matching the manifest without running a benchmark.
     #[must_use]
@@ -177,9 +199,14 @@ impl ValidatedExternalInput {
 /// Returns an error for unreadable or unsafe paths, malformed metadata,
 /// copybook layout disagreement, integrity mismatch, or invalid record framing.
 pub fn load_external_input(manifest_path: &Path) -> Result<ValidatedExternalInput> {
+    Ok(load_external_input_bundle(manifest_path)?.validated)
+}
+
+fn load_external_input_bundle(manifest_path: &Path) -> Result<LoadedExternalInput> {
     reject_symlink_or_non_file(manifest_path, "manifest")?;
     let manifest_bytes = fs::read(manifest_path)
         .with_context(|| format!("failed to read manifest {}", manifest_path.display()))?;
+    let manifest_sha256 = format!("{:x}", Sha256::digest(&manifest_bytes));
     let manifest: ExternalInputManifest = serde_json::from_slice(&manifest_bytes)
         .with_context(|| format!("failed to parse manifest {}", manifest_path.display()))?;
 
@@ -242,11 +269,72 @@ pub fn load_external_input(manifest_path: &Path) -> Result<ValidatedExternalInpu
     )?;
     let payload_ranges = validate_framing(&manifest, &dataset)?;
 
-    Ok(ValidatedExternalInput {
-        manifest,
-        copybook_source,
-        dataset,
-        payload_ranges,
+    Ok(LoadedExternalInput {
+        validated: ValidatedExternalInput {
+            manifest,
+            copybook_source,
+            dataset,
+            payload_ranges,
+        },
+        schema,
+        manifest_sha256,
+    })
+}
+
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "issue #776 stages the private decode preflight before benchmark wiring"
+    )
+)]
+fn run_external_input_preflight(manifest_path: &Path) -> Result<ExternalInputPreflight> {
+    let loaded = load_external_input_bundle(manifest_path)?;
+    let options = loaded.validated.decode_options();
+    let mut scratch = ScratchBuffers::new();
+    let mut decoded_records = 0_usize;
+    let mut payload_bytes = 0_usize;
+
+    for (record_index, range) in loaded.validated.payload_ranges.iter().enumerate() {
+        let payload = loaded
+            .validated
+            .dataset
+            .get(range.clone())
+            .with_context(|| {
+                format!(
+                    "record {record_index} payload range {}..{} is outside the validated dataset",
+                    range.start, range.end
+                )
+            })?;
+        payload_bytes = payload_bytes
+            .checked_add(payload.len())
+            .context("external-input payload byte total overflows usize")?;
+        let _decoded = decode_record_with_scratch(&loaded.schema, payload, &options, &mut scratch)
+            .with_context(|| {
+                format!(
+                    "failed to decode record {record_index} payload range {}..{}",
+                    range.start, range.end
+                )
+            })?;
+        decoded_records = decoded_records
+            .checked_add(1)
+            .context("external-input decoded record count overflows usize")?;
+    }
+
+    let physical_bytes = loaded.validated.dataset.len();
+    let framing_bytes = physical_bytes
+        .checked_sub(payload_bytes)
+        .context("external-input payload bytes exceed physical dataset bytes")?;
+    Ok(ExternalInputPreflight {
+        manifest_sha256: loaded.manifest_sha256,
+        record_format: loaded.validated.manifest.record_format,
+        codepage: loaded.validated.manifest.codepage,
+        workload: loaded.validated.manifest.workload,
+        decoded_records,
+        physical_bytes,
+        payload_bytes,
+        framing_bytes,
+        payload_ranges: loaded.validated.payload_ranges,
     })
 }
 
@@ -415,12 +503,12 @@ mod tests {
 
     use anyhow::{Context, Result, ensure};
     use serde_json::{Map, Value, json};
-    use sha2::Digest;
+    use sha2::{Digest, Sha256};
     use tempfile::TempDir;
 
     use super::{
-        ExternalCodepage, ExternalRecordFormat, IntegrityArtifact, ManifestIntegrityError,
-        load_external_input,
+        ExternalCodepage, ExternalRecordFormat, ExternalWorkload, IntegrityArtifact,
+        ManifestIntegrityError, load_external_input, run_external_input_preflight,
     };
 
     fn fixtures() -> PathBuf {
@@ -493,6 +581,93 @@ mod tests {
     fn external_input_repeat_load_is_deterministic() -> Result<()> {
         let path = fixtures().join("rdw-cp037.json");
         ensure!(load_external_input(&path)? == load_external_input(&path)?);
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_preflight_decodes_fixture_matrix_with_exact_telemetry() -> Result<()> {
+        let cases = [
+            (
+                "fixed-ascii.json",
+                ExternalRecordFormat::Fixed,
+                ExternalCodepage::Ascii,
+                ExternalWorkload::DisplayHeavy,
+                5,
+                0,
+                0..5,
+            ),
+            (
+                "fixed-cp037.json",
+                ExternalRecordFormat::Fixed,
+                ExternalCodepage::Cp037,
+                ExternalWorkload::DisplayHeavy,
+                5,
+                0,
+                0..5,
+            ),
+            (
+                "rdw-ascii.json",
+                ExternalRecordFormat::Rdw,
+                ExternalCodepage::Ascii,
+                ExternalWorkload::DisplayHeavy,
+                9,
+                4,
+                4..9,
+            ),
+            (
+                "rdw-cp037.json",
+                ExternalRecordFormat::Rdw,
+                ExternalCodepage::Cp037,
+                ExternalWorkload::DisplayHeavy,
+                9,
+                4,
+                4..9,
+            ),
+        ];
+        for (name, format, codepage, workload, physical, framing, expected_range) in cases {
+            let path = fixtures().join(name);
+            let telemetry = run_external_input_preflight(&path)?;
+            let expected_identity = format!("{:x}", Sha256::digest(fs::read(&path)?));
+            ensure!(telemetry.manifest_sha256 == expected_identity);
+            ensure!(telemetry.record_format == format);
+            ensure!(telemetry.codepage == codepage);
+            ensure!(telemetry.workload == workload);
+            ensure!(telemetry.decoded_records == 1);
+            ensure!(telemetry.physical_bytes == physical);
+            ensure!(telemetry.payload_bytes == 5);
+            ensure!(telemetry.framing_bytes == framing);
+            ensure!(telemetry.payload_ranges == [expected_range]);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_preflight_is_deterministic() -> Result<()> {
+        let path = fixtures().join("rdw-cp037.json");
+        ensure!(run_external_input_preflight(&path)? == run_external_input_preflight(&path)?);
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_preflight_propagates_decode_failure_after_valid_load() -> Result<()> {
+        let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+        let numeric_copybook = b"       01 RECORD PIC 9(5).\n";
+        let copybook_path = temp.path().join("simple.cpy");
+        fs::write(&copybook_path, numeric_copybook)?;
+        edit_manifest(&manifest, |root| {
+            root.insert(
+                "copybook_sha256".to_string(),
+                json!(format!("{:x}", Sha256::digest(numeric_copybook))),
+            );
+        })?;
+
+        let validated = load_external_input(&manifest)?;
+        ensure!(validated.manifest.record_length == 5);
+        let error = run_external_input_preflight(&manifest)
+            .err()
+            .context("invalid numeric payload unexpectedly passed decode preflight")?;
+        let message = error.to_string();
+        ensure!(message.contains("failed to decode record 0 payload range 0..5"));
         Ok(())
     }
 

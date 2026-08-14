@@ -46,6 +46,38 @@ fn copy_fixture(name: &str) -> Result<(TempDir, PathBuf)> {
     Ok((temp, manifest))
 }
 
+fn has_adjacent_lines(text: &str, first: &str, second: &str) -> bool {
+    let mut previous = None;
+    for line in text.lines() {
+        if previous == Some(first) && line == second {
+            return true;
+        }
+        previous = Some(line);
+    }
+    false
+}
+
+#[test]
+fn adjacent_lines_are_eol_agnostic_but_layout_sensitive() -> Result<()> {
+    let first = "permissions:";
+    let second = "  contents: read";
+    for accepted in [
+        "permissions:\n  contents: read\n",
+        "permissions:\r\n  contents: read\r\n",
+    ] {
+        ensure!(has_adjacent_lines(accepted, first, second));
+    }
+    for rejected in [
+        "permissions:\n contents: read\n",
+        "permissions:\n\n  contents: read\n",
+        "permissions:\n  unrelated: value\n  contents: read\n",
+        "  contents: read\npermissions:\n",
+    ] {
+        ensure!(!has_adjacent_lines(rejected, first, second));
+    }
+    Ok(())
+}
+
 fn require_success(output: &Output) -> Result<()> {
     ensure!(
         output.status.success(),
@@ -214,7 +246,11 @@ fn workflow_is_manual_fixed_inventory_telemetry_only() -> Result<()> {
     ensure!(!workflow.contains("schedule:"));
     ensure!(!workflow.contains("matrix:"));
     ensure!(!workflow.contains("inputs:"));
-    ensure!(workflow.contains("permissions:\n  contents: read"));
+    ensure!(has_adjacent_lines(
+        &workflow,
+        "permissions:",
+        "  contents: read"
+    ));
     ensure!(workflow.contains("timeout-minutes: 15"));
     ensure!(!workflow.contains("continue-on-error"));
 

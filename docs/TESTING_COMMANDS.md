@@ -39,6 +39,7 @@ This document provides a canonical reference for all testing commands in copyboo
 | **Mutation Testing** | `cargo mutants --package <crate> --timeout <timeout> --test-tool nextest --in-place --json --file mutants.toml` | Local only (`just mutants`); CI uses the advisory RIPR lane instead | 15-60 min per crate | `mutants.out/outcomes.json`, `mutants-summary.csv` |
 | **Performance Benchmarks** | `BENCH_FILTER=slo_validation bash scripts/bench.sh` | Scheduled | 10-15 min | `target/perf.json` |
 | **Weekly Benchmark Gate** | `bash scripts/soak-dispatch.sh` | Weekly + manual | ~20 min | Sealed `scripts/bench/perf.json`, workflow job conclusion |
+| **External-input Decode Preflight** | `gh workflow run external-input-preflight.yml` | Manual only | Bounded | Four commit-keyed decode telemetry reports |
 
 ---
 
@@ -682,6 +683,33 @@ vary code pages, or prove absence of memory leaks.
 
 **Trigger schedule**: Weekly at 3:00 AM UTC on Saturday, plus manual dispatch,
 via `.github/workflows/soak.yml`
+
+---
+
+### External-input Decode Preflight
+
+**Purpose**: Decode the fixed checked-in inventory of fixed/RDW ASCII/CP037
+manifests and publish deterministic input identity, record count, byte totals,
+and exact payload ranges.
+
+**Manual dispatch**:
+
+```bash
+gh workflow run external-input-preflight.yml
+```
+
+The workflow is manual-only, Linux-only, sequential, and fixed to four
+repository manifests. Its reports prove successful validation and decode
+consumption at the recorded commit. They do not contain timing or throughput,
+do not update `scripts/bench/perf.json`, and do not establish benchmark,
+threshold, performance-gate, or SLO evidence.
+
+For a missing, unreadable, or malformed manifest, the publisher returns nonzero
+and preserves any existing output because the referenced inputs cannot be
+verified safely. Once a readable manifest proves that the output aliases none
+of the manifest, copybook, or dataset inputs, the publisher removes stale
+output before the remaining validation and decode. The process exit status is
+authoritative; preserved output from a pre-parse failure is not current proof.
 
 ---
 

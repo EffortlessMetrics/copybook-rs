@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: External Input Decode Preflight
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: external-input-preflight-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  decode-preflight:
+    name: Decode checked-in external inputs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build preflight publisher
+        run: cargo build --release -p copybook-bench --bin external-input-preflight
+
+      - name: Decode fixed external-input inventory
+        run: |
+          mkdir -p artifacts/external-input-preflight
+          ./target/release/external-input-preflight tools/copybook-bench/test_fixtures/external_input/fixed-ascii.json artifacts/external-input-preflight/fixed-ascii.json
+          ./target/release/external-input-preflight tools/copybook-bench/test_fixtures/external_input/fixed-cp037.json artifacts/external-input-preflight/fixed-cp037.json
+          ./target/release/external-input-preflight tools/copybook-bench/test_fixtures/external_input/rdw-ascii.json artifacts/external-input-preflight/rdw-ascii.json
+          ./target/release/external-input-preflight tools/copybook-bench/test_fixtures/external_input/rdw-cp037.json artifacts/external-input-preflight/rdw-cp037.json
+
+      - name: Upload decode telemetry
+        uses: actions/upload-artifact@v7
+        with:
+          name: external-input-preflight-${{ github.sha }}
+          path: artifacts/external-input-preflight/*.json
+          retention-days: 30
+          if-no-files-found: error

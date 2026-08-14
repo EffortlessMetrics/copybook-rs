@@ -449,7 +449,7 @@ fn run_external_input_preflight(
 /// # Errors
 ///
 /// Returns an error for an invalid commit identity, manifest validation or decode
-/// failure, report serialization failure, or output filesystem failure. Any
+/// failure, report serialization failure, or output filesystem failure.
 /// Once a readable manifest establishes that the output is distinct from all
 /// three inputs, a pre-existing output is removed before validation and decode.
 /// Missing, unreadable, or malformed manifests leave the unverifiable output

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Offline manifest validation for future external-input benchmarks.
 
+use std::fmt;
 use std::fs;
 use std::ops::Range;
 use std::path::{Component, Path, PathBuf};
@@ -88,6 +89,9 @@ pub struct ExternalInputManifest {
     pub schema_version: String,
     /// Copybook path relative to the manifest.
     pub copybook: PathBuf,
+    /// SHA-256 of the exact UTF-8 bytes passed to the copybook parser.
+    #[serde(default)]
+    pub copybook_sha256: String,
     /// Dataset path relative to the manifest.
     pub dataset: PathBuf,
     /// Dataset record framing.
@@ -103,6 +107,45 @@ pub struct ExternalInputManifest {
     /// Lowercase SHA-256 digest of the complete dataset file.
     pub dataset_sha256: String,
 }
+
+/// Manifest artifact whose declared integrity failed validation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum IntegrityArtifact {
+    /// Copybook source bytes.
+    Copybook,
+    /// Dataset bytes.
+    Dataset,
+}
+
+impl fmt::Display for IntegrityArtifact {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Copybook => formatter.write_str("copybook"),
+            Self::Dataset => formatter.write_str("dataset"),
+        }
+    }
+}
+
+/// Typed manifest-integrity failure for missing, malformed, or mismatched digests.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ManifestIntegrityError {
+    /// Artifact whose integrity declaration failed.
+    pub artifact: IntegrityArtifact,
+    /// Stable human-readable failure detail.
+    pub detail: String,
+}
+
+impl fmt::Display for ManifestIntegrityError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "{} manifest integrity error: {}",
+            self.artifact, self.detail
+        )
+    }
+}
+
+impl std::error::Error for ManifestIntegrityError {}
 
 /// Fully read and structurally validated external input.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -151,14 +194,16 @@ pub fn load_external_input(manifest_path: &Path) -> Result<ValidatedExternalInpu
         "record_length must not exceed 65535 bytes"
     );
     ensure!(manifest.record_count > 0, "record_count must be positive");
-    ensure!(
-        manifest.dataset_sha256.len() == 64
-            && manifest
-                .dataset_sha256
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
-        "dataset_sha256 must be 64 lowercase hexadecimal characters"
-    );
+    validate_declared_sha256(
+        IntegrityArtifact::Copybook,
+        "copybook_sha256",
+        &manifest.copybook_sha256,
+    )?;
+    validate_declared_sha256(
+        IntegrityArtifact::Dataset,
+        "dataset_sha256",
+        &manifest.dataset_sha256,
+    )?;
 
     let base = manifest_path
         .parent()
@@ -168,6 +213,12 @@ pub fn load_external_input(manifest_path: &Path) -> Result<ValidatedExternalInpu
     let dataset_path = resolve_local_file(base, &manifest.dataset, "dataset")?;
     let copybook_source = fs::read_to_string(&copybook_path)
         .with_context(|| format!("failed to read copybook {}", copybook_path.display()))?;
+    let actual_copybook_sha256 = format!("{:x}", Sha256::digest(copybook_source.as_bytes()));
+    validate_digest_match(
+        IntegrityArtifact::Copybook,
+        &manifest.copybook_sha256,
+        &actual_copybook_sha256,
+    )?;
     let schema = copybook_core::parse_copybook(&copybook_source)
         .with_context(|| format!("failed to parse copybook {}", copybook_path.display()))?;
     let schema_length = schema
@@ -184,11 +235,11 @@ pub fn load_external_input(manifest_path: &Path) -> Result<ValidatedExternalInpu
     let dataset = fs::read(&dataset_path)
         .with_context(|| format!("failed to read dataset {}", dataset_path.display()))?;
     let actual_sha256 = format!("{:x}", Sha256::digest(&dataset));
-    ensure!(
-        actual_sha256 == manifest.dataset_sha256,
-        "dataset SHA-256 mismatch: expected {}, got {actual_sha256}",
-        manifest.dataset_sha256
-    );
+    validate_digest_match(
+        IntegrityArtifact::Dataset,
+        &manifest.dataset_sha256,
+        &actual_sha256,
+    )?;
     let payload_ranges = validate_framing(&manifest, &dataset)?;
 
     Ok(ValidatedExternalInput {
@@ -197,6 +248,39 @@ pub fn load_external_input(manifest_path: &Path) -> Result<ValidatedExternalInpu
         dataset,
         payload_ranges,
     })
+}
+
+fn validate_declared_sha256(artifact: IntegrityArtifact, field: &str, value: &str) -> Result<()> {
+    if value.is_empty() {
+        return Err(ManifestIntegrityError {
+            artifact,
+            detail: format!("missing required {field}"),
+        }
+        .into());
+    }
+    if value.len() != 64
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(ManifestIntegrityError {
+            artifact,
+            detail: format!("{field} must be 64 lowercase hexadecimal characters"),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+fn validate_digest_match(artifact: IntegrityArtifact, expected: &str, actual: &str) -> Result<()> {
+    if expected != actual {
+        return Err(ManifestIntegrityError {
+            artifact,
+            detail: format!("SHA-256 mismatch: expected {expected}, got {actual}"),
+        }
+        .into());
+    }
+    Ok(())
 }
 
 fn reject_symlink_or_non_file(path: &Path, label: &str) -> Result<()> {
@@ -334,7 +418,10 @@ mod tests {
     use sha2::Digest;
     use tempfile::TempDir;
 
-    use super::{ExternalCodepage, ExternalRecordFormat, load_external_input};
+    use super::{
+        ExternalCodepage, ExternalRecordFormat, IntegrityArtifact, ManifestIntegrityError,
+        load_external_input,
+    };
 
     fn fixtures() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("test_fixtures/external_input")
@@ -416,6 +503,14 @@ mod tests {
         let schema: Value = serde_json::from_slice(&fs::read(schema_path)?)?;
         ensure!(schema.pointer("/additionalProperties") == Some(&json!(false)));
         ensure!(schema.pointer("/properties/schema_version/const") == Some(&json!("1.0.0")));
+        let required = schema
+            .pointer("/required")
+            .and_then(Value::as_array)
+            .context("schema required list is missing")?;
+        ensure!(required.contains(&json!("copybook_sha256")));
+        ensure!(
+            schema.pointer("/properties/copybook_sha256/pattern") == Some(&json!("^[a-f0-9]{64}$"))
+        );
         ensure!(schema.pointer("/properties/record_format/enum") == Some(&json!(["fixed", "rdw"])));
         ensure!(
             schema.pointer("/properties/codepage/enum")
@@ -499,6 +594,37 @@ mod tests {
                 .context("unknown closed-enum value unexpectedly loaded")?;
             ensure!(error.to_string().contains("failed to parse manifest"));
         }
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_requires_typed_copybook_integrity() -> Result<()> {
+        let (_temp, manifest) = copy_fixture("fixed-ascii.json")?;
+        edit_manifest(&manifest, |root| {
+            root.remove("copybook_sha256");
+        })?;
+        let missing = load_external_input(&manifest)
+            .err()
+            .context("manifest without copybook digest unexpectedly loaded")?;
+        let missing = missing
+            .downcast_ref::<ManifestIntegrityError>()
+            .context("missing copybook digest did not return typed integrity error")?;
+        ensure!(missing.artifact == IntegrityArtifact::Copybook);
+        ensure!(missing.detail.contains("missing required copybook_sha256"));
+
+        let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+        let altered = "       01 RECORD. 05 LEFT-FIELD PIC X(2). 05 RIGHT-FIELD PIC X(3).\n";
+        let altered_schema = copybook_core::parse_copybook(altered)?;
+        ensure!(altered_schema.lrecl_fixed == Some(5));
+        fs::write(temp.path().join("simple.cpy"), altered)?;
+        let mismatch = load_external_input(&manifest)
+            .err()
+            .context("same-LRECL altered copybook unexpectedly loaded")?;
+        let mismatch = mismatch
+            .downcast_ref::<ManifestIntegrityError>()
+            .context("copybook mismatch did not return typed integrity error")?;
+        ensure!(mismatch.artifact == IntegrityArtifact::Copybook);
+        ensure!(mismatch.detail.contains("SHA-256 mismatch"));
         Ok(())
     }
 

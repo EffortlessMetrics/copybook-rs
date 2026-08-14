@@ -8,6 +8,7 @@
   "required": [
     "schema_version",
     "copybook",
+    "copybook_sha256",
     "dataset",
     "record_format",
     "codepage",
@@ -24,6 +25,11 @@
       "type": "string",
       "minLength": 1,
       "description": "Safe relative path to the copybook from the manifest directory."
+    },
+    "copybook_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 of the exact UTF-8 copybook bytes passed to the parser; no newline or whitespace normalization is applied."
     },
     "dataset": {
       "type": "string",

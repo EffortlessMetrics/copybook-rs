@@ -1,6 +1,7 @@
 {
   "schema_version": "1.0.0",
   "copybook": "simple.cpy",
+  "copybook_sha256": "feaae0c21412cec867338f652600efefc2e393fed46ac1297dc78eeac90fedc0",
   "dataset": "fixed-cp037.bin",
   "record_format": "fixed",
   "codepage": "cp037",

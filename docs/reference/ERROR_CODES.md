@@ -329,7 +329,7 @@ Fixed-length record processing failed: incomplete record at end of file
 **Context**: Record number, I/O error details
 **Resolution**: Check file integrity and record format
 
-```
+```text
 Error: CBKR201_RDW_READ_ERROR at record 100
 Failed to read RDW payload: I/O device error
 ```

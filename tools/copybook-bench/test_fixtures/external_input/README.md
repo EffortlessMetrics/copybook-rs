@@ -12,6 +12,8 @@ its calculated LRECL remains the same.
 
 The fixtures prove parsing, path safety, integrity, framing, deterministic
 payload boundaries, and successful decode consumption through the private
-external-input preflight. They are not benchmark measurements, are not
-consumed by the weekly soak workflow, and establish no throughput or threshold
-claim.
+external-input preflight. The manual `External Input Decode Preflight` workflow
+runs this fixed four-manifest inventory sequentially and publishes deterministic
+decode telemetry. Those reports are not benchmark measurements, are not
+performance receipts, are not consumed by the weekly soak workflow, and
+establish no duration, throughput, threshold, or SLO claim.

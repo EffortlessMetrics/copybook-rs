@@ -9,6 +9,15 @@ All performance claims in copybook-rs documentation MUST reference canonical rec
 
 ## Canonical Receipt Requirements
 
+### External-input decode telemetry
+
+The manual-only `.github/workflows/external-input-preflight.yml` workflow emits
+closed decode-preflight reports for the four checked-in external-input
+manifests. These artifacts prove manifest validation, record consumption, byte
+accounting, and commit/input identity only. They contain no clock, duration, or
+throughput fields and are not performance receipts, benchmark results, gates,
+baselines, thresholds, or SLO evidence.
+
 ### Required Elements for Performance Claims
 Every performance claim must include:
 1. **Receipt Reference**: Direct link to specific [`scripts/bench/perf.json`](../scripts/bench/perf.json) with commit hash

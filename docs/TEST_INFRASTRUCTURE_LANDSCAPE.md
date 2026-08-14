@@ -345,6 +345,14 @@ Tests use tags for categorization:
 - Publishes one receipt artifact; the job conclusion records the gate decision
 - Can be triggered manually with `bash scripts/soak-dispatch.sh`
 
+#### external-input-preflight.yml (Manual Decode Telemetry)
+- Runs only through `workflow_dispatch` on Ubuntu
+- Decodes the fixed four-manifest external-input inventory sequentially
+- Publishes commit-keyed closed JSON reports after every manifest succeeds
+- Proves validation, decode consumption, input identity, ranges, and byte totals
+- Does not measure duration or throughput and is not a benchmark, receipt, gate,
+  threshold, schedule, or SLO owner
+
 #### security-scan.yml (Security Validation)
 - Security scanning integration
 - Dependency auditing
@@ -376,6 +384,15 @@ bash scripts/soak-dispatch.sh
 The dedicated workflow proves only its canonical in-memory Criterion workloads
 and absolute-floor decision. Generated RDW, dataset-size, code-page, external-
 input, and leak-absence claims are not proven.
+
+**External-input decode telemetry (manual workflow dispatch)**:
+```bash
+gh workflow run external-input-preflight.yml
+```
+
+This separate manual lane proves only that the four checked-in fixed/RDW
+ASCII/CP037 manifests validate and decode at one commit with deterministic byte
+and range telemetry. It makes no performance or soak claim.
 
 **Performance Tests (Gated)**:
 ```bash

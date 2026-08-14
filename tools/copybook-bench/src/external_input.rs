@@ -11,14 +11,14 @@ use copybook_codec::{
     Codepage, DecodeOptions, RecordFormat, decode_record_with_scratch, memory::ScratchBuffers,
 };
 use copybook_core::Schema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// The only manifest schema version understood by this loader.
 pub const EXTERNAL_INPUT_SCHEMA_VERSION: &str = "1.0.0";
 
 /// Record framing declared by an external-input manifest.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ExternalRecordFormat {
     /// Fixed-length payload records with no framing bytes.
@@ -37,7 +37,7 @@ impl From<ExternalRecordFormat> for RecordFormat {
 }
 
 /// Code pages accepted by the deterministic dataset generator.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ExternalCodepage {
     /// Seven-bit ASCII.
     #[serde(rename = "ascii")]
@@ -73,7 +73,7 @@ impl From<ExternalCodepage> for Codepage {
 }
 
 /// Workload labels already supported by `scripts/gen_dataset.sh`.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ExternalWorkload {
     /// Mostly DISPLAY fields.
@@ -172,6 +172,8 @@ struct LoadedExternalInput {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ExternalInputPreflight {
     manifest_sha256: String,
+    copybook_sha256: String,
+    dataset_sha256: String,
     record_format: ExternalRecordFormat,
     codepage: ExternalCodepage,
     workload: ExternalWorkload,
@@ -180,6 +182,51 @@ struct ExternalInputPreflight {
     payload_bytes: usize,
     framing_bytes: usize,
     payload_ranges: Vec<Range<usize>>,
+}
+
+/// Schema version emitted by the external-input preflight publisher.
+pub const EXTERNAL_INPUT_PREFLIGHT_REPORT_VERSION: &str = "1.0.0";
+
+/// One decoded payload range in the physical dataset.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ExternalInputPayloadRange {
+    /// Inclusive physical byte offset.
+    pub start: usize,
+    /// Exclusive physical byte offset.
+    pub end: usize,
+}
+
+/// Deterministic decode telemetry for one external-input manifest.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ExternalInputPreflightReport {
+    /// Closed report schema version.
+    pub schema_version: String,
+    /// Completed decode state; always `decoded` for a published report.
+    pub status: String,
+    /// Commit whose checked-in manifest and tool produced this report.
+    pub commit: String,
+    /// SHA-256 of the exact manifest bytes.
+    pub manifest_sha256: String,
+    /// SHA-256 of the exact copybook bytes.
+    pub copybook_sha256: String,
+    /// SHA-256 of the exact physical dataset bytes.
+    pub dataset_sha256: String,
+    /// Record framing selected by the manifest.
+    pub record_format: ExternalRecordFormat,
+    /// Character code page selected by the manifest.
+    pub codepage: ExternalCodepage,
+    /// Workload label selected by the manifest.
+    pub workload: ExternalWorkload,
+    /// Number of records successfully decoded.
+    pub decoded_records: usize,
+    /// Complete physical dataset byte count.
+    pub physical_bytes: usize,
+    /// Sum of decoded payload byte counts.
+    pub payload_bytes: usize,
+    /// Physical framing byte count.
+    pub framing_bytes: usize,
+    /// Exact payload ranges decoded in record order.
+    pub payload_ranges: Vec<ExternalInputPayloadRange>,
 }
 
 impl ValidatedExternalInput {
@@ -281,13 +328,6 @@ fn load_external_input_bundle(manifest_path: &Path) -> Result<LoadedExternalInpu
     })
 }
 
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "issue #776 stages the private decode preflight before benchmark wiring"
-    )
-)]
 fn run_external_input_preflight(manifest_path: &Path) -> Result<ExternalInputPreflight> {
     let loaded = load_external_input_bundle(manifest_path)?;
     let options = loaded.validated.decode_options();
@@ -327,6 +367,8 @@ fn run_external_input_preflight(manifest_path: &Path) -> Result<ExternalInputPre
         .context("external-input payload bytes exceed physical dataset bytes")?;
     Ok(ExternalInputPreflight {
         manifest_sha256: loaded.manifest_sha256,
+        copybook_sha256: loaded.validated.manifest.copybook_sha256.clone(),
+        dataset_sha256: loaded.validated.manifest.dataset_sha256.clone(),
         record_format: loaded.validated.manifest.record_format,
         codepage: loaded.validated.manifest.codepage,
         workload: loaded.validated.manifest.workload,
@@ -336,6 +378,109 @@ fn run_external_input_preflight(manifest_path: &Path) -> Result<ExternalInputPre
         framing_bytes,
         payload_ranges: loaded.validated.payload_ranges,
     })
+}
+
+/// Decode one validated external input and atomically publish deterministic telemetry.
+///
+/// # Errors
+///
+/// Returns an error for an invalid commit identity, manifest validation or decode
+/// failure, report serialization failure, or output filesystem failure. Any
+/// pre-existing output is removed before work begins, and no output is retained
+/// after a failure.
+pub fn publish_external_input_preflight(
+    manifest_path: &Path,
+    output_path: &Path,
+    commit: &str,
+) -> Result<ExternalInputPreflightReport> {
+    remove_output_if_present(output_path)?;
+    validate_commit(commit)?;
+    let preflight = run_external_input_preflight(manifest_path)?;
+    let report = ExternalInputPreflightReport {
+        schema_version: EXTERNAL_INPUT_PREFLIGHT_REPORT_VERSION.to_string(),
+        status: "decoded".to_string(),
+        commit: commit.to_string(),
+        manifest_sha256: preflight.manifest_sha256,
+        copybook_sha256: preflight.copybook_sha256,
+        dataset_sha256: preflight.dataset_sha256,
+        record_format: preflight.record_format,
+        codepage: preflight.codepage,
+        workload: preflight.workload,
+        decoded_records: preflight.decoded_records,
+        physical_bytes: preflight.physical_bytes,
+        payload_bytes: preflight.payload_bytes,
+        framing_bytes: preflight.framing_bytes,
+        payload_ranges: preflight
+            .payload_ranges
+            .into_iter()
+            .map(|range| ExternalInputPayloadRange {
+                start: range.start,
+                end: range.end,
+            })
+            .collect(),
+    };
+    let bytes = serde_json::to_vec_pretty(&report)
+        .context("failed to serialize external-input preflight report")?;
+    write_report_atomically(output_path, &bytes)?;
+    Ok(report)
+}
+
+fn validate_commit(commit: &str) -> Result<()> {
+    ensure!(
+        commit.len() == 40
+            && commit
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
+        "commit must be 40 lowercase hexadecimal characters"
+    );
+    Ok(())
+}
+
+fn write_report_atomically(output_path: &Path, bytes: &[u8]) -> Result<()> {
+    let parent = output_path
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    ensure!(
+        parent.is_dir(),
+        "preflight output directory does not exist: {}",
+        parent.display()
+    );
+    let file_name = output_path
+        .file_name()
+        .context("preflight output path must name a file")?;
+    let temporary_path = parent.join(format!(".{}.tmp", file_name.to_string_lossy()));
+    remove_output_if_present(&temporary_path)?;
+
+    let result = (|| -> Result<()> {
+        fs::write(&temporary_path, bytes).with_context(|| {
+            format!(
+                "failed to write temporary preflight report {}",
+                temporary_path.display()
+            )
+        })?;
+        fs::rename(&temporary_path, output_path).with_context(|| {
+            format!(
+                "failed to publish preflight report {}",
+                output_path.display()
+            )
+        })?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _cleanup = fs::remove_file(&temporary_path);
+        let _cleanup = fs::remove_file(output_path);
+    }
+    result
+}
+
+fn remove_output_if_present(path: &Path) -> Result<()> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error)
+            .with_context(|| format!("failed to remove stale preflight output {}", path.display())),
+    }
 }
 
 fn validate_declared_sha256(artifact: IntegrityArtifact, field: &str, value: &str) -> Result<()> {
@@ -508,7 +653,8 @@ mod tests {
 
     use super::{
         ExternalCodepage, ExternalRecordFormat, ExternalWorkload, IntegrityArtifact,
-        ManifestIntegrityError, load_external_input, run_external_input_preflight,
+        ManifestIntegrityError, load_external_input, publish_external_input_preflight,
+        run_external_input_preflight,
     };
 
     fn fixtures() -> PathBuf {
@@ -668,6 +814,22 @@ mod tests {
             .context("invalid numeric payload unexpectedly passed decode preflight")?;
         let message = error.to_string();
         ensure!(message.contains("failed to decode record 0 payload range 0..5"));
+
+        let output = temp.path().join("preflight.json");
+        fs::write(&output, b"stale-success")?;
+        let publish = publish_external_input_preflight(
+            &manifest,
+            &output,
+            "0123456789abcdef0123456789abcdef01234567",
+        )
+        .err()
+        .context("invalid numeric payload unexpectedly published decode telemetry")?;
+        ensure!(
+            publish
+                .to_string()
+                .contains("failed to decode record 0 payload range 0..5")
+        );
+        ensure!(!output.exists());
         Ok(())
     }
 

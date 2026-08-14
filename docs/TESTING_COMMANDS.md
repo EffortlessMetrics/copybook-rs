@@ -704,6 +704,13 @@ consumption at the recorded commit. They do not contain timing or throughput,
 do not update `scripts/bench/perf.json`, and do not establish benchmark,
 threshold, performance-gate, or SLO evidence.
 
+For a missing, unreadable, or malformed manifest, the publisher returns nonzero
+and preserves any existing output because the referenced inputs cannot be
+verified safely. Once a readable manifest proves that the output aliases none
+of the manifest, copybook, or dataset inputs, the publisher removes stale
+output before the remaining validation and decode. The process exit status is
+authoritative; preserved output from a pre-parse failure is not current proof.
+
 ---
 
 ## Section 4: Artifact Locations

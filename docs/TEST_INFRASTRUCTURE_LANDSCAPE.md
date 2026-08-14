@@ -353,6 +353,10 @@ Tests use tags for categorization:
 - Proves validation, decode consumption, input identity, ranges, and byte totals
 - Does not measure duration or throughput and is not a benchmark, receipt, gate,
   threshold, schedule, or SLO owner
+- Returns nonzero and preserves unverifiable existing output when the manifest
+  is missing, unreadable, or malformed; after a readable manifest proves all
+  input paths are distinct, stale output is removed before later validation
+  and decode failures
 
 #### security-scan.yml (Security Validation)
 - Security scanning integration

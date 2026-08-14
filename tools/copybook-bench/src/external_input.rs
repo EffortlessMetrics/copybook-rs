@@ -452,8 +452,9 @@ fn run_external_input_preflight(
 /// failure, report serialization failure, or output filesystem failure. Any
 /// Once a readable manifest establishes that the output is distinct from all
 /// three inputs, a pre-existing output is removed before validation and decode.
-/// Missing or malformed manifests leave the unverifiable output untouched;
-/// input aliases are always rejected without mutation.
+/// Missing, unreadable, or malformed manifests leave the unverifiable output
+/// untouched and return an error; the nonzero CLI exit is authoritative. Input
+/// aliases are always rejected without mutation.
 pub fn publish_external_input_preflight(
     manifest_path: &Path,
     output_path: &Path,

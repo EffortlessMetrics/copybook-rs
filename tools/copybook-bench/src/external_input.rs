@@ -150,6 +150,46 @@ impl fmt::Display for ManifestIntegrityError {
 
 impl std::error::Error for ManifestIntegrityError {}
 
+/// Input artifact that an external-input preflight output must not alias.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PreflightInputArtifact {
+    /// Manifest JSON input.
+    Manifest,
+    /// Copybook source input.
+    Copybook,
+    /// Physical dataset input.
+    Dataset,
+}
+
+impl fmt::Display for PreflightInputArtifact {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Manifest => formatter.write_str("manifest"),
+            Self::Copybook => formatter.write_str("copybook"),
+            Self::Dataset => formatter.write_str("dataset"),
+        }
+    }
+}
+
+/// Typed rejection for a preflight output path that aliases an input.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PreflightOutputAliasError {
+    /// Input artifact aliased by the requested output.
+    pub input: PreflightInputArtifact,
+}
+
+impl fmt::Display for PreflightOutputAliasError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "preflight output path must not alias the {} input",
+            self.input
+        )
+    }
+}
+
+impl std::error::Error for PreflightOutputAliasError {}
+
 /// Fully read and structurally validated external input.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ValidatedExternalInput {
@@ -246,16 +286,40 @@ impl ValidatedExternalInput {
 /// Returns an error for unreadable or unsafe paths, malformed metadata,
 /// copybook layout disagreement, integrity mismatch, or invalid record framing.
 pub fn load_external_input(manifest_path: &Path) -> Result<ValidatedExternalInput> {
-    Ok(load_external_input_bundle(manifest_path)?.validated)
+    Ok(load_external_input_bundle(manifest_path, None)?.validated)
 }
 
-fn load_external_input_bundle(manifest_path: &Path) -> Result<LoadedExternalInput> {
+fn load_external_input_bundle(
+    manifest_path: &Path,
+    stale_output: Option<&Path>,
+) -> Result<LoadedExternalInput> {
+    if let Some(output_path) = stale_output {
+        reject_output_alias(output_path, manifest_path, PreflightInputArtifact::Manifest)?;
+    }
     reject_symlink_or_non_file(manifest_path, "manifest")?;
     let manifest_bytes = fs::read(manifest_path)
         .with_context(|| format!("failed to read manifest {}", manifest_path.display()))?;
-    let manifest_sha256 = format!("{:x}", Sha256::digest(&manifest_bytes));
     let manifest: ExternalInputManifest = serde_json::from_slice(&manifest_bytes)
         .with_context(|| format!("failed to parse manifest {}", manifest_path.display()))?;
+    let manifest_sha256 = format!("{:x}", Sha256::digest(&manifest_bytes));
+
+    let base = manifest_path
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    if let Some(output_path) = stale_output {
+        reject_output_alias(
+            output_path,
+            &base.join(&manifest.copybook),
+            PreflightInputArtifact::Copybook,
+        )?;
+        reject_output_alias(
+            output_path,
+            &base.join(&manifest.dataset),
+            PreflightInputArtifact::Dataset,
+        )?;
+        remove_output_if_present(output_path)?;
+    }
 
     ensure!(
         manifest.schema_version == EXTERNAL_INPUT_SCHEMA_VERSION,
@@ -279,10 +343,6 @@ fn load_external_input_bundle(manifest_path: &Path) -> Result<LoadedExternalInpu
         &manifest.dataset_sha256,
     )?;
 
-    let base = manifest_path
-        .parent()
-        .filter(|path| !path.as_os_str().is_empty())
-        .unwrap_or(Path::new("."));
     let copybook_path = resolve_local_file(base, &manifest.copybook, "copybook")?;
     let dataset_path = resolve_local_file(base, &manifest.dataset, "dataset")?;
     let copybook_source = fs::read_to_string(&copybook_path)
@@ -328,8 +388,11 @@ fn load_external_input_bundle(manifest_path: &Path) -> Result<LoadedExternalInpu
     })
 }
 
-fn run_external_input_preflight(manifest_path: &Path) -> Result<ExternalInputPreflight> {
-    let loaded = load_external_input_bundle(manifest_path)?;
+fn run_external_input_preflight(
+    manifest_path: &Path,
+    stale_output: Option<&Path>,
+) -> Result<ExternalInputPreflight> {
+    let loaded = load_external_input_bundle(manifest_path, stale_output)?;
     let options = loaded.validated.decode_options();
     let mut scratch = ScratchBuffers::new();
     let mut decoded_records = 0_usize;
@@ -386,16 +449,15 @@ fn run_external_input_preflight(manifest_path: &Path) -> Result<ExternalInputPre
 ///
 /// Returns an error for an invalid commit identity, manifest validation or decode
 /// failure, report serialization failure, or output filesystem failure. Any
-/// pre-existing output is removed before work begins, and no output is retained
-/// after a failure.
+/// distinct pre-existing output is removed before decode begins, and no output
+/// is retained after a failure. Input aliases are rejected without mutation.
 pub fn publish_external_input_preflight(
     manifest_path: &Path,
     output_path: &Path,
     commit: &str,
 ) -> Result<ExternalInputPreflightReport> {
-    remove_output_if_present(output_path)?;
+    let preflight = run_external_input_preflight(manifest_path, Some(output_path))?;
     validate_commit(commit)?;
-    let preflight = run_external_input_preflight(manifest_path)?;
     let report = ExternalInputPreflightReport {
         schema_version: EXTERNAL_INPUT_PREFLIGHT_REPORT_VERSION.to_string(),
         status: "decoded".to_string(),
@@ -434,6 +496,59 @@ fn validate_commit(commit: &str) -> Result<()> {
         "commit must be 40 lowercase hexadecimal characters"
     );
     Ok(())
+}
+
+fn reject_output_alias(
+    output_path: &Path,
+    input_path: &Path,
+    input: PreflightInputArtifact,
+) -> Result<()> {
+    let output_lexical = lexical_absolute(output_path)?;
+    let input_lexical = lexical_absolute(input_path)?;
+    let output_resolved = comparable_path(&output_lexical);
+    let input_resolved = comparable_path(&input_lexical);
+    if output_lexical == input_lexical || output_resolved == input_resolved {
+        return Err(PreflightOutputAliasError { input }.into());
+    }
+    Ok(())
+}
+
+fn comparable_path(absolute_path: &Path) -> PathBuf {
+    if let Ok(canonical) = fs::canonicalize(absolute_path) {
+        return canonical;
+    }
+    let Some(file_name) = absolute_path.file_name() else {
+        return absolute_path.to_path_buf();
+    };
+    if let Some(parent) = absolute_path.parent()
+        && let Ok(canonical_parent) = fs::canonicalize(parent)
+    {
+        return canonical_parent.join(file_name);
+    }
+    absolute_path.to_path_buf()
+}
+
+fn lexical_absolute(path: &Path) -> Result<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .context("failed to resolve current directory for preflight output")?
+            .join(path)
+    };
+    let mut normalized = PathBuf::new();
+    for component in absolute.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            Component::Prefix(_) | Component::RootDir | Component::Normal(_) => {
+                normalized.push(component.as_os_str());
+            }
+        }
+    }
+    Ok(normalized)
 }
 
 fn write_report_atomically(output_path: &Path, bytes: &[u8]) -> Result<()> {
@@ -653,8 +768,8 @@ mod tests {
 
     use super::{
         ExternalCodepage, ExternalRecordFormat, ExternalWorkload, IntegrityArtifact,
-        ManifestIntegrityError, load_external_input, publish_external_input_preflight,
-        run_external_input_preflight,
+        ManifestIntegrityError, PreflightInputArtifact, PreflightOutputAliasError,
+        load_external_input, publish_external_input_preflight, run_external_input_preflight,
     };
 
     fn fixtures() -> PathBuf {
@@ -772,7 +887,7 @@ mod tests {
         ];
         for (name, format, codepage, workload, physical, framing, expected_range) in cases {
             let path = fixtures().join(name);
-            let telemetry = run_external_input_preflight(&path)?;
+            let telemetry = run_external_input_preflight(&path, None)?;
             let expected_identity = format!("{:x}", Sha256::digest(fs::read(&path)?));
             ensure!(telemetry.manifest_sha256 == expected_identity);
             ensure!(telemetry.record_format == format);
@@ -790,7 +905,10 @@ mod tests {
     #[test]
     fn external_input_preflight_is_deterministic() -> Result<()> {
         let path = fixtures().join("rdw-cp037.json");
-        ensure!(run_external_input_preflight(&path)? == run_external_input_preflight(&path)?);
+        ensure!(
+            run_external_input_preflight(&path, None)?
+                == run_external_input_preflight(&path, None)?
+        );
         Ok(())
     }
 
@@ -809,7 +927,7 @@ mod tests {
 
         let validated = load_external_input(&manifest)?;
         ensure!(validated.manifest.record_length == 5);
-        let error = run_external_input_preflight(&manifest)
+        let error = run_external_input_preflight(&manifest, None)
             .err()
             .context("invalid numeric payload unexpectedly passed decode preflight")?;
         let message = error.to_string();
@@ -829,6 +947,46 @@ mod tests {
                 .to_string()
                 .contains("failed to decode record 0 payload range 0..5")
         );
+        ensure!(!output.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_preflight_rejects_typed_input_aliases_without_removal() -> Result<()> {
+        let cases = [
+            ("fixed-ascii.json", PreflightInputArtifact::Manifest),
+            ("simple.cpy", PreflightInputArtifact::Copybook),
+            ("fixed-ascii.bin", PreflightInputArtifact::Dataset),
+        ];
+        for (output_name, expected_input) in cases {
+            let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+            let output = temp.path().join(output_name);
+            let before = fs::read(&output)?;
+            let error = publish_external_input_preflight(
+                &manifest,
+                &output,
+                "0123456789abcdef0123456789abcdef01234567",
+            )
+            .err()
+            .context("aliased preflight output unexpectedly succeeded")?;
+            let typed = error
+                .downcast_ref::<PreflightOutputAliasError>()
+                .context("alias rejection did not retain its typed error")?;
+            ensure!(typed.input == expected_input);
+            ensure!(fs::read(&output)? == before);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_preflight_removes_distinct_stale_output_on_commit_failure() -> Result<()> {
+        let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+        let output = temp.path().join("preflight.json");
+        fs::write(&output, b"stale-success")?;
+        let error = publish_external_input_preflight(&manifest, &output, "invalid")
+            .err()
+            .context("invalid commit unexpectedly published preflight telemetry")?;
+        ensure!(error.to_string().contains("40 lowercase hexadecimal"));
         ensure!(!output.exists());
         Ok(())
     }

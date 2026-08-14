@@ -8,6 +8,7 @@ use std::process::{Command, Output};
 use anyhow::{Context, Result, ensure};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+use tempfile::TempDir;
 
 const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
 
@@ -20,12 +21,29 @@ fn fixtures() -> PathBuf {
 }
 
 fn run_cli(manifest: &Path, output: &Path) -> Result<Output> {
+    run_cli_in(&workspace_root(), manifest, output)
+}
+
+fn run_cli_in(current_dir: &Path, manifest: &Path, output: &Path) -> Result<Output> {
     Command::new(env!("CARGO_BIN_EXE_external-input-preflight"))
         .arg(manifest)
         .arg(output)
+        .current_dir(current_dir)
         .env("GITHUB_SHA", COMMIT)
         .output()
         .context("failed to run external-input-preflight binary")
+}
+
+fn copy_fixture(name: &str) -> Result<(TempDir, PathBuf)> {
+    let temp = tempfile::tempdir()?;
+    for entry in fs::read_dir(fixtures())? {
+        let entry = entry?;
+        if entry.file_type()?.is_file() {
+            fs::copy(entry.path(), temp.path().join(entry.file_name()))?;
+        }
+    }
+    let manifest = temp.path().join(name);
+    Ok((temp, manifest))
 }
 
 fn require_success(output: &Output) -> Result<()> {
@@ -107,8 +125,12 @@ fn report_matches_closed_schema_inventory() -> Result<()> {
 fn cli_removes_stale_output_on_validation_and_write_failure() -> Result<()> {
     let temp = tempfile::tempdir()?;
     let stale = temp.path().join("stale.json");
+    let (_fixture, manifest) = copy_fixture("fixed-ascii.json")?;
+    let mut invalid: Value = serde_json::from_slice(&fs::read(&manifest)?)?;
+    invalid["schema_version"] = Value::String("unsupported".into());
+    fs::write(&manifest, serde_json::to_vec_pretty(&invalid)?)?;
     fs::write(&stale, b"stale-success")?;
-    let validation = run_cli(&temp.path().join("missing.json"), &stale)?;
+    let validation = run_cli(&manifest, &stale)?;
     ensure!(!validation.status.success());
     ensure!(!stale.exists());
 
@@ -117,6 +139,50 @@ fn cli_removes_stale_output_on_validation_and_write_failure() -> Result<()> {
     let write = run_cli(&fixtures().join("fixed-ascii.json"), &unwritable)?;
     ensure!(!write.status.success());
     ensure!(!unwritable.exists());
+    Ok(())
+}
+
+#[test]
+fn cli_rejects_relative_input_aliases_without_mutating_inputs() -> Result<()> {
+    let cases = [
+        ("fixed-ascii.json", "manifest"),
+        ("./simple.cpy", "copybook"),
+        ("fixed-ascii.bin", "dataset"),
+    ];
+    for (output_name, artifact) in cases {
+        let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+        let output = temp.path().join(output_name);
+        let before = fs::read(&output)?;
+        let result = run_cli_in(
+            temp.path(),
+            Path::new("fixed-ascii.json"),
+            Path::new(output_name),
+        )?;
+        ensure!(!result.status.success());
+        ensure!(fs::read(&output)? == before);
+        ensure!(
+            String::from_utf8_lossy(&result.stderr)
+                .contains(&format!("must not alias the {artifact} input"))
+        );
+        ensure!(manifest.exists());
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn cli_rejects_copybook_alias_through_symlinked_parent() -> Result<()> {
+    use std::os::unix::fs::symlink;
+
+    let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+    let linked_parent = temp.path().join("linked-parent");
+    symlink(temp.path(), &linked_parent)?;
+    let copybook = temp.path().join("simple.cpy");
+    let before = fs::read(&copybook)?;
+    let result = run_cli(&manifest, &linked_parent.join("simple.cpy"))?;
+    ensure!(!result.status.success());
+    ensure!(fs::read(&copybook)? == before);
+    ensure!(String::from_utf8_lossy(&result.stderr).contains("must not alias the copybook input"));
     Ok(())
 }
 

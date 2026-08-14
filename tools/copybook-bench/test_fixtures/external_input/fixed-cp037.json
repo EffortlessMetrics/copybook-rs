@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "copybook": "simple.cpy",
+  "dataset": "fixed-cp037.bin",
+  "record_format": "fixed",
+  "codepage": "cp037",
+  "workload": "display-heavy",
+  "record_length": 5,
+  "record_count": 1,
+  "dataset_sha256": "cc2ba41e04b94d7e96e0b178cee09132f86e782ae60856930ffb14f0ccdc7a87"
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "copybook": "simple.cpy",
+  "dataset": "rdw-cp037.bin",
+  "record_format": "rdw",
+  "codepage": "cp037",
+  "workload": "display-heavy",
+  "record_length": 5,
+  "record_count": 1,
+  "dataset_sha256": "11878667120b663cf3fa4865f9832f1924164d86418668ccc44e36cb2d454ff6"
+}

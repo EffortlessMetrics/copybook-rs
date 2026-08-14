@@ -599,6 +599,11 @@ mod tests {
 
     #[test]
     fn external_input_requires_typed_copybook_integrity() -> Result<()> {
+        let canonical_copybook = fs::read(fixtures().join("simple.cpy"))?;
+        ensure!(canonical_copybook.ends_with(b"\n"));
+        ensure!(!canonical_copybook.contains(&b'\r'));
+        load_external_input(&fixtures().join("fixed-ascii.json"))?;
+
         let (_temp, manifest) = copy_fixture("fixed-ascii.json")?;
         edit_manifest(&manifest, |root| {
             root.remove("copybook_sha256");
@@ -611,6 +616,41 @@ mod tests {
             .context("missing copybook digest did not return typed integrity error")?;
         ensure!(missing.artifact == IntegrityArtifact::Copybook);
         ensure!(missing.detail.contains("missing required copybook_sha256"));
+
+        for malformed in ["abc".to_string(), "A".repeat(64), "g".repeat(64)] {
+            let (_temp, manifest) = copy_fixture("fixed-ascii.json")?;
+            edit_manifest(&manifest, |root| {
+                root.insert("copybook_sha256".to_string(), json!(malformed));
+            })?;
+            let error = load_external_input(&manifest)
+                .err()
+                .context("malformed copybook digest unexpectedly loaded")?;
+            let integrity = error
+                .downcast_ref::<ManifestIntegrityError>()
+                .context("malformed copybook digest did not return typed integrity error")?;
+            ensure!(integrity.artifact == IntegrityArtifact::Copybook);
+            ensure!(
+                integrity
+                    .detail
+                    .contains("64 lowercase hexadecimal characters")
+            );
+        }
+
+        let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+        let lf_copybook = fs::read_to_string(temp.path().join("simple.cpy"))?;
+        ensure!(!lf_copybook.contains('\r'));
+        fs::write(
+            temp.path().join("simple.cpy"),
+            lf_copybook.replace('\n', "\r\n"),
+        )?;
+        let crlf = load_external_input(&manifest)
+            .err()
+            .context("CRLF copybook unexpectedly matched the LF fingerprint")?;
+        let crlf = crlf
+            .downcast_ref::<ManifestIntegrityError>()
+            .context("CRLF copybook mismatch did not return typed integrity error")?;
+        ensure!(crlf.artifact == IntegrityArtifact::Copybook);
+        ensure!(crlf.detail.contains("SHA-256 mismatch"));
 
         let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
         let altered = "       01 RECORD. 05 LEFT-FIELD PIC X(2). 05 RIGHT-FIELD PIC X(3).\n";

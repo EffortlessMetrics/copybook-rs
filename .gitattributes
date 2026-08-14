@@ -1,3 +1,4 @@
 .gitattributes text eol=lf
 *.sh text eol=lf
 tools/copybook-bench/test_fixtures/external_input/*.bin binary
+tools/copybook-bench/test_fixtures/external_input/*.cpy text eol=lf

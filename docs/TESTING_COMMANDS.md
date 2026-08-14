@@ -693,6 +693,7 @@ manifests and publish deterministic input identity, record count, byte totals,
 and exact payload ranges.
 
 **Manual dispatch**:
+
 ```bash
 gh workflow run external-input-preflight.yml
 ```

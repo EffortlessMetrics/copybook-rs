@@ -3,6 +3,7 @@
 
 use std::fmt;
 use std::fs;
+use std::io::Write;
 use std::ops::Range;
 use std::path::{Component, Path, PathBuf};
 
@@ -449,13 +450,16 @@ fn run_external_input_preflight(
 ///
 /// Returns an error for an invalid commit identity, manifest validation or decode
 /// failure, report serialization failure, or output filesystem failure. Any
-/// distinct pre-existing output is removed before decode begins, and no output
-/// is retained after a failure. Input aliases are rejected without mutation.
+/// Once a readable manifest establishes that the output is distinct from all
+/// three inputs, a pre-existing output is removed before validation and decode.
+/// Missing or malformed manifests leave the unverifiable output untouched;
+/// input aliases are always rejected without mutation.
 pub fn publish_external_input_preflight(
     manifest_path: &Path,
     output_path: &Path,
     commit: &str,
 ) -> Result<ExternalInputPreflightReport> {
+    let output_lock = PreflightOutputLock::acquire(output_path)?;
     let preflight = run_external_input_preflight(manifest_path, Some(output_path))?;
     validate_commit(commit)?;
     let report = ExternalInputPreflightReport {
@@ -483,7 +487,7 @@ pub fn publish_external_input_preflight(
     };
     let bytes = serde_json::to_vec_pretty(&report)
         .context("failed to serialize external-input preflight report")?;
-    write_report_atomically(output_path, &bytes)?;
+    write_report_atomically(&output_lock, output_path, &bytes)?;
     Ok(report)
 }
 
@@ -551,7 +555,46 @@ fn lexical_absolute(path: &Path) -> Result<PathBuf> {
     Ok(normalized)
 }
 
-fn write_report_atomically(output_path: &Path, bytes: &[u8]) -> Result<()> {
+struct PreflightOutputLock {
+    path: PathBuf,
+}
+
+impl PreflightOutputLock {
+    fn acquire(output_path: &Path) -> Result<Self> {
+        let parent = output_path
+            .parent()
+            .filter(|path| !path.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        ensure!(
+            parent.is_dir(),
+            "preflight output directory does not exist: {}",
+            parent.display()
+        );
+        let file_name = output_path
+            .file_name()
+            .context("preflight output path must name a file")?;
+        let path = parent.join(format!(".{}.lock", file_name.to_string_lossy()));
+        fs::create_dir(&path).with_context(|| {
+            format!(
+                "failed to acquire exclusive preflight output lock {}",
+                path.display()
+            )
+        })?;
+        Ok(Self { path })
+    }
+}
+
+impl Drop for PreflightOutputLock {
+    fn drop(&mut self) {
+        let _cleanup = fs::remove_dir(&self.path);
+    }
+}
+
+fn write_report_atomically(
+    _output_lock: &PreflightOutputLock,
+    output_path: &Path,
+    bytes: &[u8],
+) -> Result<()> {
     let parent = output_path
         .parent()
         .filter(|path| !path.as_os_str().is_empty())
@@ -564,29 +607,42 @@ fn write_report_atomically(output_path: &Path, bytes: &[u8]) -> Result<()> {
     let file_name = output_path
         .file_name()
         .context("preflight output path must name a file")?;
-    let temporary_path = parent.join(format!(".{}.tmp", file_name.to_string_lossy()));
-    remove_output_if_present(&temporary_path)?;
-
-    let result = (|| -> Result<()> {
-        fs::write(&temporary_path, bytes).with_context(|| {
+    let prefix = format!(".{}.", file_name.to_string_lossy());
+    let mut temporary = tempfile::Builder::new()
+        .prefix(&prefix)
+        .suffix(".tmp")
+        .tempfile_in(parent)
+        .with_context(|| {
             format!(
-                "failed to write temporary preflight report {}",
-                temporary_path.display()
+                "failed to create exclusive temporary preflight report in {}",
+                parent.display()
             )
         })?;
-        fs::rename(&temporary_path, output_path).with_context(|| {
-            format!(
-                "failed to publish preflight report {}",
-                output_path.display()
-            )
-        })?;
-        Ok(())
-    })();
-    if result.is_err() {
-        let _cleanup = fs::remove_file(&temporary_path);
-        let _cleanup = fs::remove_file(output_path);
-    }
-    result
+    temporary.write_all(bytes).with_context(|| {
+        format!(
+            "failed to write temporary preflight report for {}",
+            output_path.display()
+        )
+    })?;
+    temporary.flush().with_context(|| {
+        format!(
+            "failed to flush temporary preflight report for {}",
+            output_path.display()
+        )
+    })?;
+    temporary.as_file().sync_all().with_context(|| {
+        format!(
+            "failed to sync temporary preflight report for {}",
+            output_path.display()
+        )
+    })?;
+    temporary.persist(output_path).with_context(|| {
+        format!(
+            "failed to atomically publish preflight report {}",
+            output_path.display()
+        )
+    })?;
+    Ok(())
 }
 
 fn remove_output_if_present(path: &Path) -> Result<()> {
@@ -769,7 +825,8 @@ mod tests {
     use super::{
         ExternalCodepage, ExternalRecordFormat, ExternalWorkload, IntegrityArtifact,
         ManifestIntegrityError, PreflightInputArtifact, PreflightOutputAliasError,
-        load_external_input, publish_external_input_preflight, run_external_input_preflight,
+        PreflightOutputLock, load_external_input, publish_external_input_preflight,
+        run_external_input_preflight, write_report_atomically,
     };
 
     fn fixtures() -> PathBuf {
@@ -988,6 +1045,47 @@ mod tests {
             .context("invalid commit unexpectedly published preflight telemetry")?;
         ensure!(error.to_string().contains("40 lowercase hexadecimal"));
         ensure!(!output.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_report_publish_lock_prevents_concurrent_clobber() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let output = temp.path().join("report.json");
+        let first = PreflightOutputLock::acquire(&output)?;
+        let second = PreflightOutputLock::acquire(&output)
+            .err()
+            .context("concurrent preflight output lock unexpectedly succeeded")?;
+        ensure!(
+            second
+                .to_string()
+                .contains("exclusive preflight output lock")
+        );
+        write_report_atomically(&first, &output, b"first")?;
+        ensure!(fs::read(&output)? == b"first");
+        drop(first);
+        let next = PreflightOutputLock::acquire(&output)?;
+        write_report_atomically(&next, &output, b"second")?;
+        ensure!(fs::read(&output)? == b"second");
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn external_input_report_publish_ignores_predictable_temp_symlink() -> Result<()> {
+        use std::os::unix::fs::symlink;
+
+        let temp = tempfile::tempdir()?;
+        let output = temp.path().join("report.json");
+        let victim = temp.path().join("victim.json");
+        let predictable = temp.path().join(".report.json.tmp");
+        fs::write(&victim, b"victim")?;
+        symlink(&victim, &predictable)?;
+        let output_lock = PreflightOutputLock::acquire(&output)?;
+        write_report_atomically(&output_lock, &output, b"report")?;
+        ensure!(fs::read(&output)? == b"report");
+        ensure!(fs::read(&victim)? == b"victim");
+        ensure!(fs::symlink_metadata(&predictable)?.file_type().is_symlink());
         Ok(())
     }
 

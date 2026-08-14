@@ -143,6 +143,25 @@ fn cli_removes_stale_output_on_validation_and_write_failure() -> Result<()> {
 }
 
 #[test]
+fn cli_preserves_unverifiable_output_for_missing_and_malformed_manifests() -> Result<()> {
+    let temp = tempfile::tempdir()?;
+    for (manifest, label) in [
+        (temp.path().join("missing.json"), "missing"),
+        (temp.path().join("malformed.json"), "malformed"),
+    ] {
+        if label == "malformed" {
+            fs::write(&manifest, b"{not-json")?;
+        }
+        let output = temp.path().join(format!("{label}-output.json"));
+        fs::write(&output, b"unverifiable-stale-output")?;
+        let result = run_cli(&manifest, &output)?;
+        ensure!(!result.status.success());
+        ensure!(fs::read(&output)? == b"unverifiable-stale-output");
+    }
+    Ok(())
+}
+
+#[test]
 fn cli_rejects_relative_input_aliases_without_mutating_inputs() -> Result<()> {
     let cases = [
         ("fixed-ascii.json", "manifest"),

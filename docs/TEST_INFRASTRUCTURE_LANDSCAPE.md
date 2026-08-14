@@ -346,6 +346,7 @@ Tests use tags for categorization:
 - Can be triggered manually with `bash scripts/soak-dispatch.sh`
 
 #### external-input-preflight.yml (Manual Decode Telemetry)
+
 - Runs only through `workflow_dispatch` on Ubuntu
 - Decodes the fixed four-manifest external-input inventory sequentially
 - Publishes commit-keyed closed JSON reports after every manifest succeeds
@@ -386,6 +387,7 @@ and absolute-floor decision. Generated RDW, dataset-size, code-page, external-
 input, and leak-absence claims are not proven.
 
 **External-input decode telemetry (manual workflow dispatch)**:
+
 ```bash
 gh workflow run external-input-preflight.yml
 ```

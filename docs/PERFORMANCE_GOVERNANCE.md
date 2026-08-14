@@ -7,9 +7,7 @@
 
 All performance claims in copybook-rs documentation MUST reference canonical receipts from [`scripts/bench/perf.json`](../scripts/bench/perf.json). Historical performance targets are archived in [`HISTORICAL_PERFORMANCE.md`](HISTORICAL_PERFORMANCE.md) and MUST NOT be referenced as current metrics.
 
-## Canonical Receipt Requirements
-
-### External-input decode telemetry
+## External-input Decode Telemetry
 
 The manual-only `.github/workflows/external-input-preflight.yml` workflow emits
 closed decode-preflight reports for the four checked-in external-input
@@ -18,7 +16,10 @@ accounting, and commit/input identity only. They contain no clock, duration, or
 throughput fields and are not performance receipts, benchmark results, gates,
 baselines, thresholds, or SLO evidence.
 
+## Canonical Receipt Requirements
+
 ### Required Elements for Performance Claims
+
 Every performance claim must include:
 1. **Receipt Reference**: Direct link to specific [`scripts/bench/perf.json`](../scripts/bench/perf.json) with commit hash
 2. **Timestamp**: When measurement was taken (from receipt)

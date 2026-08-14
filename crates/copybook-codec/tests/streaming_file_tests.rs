@@ -921,8 +921,13 @@ fn encode_parallel_strict_mode_stops_in_input_order() {
     .unwrap();
 
     assert_eq!(summary.threads_used, 4);
-    assert_eq!(summary.records_processed, 2);
+    assert_eq!(summary.records_processed, 1);
     assert_eq!(summary.records_with_errors, 1);
+    assert_eq!(summary.total_records(), 2);
+    assert_eq!(
+        summary.failures.first().map(|failure| failure.record_index),
+        Some(2)
+    );
     assert_eq!(output, b"00001");
 }
 
@@ -1019,6 +1024,7 @@ fn decode_file_to_jsonl_raw_mode_records_emit_fixed_raw_payload() {
 
     for decoded in lines.iter() {
         assert!(decoded.get("raw_b64").is_some());
+        assert_eq!(decoded["raw_capture"], "record");
         assert_eq!(
             parse_raw_b64_field_from_any(decoded, "raw_b64"),
             parse_raw_b64_field(decoded),
@@ -1062,6 +1068,52 @@ fn decode_file_to_jsonl_raw_mode_rdw_emits_header_and_payload() {
     assert_eq!(decoded_raws, rdw_raw_expectations);
     for decoded in lines.iter() {
         assert!(decoded.get("raw_b64").is_some());
+        assert_eq!(decoded["raw_capture"], "record+rdw");
+    }
+}
+
+#[test]
+fn rdw_payload_raw_capture_round_trips_across_workers() {
+    let schema = parse_copybook(RDW_SCHEMA).unwrap();
+    let rdw_data = build_rdw_records(&["ABCDE", "FGHIJ"]);
+    let mut baseline = None;
+
+    for threads in [1_usize, 4] {
+        let decode_options = ascii_decode_opts()
+            .with_format(RecordFormat::RDW)
+            .with_emit_raw(RawMode::Record)
+            .with_threads(threads);
+        let mut jsonl = Vec::new();
+        let summary =
+            decode_file_to_jsonl(&schema, Cursor::new(&rdw_data), &mut jsonl, &decode_options)
+                .unwrap();
+        assert_eq!(summary.records_processed, 2);
+
+        let values: Vec<serde_json::Value> = String::from_utf8(jsonl.clone())
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert!(values.iter().all(|value| value["raw_capture"] == "record"));
+        assert_eq!(parse_raw_b64_field(&values[0]), b"ABCDE");
+        assert_eq!(parse_raw_b64_field(&values[1]), b"FGHIJ");
+
+        let encode_options = ascii_encode_opts()
+            .with_format(RecordFormat::RDW)
+            .with_use_raw(true)
+            .with_threads(threads);
+        let mut encoded = Vec::new();
+        let encode_summary =
+            encode_jsonl_to_file(&schema, Cursor::new(jsonl), &mut encoded, &encode_options)
+                .unwrap();
+        assert_eq!(encode_summary.records_processed, 2);
+        assert_eq!(encoded, rdw_data);
+
+        if let Some(expected) = &baseline {
+            assert_eq!(&encoded, expected);
+        } else {
+            baseline = Some(encoded);
+        }
     }
 }
 
@@ -1100,6 +1152,7 @@ fn decode_file_to_jsonl_raw_mode_rdw_is_stable_across_workers() {
         for line in &lines {
             assert!(line.get("raw_b64").is_some());
             assert!(line.get("__raw_b64").is_some());
+            assert_eq!(line["raw_capture"], "record+rdw");
         }
         let actual_raw: Vec<_> = lines.iter().map(parse_raw_b64_field).collect();
         assert_eq!(actual_raw, expected_raw);
@@ -1232,7 +1285,7 @@ fn decode_rdw_suspect_ascii_header_is_fatal() {
 }
 
 #[test]
-fn decode_rdw_legacy_raw_mode_key_alias_is_accepted_in_encode() {
+fn decode_fixed_legacy_raw_mode_key_alias_is_accepted_in_encode() {
     let schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
     let encoded = base64::engine::general_purpose::STANDARD.encode(b"HELLO");
     let jsonl = format!("{{\"__raw_b64\":\"{encoded}\"}}\n");
@@ -1245,6 +1298,25 @@ fn decode_rdw_legacy_raw_mode_key_alias_is_accepted_in_encode() {
         .expect("encoding should accept legacy __raw_b64");
 
     assert_eq!(output, b"HELLO");
+}
+
+#[test]
+fn rdw_legacy_raw_mode_key_alias_is_accepted_in_encode() {
+    // RDW raw capture stores header plus payload; a legacy `__raw_b64` frame
+    // whose fields agree with the payload must round-trip byte-identically.
+    let schema = parse_copybook("01 FIELD PIC X(5).").unwrap();
+    let frame = [0x00, 0x05, 0x00, 0x00, b'H', b'E', b'L', b'L', b'O'];
+    let encoded = base64::engine::general_purpose::STANDARD.encode(frame);
+    let jsonl = format!("{{\"FIELD\":\"HELLO\",\"__raw_b64\":\"{encoded}\"}}\n");
+    let mut output = Vec::new();
+    let opts = ascii_encode_opts()
+        .with_format(RecordFormat::RDW)
+        .with_use_raw(true);
+
+    encode_jsonl_to_file(&schema, Cursor::new(jsonl.as_bytes()), &mut output, &opts)
+        .expect("encoding should accept legacy __raw_b64 for RDW");
+
+    assert_eq!(output, frame);
 }
 
 // ===========================================================================

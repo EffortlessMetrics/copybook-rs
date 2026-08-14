@@ -38,7 +38,8 @@ This document provides a canonical reference for all testing commands in copyboo
 | **Fuzzing** | `cargo fuzz run <target> -- -runs=0 -max_total_time=300` | Scheduled | 5-10 min per target | `fuzz/artifacts/<target>/`, `fuzz/corpus/<target>/` |
 | **Mutation Testing** | `cargo mutants --package <crate> --timeout <timeout> --test-tool nextest --in-place --json --file mutants.toml` | Local only (`just mutants`); CI uses the advisory RIPR lane instead | 15-60 min per crate | `mutants.out/outcomes.json`, `mutants-summary.csv` |
 | **Performance Benchmarks** | `BENCH_FILTER=slo_validation bash scripts/bench.sh` | Scheduled | 10-15 min | `target/perf.json` |
-| **Soak Tests** | `cargo test -p copybook-cli --features soak -- --ignored --test-threads=1 --nocapture` | Scheduled | 10-20 min | None |
+| **Weekly Benchmark Gate** | `bash scripts/soak-dispatch.sh` | Weekly + manual | ~20 min | Sealed `scripts/bench/perf.json`, workflow job conclusion |
+| **External-input Decode Preflight** | `gh workflow run external-input-preflight.yml` | Manual only | Bounded | Four commit-keyed decode telemetry reports |
 
 ---
 
@@ -658,29 +659,57 @@ cat target/perf.json
 
 ---
 
-### Soak Tests
+### Weekly Benchmark Gate
 
-**Purpose**: Long-running tests to catch memory leaks and resource issues.
+**Purpose**: Run the canonical in-memory DISPLAY-heavy and COMP-3-heavy
+Criterion workloads, preserve their sealed receipt, and enforce the configured
+80 MiB/s DISPLAY and 8 MiB/s COMP-3 floors with `bench-report gate`.
 
-**Exact Command**:
+**Manual dispatch**:
 ```bash
-cargo test -p copybook-cli --features soak -- --ignored --test-threads=1 --nocapture
+bash scripts/soak-dispatch.sh
 ```
 
 **What it validates**:
-- No memory leaks over long-running operations
-- No resource exhaustion
-- Stable behavior over extended periods
+- The canonical Criterion receipt contains DISPLAY and COMP-3 measurements
+- Measurements satisfy the configured absolute floors
+- The sealed receipt carries the measured environment and percentile context
 
-**How to run locally**:
+The dispatcher triggers `.github/workflows/soak.yml`. Despite the retained file
+and command name, this workflow does not consume generated fixed/RDW datasets,
+vary code pages, or prove absence of memory leaks.
+
+**Expected runtime**: Approximately 20 minutes
+
+**Trigger schedule**: Weekly at 3:00 AM UTC on Saturday, plus manual dispatch,
+via `.github/workflows/soak.yml`
+
+---
+
+### External-input Decode Preflight
+
+**Purpose**: Decode the fixed checked-in inventory of fixed/RDW ASCII/CP037
+manifests and publish deterministic input identity, record count, byte totals,
+and exact payload ranges.
+
+**Manual dispatch**:
+
 ```bash
-# Run soak tests
-COPYBOOK_TEST_SLOW=1 cargo test -p copybook-cli --features soak -- --ignored --test-threads=1 --nocapture
+gh workflow run external-input-preflight.yml
 ```
 
-**Expected runtime**: 10-20 minutes
+The workflow is manual-only, Linux-only, sequential, and fixed to four
+repository manifests. Its reports prove successful validation and decode
+consumption at the recorded commit. They do not contain timing or throughput,
+do not update `scripts/bench/perf.json`, and do not establish benchmark,
+threshold, performance-gate, or SLO evidence.
 
-**Trigger schedule**: Daily at 3:23 AM UTC (via `ci.yml`, schedule only)
+For a missing, unreadable, or malformed manifest, the publisher returns nonzero
+and preserves any existing output because the referenced inputs cannot be
+verified safely. Once a readable manifest proves that the output aliases none
+of the manifest, copybook, or dataset inputs, the publisher removes stale
+output before the remaining validation and decode. The process exit status is
+authoritative; preserved output from a pre-parse failure is not current proof.
 
 ---
 

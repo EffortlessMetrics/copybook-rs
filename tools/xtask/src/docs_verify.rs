@@ -8,8 +8,9 @@ use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
     env, fs,
+    io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
 };
 
 use super::{verify, verify_support_matrix};
@@ -66,6 +67,88 @@ pub(crate) fn run_contracts_command() -> Result<()> {
 
 pub(crate) fn verify_record_pipeline_command() -> Result<()> {
     verify_record_pipeline_evidence()
+}
+
+pub(crate) fn sync_record_pipeline_command() -> Result<()> {
+    let root = workspace_root();
+    let registry_path = root.join(RECORD_PIPELINE_EVIDENCE_PATH);
+    let source = fs::read_to_string(&registry_path).with_context(|| {
+        format!(
+            "loading fixed/RDW evidence registry {}",
+            registry_path.display()
+        )
+    })?;
+    let digest = compute_record_pipeline_digest(&root)?;
+    let updated = update_record_pipeline_registry(&source, &digest)?;
+    fs::write(&registry_path, updated).with_context(|| {
+        format!(
+            "writing fixed/RDW evidence registry {}",
+            registry_path.display()
+        )
+    })?;
+    println!("fixed/RDW evidence content digest synced: {digest}");
+    Ok(())
+}
+
+fn update_record_pipeline_registry(source: &str, digest: &str) -> Result<String> {
+    let registry: RecordPipelineEvidence =
+        toml::from_str(source).context("parsing fixed/RDW evidence registry before sync")?;
+    if registry.schema_version != 1 {
+        bail!(
+            "unsupported fixed/RDW evidence registry schema version {}",
+            registry.schema_version
+        );
+    }
+    if registry.scope != "fixed-rdw-pipeline" {
+        bail!(
+            "unexpected fixed/RDW evidence registry scope `{}`",
+            registry.scope
+        );
+    }
+    if registry.scenarios.is_empty() {
+        bail!("fixed/RDW evidence registry contains no scenarios");
+    }
+
+    let has_digest = registry
+        .content_digest
+        .as_deref()
+        .is_some_and(|value| !value.trim().is_empty());
+    let mut updated = String::with_capacity(source.len() + digest.len());
+    let mut digest_written = false;
+    let mut in_top_level = true;
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with('[') {
+            in_top_level = false;
+        }
+        let key = in_top_level
+            .then(|| trimmed.split_once('=').map(|(key, _)| key.trim()))
+            .flatten();
+        match key {
+            Some("content_digest") => {
+                use std::fmt::Write as _;
+                let indentation = &line[..line.len() - trimmed.len()];
+                let _ = write!(updated, "{indentation}content_digest = \"{digest}\"");
+                digest_written = true;
+            }
+            Some("verified_against") => {
+                // Legacy commit anchor (#753): dropped on sync; the content
+                // digest is topology-independent and survives squash merges.
+            }
+            Some("scope") if !has_digest && !digest_written => {
+                use std::fmt::Write as _;
+                updated.push_str(line);
+                let _ = write!(updated, "\ncontent_digest = \"{digest}\"");
+                digest_written = true;
+            }
+            _ => updated.push_str(line),
+        }
+        updated.push('\n');
+    }
+    if !digest_written {
+        bail!("fixed/RDW evidence registry sync could not locate top-level scope");
+    }
+    Ok(updated)
 }
 
 pub(crate) fn verify_stable_error_registry_command() -> Result<()> {
@@ -252,7 +335,10 @@ struct ContractErrorInventory {
 struct RecordPipelineEvidence {
     schema_version: u32,
     scope: String,
-    verified_against: String,
+    #[serde(default)]
+    verified_against: Option<String>,
+    #[serde(default)]
+    content_digest: Option<String>,
     scenarios: Vec<RecordPipelineScenario>,
 }
 
@@ -295,29 +381,33 @@ fn verify_record_pipeline_evidence() -> Result<()> {
         bail!("fixed/RDW evidence registry contains no scenarios");
     }
 
-    let sha = registry.verified_against.trim();
-    if sha.len() != 40 || !sha.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        bail!("verified_against must be a 40-character commit SHA, found `{sha}`");
-    }
-
-    let commit_check = Command::new("git")
-        .current_dir(&root)
-        .args(["cat-file", "-e", &format!("{sha}^{{commit}}")])
-        .output()
-        .context("checking fixed/RDW evidence registry commit")?;
-    match commit_check.status.code() {
-        Some(0) => verify_record_pipeline_commit_ancestry(&root, sha)?,
-        Some(1) if is_shallow_repository(&root)? => {
-            println!(
-                "fixed/RDW evidence commit `{sha}` unavailable in shallow checkout; ancestry and drift checks skipped"
-            );
+    let content_digest = registry
+        .content_digest
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let verified_against = registry
+        .verified_against
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    validate_record_pipeline_anchor_selection(content_digest, verified_against)?;
+    let anchor_description = match (content_digest, verified_against) {
+        (Some(digest), None) => {
+            verify_record_pipeline_content_digest(&root, digest)?;
+            format!("content digest {digest}")
         }
-        Some(1) => bail!("fixed/RDW evidence registry commit `{sha}` is not available"),
-        other => bail!(
-            "git cat-file failed while checking fixed/RDW evidence registry commit (exit {other:?}): {}",
-            String::from_utf8_lossy(&commit_check.stderr).trim()
+        (None, Some(sha)) => {
+            println!(
+                "warning: verified_against commit anchoring is deprecated (#753); run `cargo run -p xtask -- docs sync-record-pipeline` to migrate to content_digest"
+            );
+            verify_record_pipeline_commit_anchor(&root, sha)?;
+            format!("commit {sha}")
+        }
+        (Some(_), Some(_)) | (None, None) => bail!(
+            "fixed/RDW evidence registry must set exactly one of content_digest or verified_against"
         ),
-    }
+    };
 
     let error_code_source = fs::read_to_string(root.join("crates/copybook-error/src/lib.rs"))
         .context("loading crates/copybook-error/src/lib.rs")?;
@@ -327,9 +417,241 @@ fn verify_record_pipeline_evidence() -> Result<()> {
     println!(
         "fixed/RDW evidence registry verified: {} scenarios at {}",
         registry.scenarios.len(),
-        sha
+        anchor_description
     );
     Ok(())
+}
+
+fn validate_record_pipeline_anchor_selection(
+    content_digest: Option<&str>,
+    verified_against: Option<&str>,
+) -> Result<()> {
+    if content_digest.is_some() == verified_against.is_some() {
+        bail!(
+            "fixed/RDW evidence registry must set exactly one of content_digest or verified_against"
+        );
+    }
+    Ok(())
+}
+
+fn verify_record_pipeline_content_digest(root: &Path, expected: &str) -> Result<()> {
+    if expected.len() != 64 || !expected.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        bail!("content_digest must be a 64-character SHA-256 hex string, found `{expected}`");
+    }
+    let actual = compute_record_pipeline_digest(root)?;
+    if actual != expected {
+        bail!(
+            "fixed/RDW evidence content digest mismatch: registry records `{expected}`, workspace computes `{actual}`; run `cargo run -p xtask -- docs sync-record-pipeline` and commit the update"
+        );
+    }
+    Ok(())
+}
+
+fn compute_record_pipeline_digest(root: &Path) -> Result<String> {
+    use sha2::Digest as _;
+
+    verify_record_pipeline_index_is_current(root)?;
+    let files = tracked_record_pipeline_digest_files(root)?;
+
+    let mut state = sha2::Sha256::new();
+    let mut child = Command::new("git")
+        .current_dir(root)
+        .args(["cat-file", "--batch"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .context("starting git cat-file for record-pipeline digest inputs")?;
+    {
+        let mut stdin = child
+            .stdin
+            .take()
+            .context("opening git cat-file stdin for record-pipeline digest inputs")?;
+        for file in &files {
+            writeln!(stdin, "{}", file.object_id)
+                .context("requesting record-pipeline digest blob from git")?;
+        }
+    }
+    let stdout = child
+        .stdout
+        .take()
+        .context("opening git cat-file stdout for record-pipeline digest inputs")?;
+    let mut reader = BufReader::new(stdout);
+    for file in &files {
+        let mut header = String::new();
+        reader
+            .read_line(&mut header)
+            .with_context(|| format!("reading git blob header for `{}`", file.path))?;
+        let mut fields = header.split_whitespace();
+        let returned_id = fields.next().unwrap_or_default();
+        let object_type = fields.next().unwrap_or_default();
+        let size = fields
+            .next()
+            .with_context(|| format!("git returned an incomplete blob header for `{}`", file.path))?
+            .parse::<usize>()
+            .with_context(|| format!("git returned an invalid blob size for `{}`", file.path))?;
+        if returned_id != file.object_id || object_type != "blob" {
+            bail!("git returned an invalid blob header for `{}`", file.path);
+        }
+        let mut bytes = vec![0_u8; size];
+        reader
+            .read_exact(&mut bytes)
+            .with_context(|| format!("reading canonical git blob for `{}`", file.path))?;
+        let mut terminator = [0_u8; 1];
+        reader
+            .read_exact(&mut terminator)
+            .with_context(|| format!("reading git blob terminator for `{}`", file.path))?;
+        if terminator != *b"\n" {
+            bail!(
+                "git returned an invalid blob terminator for `{}`",
+                file.path
+            );
+        }
+        update_record_pipeline_digest(&mut state, &file.path, &file.mode, &bytes)?;
+    }
+    let status = child
+        .wait()
+        .context("waiting for git cat-file record-pipeline digest inputs")?;
+    if !status.success() {
+        bail!("git cat-file failed while reading record-pipeline digest inputs");
+    }
+    let digest = state.finalize();
+    let mut hex = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        use std::fmt::Write as _;
+        let _ = write!(hex, "{byte:02x}");
+    }
+    Ok(hex)
+}
+
+#[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct RecordPipelineDigestFile {
+    path: String,
+    mode: String,
+    object_id: String,
+}
+
+fn verify_record_pipeline_index_is_current(root: &Path) -> Result<()> {
+    let output = Command::new("git")
+        .current_dir(root)
+        .args(["diff", "--quiet", "--"])
+        .args(RECORD_PIPELINE_SOURCE_PATHS)
+        .output()
+        .context("checking record-pipeline digest inputs for unstaged changes")?;
+    match output.status.code() {
+        Some(0) => Ok(()),
+        Some(1) => bail!(
+            "record-pipeline digest inputs contain unstaged changes; stage the intended gated files before synchronizing or verifying the digest"
+        ),
+        other => bail!(
+            "git diff failed while checking record-pipeline digest inputs (exit {other:?}): {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ),
+    }
+}
+
+fn tracked_record_pipeline_digest_files(root: &Path) -> Result<Vec<RecordPipelineDigestFile>> {
+    let output = Command::new("git")
+        .current_dir(root)
+        .args(["ls-files", "--stage", "-z", "--"])
+        .args(RECORD_PIPELINE_SOURCE_PATHS)
+        .output()
+        .context("listing tracked record-pipeline digest inputs")?;
+    if !output.status.success() {
+        bail!(
+            "git ls-files failed while listing record-pipeline digest inputs: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+
+    let mut files = parse_tracked_record_pipeline_paths(&output.stdout)?;
+    files.sort();
+    if files.is_empty() {
+        bail!("record-pipeline digest has no tracked input files");
+    }
+    Ok(files)
+}
+
+fn parse_tracked_record_pipeline_paths(output: &[u8]) -> Result<Vec<RecordPipelineDigestFile>> {
+    output
+        .split(|byte| *byte == 0)
+        .filter(|raw| !raw.is_empty())
+        .map(|raw| {
+            let entry = String::from_utf8(raw.to_vec())
+                .context("record-pipeline digest input path is not valid UTF-8")?;
+            let (metadata, path) = entry
+                .split_once('\t')
+                .context("git returned an invalid record-pipeline index entry")?;
+            let mut fields = metadata.split_whitespace();
+            let mode = fields
+                .next()
+                .context("git omitted a record-pipeline index mode")?;
+            let object_id = fields
+                .next()
+                .context("git omitted a record-pipeline blob id")?;
+            let stage = fields
+                .next()
+                .context("git omitted a record-pipeline index stage")?;
+            if stage != "0" {
+                bail!("record-pipeline digest input `{path}` has unresolved index stage {stage}");
+            }
+            if mode == "120000" {
+                bail!("record-pipeline digest input `{path}` is a symbolic link");
+            }
+            if !matches!(mode, "100644" | "100755") {
+                bail!("record-pipeline digest input `{path}` has unsupported git mode {mode}");
+            }
+            Ok(RecordPipelineDigestFile {
+                path: path.to_string(),
+                mode: mode.to_string(),
+                object_id: object_id.to_string(),
+            })
+        })
+        .collect()
+}
+
+fn update_record_pipeline_digest(
+    state: &mut sha2::Sha256,
+    rel: &str,
+    mode: &str,
+    bytes: &[u8],
+) -> Result<()> {
+    use sha2::Digest as _;
+
+    let path_len = u64::try_from(rel.len()).context("record-pipeline digest path is too large")?;
+    let body_len =
+        u64::try_from(bytes.len()).context("record-pipeline digest file is too large")?;
+    state.update(path_len.to_be_bytes());
+    state.update(rel.as_bytes());
+    state.update(mode.as_bytes());
+    state.update(body_len.to_be_bytes());
+    state.update(bytes);
+    Ok(())
+}
+
+fn verify_record_pipeline_commit_anchor(root: &Path, sha: &str) -> Result<()> {
+    if sha.len() != 40 || !sha.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        bail!("verified_against must be a 40-character commit SHA, found `{sha}`");
+    }
+
+    let commit_check = Command::new("git")
+        .current_dir(root)
+        .args(["cat-file", "-e", &format!("{sha}^{{commit}}")])
+        .output()
+        .context("checking fixed/RDW evidence registry commit")?;
+    match commit_check.status.code() {
+        Some(0) => verify_record_pipeline_commit_ancestry(root, sha),
+        Some(1) if is_shallow_repository(root)? => {
+            println!(
+                "fixed/RDW evidence commit `{sha}` unavailable in shallow checkout; ancestry and drift checks skipped"
+            );
+            Ok(())
+        }
+        Some(1) => bail!("fixed/RDW evidence registry commit `{sha}` is not available"),
+        other => bail!(
+            "git cat-file failed while checking fixed/RDW evidence registry commit (exit {other:?}): {}",
+            String::from_utf8_lossy(&commit_check.stderr).trim()
+        ),
+    }
 }
 
 fn verify_record_pipeline_commit_ancestry(root: &Path, sha: &str) -> Result<()> {
@@ -1180,35 +1502,114 @@ fn parse_error_code_variants(source: &str) -> Result<Vec<String>> {
         .ok_or_else(|| anyhow::anyhow!("could not find ErrorCode enum"))?
         .end();
 
-    let mut depth = 1i32;
-    let mut end = source.len();
-    for (offset, ch) in source[start..].char_indices() {
-        match ch {
-            '{' => depth += 1,
-            '}' => {
-                depth -= 1;
-                if depth == 0 {
-                    end = start + offset;
-                    break;
-                }
+    let variant_re =
+        Regex::new(r"^([A-Z][A-Z0-9_]*)[ \t]*(?:=[ \t]*[^,]+)?[ \t]*,[ \t]*(?://.*)?$")?;
+    let variant_candidate_re = Regex::new(r"^[A-Z][A-Z0-9_]*\b")?;
+    let mut lexical_state = RustLineState::default();
+    let mut variants = BTreeSet::new();
+    let mut found_end = false;
+    for line in source[start..].lines() {
+        let code = rust_code_on_line(line, &mut lexical_state);
+        let line = code.trim();
+        if line.starts_with('}') {
+            if line == "}" {
+                found_end = true;
+                break;
             }
-            _ => {}
+            bail!("malformed ErrorCode enum terminator `{line}`");
+        }
+        if let Some(capture) = variant_re.captures(line) {
+            variants.insert(capture[1].to_string());
+        } else if variant_candidate_re.is_match(line) {
+            bail!("malformed ErrorCode variant line `{line}`");
         }
     }
-    if end <= start {
+    if !found_end {
         bail!("could not parse ErrorCode enum body");
-    }
-
-    let remainder = &source[start..end];
-    let variant_re = Regex::new(r"(?m)^\s*([A-Z][A-Z0-9_]*)\s*(?:=\s*[^,]+)?\s*,(?:\s*//.*)?$")?;
-    let mut variants = BTreeSet::new();
-    for capture in variant_re.captures_iter(remainder) {
-        variants.insert(capture[1].to_string());
     }
     if variants.is_empty() {
         bail!("no ErrorCode variants parsed");
     }
     Ok(variants.into_iter().collect())
+}
+
+#[derive(Default)]
+struct RustLineState {
+    block_comment_depth: usize,
+    quoted: Option<char>,
+    raw_string_hashes: Option<usize>,
+    escaped: bool,
+}
+
+fn rust_code_on_line(line: &str, state: &mut RustLineState) -> String {
+    let mut code = String::with_capacity(line.len());
+    let mut chars = line.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if let Some(hash_count) = state.raw_string_hashes {
+            if ch == '"' {
+                let mut lookahead = chars.clone();
+                let closes = (0..hash_count).all(|_| lookahead.next() == Some('#'));
+                if closes {
+                    for _ in 0..hash_count {
+                        let _ = chars.next();
+                    }
+                    state.raw_string_hashes = None;
+                }
+            }
+            continue;
+        }
+        if let Some(quote) = state.quoted {
+            if state.escaped {
+                state.escaped = false;
+            } else if ch == '\\' {
+                state.escaped = true;
+            } else if ch == quote {
+                state.quoted = None;
+            }
+            continue;
+        }
+        if state.block_comment_depth > 0 {
+            if ch == '/' && chars.peek() == Some(&'*') {
+                let _ = chars.next();
+                state.block_comment_depth += 1;
+            } else if ch == '*' && chars.peek() == Some(&'/') {
+                let _ = chars.next();
+                state.block_comment_depth -= 1;
+            }
+            continue;
+        }
+        if ch == '/' && chars.peek() == Some(&'/') {
+            break;
+        }
+        if ch == '/' && chars.peek() == Some(&'*') {
+            let _ = chars.next();
+            state.block_comment_depth = 1;
+            continue;
+        }
+        if ch == 'r' {
+            let mut lookahead = chars.clone();
+            let mut hash_count = 0usize;
+            while lookahead.peek() == Some(&'#') {
+                let _ = lookahead.next();
+                hash_count += 1;
+            }
+            if lookahead.next() == Some('"') {
+                for _ in 0..=hash_count {
+                    let _ = chars.next();
+                }
+                state.raw_string_hashes = Some(hash_count);
+                continue;
+            }
+        }
+        if matches!(ch, '\'' | '"') {
+            state.quoted = Some(ch);
+            state.escaped = false;
+            continue;
+        }
+        code.push(ch);
+    }
+    state.escaped = false;
+    code
 }
 
 fn parse_jsonl_schema_inventory(source: &str) -> Result<(Vec<String>, Vec<String>, Vec<String>)> {
@@ -2416,29 +2817,7 @@ fn parse_cli_command_variants(source: &str) -> Result<Vec<String>> {
 }
 
 fn parse_error_code_variant_count(source: &str) -> Result<usize> {
-    let start_re = Regex::new(r"(?m)^pub enum ErrorCode \{")?;
-    let start = start_re
-        .find(source)
-        .ok_or_else(|| anyhow::anyhow!("could not find ErrorCode enum"))?
-        .end();
-
-    let variant_re = Regex::new(r"(?m)^[A-Z][A-Z0-9_]+\s*(?:=\s*[^,]+)?\s*,(?:\s*//.*)?$")?;
-    let mut count = 0usize;
-    for line in source[start..].lines() {
-        let line = line.trim();
-        if line.trim() == "}" {
-            break;
-        }
-        if variant_re.is_match(line) {
-            count += 1;
-        }
-    }
-
-    if count == 0 {
-        bail!("no ErrorCode variants found");
-    }
-
-    Ok(count)
+    Ok(parse_error_code_variants(source)?.len())
 }
 
 fn parse_error_index_count(source: &str) -> Result<usize> {
@@ -2547,6 +2926,214 @@ mod tests {
     )]
     fn ok() -> Result<()> {
         Ok(())
+    }
+
+    fn scaffold_record_pipeline_paths(root: &Path) {
+        for rel in RECORD_PIPELINE_SOURCE_PATHS {
+            std::fs::create_dir_all(root.join(rel).join("src")).unwrap();
+            std::fs::write(root.join(rel).join("src/code.rs"), b"fn code() {}\n").unwrap();
+            std::fs::write(root.join(rel).join("Cargo.toml"), b"[package]\n").unwrap();
+        }
+        let status = Command::new("git")
+            .current_dir(root)
+            .args(["init", "--quiet"])
+            .status()
+            .unwrap();
+        assert!(status.success());
+        let status = Command::new("git")
+            .current_dir(root)
+            .args(["config", "core.autocrlf", "false"])
+            .status()
+            .unwrap();
+        assert!(status.success());
+        let status = Command::new("git")
+            .current_dir(root)
+            .args(["add", "--"])
+            .args(RECORD_PIPELINE_SOURCE_PATHS)
+            .status()
+            .unwrap();
+        assert!(status.success());
+    }
+
+    fn record_pipeline_registry(top_level: &str) -> String {
+        format!(
+            "schema_version = 1\nscope = \"fixed-rdw-pipeline\"\n{top_level}\n\n[[scenarios]]\nid = \"format.fixed.basic\"\nrecord_formats = [\"fixed\"]\napi_tests = [\"crates/copybook-codec/tests/test.rs::works\"]\ncli_tests = []\nerror_codes = []\ncli_commands = []\nknown_limitation = \"none\"\n"
+        )
+    }
+
+    #[test]
+    fn record_pipeline_digest_is_deterministic() {
+        let temp = tempfile::tempdir().unwrap();
+        scaffold_record_pipeline_paths(temp.path());
+
+        let first = compute_record_pipeline_digest(temp.path()).unwrap();
+        let second = compute_record_pipeline_digest(temp.path()).unwrap();
+
+        assert_eq!(first, second);
+        assert_eq!(first.len(), 64);
+    }
+
+    #[test]
+    fn record_pipeline_digest_detects_behavior_affecting_manifest_change() {
+        let temp = tempfile::tempdir().unwrap();
+        scaffold_record_pipeline_paths(temp.path());
+        let before = compute_record_pipeline_digest(temp.path()).unwrap();
+
+        std::fs::write(
+            temp.path().join("crates/copybook-cli/Cargo.toml"),
+            b"[package]\n[features]\ndefault = [\"different-runtime\"]\n",
+        )
+        .unwrap();
+        let status = Command::new("git")
+            .current_dir(temp.path())
+            .args(["add", "--", "crates/copybook-cli/Cargo.toml"])
+            .status()
+            .unwrap();
+        assert!(status.success());
+
+        let after = compute_record_pipeline_digest(temp.path()).unwrap();
+        assert_ne!(before, after);
+    }
+
+    #[test]
+    fn record_pipeline_digest_ignores_untracked_and_ignored_files() {
+        let temp = tempfile::tempdir().unwrap();
+        scaffold_record_pipeline_paths(temp.path());
+        let before = compute_record_pipeline_digest(temp.path()).unwrap();
+
+        std::fs::write(
+            temp.path().join("crates/copybook-codec/review-proof.tmp"),
+            b"local review artifact\n",
+        )
+        .unwrap();
+        std::fs::create_dir_all(temp.path().join("crates/copybook-codec/target")).unwrap();
+        std::fs::write(
+            temp.path().join("crates/copybook-codec/target/output.bin"),
+            b"ignored build artifact\n",
+        )
+        .unwrap();
+
+        let after = compute_record_pipeline_digest(temp.path()).unwrap();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn record_pipeline_digest_detects_source_change() {
+        let temp = tempfile::tempdir().unwrap();
+        scaffold_record_pipeline_paths(temp.path());
+        let before = compute_record_pipeline_digest(temp.path()).unwrap();
+
+        std::fs::write(
+            temp.path().join("crates/copybook-codec/src/code.rs"),
+            b"fn code() { changed(); }\n",
+        )
+        .unwrap();
+        let status = Command::new("git")
+            .current_dir(temp.path())
+            .args(["add", "--", "crates/copybook-codec/src/code.rs"])
+            .status()
+            .unwrap();
+        assert!(status.success());
+
+        let after = compute_record_pipeline_digest(temp.path()).unwrap();
+        assert_ne!(before, after);
+    }
+
+    #[test]
+    fn record_pipeline_digest_missing_path_errors() {
+        let temp = tempfile::tempdir().unwrap();
+        assert!(compute_record_pipeline_digest(temp.path()).is_err());
+    }
+
+    #[test]
+    fn record_pipeline_digest_rejects_non_utf8_git_path() {
+        let error = parse_tracked_record_pipeline_paths(
+            b"100644 0123456789012345678901234567890123456789 0\tcrates/copybook-codec/bad-\xff\0",
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("not valid UTF-8"));
+    }
+
+    #[test]
+    fn record_pipeline_digest_rejects_tracked_symlink_mode() {
+        let error = parse_tracked_record_pipeline_paths(
+            b"120000 0123456789012345678901234567890123456789 0\tcrates/copybook-codec/src/linked.rs\0",
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("symbolic link"));
+    }
+
+    #[test]
+    fn record_pipeline_digest_rejects_unstaged_gated_change() {
+        let temp = tempfile::tempdir().unwrap();
+        scaffold_record_pipeline_paths(temp.path());
+        std::fs::write(
+            temp.path().join("crates/copybook-codec/src/code.rs"),
+            b"fn unstaged() {}\n",
+        )
+        .unwrap();
+
+        let error = compute_record_pipeline_digest(temp.path()).unwrap_err();
+        assert!(error.to_string().contains("unstaged changes"));
+    }
+
+    #[test]
+    fn record_pipeline_digest_length_framing_is_unambiguous() {
+        use sha2::Digest as _;
+
+        let path_a = "crates/copybook-codec/a";
+        let path_b = "crates/copybook-codec/b";
+        let mut one_file = sha2::Sha256::new();
+        update_record_pipeline_digest(
+            &mut one_file,
+            path_a,
+            "100644",
+            format!("\0{path_b}\0").as_bytes(),
+        )
+        .unwrap();
+
+        let mut two_files = sha2::Sha256::new();
+        update_record_pipeline_digest(&mut two_files, path_a, "100644", b"").unwrap();
+        update_record_pipeline_digest(&mut two_files, path_b, "100644", b"").unwrap();
+
+        assert_ne!(one_file.finalize(), two_files.finalize());
+    }
+
+    #[test]
+    fn record_pipeline_registry_sync_updates_only_exact_top_level_keys() {
+        let source = record_pipeline_registry(
+            "  content_digest = \"old\"\ncontent_digest_extra = \"preserve\"\nverified_against_extra = \"preserve\"\nverified_against = \"legacy\"",
+        );
+        let updated = update_record_pipeline_registry(&source, &"d".repeat(64)).unwrap();
+
+        assert!(updated.contains(&format!("  content_digest = \"{}\"", "d".repeat(64))));
+        assert_eq!(updated.matches("content_digest =").count(), 1);
+        assert!(updated.contains("content_digest_extra = \"preserve\""));
+        assert!(updated.contains("verified_against_extra = \"preserve\""));
+        assert!(!updated.contains("verified_against = \"legacy\""));
+
+        let legacy = record_pipeline_registry("verified_against = \"legacy\"");
+        let migrated = update_record_pipeline_registry(&legacy, &"e".repeat(64)).unwrap();
+        assert_eq!(migrated.matches("content_digest =").count(), 1);
+        assert!(!migrated.contains("verified_against = \"legacy\""));
+    }
+
+    #[test]
+    fn record_pipeline_registry_sync_rejects_malformed_or_incomplete_input() {
+        let malformed = "schema_version = 1\nscope = \"fixed-rdw-pipeline\"\nnot valid\n";
+        assert!(update_record_pipeline_registry(malformed, &"d".repeat(64)).is_err());
+
+        let missing_scope =
+            record_pipeline_registry("").replace("scope = \"fixed-rdw-pipeline\"\n", "");
+        assert!(update_record_pipeline_registry(&missing_scope, &"d".repeat(64)).is_err());
+    }
+
+    #[test]
+    fn record_pipeline_registry_rejects_conflicting_or_missing_anchor() {
+        assert!(validate_record_pipeline_anchor_selection(Some("digest"), Some("commit")).is_err());
+        assert!(validate_record_pipeline_anchor_selection(None, None).is_err());
+        assert!(validate_record_pipeline_anchor_selection(Some("digest"), None).is_ok());
+        assert!(validate_record_pipeline_anchor_selection(None, Some("commit")).is_ok());
     }
 
     #[test]
@@ -2697,7 +3284,92 @@ mod tests {
     CBK003_FLAG, // plain variant
 }"#;
 
+        assert_eq!(
+            parse_error_code_variants(source).unwrap(),
+            vec![
+                "CBK001_ORDINAL".to_string(),
+                "CBK002_COMMENTS".to_string(),
+                "CBK003_FLAG".to_string(),
+            ]
+        );
         assert_eq!(parse_error_code_variant_count(source).unwrap(), 3);
+    }
+
+    #[test]
+    fn parse_error_code_variants_is_line_ending_invariant_for_final_member() {
+        let lf = "pub enum ErrorCode {\n    CBK001_FIRST,\n    CBK002_FINAL,\n}\n";
+        let crlf = lf.replace('\n', "\r\n");
+        let expected = vec!["CBK001_FIRST".to_string(), "CBK002_FINAL".to_string()];
+
+        assert_eq!(parse_error_code_variants(lf).unwrap(), expected);
+        assert_eq!(parse_error_code_variants(&crlf).unwrap(), expected);
+        assert_eq!(parse_error_code_variant_count(lf).unwrap(), expected.len());
+        assert_eq!(
+            parse_error_code_variant_count(&crlf).unwrap(),
+            expected.len()
+        );
+    }
+
+    #[test]
+    fn parse_error_code_variants_ignores_braces_outside_enum_syntax() {
+        let lf = r###"pub enum ErrorCode {
+    /// A doc comment containing } and { braces.
+    #[doc = "an attribute string containing } and {"]
+    #[doc = "an ordinary string with an escaped quote: \"
+       }
+       and more content"]
+    #[doc = r#"a raw attribute string containing
+       " and a delimiter-looking line:
+       }
+       {"#]
+    #[parser_fixture = br##"a byte raw string containing
+       " and }# without the two-hash terminator,
+       }
+       plus more content"##]
+    CBK001_FIRST,
+    /* A block comment starts with {
+       /* nested } and { block comment */
+       } and neither brace is an enum delimiter. */
+    CBK002_FINAL, // trailing } comment
+} /* actual enum terminator with a multiline trailing comment
+*/
+CBK999_OUTSIDE,
+"###;
+        let crlf = lf.replace('\n', "\r\n");
+        let expected = vec!["CBK001_FIRST".to_string(), "CBK002_FINAL".to_string()];
+
+        assert_eq!(parse_error_code_variants(lf).unwrap(), expected);
+        assert_eq!(parse_error_code_variants(&crlf).unwrap(), expected);
+        assert_eq!(parse_error_code_variant_count(lf).unwrap(), expected.len());
+        assert_eq!(
+            parse_error_code_variant_count(&crlf).unwrap(),
+            expected.len()
+        );
+    }
+
+    #[test]
+    fn parse_error_code_variants_rejects_missing_or_empty_enum() {
+        assert!(parse_error_code_variants("pub enum Other { CBK001_VALUE, }").is_err());
+        assert!(parse_error_code_variants("pub enum ErrorCode {\n").is_err());
+        assert!(parse_error_code_variants("pub enum ErrorCode {\n}\n").is_err());
+        assert!(
+            parse_error_code_variants(
+                "pub enum ErrorCode {\n    CBK001_VALID,\n};\nimpl Outside {\n}\nCBK999_OUTSIDE,\n"
+            )
+            .is_err()
+        );
+        assert!(
+            parse_error_code_variants(
+                "pub enum ErrorCode {\n    CBK001_VALID,\n},\n}\nCBK999_OUTSIDE,\n"
+            )
+            .is_err()
+        );
+        assert!(
+            parse_error_code_variants(
+                "pub enum ErrorCode {\n    CBK001_VALID,\n    CBK002_MISSING_COMMA\n}\n"
+            )
+            .is_err()
+        );
     }
 
     #[test]

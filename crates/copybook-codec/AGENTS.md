@@ -13,7 +13,8 @@ benchmark before making throughput claims.
 
 Raw capture follows the root contract: record mode emits payload-level
 `raw_b64` plus compatibility `__raw_b64`; record-RDW includes header and
-payload; field mode emits only `<FIELD_NAME>_raw_b64`; off emits none. Add a
+payload. Whole-record output carries the matching `raw_capture` value
+(`record` or `record+rdw`); field mode emits only `<FIELD_NAME>_raw_b64`; off emits none. Add a
 regression test whenever that output shape changes and keep the library API,
 CLI reference, and JSONL schema synchronized.
 

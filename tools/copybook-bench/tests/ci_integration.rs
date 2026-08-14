@@ -21,6 +21,7 @@
 use copybook_bench::baseline::BaselineStore;
 use copybook_bench::reporting::PerformanceReport;
 use std::path::PathBuf;
+use std::process::Command;
 
 /// Find workspace root by traversing upward from `CARGO_MANIFEST_DIR`
 fn find_workspace_root() -> PathBuf {
@@ -45,6 +46,46 @@ fn find_workspace_root() -> PathBuf {
         .join("..")
         .canonicalize()
         .unwrap_or_else(|_| manifest_dir.join("..").join(".."))
+}
+
+fn has_adjacent_workflow_lines(workflow: &str, first: &str, second: &str) -> bool {
+    let mut previous = None;
+    for line in workflow.lines() {
+        if previous == Some(first) && line == second {
+            return true;
+        }
+        previous = Some(line);
+    }
+    false
+}
+
+#[test]
+fn workflow_line_adjacency_is_eol_agnostic_but_whitespace_sensitive() {
+    let first = "      - name: Evidence summary";
+    let second = "        if: always()";
+
+    for workflow in [
+        "      - name: Evidence summary\n        if: always()\n",
+        "      - name: Evidence summary\r\n        if: always()\r\n",
+    ] {
+        assert!(has_adjacent_workflow_lines(workflow, first, second));
+    }
+
+    assert!(!has_adjacent_workflow_lines(
+        "      - name: Evidence summary\n\n        if: always()\n",
+        first,
+        second,
+    ));
+    assert!(!has_adjacent_workflow_lines(
+        "      - name: Evidence summary\n       if: always()\n",
+        first,
+        second,
+    ));
+    assert!(!has_adjacent_workflow_lines(
+        "        if: always()\n      - name: Evidence summary\n",
+        first,
+        second,
+    ));
 }
 
 /// AC3: Test PR comment generation format
@@ -963,4 +1004,108 @@ fn test_artifact_naming() {
         retention_90,
         "Baseline artifacts must have 90-day retention"
     );
+}
+
+/// The legacy `soak.yml` filename is retained for dispatcher compatibility,
+/// but the workflow owns one canonical benchmark gate rather than an
+/// unconsumed generated-dataset matrix.
+#[test]
+fn weekly_benchmark_gate_has_truthful_inputs_and_decision() {
+    let base_path = find_workspace_root();
+    let workflow = std::fs::read_to_string(base_path.join(".github/workflows/soak.yml"))
+        .expect("Failed to read soak workflow YAML");
+
+    assert!(workflow.contains("cron: \"0 3 * * 6\""));
+    assert!(workflow.contains("workflow_dispatch: {}"));
+    assert!(workflow.contains("bash scripts/bench-enhanced.sh"));
+    assert!(workflow.contains(
+        "bash scripts/ci/validate-soak-receipt.sh scripts/bench/perf.json \"$GITHUB_SHA\""
+    ));
+    assert!(workflow.contains("bench-report gate scripts/bench/perf.json"));
+    assert_eq!(workflow.matches("continue-on-error: true").count(), 3);
+    assert!(workflow.contains("steps.measurement.outcome != 'success'"));
+    assert!(workflow.contains("steps.receipt.outcome != 'success'"));
+    assert!(workflow.contains("steps.gate.outcome != 'success'"));
+    assert!(has_adjacent_workflow_lines(
+        &workflow,
+        "      - name: Perf headline (summary)",
+        "        if: always()",
+    ));
+    assert!(has_adjacent_workflow_lines(
+        &workflow,
+        "      - name: Upload perf artifact",
+        "        if: always()",
+    ));
+    assert!(workflow.contains("Measurement failed: no current receipt was produced."));
+    assert!(workflow.contains("if-no-files-found: ignore"));
+    assert!(workflow.contains("name: Enforce benchmark evidence and gate result"));
+    assert!(workflow.contains("always() &&"));
+    assert!(!workflow.contains("--baseline"));
+    assert!(!workflow.contains("--regression-threshold"));
+    assert!(!workflow.contains("checks: write"));
+    assert!(!workflow.contains("github.rest.checks.create"));
+
+    assert!(!workflow.contains("BENCH_INPUT"));
+    assert!(!workflow.contains("scripts/gen_dataset.sh"));
+    assert!(!workflow.contains("matrix:"));
+}
+
+#[test]
+fn failed_measurement_removes_preexisting_receipt_and_criterion_outputs() {
+    let base_path = find_workspace_root();
+    let temp = tempfile::Builder::new()
+        .prefix("soak-failure-")
+        .tempdir_in(base_path.join("target"))
+        .expect("create benchmark failure fixture");
+    let receipt = temp.path().join("perf.json");
+    let criterion = temp.path().join("criterion");
+    for benchmark in ["display_heavy_slo_80mbps", "comp3_heavy_slo_40mbps"] {
+        let output = criterion.join(benchmark).join("new");
+        std::fs::create_dir_all(&output).expect("create stale criterion output");
+        std::fs::write(output.join("estimates.json"), "{}").expect("write stale criterion output");
+    }
+    std::fs::copy(base_path.join("scripts/bench/perf.json"), &receipt)
+        .expect("preseed a schema-valid stale receipt");
+
+    let relative_receipt = receipt
+        .strip_prefix(&base_path)
+        .expect("receipt fixture is inside workspace");
+    let relative_criterion = criterion
+        .strip_prefix(&base_path)
+        .expect("criterion fixture is inside workspace");
+    let slash_path = |path: &std::path::Path| path.to_string_lossy().replace('\\', "/");
+    let command = format!(
+        "COPYBOOK_BENCH_FORCE_FAILURE=1 PERF_RECEIPT_PATH='{}' CRITERION_ROOT='{}' bash scripts/bench-enhanced.sh",
+        slash_path(relative_receipt),
+        slash_path(relative_criterion)
+    );
+    let result = Command::new("bash")
+        .args(["-c", &command])
+        .current_dir(&base_path)
+        .status()
+        .expect("run forced benchmark failure");
+
+    assert!(!result.success());
+    assert!(
+        !receipt.exists(),
+        "stale receipt must not survive measurement"
+    );
+    assert!(!receipt.with_extension("json.tmp").exists());
+    assert!(!criterion.join("display_heavy_slo_80mbps/new").exists());
+    assert!(!criterion.join("comp3_heavy_slo_40mbps/new").exists());
+}
+
+#[test]
+fn benchmark_receipt_does_not_claim_pass_before_gate_evaluation() {
+    let base_path = find_workspace_root();
+    let bench_script = std::fs::read_to_string(base_path.join("scripts/bench.sh"))
+        .expect("Failed to read benchmark script");
+
+    assert!(bench_script.contains("\"status\": \"measured\""));
+    assert!(!bench_script.contains("\"status\": \"pass\""));
+
+    let enhanced_script = std::fs::read_to_string(base_path.join("scripts/bench-enhanced.sh"))
+        .expect("Failed to read enhanced benchmark script");
+    assert!(enhanced_script.contains("\"status\": \"measured\""));
+    assert!(!enhanced_script.contains("\"status\": \"pass\""));
 }

@@ -59,10 +59,10 @@
     ]
   },
   "compliance_metadata": {
-    "sox_compliant": true,
-    "hipaa_compliant": true,
-    "pci_dss_compliant": true,
-    "gdpr_compliant": true,
+    "sox_compliant": false,
+    "hipaa_compliant": false,
+    "pci_dss_compliant": false,
+    "gdpr_compliant": false,
     "retention_days": 90,
     "audit_id": "copybook-rs-security-2025-10-02-abc789"
   }

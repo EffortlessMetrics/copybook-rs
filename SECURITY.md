@@ -166,7 +166,10 @@ copybook-rs implements comprehensive dependency and security scanning to protect
 - Scheduled Monday 09:00 UTC via `.github/workflows/security-scan.yml`
 - Automatic GitHub issue creation/update on vulnerability detection
 - Manual trigger available via GitHub Actions workflow_dispatch
-- Security receipts uploaded as artifacts with 90-day retention
+- Raw `cargo audit --json` output uploaded as an artifact with 90-day retention
+- Marker-based pagination, duplicate suppression, and close-on-clean behavior
+  for the findings issue are separate lifecycle work tracked in
+  [#763](https://github.com/EffortlessMetrics/copybook-rs/issues/763).
 
 **Dependency Automation (Dependabot)**:
 - Weekly dependency update PRs for Cargo ecosystem (Monday 09:00 UTC)
@@ -184,30 +187,32 @@ Enhanced `deny.toml` policies enforce enterprise security requirements:
 - **Unknown registries**: Only crates.io allowed (`unknown-registry = "deny"`)
 - **Unknown git sources**: Untrusted git dependencies prohibited (`unknown-git = "deny"`)
 
-### Security Receipts & Compliance
+### Security Scan Artifacts
 
 **Artifact Retention**:
-- Security scan results retained for 90 days (SOX/HIPAA compliance)
-- JSON receipts include: timestamp, commit SHA, tool versions, vulnerability details
-- Available in GitHub Actions artifacts: `security-receipts-<commit-sha>`
+- Raw cargo-audit results are retained for 90 days as
+  `cargo-audit-raw-<workflow-run-id>` artifacts.
+- GitHub records the workflow run and exact commit separately from the raw
+  scanner output.
+- These raw artifacts do not conform to
+  `docs/reference/security-receipt-schema.json`; schema-valid receipt
+  generation is tracked separately in
+  [#761](https://github.com/EffortlessMetrics/copybook-rs/issues/761).
 
-**Regulatory Compliance**:
-- **SOX**: Deterministic builds, 90-day audit trail
-- **HIPAA**: Continuous vulnerability monitoring
-- **GDPR**: Supply chain verification
-- **PCI DSS**: Proactive security scanning, yanked crate prevention
+Security scans and retention provide engineering evidence. They do not by
+themselves establish regulatory compliance or certification.
 
 ### Responding to Security Findings
 
 **Automated Process**:
-1. Vulnerability detected → CI fails (PR gate) or GitHub issue created (weekly scan)
+1. Vulnerability detected → CI fails (PR gate) or GitHub issue created/updated (weekly scan)
 2. Security team notified via issue assignment
 3. Fix applied within 48 hours for HIGH/CRITICAL (per existing security policy)
 4. Dependabot PR reviewed and merged, or manual patch applied
 5. Verification scan confirms vulnerability resolution
 
 **Manual Procedures**:
-- Review security receipts in workflow artifacts
+- Review raw cargo-audit output in workflow artifacts
 - Check "Security Alert:" prefixed issues
 - Use time-boxed ignores in `deny.toml` for false positives (with expiry dates)
 

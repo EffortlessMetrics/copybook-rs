@@ -38,6 +38,11 @@
       "pattern": "^[A-Za-z0-9+/]*={0,2}$",
       "description": "Base64-encoded record bytes (when `emit_raw` is enabled)"
     },
+    "raw_capture": {
+      "type": "string",
+      "enum": ["record", "record+rdw"],
+      "description": "Provenance of raw_b64: payload-only record bytes or RDW header plus payload"
+    },
     "fields": {
       "type": "object",
       "patternProperties": {
@@ -84,5 +89,8 @@
     }
   },
   "required": ["schema", "record_index", "codepage", "fields"],
+  "dependencies": {
+    "raw_capture": ["raw_b64"]
+  },
   "additionalProperties": false
 }

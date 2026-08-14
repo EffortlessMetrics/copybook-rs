@@ -2,9 +2,15 @@
 # Current-main evidence coordinator for issue #572.
 # This registry covers the fixed/RDW pipeline plane. It is intentionally not
 # the complete stable-error registry requested by issue #576.
+# Anchor rule (#753): content_digest is a SHA-256 over the canonical staged Git
+# blobs and modes in the gated source paths, including behavior-affecting
+# manifests. Untracked files are excluded and unstaged gated changes are
+# rejected. Stage intended gated changes, then refresh via
+# `cargo run -p xtask -- docs sync-record-pipeline`. The digest is
+# content-addressed, so squash merges cannot invalidate it.
 schema_version = 1
 scope = "fixed-rdw-pipeline"
-verified_against = "04f743afcf7476118850c544163a5655d508f307"
+content_digest = "4d80c7d4817d2bd990c6bec65118d3da0eadea651c5a59c9e078251222c74df3"
 
 [[scenarios]]
 id = "format.fixed.basic"
@@ -115,3 +121,29 @@ cli_tests = [
 error_codes = ["CBKF102_RECORD_LENGTH_INVALID"]
 cli_commands = ["decode --format fixed", "decode --format rdw"]
 known_limitation = "Verify, encode, projection, and determinism command rows remain separate CLI evidence planes."
+
+[[scenarios]]
+id = "format.fixed_rdw.raw_mode.legacy_alias"
+record_formats = ["fixed", "rdw"]
+api_tests = [
+  "crates/copybook-codec/tests/streaming_file_tests.rs::decode_file_to_jsonl_raw_mode_rdw_is_stable_across_workers",
+  "crates/copybook-codec/tests/streaming_file_tests.rs::rdw_legacy_raw_mode_key_alias_is_accepted_in_encode",
+  "crates/copybook-codec/tests/streaming_file_tests.rs::decode_fixed_legacy_raw_mode_key_alias_is_accepted_in_encode",
+]
+cli_tests = ["tests/e2e/e2e_cli_decode_flags.rs::decode_rdw_record_raw_cli_preserves_physical_frames"]
+error_codes = []
+cli_commands = ["decode --format rdw --emit-raw record+rdw"]
+known_limitation = "Canonical/legacy dual emission and RDW header+payload legacy encode acceptance are directly anchored; the RDW field-recomputation path (fields edited relative to raw payload) remains covered by the codec RDW suite rather than this row."
+
+[[scenarios]]
+id = "package.record_io.shim_compile_contract"
+record_formats = ["fixed", "rdw"]
+api_tests = [
+  "crates/copybook-record-io/tests/api_lock.rs::facade_exposes_fixed_record_surface",
+  "crates/copybook-record-io/tests/api_lock.rs::facade_exposes_rdw_record_surface",
+  "crates/copybook-record-io/tests/api_lock.rs::facade_exposes_dispatch_functions",
+]
+cli_tests = []
+error_codes = []
+cli_commands = []
+known_limitation = "The shim rows prove the 0.5 forwarding surface stays resolvable and functional; the requirement that primary packages never depend on the shim is enforced by the workspace dependency graph, not by this registry."

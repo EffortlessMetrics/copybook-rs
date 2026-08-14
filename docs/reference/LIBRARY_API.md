@@ -333,17 +333,19 @@ Decoded records are wrapped in a stable JSON envelope:
   `emit_meta` is enabled for streaming decode; `offset` is the zero-based physical source offset
   of the decoded record
 
-When `emit_raw` is enabled, record-level payloads are emitted as **`raw_b64`** (with the canonical
-`__raw_b64` key also present). Field-level capture uses the `<FIELD>__raw_b64` naming pattern:
+When `emit_raw` is enabled, record-level payloads are emitted as **`raw_b64`** (with the legacy
+`__raw_b64` key also present). The `raw_capture` marker records whether those bytes are payload-only
+(`record`) or an RDW header plus payload (`record+rdw`). Field-level capture uses the
+`<FIELD>__raw_b64` naming pattern:
 
 ```rust
 // RawMode::Record - capture record payload only
 let opts = DecodeOptions::new().with_emit_raw(RawMode::Record);
-// JSON excerpt: { "raw_b64": "AAABBBCCC...", "__raw_b64": "AAABBBCCC..." }
+// JSON excerpt: { "raw_capture": "record", "raw_b64": "AAABBBCCC...", "__raw_b64": "AAABBBCCC..." }
 
 // RawMode::RecordRDW - capture payload + 4-byte RDW header
 let opts = DecodeOptions::new().with_emit_raw(RawMode::RecordRDW);
-// JSON excerpt: { "raw_b64": "AAAAAAhBBBCCC...", "__raw_b64": "AAAAAAhBBBCCC..." }
+// JSON excerpt: { "raw_capture": "record+rdw", "raw_b64": "AAAAAAhBBBCCC...", "__raw_b64": "AAAAAAhBBBCCC..." }
 
 // RawMode::Field - capture individual field payloads
 let opts = DecodeOptions::new().with_emit_raw(RawMode::Field);
@@ -352,7 +354,9 @@ let opts = DecodeOptions::new().with_emit_raw(RawMode::Field);
 
 **Roundtrip Encoding**:
 When `use_raw` is enabled in `EncodeOptions`, the encoder consumes `raw_b64` (or the legacy
-`__raw_b64`) from the JSON input to produce **bit-exact** output:
+`__raw_b64`) from the JSON input. For RDW output, `raw_capture` routes payload-only and framed
+bytes explicitly; marker-absent legacy input retains the historical header-plus-payload
+interpretation:
 
 ```rust
 // Decode with raw preservation
@@ -360,7 +364,7 @@ let decode_opts = DecodeOptions::new()
     .with_emit_raw(RawMode::RecordRDW);
 let json_value = decode_record(&schema, &original_data, &decode_opts)?;
 
-// Encode using raw data (preserves reserved bytes, avoids recomputation)
+// Encode using raw data (unchanged valid RDW data replays byte-for-byte)
 let encode_opts = EncodeOptions::new()
     .with_use_raw(true);
 let encoded_data = encode_record(&schema, &json_value, &encode_opts)?;
@@ -371,13 +375,24 @@ assert_eq!(original_data, encoded_data);
 
 **RDW-Specific Considerations**:
 - **Reserved Bytes**: `RawMode::RecordRDW` preserves bytes 2-3 of RDW header (reserved, typically zero)
-- **Length Recomputation**: When `use_raw=false`, encoder recomputes RDW length from payload size
+- **Raw Capture Mode**: RDW `use_raw=true` wraps `raw_capture: "record"` bytes in a new header;
+  `raw_capture: "record+rdw"` validates the supplied frame and preserves its reserved bytes.
+  The marker selects framing, not immutability: changed fields rebuild the framed payload and
+  length. Missing markers retain the legacy framed interpretation; provenance is never inferred
+  from byte length or contents.
+- **Length Recomputation**: When fields change under `use_raw=true`, the encoder recomputes the
+  RDW payload length while preserving reserved bytes. Unchanged valid raw RDW data is replayed
+  byte-for-byte. With `use_raw=false`, the encoder constructs a new RDW header from the payload.
+- **Framing Bounds**: Raw RDW values shorter than the 4-byte header, frames whose declared payload
+  length disagrees with the bytes present, and mutated payloads larger than 65,535 bytes fail with
+  `CBKF102_RECORD_LENGTH_INVALID`
 - **Truncation Detection**: Fixed-format records validate expected length against actual data
 - **Error Codes**:
   - `CBKR202_RDW_WRITE_ERROR` - RDW header, payload, or flush write failure
   - `CBKR211_RDW_RESERVED_NONZERO` - Non-zero reserved bytes warning (lenient mode)
   - `CBKF221_RDW_UNDERFLOW` - Incomplete RDW header or payload
   - `CBKE501_JSON_TYPE_MISMATCH` - Invalid base64 in `raw_b64` / `__raw_b64`
+    or invalid/conflicting `raw_capture`
 
 ## Core Functions
 

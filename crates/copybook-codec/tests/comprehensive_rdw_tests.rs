@@ -163,10 +163,10 @@ fn test_rdw_length_recomputation() {
     // Prepare output with newline-terminated JSONL
     let mut output = Vec::new();
 
-    // Decode without raw capture: this test rebuilds the payload from fields on
-    // encode, so a captured record-level `__raw_b64` (which takes precedence on
-    // encode) must not be present.
-    let mut decode_options = create_rdw_decode_options(RawMode::Off, false);
+    // Capture the full RDW so encoding can exercise the normative raw-mutation
+    // path: unchanged fields replay the frame, while changed fields rebuild the
+    // payload and header through canonical RDW framing.
+    let mut decode_options = create_rdw_decode_options(RawMode::RecordRDW, false);
     decode_options.threads = 1; // Ensure single-threaded for consistent testing
 
     // Decode with direct error checking
@@ -208,10 +208,9 @@ fn test_rdw_length_recomputation() {
         "Original record should match input"
     );
 
-    // Replace the payload. Encoding must rebuild from the modified field and
-    // recompute the RDW length header, so raw usage is disabled here: with
-    // `use_raw = true` the stale `__raw_b64` captured during decode would take
-    // precedence and the modified field would be ignored.
+    // Replace the payload. With raw usage enabled, encoding compares the
+    // rebuilt field payload with the captured payload. Because they differ, it
+    // reconstructs the RDW header and payload while preserving reserved bytes.
     // The encoder reads field values from the nested `fields` envelope, so the
     // authoritative entry must be updated (the flat top-level mirror is kept in
     // sync for readability).
@@ -219,7 +218,7 @@ fn test_rdw_length_recomputation() {
     modified_record["VARIABLE-RECORD"] = json!("MODIFIED-LONGER-DATA");
     modified_record["fields"]["VARIABLE-RECORD"] = json!("MODIFIED-LONGER-DATA");
 
-    let encode_options = create_rdw_encode_options(false, false);
+    let encode_options = create_rdw_encode_options(true, false);
     let result = copybook_codec::encode_record(&schema, &modified_record, &encode_options);
 
     assert!(result.is_ok(), "Encoding failed");

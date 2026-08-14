@@ -173,8 +173,8 @@ const EBCDIC_DIGIT_ZONE: u8 = 0xF; // EBCDIC '0'..'9' => 0xF0..0xF9
 /// Applies the codec default: ASCII uses `ZeroSignPolicy::Positive`; EBCDIC zeros normalize via `ZeroSignPolicy::Preferred`.
 ///
 /// # Errors
-/// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
-/// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
+/// * `CBKD410_ZONED_OVERFLOW` - if the decoded magnitude exceeds `i64` capacity
+/// * `CBKD411_ZONED_BAD_SIGN` - if the zoned digits, zones, or sign are invalid
 ///
 /// # Examples
 ///
@@ -320,7 +320,7 @@ pub fn decode_zoned_decimal(
                 }
             }
 
-            value = value.saturating_mul(10).saturating_add(i64::from(digit));
+            value = zoned_append_digit(value, digit, i)?;
         } else {
             let zone = (byte >> 4) & 0x0F;
             let digit = byte & 0x0F;
@@ -345,13 +345,29 @@ pub fn decode_zoned_decimal(
                 ));
             }
 
-            value = value.saturating_mul(10).saturating_add(i64::from(digit));
+            value = zoned_append_digit(value, digit, i)?;
         }
     }
 
     let mut decimal = SmallDecimal::new(value, scale, is_negative);
     decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
     Ok(decimal)
+}
+
+/// Append one logical digit to a zoned-decimal magnitude without data loss.
+#[inline]
+fn zoned_append_digit(value: i64, digit: u8, position: usize) -> Result<i64> {
+    value
+        .checked_mul(10)
+        .and_then(|scaled| scaled.checked_add(i64::from(digit)))
+        .ok_or_else(|| {
+            Error::new(
+                ErrorCode::CBKD410_ZONED_OVERFLOW,
+                format!(
+                    "Zoned decimal magnitude exceeds i64 capacity while appending digit {digit} at position {position}"
+                ),
+            )
+        })
 }
 
 /// Decode a zoned decimal field with SIGN SEPARATE clause
@@ -745,8 +761,11 @@ fn build_scaled_digit_string(abs_str: &str, scale: i16) -> String {
 /// Mirrors [`decode_zoned_decimal`], defaulting to preferred-zero handling for EBCDIC unless a preserved format dictates otherwise.
 ///
 /// # Errors
-/// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
-/// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
+/// * `CBKD410_ZONED_OVERFLOW` - if the decoded magnitude exceeds `i64` capacity
+/// * `CBKD411_ZONED_BAD_SIGN` - if the zoned digits, zones, or sign are invalid
+/// * `CBKD413_ZONED_INVALID_ENCODING` - if preserved encoding zones are invalid
+/// * `CBKD414_ZONED_MIXED_ENCODING` - if preserved encoding mixes formats
+/// * `CBKD415_ZONED_ENCODING_AMBIGUOUS` - if preserved encoding cannot be detected
 ///
 /// # Examples
 ///
@@ -876,7 +895,8 @@ pub fn decode_zoned_decimal_with_encoding(
 /// A tuple of (`accumulated_value`, `is_negative`)
 ///
 /// # Errors
-/// Returns an error if an invalid digit or zone nibble is encountered.
+/// Returns `CBKD410_ZONED_OVERFLOW` if the magnitude exceeds `i64` capacity,
+/// or a typed zoned-format error if a digit, zone, or sign is invalid.
 #[inline]
 fn zoned_decode_digits_with_encoding(
     data: &[u8],
@@ -932,7 +952,7 @@ fn zoned_decode_digits_with_encoding(
                 }
             }
 
-            value = value.saturating_mul(10).saturating_add(i64::from(digit));
+            value = zoned_append_digit(value, digit, index)?;
         } else {
             let digit = byte & 0x0F;
             if digit > 9 {
@@ -979,7 +999,7 @@ fn zoned_decode_digits_with_encoding(
                 }
             }
 
-            value = value.saturating_mul(10).saturating_add(i64::from(digit));
+            value = zoned_append_digit(value, digit, index)?;
         }
     }
 
@@ -2223,11 +2243,8 @@ fn zoned_validate_non_final_byte(
 /// Accumulated integer value from non-final digits
 ///
 /// # Errors
+/// * `CBKD410_ZONED_OVERFLOW` - Magnitude exceeds `i64` capacity
 /// * `CBKD411_ZONED_BAD_SIGN` - Invalid zone or digit nibble encountered
-///
-/// # Performance
-/// Uses saturating arithmetic to prevent overflow panics while accumulating
-/// the numeric value.
 #[inline]
 fn zoned_process_non_final_digits(
     data: &[u8],
@@ -2240,7 +2257,7 @@ fn zoned_process_non_final_digits(
     for (index, &byte) in data.iter().enumerate() {
         let digit = zoned_validate_non_final_byte(byte, index, expected_zone, codepage)?;
         scratch.digit_buffer.push(digit);
-        value = value.saturating_mul(10).saturating_add(i64::from(digit));
+        value = zoned_append_digit(value, digit, index)?;
     }
 
     Ok(value)
@@ -2342,7 +2359,8 @@ fn zoned_ensure_unsigned(
 /// `preserve_zoned_encoding` captured an explicit format at decode.
 ///
 /// # Errors
-/// Returns an error if zone nibbles or the last-byte overpunch are invalid.
+/// * `CBKD410_ZONED_OVERFLOW` - if the decoded magnitude exceeds `i64` capacity
+/// * `CBKD411_ZONED_BAD_SIGN` - if the zone nibbles or last-byte sign are invalid
 ///
 /// # Performance
 /// This function avoids allocations by reusing scratch buffers across decode operations.
@@ -2434,14 +2452,12 @@ pub fn decode_zoned_decimal_with_scratch(
         zoned_process_non_final_digits(non_final, expected_zone, codepage, scratch)?;
     let (last_digit, negative) = zoned_decode_last_byte(last_byte, codepage)?;
     scratch.digit_buffer.push(last_digit);
-    let value = partial_value
-        .saturating_mul(10)
-        .saturating_add(i64::from(last_digit));
     let is_negative = if signed {
         negative
     } else {
         zoned_ensure_unsigned(last_byte, expected_zone, codepage, negative)?
     };
+    let value = zoned_append_digit(partial_value, last_digit, non_final.len())?;
     let mut decimal = SmallDecimal::new(value, scale, is_negative);
     decimal.normalize();
 
@@ -3140,6 +3156,7 @@ fn format_integer_with_leading_zeros_to_buffer(value: i64, width: u32, buffer: &
 /// preferred-zero handling for EBCDIC data.
 ///
 /// # Errors
+/// * `CBKD410_ZONED_OVERFLOW` - if the decoded magnitude exceeds `i64` capacity
 /// * `CBKD411_ZONED_BAD_SIGN` - if the zone nibbles or sign are invalid
 ///
 /// # See Also

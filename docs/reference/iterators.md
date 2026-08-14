@@ -83,8 +83,9 @@ The iterator **never panics**. Errors surface as `Result` values:
   }
   ```
 
-- **Truncated record at EOF** → `next()` returns `Ok(None)` (a clean stop),
-  **not** an error. A short trailing record is treated as end-of-input.
+- **Fixed record truncated at EOF** → `Err(CBKR101_FIXED_RECORD_ERROR)` with
+  the next record number in its context. EOF on an exact record boundary is a
+  clean stop.
 
 - **Missing `lrecl_fixed` with `Fixed` format** → the iterator *constructs
   successfully* (validation is deferred), but the first `next()` /
@@ -92,7 +93,11 @@ The iterator **never panics**. Errors surface as `Result` values:
   `schema.lrecl_fixed` (the parser does this automatically for copybooks with a
   record length) or use `RecordFormat::RDW`.
 
-- **RDW underflow** (corrupt/truncated RDW header) → `Err(CBKF221_RDW_UNDERFLOW)`.
+- **RDW underflow** (truncated RDW header or declared payload) →
+  `Err(CBKF221_RDW_UNDERFLOW)` with the next record number in its context.
+
+- **RDW input I/O failure** (other than EOF while reading a header or payload)
+  → `Err(CBKR201_RDW_READ_ERROR)` with the next record number in its context.
 
 - **File-open failure** (`iter_records_from_file`) → `Err(CBKR201_RDW_READ_ERROR)`
   with a message like `"failed to open input file: ..."`.

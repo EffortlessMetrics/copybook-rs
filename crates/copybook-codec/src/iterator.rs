@@ -367,6 +367,40 @@ impl<R: Read> RecordIterator<R> {
         &self.options
     }
 
+    fn next_record_context(&self, details: String) -> ErrorContext {
+        ErrorContext {
+            record_index: Some(self.record_index + 1),
+            field_path: None,
+            byte_offset: None,
+            line_number: None,
+            details: Some(details),
+        }
+    }
+
+    fn rdw_header_read_error(&self, error: &std::io::Error) -> Error {
+        Error::new(
+            ErrorCode::CBKR201_RDW_READ_ERROR,
+            format!("Failed to read RDW header: {error}"),
+        )
+        .with_context(self.next_record_context("I/O failure while reading RDW header".to_string()))
+    }
+
+    fn rdw_payload_read_error(&self, error: &std::io::Error, length: usize) -> Error {
+        let (code, details) = if error.kind() == std::io::ErrorKind::UnexpectedEof {
+            (
+                ErrorCode::CBKF221_RDW_UNDERFLOW,
+                format!("File ends before the declared {length}-byte RDW payload"),
+            )
+        } else {
+            (
+                ErrorCode::CBKR201_RDW_READ_ERROR,
+                "I/O failure while reading RDW payload".to_string(),
+            )
+        };
+        Error::new(code, format!("Failed to read RDW payload: {error}"))
+            .with_context(self.next_record_context(details))
+    }
+
     /// Read the next record without decoding it
     ///
     /// This method reads the raw bytes of the next record without performing
@@ -490,10 +524,7 @@ impl<R: Read> RecordIterator<R> {
                         }));
                     }
                     Err(e) => {
-                        return Err(Error::new(
-                            ErrorCode::CBKR201_RDW_READ_ERROR,
-                            format!("Failed to read RDW header: {e}"),
-                        ));
+                        return Err(self.rdw_header_read_error(&e));
                     }
                 }
 
@@ -512,15 +543,7 @@ impl<R: Read> RecordIterator<R> {
                         Some(self.buffer.clone())
                     }
                     Err(e) => {
-                        // A short payload is a data underflow; any other failure
-                        // is a genuine I/O read error and uses the record family,
-                        // matching copybook-rdw and the fixed branch above.
-                        let code = if e.kind() == std::io::ErrorKind::UnexpectedEof {
-                            ErrorCode::CBKF221_RDW_UNDERFLOW
-                        } else {
-                            ErrorCode::CBKR201_RDW_READ_ERROR
-                        };
-                        return Err(Error::new(code, format!("Failed to read RDW payload: {e}")));
+                        return Err(self.rdw_payload_read_error(&e, length));
                     }
                 }
             }
@@ -777,6 +800,7 @@ mod tests {
     use super::*;
     use crate::Codepage;
     use copybook_core::parse_copybook;
+    use std::collections::VecDeque;
     use std::io::{self, Cursor, Read};
 
     #[test]
@@ -1229,67 +1253,135 @@ mod tests {
         assert_eq!(error.code, ErrorCode::CBKR101_FIXED_RECORD_ERROR);
     }
 
-    #[test]
-    fn test_iterator_rdw_header_read_error_code() {
-        // A genuine I/O failure while reading the RDW header is a record read
-        // error, not an underflow data condition.
-        let schema = eight_byte_schema();
-        let options = DecodeOptions::default()
-            .with_format(RecordFormat::RDW)
-            .with_codepage(Codepage::ASCII);
-        let mut iterator =
-            RecordIterator::new(FailingReader::default(), &schema, &options).unwrap();
-
-        let error = iterator.read_raw_record().unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKR201_RDW_READ_ERROR);
+    enum ReadStep {
+        Bytes(Vec<u8>),
+        Error(io::ErrorKind),
+        Eof,
     }
 
-    /// Reader that serves one valid RDW header and then fails the payload read.
-    struct FailAfterHeaderReader {
-        header: Option<[u8; 4]>,
+    struct ScriptedReader {
+        steps: VecDeque<ReadStep>,
     }
 
-    impl Read for FailAfterHeaderReader {
-        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-            if let Some(header) = self.header.take() {
-                buf[..4].copy_from_slice(&header);
-                Ok(4)
-            } else {
-                Err(io::Error::other("forced payload read error"))
+    impl ScriptedReader {
+        fn new(steps: impl IntoIterator<Item = ReadStep>) -> Self {
+            Self {
+                steps: steps.into_iter().collect(),
             }
         }
     }
 
-    #[test]
-    fn rdw_payload_io_error_maps_to_read_error() {
+    impl Read for ScriptedReader {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            match self.steps.pop_front() {
+                Some(ReadStep::Bytes(mut bytes)) => {
+                    let read = bytes.len().min(buf.len());
+                    buf[..read].copy_from_slice(&bytes[..read]);
+                    if read < bytes.len() {
+                        bytes.drain(..read);
+                        self.steps.push_front(ReadStep::Bytes(bytes));
+                    }
+                    Ok(read)
+                }
+                Some(ReadStep::Error(kind)) => Err(io::Error::new(kind, "scripted read error")),
+                Some(ReadStep::Eof) | None => Ok(0),
+            }
+        }
+    }
+
+    fn rdw_iterator(reader: ScriptedReader) -> RecordIterator<ScriptedReader> {
         let schema = eight_byte_schema();
         let options = DecodeOptions::default()
             .with_format(RecordFormat::RDW)
             .with_codepage(Codepage::ASCII);
-        let reader = FailAfterHeaderReader {
-            header: Some([0x00, 0x08, 0x00, 0x00]),
-        };
-        let mut iterator = RecordIterator::new(reader, &schema, &options).unwrap();
+        RecordIterator::new(reader, &schema, &options).unwrap()
+    }
 
-        let error = iterator.read_raw_record().unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKR201_RDW_READ_ERROR);
+    fn complete_rdw_record() -> Vec<u8> {
+        let mut record = vec![0x00, 0x08, 0x00, 0x00];
+        record.extend_from_slice(b"RECORD01");
+        record
+    }
+
+    fn assert_rdw_error(error: Error, code: ErrorCode, record_index: u64) {
+        assert_eq!(error.code, code);
+        assert_eq!(
+            error.context.and_then(|context| context.record_index),
+            Some(record_index)
+        );
     }
 
     #[test]
-    fn rdw_truncated_payload_keeps_underflow_identity() {
-        // A payload shorter than the declared RDW length is a data underflow
-        // condition, distinct from a genuine I/O failure.
-        let mut data = vec![0x00, 0x08, 0x00, 0x00];
-        data.extend_from_slice(b"ABC");
+    fn rdw_clean_boundary_eof_returns_none() {
+        let mut iterator = rdw_iterator(ScriptedReader::new([ReadStep::Eof]));
 
-        let schema = eight_byte_schema();
-        let options = DecodeOptions::default()
-            .with_format(RecordFormat::RDW)
-            .with_codepage(Codepage::ASCII);
-        let mut iterator = RecordIterator::new(Cursor::new(data), &schema, &options).unwrap();
+        assert!(iterator.read_raw_record().unwrap().is_none());
+        assert!(iterator.is_eof());
+    }
 
-        let error = iterator.read_raw_record().unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    #[test]
+    fn rdw_partial_next_header_keeps_underflow_and_context() {
+        let mut iterator = rdw_iterator(ScriptedReader::new([
+            ReadStep::Bytes(complete_rdw_record()),
+            ReadStep::Bytes(vec![0x00, 0x08]),
+            ReadStep::Eof,
+        ]));
+
+        assert_eq!(iterator.read_raw_record().unwrap().unwrap(), b"RECORD01");
+        assert_rdw_error(
+            iterator.read_raw_record().unwrap_err(),
+            ErrorCode::CBKF221_RDW_UNDERFLOW,
+            2,
+        );
+    }
+
+    #[test]
+    fn rdw_next_header_io_error_maps_to_read_error_with_context() {
+        let mut iterator = rdw_iterator(ScriptedReader::new([
+            ReadStep::Bytes(complete_rdw_record()),
+            ReadStep::Error(io::ErrorKind::Other),
+        ]));
+
+        assert_eq!(iterator.read_raw_record().unwrap().unwrap(), b"RECORD01");
+        assert_rdw_error(
+            iterator.read_raw_record().unwrap_err(),
+            ErrorCode::CBKR201_RDW_READ_ERROR,
+            2,
+        );
+    }
+
+    #[test]
+    fn rdw_partial_next_payload_keeps_underflow_and_context() {
+        let mut iterator = rdw_iterator(ScriptedReader::new([
+            ReadStep::Bytes(complete_rdw_record()),
+            ReadStep::Bytes(vec![0x00, 0x08, 0x00, 0x00]),
+            ReadStep::Bytes(b"ABC".to_vec()),
+            ReadStep::Eof,
+        ]));
+
+        assert_eq!(iterator.read_raw_record().unwrap().unwrap(), b"RECORD01");
+        assert_rdw_error(
+            iterator.read_raw_record().unwrap_err(),
+            ErrorCode::CBKF221_RDW_UNDERFLOW,
+            2,
+        );
+    }
+
+    #[test]
+    fn rdw_next_payload_io_error_maps_to_read_error_with_context() {
+        let mut iterator = rdw_iterator(ScriptedReader::new([
+            ReadStep::Bytes(complete_rdw_record()),
+            ReadStep::Bytes(vec![0x00, 0x08, 0x00, 0x00]),
+            ReadStep::Bytes(b"ABC".to_vec()),
+            ReadStep::Error(io::ErrorKind::Other),
+        ]));
+
+        assert_eq!(iterator.read_raw_record().unwrap().unwrap(), b"RECORD01");
+        assert_rdw_error(
+            iterator.read_raw_record().unwrap_err(),
+            ErrorCode::CBKR201_RDW_READ_ERROR,
+            2,
+        );
     }
 
     /// Reader that hands out one byte per call, so `read_exact` cannot fill the

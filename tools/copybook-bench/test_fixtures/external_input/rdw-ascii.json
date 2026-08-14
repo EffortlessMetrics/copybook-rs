@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0.0",
+  "copybook": "simple.cpy",
+  "copybook_sha256": "feaae0c21412cec867338f652600efefc2e393fed46ac1297dc78eeac90fedc0",
+  "dataset": "rdw-ascii.bin",
+  "record_format": "rdw",
+  "codepage": "ascii",
+  "workload": "display-heavy",
+  "record_length": 5,
+  "record_count": 1,
+  "dataset_sha256": "6003de71be9e7328502ee2eff92a768c0cad97b34d78ead79890183ab169e617"
+}

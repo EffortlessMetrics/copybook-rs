@@ -284,7 +284,9 @@ fn validate_rdw_framing(
     dataset: &[u8],
 ) -> Result<Vec<Range<usize>>> {
     let mut offset = 0_usize;
-    let mut payload_ranges = Vec::with_capacity(manifest.record_count);
+    // The manifest is hostile input. Grow only as validated records are
+    // discovered instead of reserving from its untrusted record_count.
+    let mut payload_ranges = Vec::new();
     while offset < dataset.len() {
         let header_end = offset
             .checked_add(4)
@@ -558,6 +560,22 @@ mod tests {
                 .to_string()
                 .contains("does not match manifest record_length")
         );
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_rejects_huge_rdw_count_without_manifest_sized_allocation() -> Result<()> {
+        let (_temp, manifest) = copy_fixture("rdw-ascii.json")?;
+        edit_manifest(&manifest, |root| {
+            root.insert("record_count".to_string(), json!(usize::MAX));
+        })?;
+
+        let error = load_external_input(&manifest)
+            .err()
+            .context("huge hostile RDW record count unexpectedly loaded")?;
+
+        ensure!(error.to_string().contains("RDW dataset contains 1 records"));
+        ensure!(error.to_string().contains(&usize::MAX.to_string()));
         Ok(())
     }
 

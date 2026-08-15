@@ -1001,6 +1001,47 @@ mod tests {
         Ok(())
     }
 
+    fn has_adjacent_lines(source: &str, expected: &[&str]) -> bool {
+        let Some((first, tail)) = expected.split_first() else {
+            return false;
+        };
+        let mut lines = source.lines();
+        while let Some(line) = lines.next() {
+            if line == *first {
+                let mut candidate = lines.clone();
+                if tail
+                    .iter()
+                    .all(|expected| candidate.next() == Some(*expected))
+                {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    fn cargo_manifest_admits_external_input_benchmark(source: &str) -> bool {
+        let feature_declared = source
+            .lines()
+            .scan(false, |in_features, line| {
+                if line.starts_with('[') {
+                    *in_features = line == "[features]";
+                }
+                Some(*in_features && line == "external-input = []")
+            })
+            .any(|matches| matches);
+        feature_declared
+            && has_adjacent_lines(
+                source,
+                &[
+                    "[[bench]]",
+                    "name = \"external_input_decode\"",
+                    "harness = false",
+                    "required-features = [\"external-input\"]",
+                ],
+            )
+    }
+
     #[test]
     fn external_input_accepts_fixed_rdw_ascii_cp037_matrix() -> Result<()> {
         let cases = [
@@ -1144,14 +1185,45 @@ mod tests {
     fn external_input_benchmark_target_is_explicitly_feature_gated() -> Result<()> {
         let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
         let cargo_toml = fs::read_to_string(crate_root.join("Cargo.toml"))?;
-        ensure!(cargo_toml.contains("external-input = []"));
-        ensure!(cargo_toml.contains(
-            "name = \"external_input_decode\"\nharness = false\nrequired-features = [\"external-input\"]"
-        ));
+        ensure!(cargo_manifest_admits_external_input_benchmark(&cargo_toml));
 
         let target = fs::read_to_string(crate_root.join("benches/external_input_decode.rs"))?;
         ensure!(target.contains("COPYBOOK_EXTERNAL_INPUT_MANIFEST"));
         ensure!(target.contains("must name one external-input manifest"));
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_benchmark_admission_is_crlf_safe_and_fail_closed() -> Result<()> {
+        let valid = "[package]\nname = \"copybook-bench\"\n\n[[bench]]\nname = \"external_input_decode\"\nharness = false\nrequired-features = [\"external-input\"]\n\n[features]\ndefault = []\nexternal-input = []\n";
+        ensure!(cargo_manifest_admits_external_input_benchmark(valid));
+        ensure!(cargo_manifest_admits_external_input_benchmark(
+            &valid.replace('\n', "\r\n")
+        ));
+
+        for rejected in [
+            valid.replace("external-input = []\n", ""),
+            valid.replace("[features]\n", "[package.metadata]\n"),
+            valid.replace("required-features = [\"external-input\"]\n", ""),
+            valid.replace(
+                "required-features = [\"external-input\"]",
+                "required-features = [\"diagnostics\"]",
+            ),
+            valid.replace(
+                "harness = false\nrequired-features = [\"external-input\"]",
+                "required-features = [\"external-input\"]\nharness = false",
+            ),
+            valid.replace(
+                "harness = false\nrequired-features = [\"external-input\"]",
+                "harness = false\n\n[[bench]]\nname = \"detached\"\nharness = false\nrequired-features = [\"external-input\"]",
+            ),
+            valid.replace(
+                "name = \"external_input_decode\"",
+                "name = \"decode_performance\"",
+            ),
+        ] {
+            ensure!(!cargo_manifest_admits_external_input_benchmark(&rejected));
+        }
         Ok(())
     }
 

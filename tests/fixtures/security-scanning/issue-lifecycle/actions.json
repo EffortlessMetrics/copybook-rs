@@ -1,0 +1,66 @@
+{
+  "fingerprints": {
+    "first": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "second": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "empty": {
+    "issuePages": []
+  },
+  "legacy": {
+    "issuePages": [
+      [
+        {
+          "number": 7,
+          "title": "Weekly Security Audit Findings",
+          "state": "open",
+          "body": "Legacy weekly dependency findings.",
+          "commentPages": []
+        }
+      ]
+    ]
+  },
+  "markedAcrossPages": {
+    "issuePages": [
+      [
+        {
+          "number": 3,
+          "title": "Unrelated issue",
+          "state": "open",
+          "body": "No managed marker.",
+          "commentPages": []
+        }
+      ],
+      [
+        {
+          "number": 11,
+          "title": "Renamed dependency roll-up",
+          "state": "open",
+          "body": "<!-- copybook-security-rollup:v1 -->\n\nManaged.",
+          "commentPages": [
+            [],
+            [
+              {
+                "id": 101,
+                "author": "github-actions[bot]",
+                "body": "<!-- copybook-security-findings:v1 fingerprint=sha256:1111111111111111111111111111111111111111111111111111111111111111 count=2 -->\n\nRecorded."
+              }
+            ]
+          ]
+        }
+      ]
+    ]
+  },
+  "closedMarked": {
+    "issuePages": [
+      [
+        {
+          "number": 13,
+          "title": "Weekly Security Audit Findings",
+          "state": "closed",
+          "body": "<!-- copybook-security-rollup:v1 -->",
+          "commentPages": []
+        }
+      ]
+    ]
+  }
+}

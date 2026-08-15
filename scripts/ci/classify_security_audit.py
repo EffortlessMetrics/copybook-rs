@@ -6,16 +6,14 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 
-def classify(path: Path) -> tuple[str, int]:
-    """Return the issue decision and finding count for cargo-audit JSON."""
+def parse_audit_report(raw_json: bytes) -> tuple[dict[str, Any], list[Any]]:
+    """Parse cargo-audit JSON bytes and return the validated finding list."""
     try:
-        document = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError as error:
-        raise ValueError(f"cargo-audit output is missing: {path}") from error
-    except json.JSONDecodeError as error:
+        document = json.loads(raw_json.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError(f"cargo-audit output is not valid JSON: {error}") from error
 
     if not isinstance(document, dict):
@@ -36,6 +34,22 @@ def classify(path: Path) -> tuple[str, int]:
             raise ValueError(
                 "cargo-audit vulnerabilities.count does not match vulnerabilities.list"
             )
+    return document, findings
+
+
+def load_audit_report(path: Path) -> tuple[dict[str, Any], list[Any]]:
+    """Load cargo-audit JSON and return the document and validated finding list."""
+    try:
+        raw_json = path.read_bytes()
+    except FileNotFoundError as error:
+        raise ValueError(f"cargo-audit output is missing: {path}") from error
+    return parse_audit_report(raw_json)
+
+
+def classify(path: Path) -> tuple[str, int]:
+    """Return the issue decision and finding count for cargo-audit JSON."""
+    _document, findings = load_audit_report(path)
+    count = len(findings)
     return ("create_or_update" if count else "no_action", count)
 
 

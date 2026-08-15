@@ -1,0 +1,17 @@
+{
+  "vulnerabilities": {
+    "count": 1,
+    "list": [
+      {
+        "advisory": {
+          "id": "RUSTSEC-2025-0003",
+          "severity": "urgent"
+        },
+        "package": {
+          "name": "bad-severity",
+          "version": "1.0.0"
+        }
+      }
+    ]
+  }
+}

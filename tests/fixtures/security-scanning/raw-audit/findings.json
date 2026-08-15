@@ -1,0 +1,45 @@
+{
+  "database": {
+    "advisory-count": 813,
+    "last-commit": "2222222222222222222222222222222222222222"
+  },
+  "vulnerabilities": {
+    "count": 2,
+    "list": [
+      {
+        "advisory": {
+          "id": "RUSTSEC-2025-0001",
+          "title": "Example explicitly classified advisory",
+          "url": "https://rustsec.org/advisories/RUSTSEC-2025-0001",
+          "severity": "high",
+          "cvss": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        },
+        "package": {
+          "name": "example-one",
+          "version": "1.2.3"
+        },
+        "versions": {
+          "patched": [">=1.2.4"]
+        }
+      },
+      {
+        "advisory": {
+          "id": "RUSTSEC-2025-0002",
+          "title": "Example advisory without supplied severity",
+          "url": "https://rustsec.org/advisories/RUSTSEC-2025-0002",
+          "cvss": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        },
+        "package": {
+          "name": "example-two",
+          "version": "4.5.6"
+        },
+        "versions": {
+          "patched": []
+        }
+      }
+    ]
+  },
+  "warnings": {
+    "unmaintained": []
+  }
+}

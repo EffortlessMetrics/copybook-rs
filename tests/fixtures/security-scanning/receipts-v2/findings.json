@@ -1,0 +1,52 @@
+{
+  "findings": [
+    {
+      "advisory_id": "RUSTSEC-2025-0001",
+      "package": {
+        "name": "example-one",
+        "version": "1.2.3"
+      },
+      "patched_versions": [
+        ">=1.2.4"
+      ],
+      "severity": "high",
+      "title": "Example explicitly classified advisory",
+      "url": "https://rustsec.org/advisories/RUSTSEC-2025-0001"
+    },
+    {
+      "advisory_id": "RUSTSEC-2025-0002",
+      "package": {
+        "name": "example-two",
+        "version": "4.5.6"
+      },
+      "patched_versions": [],
+      "severity": "unknown",
+      "title": "Example advisory without supplied severity",
+      "url": "https://rustsec.org/advisories/RUSTSEC-2025-0002"
+    }
+  ],
+  "identity": {
+    "commit_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "raw_audit_sha256": "18d14a9cac5d937bfe87a0184545b155a59603eb5bf5a2f5b0b14670096ee6f8",
+    "scan_type": "weekly-scan",
+    "workflow_run_id": "1002"
+  },
+  "outcome": {
+    "by_severity": {
+      "critical": 0,
+      "high": 1,
+      "low": 0,
+      "medium": 0,
+      "unknown": 1
+    },
+    "finding_count": 2,
+    "state": "findings"
+  },
+  "receipt_id": "sha256:bc374430d07493a058cdcc44695467d45e6f52bbcf6fa0977599c705d1d812fd",
+  "scanner": {
+    "exit_code": 1,
+    "name": "cargo-audit",
+    "version": "0.21.2"
+  },
+  "schema_version": "2.0"
+}

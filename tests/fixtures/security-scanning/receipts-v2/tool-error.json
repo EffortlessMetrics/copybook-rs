@@ -1,0 +1,27 @@
+{
+  "findings": [],
+  "identity": {
+    "commit_sha": "cccccccccccccccccccccccccccccccccccccccc",
+    "raw_audit_sha256": "fca1c20902c26a476327b72a1936d3287b72efef8c988af32969294eb31c1812",
+    "scan_type": "manual",
+    "workflow_run_id": "local-tool-error"
+  },
+  "outcome": {
+    "by_severity": {
+      "critical": 0,
+      "high": 0,
+      "low": 0,
+      "medium": 0,
+      "unknown": 0
+    },
+    "finding_count": 0,
+    "state": "tool_error"
+  },
+  "receipt_id": "sha256:62e99b0bf7410571321a2ec0bd729b4511363857001368a3a2df2441ba04ca1c",
+  "scanner": {
+    "exit_code": 2,
+    "name": "cargo-audit",
+    "version": "0.21.2"
+  },
+  "schema_version": "2.0"
+}

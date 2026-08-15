@@ -1,0 +1,13 @@
+{
+  "database": {
+    "advisory-count": 0,
+    "last-commit": "3333333333333333333333333333333333333333"
+  },
+  "vulnerabilities": {
+    "count": 0,
+    "list": []
+  },
+  "warnings": {
+    "scanner": "terminated before completing the advisory database query"
+  }
+}

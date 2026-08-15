@@ -1,0 +1,11 @@
+{
+  "database": {
+    "advisory-count": 812,
+    "last-commit": "1111111111111111111111111111111111111111"
+  },
+  "vulnerabilities": {
+    "count": 0,
+    "list": []
+  },
+  "warnings": {}
+}

@@ -1,0 +1,27 @@
+{
+  "findings": [],
+  "identity": {
+    "commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "raw_audit_sha256": "dbd75addd7942025af01c7e755b6262bcce33825cb8b5339083afe4f0a6ef79e",
+    "scan_type": "pr-gate",
+    "workflow_run_id": "1001"
+  },
+  "outcome": {
+    "by_severity": {
+      "critical": 0,
+      "high": 0,
+      "low": 0,
+      "medium": 0,
+      "unknown": 0
+    },
+    "finding_count": 0,
+    "state": "clean"
+  },
+  "receipt_id": "sha256:2cb95f62c81522664cfe90f19048dc3731824766bee342d53cb12fc5a847cd8d",
+  "scanner": {
+    "exit_code": 0,
+    "name": "cargo-audit",
+    "version": "0.21.2"
+  },
+  "schema_version": "2.0"
+}

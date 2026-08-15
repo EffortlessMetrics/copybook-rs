@@ -6,11 +6,11 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 
-def classify(path: Path) -> tuple[str, int]:
-    """Return the issue decision and finding count for cargo-audit JSON."""
+def load_audit_report(path: Path) -> tuple[dict[str, Any], list[Any]]:
+    """Load cargo-audit JSON and return the document and validated finding list."""
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as error:
@@ -36,6 +36,13 @@ def classify(path: Path) -> tuple[str, int]:
             raise ValueError(
                 "cargo-audit vulnerabilities.count does not match vulnerabilities.list"
             )
+    return document, findings
+
+
+def classify(path: Path) -> tuple[str, int]:
+    """Return the issue decision and finding count for cargo-audit JSON."""
+    _document, findings = load_audit_report(path)
+    count = len(findings)
     return ("create_or_update" if count else "no_action", count)
 
 

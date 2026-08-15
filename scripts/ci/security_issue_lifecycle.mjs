@@ -111,12 +111,11 @@ function validateTrustedAuthors(value) {
   return trusted;
 }
 
-function flattenComments(issue, label, trustedAuthors) {
+function flattenComments(issue, label, trustedAuthors, commentIdentifiers) {
   if (!Array.isArray(issue.commentPages)) {
     throw new TypeError(`${label}.commentPages must be an array of pages`);
   }
   const comments = [];
-  const identifiers = new Set();
   for (const [pageIndex, page] of issue.commentPages.entries()) {
     if (!Array.isArray(page)) {
       throw new TypeError(`${label}.commentPages[${pageIndex}] must be an array`);
@@ -126,10 +125,10 @@ function flattenComments(issue, label, trustedAuthors) {
       const comment = requireObject(commentValue, commentLabel);
       requireExactKeys(comment, ["author", "body", "id"], commentLabel);
       const identifier = requirePositiveInteger(comment.id, `${commentLabel}.id`);
-      if (identifiers.has(identifier)) {
-        throw new TypeError(`${label} contains duplicate comment id ${identifier}`);
+      if (commentIdentifiers.has(identifier)) {
+        throw new TypeError(`snapshot contains duplicate comment id ${identifier}`);
       }
-      identifiers.add(identifier);
+      commentIdentifiers.add(identifier);
       if (typeof comment.author !== "string" || typeof comment.body !== "string") {
         throw new TypeError(`${commentLabel}.author and body must be strings`);
       }
@@ -148,6 +147,7 @@ function flattenIssues(pagesValue, trustedAuthors) {
   }
   const issues = [];
   const identifiers = new Set();
+  const commentIdentifiers = new Set();
   for (const [pageIndex, page] of pagesValue.entries()) {
     if (!Array.isArray(page)) {
       throw new TypeError(`snapshot.issuePages[${pageIndex}] must be an array`);
@@ -171,7 +171,7 @@ function flattenIssues(pagesValue, trustedAuthors) {
         ...issue,
         number,
         marked: parseRollupMarker(issue.body, label),
-        comments: flattenComments(issue, label, trustedAuthors),
+        comments: flattenComments(issue, label, trustedAuthors, commentIdentifiers),
       });
     }
   }

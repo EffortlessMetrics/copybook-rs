@@ -201,6 +201,17 @@ test("rejects malformed snapshots fingerprints counts artifacts and duplicate id
     { id: 8, author: "github-actions[bot]", body: "second" },
   ]];
   assert.throws(() => planSecurityIssueLifecycle(snapshot(duplicateComment, findings())), /duplicate comment/u);
+
+  const duplicateCommentAcrossIssues = structuredClone(fixture.markedAcrossPages);
+  duplicateCommentAcrossIssues.issuePages[0][0].commentPages = [[{
+    id: 101,
+    author: "public-contributor",
+    body: "same identity on another issue",
+  }]];
+  assert.throws(
+    () => planSecurityIssueLifecycle(snapshot(duplicateCommentAcrossIssues, findings())),
+    /duplicate comment/u,
+  );
 });
 
 test("returns byte-stable plans for repeated equivalent snapshots", () => {

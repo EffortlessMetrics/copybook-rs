@@ -105,34 +105,39 @@ class SecurityReceiptV2Tests(unittest.TestCase):
 
     def test_raw_audit_digest_preserves_canonical_lf_byte_identity(self) -> None:
         lf_bytes = (RAW_ROOT / "clean.json").read_bytes()
-        self.assertNotIn(b"\r\n", lf_bytes)
-        crlf_bytes = lf_bytes.replace(b"\n", b"\r\n")
+        self.assertNotIn(b"\r", lf_bytes)
+        variants = {
+            "crlf": lf_bytes.replace(b"\n", b"\r\n"),
+            "lone-cr": lf_bytes.replace(b"\n", b"\r"),
+        }
+        canonical = generate_case(CASES[0])
 
         with tempfile.TemporaryDirectory() as temporary:
-            crlf_path = Path(temporary) / "clean-crlf.json"
-            crlf_path.write_bytes(crlf_bytes)
-            canonical = generate_case(CASES[0])
-            crlf = generate_receipt(
-                crlf_path,
-                commit_sha="a" * 40,
-                scan_type="pr-gate",
-                workflow_run_id="1001",
-                cargo_audit_version="0.21.2",
-                audit_exit_code=0,
-            )
+            for name, content in variants.items():
+                with self.subTest(name=name):
+                    variant_path = Path(temporary) / f"clean-{name}.json"
+                    variant_path.write_bytes(content)
+                    variant = generate_receipt(
+                        variant_path,
+                        commit_sha="a" * 40,
+                        scan_type="pr-gate",
+                        workflow_run_id="1001",
+                        cargo_audit_version="0.21.2",
+                        audit_exit_code=0,
+                    )
+                    self.assertEqual(canonical["outcome"], variant["outcome"])
+                    self.assertEqual(
+                        variant["identity"]["raw_audit_sha256"],
+                        hashlib.sha256(content).hexdigest(),
+                    )
+                    self.assertNotEqual(
+                        canonical["identity"]["raw_audit_sha256"],
+                        variant["identity"]["raw_audit_sha256"],
+                    )
 
-        self.assertEqual(canonical["outcome"], crlf["outcome"])
         self.assertEqual(
             canonical["identity"]["raw_audit_sha256"],
             hashlib.sha256(lf_bytes).hexdigest(),
-        )
-        self.assertEqual(
-            crlf["identity"]["raw_audit_sha256"],
-            hashlib.sha256(crlf_bytes).hexdigest(),
-        )
-        self.assertNotEqual(
-            canonical["identity"]["raw_audit_sha256"],
-            crlf["identity"]["raw_audit_sha256"],
         )
 
     def test_classifier_and_generator_reject_noncanonical_json_encodings(self) -> None:

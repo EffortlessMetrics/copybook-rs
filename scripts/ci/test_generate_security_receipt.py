@@ -13,6 +13,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from classify_security_audit import classify
 from generate_security_receipt import generate_receipt, validate_receipt
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -101,6 +102,29 @@ class SecurityReceiptV2Tests(unittest.TestCase):
                 receipt["identity"]["raw_audit_sha256"],
                 hashlib.sha256(findings_bytes).hexdigest(),
             )
+
+    def test_classifier_and_generator_reject_noncanonical_json_encodings(self) -> None:
+        document = '{"vulnerabilities":{"count":0,"list":[]}}'
+        variants = {
+            "utf16": document.encode("utf-16"),
+            "utf8-bom": b"\xef\xbb\xbf" + document.encode("utf-8"),
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            audit_path = Path(temporary) / "audit.json"
+            for name, content in variants.items():
+                with self.subTest(name=name):
+                    audit_path.write_bytes(content)
+                    with self.assertRaisesRegex(ValueError, "not valid JSON"):
+                        classify(audit_path)
+                    with self.assertRaisesRegex(ValueError, "not valid JSON"):
+                        generate_receipt(
+                            audit_path,
+                            commit_sha="f" * 40,
+                            scan_type="manual",
+                            workflow_run_id="encoding-reject",
+                            cargo_audit_version="0.21.2",
+                            audit_exit_code=0,
+                        )
 
     def test_findings_preserve_explicit_severity_and_do_not_infer_missing(self) -> None:
         receipt = generate_case(CASES[1])

@@ -12,7 +12,7 @@ from typing import Any, TextIO
 def parse_audit_report(raw_json: bytes) -> tuple[dict[str, Any], list[Any]]:
     """Parse cargo-audit JSON bytes and return the validated finding list."""
     try:
-        document = json.loads(raw_json)
+        document = json.loads(raw_json.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError(f"cargo-audit output is not valid JSON: {error}") from error
 

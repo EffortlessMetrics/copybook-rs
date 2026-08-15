@@ -57,7 +57,7 @@ security-scanning/
 - `dependabot.yml`: Dependabot configuration example
   - Demonstrates grouped patch updates strategy
   - Shows PR limits (10 Cargo, 5 GitHub Actions)
-  - Validates conventional commit message format
+  - Validates a scoped conventional-commit prefix without duplicated scope
 
 ### Receipts (`receipts/`)
 

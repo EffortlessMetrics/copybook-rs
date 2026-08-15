@@ -943,6 +943,32 @@ fn test_ac3_dependabot_configuration_validation() {
     );
 }
 
+/// The published fixture must not ask Dependabot to append a second scope to
+/// its already-scoped Cargo commit prefix.
+#[test]
+fn test_ac3_dependabot_fixture_avoids_duplicate_scope() {
+    let root = project_root();
+    let fixture = root.join("tests/fixtures/security-scanning/configs/dependabot.yml");
+    let content = std::fs::read_to_string(&fixture).expect("should read Dependabot fixture");
+    let cargo = content
+        .split("- package-ecosystem: \"github-actions\"")
+        .next()
+        .expect("fixture should contain a Cargo section");
+
+    assert!(
+        cargo
+            .lines()
+            .any(|line| line.trim() == "prefix: \"chore(deps)\""),
+        "Cargo fixture must retain the scoped chore(deps) prefix"
+    );
+    assert!(
+        !cargo
+            .lines()
+            .any(|line| line.trim() == "include: \"scope\""),
+        "Cargo fixture must not append a duplicate Dependabot scope"
+    );
+}
+
 #[cfg(test)]
 mod workflow_validation_tests {
     use super::*;

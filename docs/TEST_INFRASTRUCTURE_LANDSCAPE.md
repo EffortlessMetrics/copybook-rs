@@ -358,6 +358,16 @@ Tests use tags for categorization:
   input paths are distinct, stale output is removed before later validation
   and decode failures
 
+#### external-input-criterion.yml (Manual Criterion Telemetry)
+
+- Runs only through `workflow_dispatch` in one Ubuntu job
+- Measures the fixed four-manifest inventory sequentially through the opt-in
+  `external_input_decode` Criterion target
+- Publishes commit-keyed raw Criterion output only after all four runs succeed
+- Reports payload-byte timing telemetry for the tiny checked-in fixtures
+- Does not define a gate, threshold, receipt, schedule, baseline, or SLO, and
+  does not modify the canonical performance receipt or weekly soak owner
+
 #### security-scan.yml (Security Validation)
 - Security scanning integration
 - Dependency auditing

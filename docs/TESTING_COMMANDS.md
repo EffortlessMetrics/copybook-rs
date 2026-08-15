@@ -40,6 +40,7 @@ This document provides a canonical reference for all testing commands in copyboo
 | **Performance Benchmarks** | `BENCH_FILTER=slo_validation bash scripts/bench.sh` | Scheduled | 10-15 min | `target/perf.json` |
 | **Weekly Benchmark Gate** | `bash scripts/soak-dispatch.sh` | Weekly + manual | ~20 min | Sealed `scripts/bench/perf.json`, workflow job conclusion |
 | **External-input Decode Preflight** | `gh workflow run external-input-preflight.yml` | Manual only | Bounded | Four commit-keyed decode telemetry reports |
+| **External-input Criterion Telemetry** | `gh workflow run external-input-criterion.yml` | Manual only | Bounded | Commit-keyed raw Criterion output for four checked-in manifests |
 
 ---
 

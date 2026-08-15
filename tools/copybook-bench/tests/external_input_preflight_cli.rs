@@ -57,6 +57,62 @@ fn has_adjacent_lines(text: &str, first: &str, second: &str) -> bool {
     false
 }
 
+fn has_exact_top_level_block(text: &str, header: &str, expected: &[&str]) -> bool {
+    if text.lines().filter(|line| *line == header).count() != 1 {
+        return false;
+    }
+    let mut block = Vec::new();
+    let mut collecting = false;
+    for line in text.lines() {
+        if line == header {
+            collecting = true;
+            continue;
+        }
+        if !collecting {
+            continue;
+        }
+        if line.is_empty() {
+            continue;
+        }
+        if !line.starts_with(' ') {
+            break;
+        }
+        block.push(line);
+    }
+    block == expected
+}
+
+fn shell_array_entries<'a>(text: &'a str, declaration: &str) -> Option<Vec<&'a str>> {
+    if text
+        .lines()
+        .filter(|line| line.trim() == declaration)
+        .count()
+        != 1
+    {
+        return None;
+    }
+    let mut entries = Vec::new();
+    let mut collecting = false;
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed == declaration {
+            collecting = true;
+            continue;
+        }
+        if !collecting {
+            continue;
+        }
+        if trimmed == ")" {
+            return Some(entries);
+        }
+        if trimmed.is_empty() || trimmed.contains(char::is_whitespace) {
+            return None;
+        }
+        entries.push(trimmed);
+    }
+    None
+}
+
 #[test]
 fn adjacent_lines_are_eol_agnostic_but_layout_sensitive() -> Result<()> {
     let first = "permissions:";
@@ -336,6 +392,106 @@ fn workflow_is_manual_fixed_inventory_telemetry_only() -> Result<()> {
     ensure!(workflow.contains("if-no-files-found: error"));
     for forbidden in ["threshold", "throughput", "perf.json", "soak.yml"] {
         ensure!(!workflow.contains(forbidden));
+    }
+    Ok(())
+}
+
+#[test]
+fn criterion_workflow_is_manual_fixed_inventory_telemetry_only() -> Result<()> {
+    let workflow = fs::read_to_string(
+        workspace_root().join(".github/workflows/external-input-criterion.yml"),
+    )?;
+    ensure!(has_exact_top_level_block(
+        &workflow,
+        "on:",
+        &["  workflow_dispatch: {}"]
+    ));
+    for forbidden in [
+        "schedule:",
+        "matrix:",
+        "inputs:",
+        "continue-on-error",
+        "threshold",
+        "SLO",
+        "perf.json",
+        "receipt",
+    ] {
+        ensure!(!workflow.contains(forbidden));
+    }
+    ensure!(has_adjacent_lines(
+        &workflow,
+        "permissions:",
+        "  contents: read"
+    ));
+    ensure!(workflow.contains("runs-on: ubuntu-latest"));
+    ensure!(workflow.contains("timeout-minutes: 20"));
+    ensure!(workflow.contains("persist-credentials: false"));
+    ensure!(workflow.contains("set -euo pipefail"));
+    ensure!(workflow.contains("--features external-input"));
+    ensure!(workflow.contains("COPYBOOK_EXTERNAL_INPUT_MANIFEST=\"$manifest\""));
+    ensure!(workflow.contains("--warm-up-time 1 --measurement-time 1 --sample-size 10"));
+
+    let manifests = [
+        "tools/copybook-bench/test_fixtures/external_input/fixed-ascii.json",
+        "tools/copybook-bench/test_fixtures/external_input/fixed-cp037.json",
+        "tools/copybook-bench/test_fixtures/external_input/rdw-ascii.json",
+        "tools/copybook-bench/test_fixtures/external_input/rdw-cp037.json",
+    ];
+    ensure!(shell_array_entries(&workflow, "manifests=(") == Some(manifests.to_vec()));
+    let prior = workflow
+        .find(manifests[3])
+        .context("Criterion workflow omits final canonical manifest")?;
+    let upload = workflow
+        .find("uses: actions/upload-artifact@v7")
+        .context("Criterion workflow omits artifact upload")?;
+    ensure!(upload > prior);
+    ensure!(workflow.contains("name: external-input-criterion-${{ github.sha }}"));
+    ensure!(workflow.contains("path: target/criterion/external_input_decode/**"));
+    ensure!(workflow.contains("if-no-files-found: error"));
+    Ok(())
+}
+
+#[test]
+fn workflow_contract_helpers_reject_extra_triggers_and_manifests() -> Result<()> {
+    let expected_trigger = ["  workflow_dispatch: {}"];
+    for accepted in [
+        "on:\n  workflow_dispatch: {}\njobs:\n",
+        "on:\r\n  workflow_dispatch: {}\r\njobs:\r\n",
+    ] {
+        ensure!(has_exact_top_level_block(
+            accepted,
+            "on:",
+            &expected_trigger
+        ));
+    }
+    for rejected in [
+        "on:\n  workflow_dispatch: {}\n  push: {}\njobs:\n",
+        "on:\n  pull_request: {}\n  workflow_dispatch: {}\njobs:\n",
+        "on:\n  workflow_dispatch: {}\n  workflow_dispatch: {}\njobs:\n",
+    ] {
+        ensure!(!has_exact_top_level_block(
+            rejected,
+            "on:",
+            &expected_trigger
+        ));
+    }
+
+    let expected_manifests = ["fixed.json", "rdw.json"];
+    for accepted in [
+        "manifests=(\n  fixed.json\n  rdw.json\n)\n",
+        "manifests=(\r\n  fixed.json\r\n  rdw.json\r\n)\r\n",
+    ] {
+        ensure!(shell_array_entries(accepted, "manifests=(") == Some(expected_manifests.to_vec()));
+    }
+    for rejected in [
+        "manifests=(\n  fixed.json\n  rdw.json\n  extra.json\n)\n",
+        "manifests=(\n  rdw.json\n  fixed.json\n)\n",
+        "manifests=(\n  fixed.json\n)\n",
+        "manifests=(\n  fixed.json\n  fixed.json\n  rdw.json\n)\n",
+        "manifests=(\n  fixed.json\n  rdw.json\n",
+        "manifests=(\n  fixed.json\n  rdw.json\n)\nmanifests=(\n  fixed.json\n  rdw.json\n)\n",
+    ] {
+        ensure!(shell_array_entries(rejected, "manifests=(") != Some(expected_manifests.to_vec()));
     }
     Ok(())
 }

@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: External Input Criterion Telemetry
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: external-input-criterion-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  criterion-telemetry:
+    name: Measure checked-in external inputs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Measure fixed external-input inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf target/criterion/external_input_decode
+          manifests=(
+            tools/copybook-bench/test_fixtures/external_input/fixed-ascii.json
+            tools/copybook-bench/test_fixtures/external_input/fixed-cp037.json
+            tools/copybook-bench/test_fixtures/external_input/rdw-ascii.json
+            tools/copybook-bench/test_fixtures/external_input/rdw-cp037.json
+          )
+          for manifest in "${manifests[@]}"; do
+            COPYBOOK_EXTERNAL_INPUT_MANIFEST="$manifest" \
+              cargo bench -p copybook-bench --features external-input \
+                --bench external_input_decode -- \
+                --warm-up-time 1 --measurement-time 1 --sample-size 10
+          done
+
+      - name: Upload raw Criterion telemetry
+        uses: actions/upload-artifact@v7
+        with:
+          name: external-input-criterion-${{ github.sha }}
+          path: target/criterion/external_input_decode/**
+          retention-days: 30
+          if-no-files-found: error

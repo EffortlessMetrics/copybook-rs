@@ -346,6 +346,35 @@ def _write_atomic(path: Path, content: str) -> None:
         raise
 
 
+def _reject_output_alias(audit_path: Path, output_path: Path) -> None:
+    """Reject filesystem-semantic aliases before raw evidence can be replaced."""
+    try:
+        canonical_audit = audit_path.resolve(strict=True)
+    except (OSError, RuntimeError) as error:
+        raise ValueError(
+            f"cannot resolve cargo-audit input identity: {audit_path}: {error}"
+        ) from error
+    try:
+        canonical_output = output_path.resolve(strict=False)
+    except (OSError, RuntimeError) as error:
+        raise ValueError(
+            f"cannot resolve normalized receipt output identity: {output_path}: {error}"
+        ) from error
+
+    aliases = canonical_audit == canonical_output
+    if not aliases and output_path.exists():
+        try:
+            aliases = os.path.samefile(audit_path, output_path)
+        except OSError as error:
+            raise ValueError(
+                f"cannot compare cargo-audit input and receipt output identities: {error}"
+            ) from error
+    if aliases:
+        raise ValueError(
+            "normalized receipt output must not alias the raw cargo-audit input"
+        )
+
+
 def _read_receipt(path: Path) -> object:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -378,6 +407,8 @@ def main() -> int:
             print("valid normalized security receipt v2")
             return 0
 
+        if args.output is not None:
+            _reject_output_alias(args.audit_json, args.output)
         receipt = generate_receipt(
             args.audit_json,
             commit_sha=args.commit_sha,

@@ -272,6 +272,76 @@ class SecurityReceiptV2Tests(unittest.TestCase):
             self.assertIn("not valid JSON", generated.stderr)
             self.assertEqual(output.read_text(encoding="utf-8"), "existing evidence\n")
 
+    def test_cli_rejects_output_aliases_without_mutating_raw_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            raw = root / "audit.json"
+            raw.write_bytes((RAW_ROOT / "clean.json").read_bytes())
+            original = raw.read_bytes()
+            nested = root / "nested"
+            nested.mkdir()
+
+            aliases = (
+                raw,
+                Path("audit.json"),
+                nested / ".." / "audit.json",
+            )
+            for output in aliases:
+                with self.subTest(output=output):
+                    generated = self.run_cli_generate(raw, output, cwd=root)
+                    self.assertNotEqual(generated.returncode, 0)
+                    self.assertIn("must not alias", generated.stderr)
+                    self.assertEqual(raw.read_bytes(), original)
+
+    def test_cli_rejects_symlink_parent_alias_without_mutating_raw_evidence(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            raw = root / "audit.json"
+            raw.write_bytes((RAW_ROOT / "clean.json").read_bytes())
+            original = raw.read_bytes()
+            alias_parent = root / "alias"
+            try:
+                alias_parent.symlink_to(root, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"directory symlinks unavailable: {error}")
+
+            generated = self.run_cli_generate(
+                raw, alias_parent / "audit.json", cwd=root
+            )
+            self.assertNotEqual(generated.returncode, 0)
+            self.assertIn("must not alias", generated.stderr)
+            self.assertEqual(raw.read_bytes(), original)
+
+    def run_cli_generate(
+        self, raw: Path, output: Path, *, cwd: Path
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [
+                sys.executable,
+                str(GENERATOR_PATH),
+                "generate",
+                str(raw),
+                "--commit-sha",
+                "d" * 40,
+                "--scan-type",
+                "manual",
+                "--workflow-run-id",
+                "alias-test",
+                "--cargo-audit-version",
+                "0.21.2",
+                "--audit-exit-code",
+                "0",
+                "--output",
+                str(output),
+            ],
+            capture_output=True,
+            check=False,
+            cwd=cwd,
+            text=True,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

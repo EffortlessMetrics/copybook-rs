@@ -4,9 +4,9 @@
 use std::env;
 use std::hint::black_box;
 use std::path::PathBuf;
-use std::time::Instant;
+use std::process;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use copybook_bench::external_input::prepare_external_input_decode_benchmark;
 use criterion::{Criterion, Throughput};
 
@@ -25,28 +25,22 @@ fn main() -> Result<()> {
     let mut criterion = Criterion::default().configure_from_args();
     let mut group = criterion.benchmark_group("external_input_decode");
     group.throughput(Throughput::Bytes(payload_bytes));
-    let mut failure = None;
-    group.bench_function("validated_manifest", |bencher| {
-        bencher.iter_custom(|iterations| {
-            let start = Instant::now();
-            for _ in 0..iterations {
-                match benchmark.decode_pass() {
-                    Ok(decoded) => {
-                        black_box(decoded);
-                    }
-                    Err(error) => {
-                        failure = Some(error);
-                        break;
-                    }
+    let benchmark_id = benchmark.benchmark_id().to_string();
+    group.bench_function(benchmark_id, |bencher| {
+        bencher.iter_custom(
+            |iterations| match benchmark.measure_decode_iterations(iterations) {
+                Ok(duration) => {
+                    black_box(iterations);
+                    duration
                 }
-            }
-            start.elapsed()
-        });
+                Err(error) => {
+                    eprintln!("external-input decode failed during measurement: {error:#}");
+                    process::exit(1);
+                }
+            },
+        );
     });
     group.finish();
     criterion.final_summary();
-    if let Some(error) = failure {
-        bail!(error.context("external-input decode failed during measurement"));
-    }
     Ok(())
 }

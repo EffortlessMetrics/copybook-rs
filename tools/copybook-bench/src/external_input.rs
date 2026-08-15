@@ -6,6 +6,7 @@ use std::fs;
 use std::io::Write;
 use std::ops::Range;
 use std::path::{Component, Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail, ensure};
 use copybook_codec::{
@@ -219,6 +220,7 @@ pub struct ExternalInputDecodeBenchmark {
     options: DecodeOptions,
     scratch: ScratchBuffers,
     payload_bytes: usize,
+    benchmark_id: String,
 }
 
 impl ExternalInputDecodeBenchmark {
@@ -226,6 +228,12 @@ impl ExternalInputDecodeBenchmark {
     #[must_use]
     pub const fn payload_bytes(&self) -> usize {
         self.payload_bytes
+    }
+
+    /// Stable Criterion identity for this validated manifest and dataset.
+    #[must_use]
+    pub fn benchmark_id(&self) -> &str {
+        &self.benchmark_id
     }
 
     /// Decode every validated payload range exactly once.
@@ -236,6 +244,22 @@ impl ExternalInputDecodeBenchmark {
     /// checked record-count overflow.
     pub fn decode_pass(&mut self) -> Result<usize> {
         decode_loaded_pass(&self.loaded, &self.options, &mut self.scratch)
+    }
+
+    /// Time complete decode passes, returning no duration if any pass fails.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first contextual decode failure. Callers must not record a
+    /// Criterion sample unless this method returns `Ok`.
+    pub fn measure_decode_iterations(&mut self, iterations: u64) -> Result<Duration> {
+        let start = Instant::now();
+        for iteration in 0..iterations {
+            let _decoded = self
+                .decode_pass()
+                .with_context(|| format!("external-input decode iteration {iteration} failed"))?;
+        }
+        Ok(start.elapsed())
     }
 }
 
@@ -331,11 +355,13 @@ pub fn prepare_external_input_decode_benchmark(
     let loaded = load_external_input_bundle(manifest_path, None)?;
     let options = loaded.validated.decode_options();
     let payload_bytes = checked_payload_bytes(&loaded)?;
+    let benchmark_id = benchmark_identity(&loaded)?;
     let mut benchmark = ExternalInputDecodeBenchmark {
         loaded,
         options,
         scratch: ScratchBuffers::new(),
         payload_bytes,
+        benchmark_id,
     };
     let decoded_records = benchmark.decode_pass()?;
     ensure!(
@@ -343,6 +369,35 @@ pub fn prepare_external_input_decode_benchmark(
         "external-input initial decode count does not match validated payload ranges"
     );
     Ok(benchmark)
+}
+
+fn benchmark_identity(loaded: &LoadedExternalInput) -> Result<String> {
+    let manifest = &loaded.validated.manifest;
+    let format = match manifest.record_format {
+        ExternalRecordFormat::Fixed => "fixed",
+        ExternalRecordFormat::Rdw => "rdw",
+    };
+    let codepage = match manifest.codepage {
+        ExternalCodepage::Ascii => "ascii",
+        ExternalCodepage::Cp037 => "cp037",
+        ExternalCodepage::Cp273 => "cp273",
+        ExternalCodepage::Cp500 => "cp500",
+        ExternalCodepage::Cp1047 => "cp1047",
+        ExternalCodepage::Cp1140 => "cp1140",
+    };
+    let workload = match manifest.workload {
+        ExternalWorkload::DisplayHeavy => "display-heavy",
+        ExternalWorkload::Comp3Heavy => "comp3-heavy",
+        ExternalWorkload::Mixed => "mixed",
+    };
+    let digest = loaded
+        .manifest_sha256
+        .get(..12)
+        .context("validated manifest SHA-256 is shorter than 12 hexadecimal characters")?;
+    Ok(format!(
+        "{format}-{codepage}-{workload}-l{}-n{}-{digest}",
+        manifest.record_length, manifest.record_count
+    ))
 }
 
 fn checked_payload_bytes(loaded: &LoadedExternalInput) -> Result<usize> {
@@ -1062,6 +1117,7 @@ mod tests {
 
     #[test]
     fn external_input_benchmark_decodes_all_four_manifests() -> Result<()> {
+        let mut identities = Vec::new();
         for name in [
             "fixed-ascii.json",
             "fixed-cp037.json",
@@ -1070,9 +1126,17 @@ mod tests {
         ] {
             let mut benchmark = prepare_external_input_decode_benchmark(&fixtures().join(name))?;
             ensure!(benchmark.payload_bytes() == 5);
+            ensure!(benchmark.benchmark_id().len() <= 80);
+            identities.push(benchmark.benchmark_id().to_string());
             ensure!(benchmark.decode_pass()? == 1);
             ensure!(benchmark.decode_pass()? == 1);
         }
+        let mut distinct = identities.clone();
+        distinct.sort_unstable();
+        distinct.dedup();
+        ensure!(distinct.len() == identities.len());
+        let repeat = prepare_external_input_decode_benchmark(&fixtures().join("fixed-ascii.json"))?;
+        ensure!(repeat.benchmark_id() == identities[0]);
         Ok(())
     }
 
@@ -1094,6 +1158,37 @@ mod tests {
             error
                 .to_string()
                 .contains("failed to decode record 0 payload range 0..5")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_benchmark_returns_no_timing_after_decode_failure() -> Result<()> {
+        let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+        let numeric_copybook = b"       01 RECORD PIC 9(5).\n";
+        let valid_dataset = b"12345";
+        fs::write(temp.path().join("simple.cpy"), numeric_copybook)?;
+        fs::write(temp.path().join("fixed-ascii.bin"), valid_dataset)?;
+        edit_manifest(&manifest, |root| {
+            root.insert(
+                "copybook_sha256".to_string(),
+                json!(format!("{:x}", Sha256::digest(numeric_copybook))),
+            );
+            root.insert(
+                "dataset_sha256".to_string(),
+                json!(format!("{:x}", Sha256::digest(valid_dataset))),
+            );
+        })?;
+        let mut benchmark = prepare_external_input_decode_benchmark(&manifest)?;
+        benchmark.loaded.validated.dataset.copy_from_slice(b"ABCDE");
+        let error = benchmark
+            .measure_decode_iterations(2)
+            .err()
+            .context("decode failure unexpectedly returned a timing sample")?;
+        ensure!(
+            error
+                .to_string()
+                .contains("external-input decode iteration 0 failed")
         );
         Ok(())
     }

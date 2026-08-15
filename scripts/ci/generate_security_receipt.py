@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from classify_security_audit import load_audit_report
+from classify_security_audit import parse_audit_report
 
 SCHEMA_VERSION = "2.0"
 SCAN_TYPES = frozenset({"pr-gate", "weekly-scan", "manual"})
@@ -147,7 +147,7 @@ def generate_receipt(
     _require_integer(audit_exit_code, "audit_exit_code")
 
     raw_bytes = audit_path.read_bytes()
-    _document, raw_findings = load_audit_report(audit_path)
+    _document, raw_findings = parse_audit_report(raw_bytes)
     findings = [
         _normalize_finding(raw_finding, index)
         for index, raw_finding in enumerate(raw_findings)

@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from generate_security_receipt import generate_receipt, validate_receipt
 
@@ -67,6 +69,38 @@ class SecurityReceiptV2Tests(unittest.TestCase):
                 self.assertEqual(generated, expected)
                 self.assertEqual(generate_case(case), generated)
                 validate_receipt(generated)
+
+    def test_digest_and_findings_bind_the_same_single_read(self) -> None:
+        findings_bytes = (RAW_ROOT / "findings.json").read_bytes()
+        clean_bytes = (RAW_ROOT / "clean.json").read_bytes()
+        original_read_bytes = Path.read_bytes
+
+        with tempfile.TemporaryDirectory() as temporary:
+            audit_path = Path(temporary) / "audit.json"
+            audit_path.write_bytes(findings_bytes)
+
+            def read_then_replace(path: Path) -> bytes:
+                content = original_read_bytes(path)
+                path.write_bytes(clean_bytes)
+                return content
+
+            with patch.object(Path, "read_bytes", autospec=True) as read_bytes:
+                read_bytes.side_effect = read_then_replace
+                receipt = generate_receipt(
+                    audit_path,
+                    commit_sha="e" * 40,
+                    scan_type="manual",
+                    workflow_run_id="single-read",
+                    cargo_audit_version="0.21.2",
+                    audit_exit_code=1,
+                )
+
+            self.assertEqual(read_bytes.call_count, 1)
+            self.assertEqual(receipt["outcome"]["finding_count"], 2)
+            self.assertEqual(
+                receipt["identity"]["raw_audit_sha256"],
+                hashlib.sha256(findings_bytes).hexdigest(),
+            )
 
     def test_findings_preserve_explicit_severity_and_do_not_infer_missing(self) -> None:
         receipt = generate_case(CASES[1])

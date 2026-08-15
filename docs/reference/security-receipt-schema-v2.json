@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://copybook-rs.effortlessmetrics.com/schemas/security-receipt-v2.0.json",
   "title": "copybook-rs Normalized Security Evidence v2",
-  "description": "Closed data contract for deterministic normalized cargo-audit evidence. Validation proves document shape and internal consistency only; it is not a security certification or regulatory-compliance determination.",
+  "description": "Closed shape contract for deterministic normalized cargo-audit evidence. JSON Schema validation alone does not prove aggregate parity; consumers must also run validate_receipt or an equivalent semantic validator. This is not a security certification or regulatory-compliance determination.",
   "type": "object",
   "required": [
     "schema_version",
@@ -19,7 +19,7 @@
     "receipt_id": {
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$",
-      "description": "Deterministic SHA-256 identity derived from the explicit identity and scanner objects."
+      "description": "Deterministic SHA-256 identifier for the explicit scan, raw-audit digest, and scanner tuple; it is not authentication or a digest of the normalized outcome and findings."
     },
     "identity": {
       "type": "object",

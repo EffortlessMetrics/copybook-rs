@@ -508,52 +508,57 @@ fn reject_output_alias(
     input_path: &Path,
     input: PreflightInputArtifact,
 ) -> Result<()> {
-    let output_lexical = lexical_absolute(output_path)?;
-    let input_lexical = lexical_absolute(input_path)?;
-    let output_resolved = comparable_path(&output_lexical);
-    let input_resolved = comparable_path(&input_lexical);
-    if output_lexical == input_lexical || output_resolved == input_resolved {
+    let output_resolved = comparable_path(output_path).with_context(|| {
+        format!(
+            "failed to resolve preflight output path {} before alias validation",
+            output_path.display()
+        )
+    })?;
+    let input_resolved = comparable_path(input_path).with_context(|| {
+        format!(
+            "failed to resolve preflight {input} input path {} before alias validation",
+            input_path.display()
+        )
+    })?;
+    if output_resolved == input_resolved {
         return Err(PreflightOutputAliasError { input }.into());
     }
     Ok(())
 }
 
-fn comparable_path(absolute_path: &Path) -> PathBuf {
-    if let Ok(canonical) = fs::canonicalize(absolute_path) {
-        return canonical;
-    }
-    let Some(file_name) = absolute_path.file_name() else {
-        return absolute_path.to_path_buf();
-    };
-    if let Some(parent) = absolute_path.parent()
-        && let Ok(canonical_parent) = fs::canonicalize(parent)
-    {
-        return canonical_parent.join(file_name);
-    }
-    absolute_path.to_path_buf()
-}
-
-fn lexical_absolute(path: &Path) -> Result<PathBuf> {
+fn comparable_path(path: &Path) -> Result<PathBuf> {
     let absolute = if path.is_absolute() {
         path.to_path_buf()
     } else {
         std::env::current_dir()
-            .context("failed to resolve current directory for preflight output")?
+            .context("failed to resolve current directory for preflight path comparison")?
             .join(path)
     };
-    let mut normalized = PathBuf::new();
-    for component in absolute.components() {
-        match component {
-            Component::CurDir => {}
-            Component::ParentDir => {
-                normalized.pop();
-            }
-            Component::Prefix(_) | Component::RootDir | Component::Normal(_) => {
-                normalized.push(component.as_os_str());
-            }
+
+    match fs::canonicalize(&absolute) {
+        Ok(canonical) => Ok(canonical),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let file_name = absolute
+                .file_name()
+                .context("preflight comparison path must name a file")?;
+            let parent = absolute
+                .parent()
+                .context("preflight comparison path must have a parent")?;
+            let canonical_parent = fs::canonicalize(parent).with_context(|| {
+                format!(
+                    "failed to resolve parent {} for preflight path comparison",
+                    parent.display()
+                )
+            })?;
+            Ok(canonical_parent.join(file_name))
         }
+        Err(error) => Err(error).with_context(|| {
+            format!(
+                "failed to resolve {} for preflight path comparison",
+                absolute.display()
+            )
+        }),
     }
-    Ok(normalized)
 }
 
 struct PreflightOutputLock {
@@ -826,8 +831,8 @@ mod tests {
     use super::{
         ExternalCodepage, ExternalRecordFormat, ExternalWorkload, IntegrityArtifact,
         ManifestIntegrityError, PreflightInputArtifact, PreflightOutputAliasError,
-        PreflightOutputLock, load_external_input, publish_external_input_preflight,
-        run_external_input_preflight, write_report_atomically,
+        PreflightOutputLock, comparable_path, load_external_input,
+        publish_external_input_preflight, run_external_input_preflight, write_report_atomically,
     };
 
     fn fixtures() -> PathBuf {
@@ -1036,6 +1041,55 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn external_input_preflight_resolves_symlink_parent_components_before_aliasing() -> Result<()> {
+        use std::os::unix::fs::symlink;
+
+        let cases = [
+            ("fixed-ascii.json", PreflightInputArtifact::Manifest),
+            ("simple.cpy", PreflightInputArtifact::Copybook),
+            ("fixed-ascii.bin", PreflightInputArtifact::Dataset),
+        ];
+        for (output_name, expected_input) in cases {
+            let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+            let nested = temp.path().join("nested/child");
+            fs::create_dir_all(&nested)?;
+            let linked_child = temp.path().join("linked-child");
+            symlink(&nested, &linked_child)?;
+            let output = linked_child.join("../..").join(output_name);
+            let input_path = temp.path().join(output_name);
+            let before = fs::read(&input_path)?;
+
+            let error = publish_external_input_preflight(
+                &manifest,
+                &output,
+                "0123456789abcdef0123456789abcdef01234567",
+            )
+            .err()
+            .context("symlink-plus-parent alias unexpectedly published telemetry")?;
+            let typed = error
+                .downcast_ref::<PreflightOutputAliasError>()
+                .context("symlink-plus-parent alias did not retain its typed error")?;
+            ensure!(typed.input == expected_input);
+            ensure!(fs::read(&input_path)? == before);
+        }
+
+        let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+        let nested = temp.path().join("nested/child");
+        fs::create_dir_all(&nested)?;
+        let linked_child = temp.path().join("linked-child");
+        symlink(&nested, &linked_child)?;
+        let output = linked_child.join("../..").join("distinct-report.json");
+        publish_external_input_preflight(
+            &manifest,
+            &output,
+            "0123456789abcdef0123456789abcdef01234567",
+        )?;
+        ensure!(temp.path().join("distinct-report.json").is_file());
+        Ok(())
+    }
+
     #[test]
     fn external_input_preflight_removes_distinct_stale_output_on_commit_failure() -> Result<()> {
         let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
@@ -1046,6 +1100,34 @@ mod tests {
             .context("invalid commit unexpectedly published preflight telemetry")?;
         ensure!(error.to_string().contains("40 lowercase hexadecimal"));
         ensure!(!output.exists());
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn external_input_preflight_preserves_lexical_target_when_parent_is_unresolved() -> Result<()> {
+        let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+        let stale = temp.path().join("stale-report.json");
+        fs::write(&stale, b"stale-success")?;
+        let unresolved = temp.path().join("missing-parent/../stale-report.json");
+
+        let resolution = comparable_path(&unresolved)
+            .err()
+            .context("unresolved comparison path unexpectedly resolved")?;
+        ensure!(
+            format!("{resolution:#}").contains("failed to resolve parent"),
+            "unresolved comparison path lost its resolution context: {resolution:#}"
+        );
+
+        let error = publish_external_input_preflight(
+            &manifest,
+            &unresolved,
+            "0123456789abcdef0123456789abcdef01234567",
+        )
+        .err()
+        .context("unresolved output parent unexpectedly published telemetry")?;
+        ensure!(error.downcast_ref::<PreflightOutputAliasError>().is_none());
+        ensure!(fs::read(&stale)? == b"stale-success");
         Ok(())
     }
 

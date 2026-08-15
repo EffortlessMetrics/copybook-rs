@@ -193,6 +193,24 @@ fn cli_preserves_unverifiable_output_for_missing_and_malformed_manifests() -> Re
     Ok(())
 }
 
+#[cfg(unix)]
+#[test]
+fn cli_preserves_lexical_target_when_parent_identity_is_unresolved() -> Result<()> {
+    let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+    let stale = temp.path().join("stale-report.json");
+    fs::write(&stale, b"stale-success")?;
+    let unresolved = temp.path().join("missing-parent/../stale-report.json");
+
+    let result = run_cli(&manifest, &unresolved)?;
+    ensure!(!result.status.success());
+    ensure!(
+        String::from_utf8_lossy(&result.stderr)
+            .contains("preflight output directory does not exist")
+    );
+    ensure!(fs::read(&stale)? == b"stale-success");
+    Ok(())
+}
+
 #[test]
 fn cli_rejects_relative_input_aliases_without_mutating_inputs() -> Result<()> {
     let cases = [
@@ -234,6 +252,46 @@ fn cli_rejects_copybook_alias_through_symlinked_parent() -> Result<()> {
     ensure!(!result.status.success());
     ensure!(fs::read(&copybook)? == before);
     ensure!(String::from_utf8_lossy(&result.stderr).contains("must not alias the copybook input"));
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn cli_resolves_symlink_parent_components_before_aliasing() -> Result<()> {
+    use std::os::unix::fs::symlink;
+
+    let cases = [
+        ("fixed-ascii.json", "manifest"),
+        ("simple.cpy", "copybook"),
+        ("fixed-ascii.bin", "dataset"),
+    ];
+    for (output_name, artifact) in cases {
+        let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+        let nested = temp.path().join("nested/child");
+        fs::create_dir_all(&nested)?;
+        let linked_child = temp.path().join("linked-child");
+        symlink(&nested, &linked_child)?;
+        let output = linked_child.join("../..").join(output_name);
+        let input_path = temp.path().join(output_name);
+        let before = fs::read(&input_path)?;
+
+        let result = run_cli(&manifest, &output)?;
+        ensure!(!result.status.success());
+        ensure!(fs::read(&input_path)? == before);
+        ensure!(
+            String::from_utf8_lossy(&result.stderr)
+                .contains(&format!("must not alias the {artifact} input"))
+        );
+    }
+
+    let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+    let nested = temp.path().join("nested/child");
+    fs::create_dir_all(&nested)?;
+    let linked_child = temp.path().join("linked-child");
+    symlink(&nested, &linked_child)?;
+    let output = linked_child.join("../..").join("distinct-report.json");
+    require_success(&run_cli(&manifest, &output)?)?;
+    ensure!(temp.path().join("distinct-report.json").is_file());
     Ok(())
 }
 

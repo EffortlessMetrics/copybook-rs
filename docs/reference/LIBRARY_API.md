@@ -388,9 +388,11 @@ assert_eq!(original_data, encoded_data);
   `CBKF102_RECORD_LENGTH_INVALID`
 - **Truncation Detection**: Fixed-format records validate expected length against actual data
 - **Error Codes**:
+  - `CBKR201_RDW_READ_ERROR` - Non-EOF I/O failure while reading an RDW header
+    or its declared payload
   - `CBKR202_RDW_WRITE_ERROR` - RDW header, payload, or flush write failure
   - `CBKR211_RDW_RESERVED_NONZERO` - Non-zero reserved bytes warning (lenient mode)
-  - `CBKF221_RDW_UNDERFLOW` - Incomplete RDW header or payload
+  - `CBKF221_RDW_UNDERFLOW` - EOF before an RDW header or declared payload is complete
   - `CBKE501_JSON_TYPE_MISMATCH` - Invalid base64 in `raw_b64` / `__raw_b64`
     or invalid/conflicting `raw_capture`
 

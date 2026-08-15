@@ -122,6 +122,15 @@
           "graduation_criteria": []
         },
         {
+          "name": "external-input",
+          "class": "internal-dev-only",
+          "stability_statement": "Opt-in local Criterion target for one validated external-input manifest.",
+          "limitations": [
+            "No downstream API, threshold, SLO, receipt, or scheduled performance promise."
+          ],
+          "graduation_criteria": []
+        },
+        {
           "name": "perf",
           "class": "internal-dev-only",
           "stability_statement": "Performance-only toggle for internal workflows.",

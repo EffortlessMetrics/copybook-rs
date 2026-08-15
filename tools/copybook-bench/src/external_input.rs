@@ -6,6 +6,7 @@ use std::fs;
 use std::io::Write;
 use std::ops::Range;
 use std::path::{Component, Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail, ensure};
 use copybook_codec::{
@@ -210,6 +211,58 @@ struct LoadedExternalInput {
     manifest_sha256: String,
 }
 
+/// Prepared state for the opt-in local external-input Criterion target.
+///
+/// This is public only because Cargo compiles benchmark targets as separate
+/// crates; `copybook-bench` itself is unpublished.
+pub struct ExternalInputDecodeBenchmark {
+    loaded: LoadedExternalInput,
+    options: DecodeOptions,
+    scratch: ScratchBuffers,
+    payload_bytes: usize,
+    benchmark_id: String,
+}
+
+impl ExternalInputDecodeBenchmark {
+    /// Sum of validated payload bytes processed by one decode pass.
+    #[must_use]
+    pub const fn payload_bytes(&self) -> usize {
+        self.payload_bytes
+    }
+
+    /// Stable Criterion identity for this validated manifest and dataset.
+    #[must_use]
+    pub fn benchmark_id(&self) -> &str {
+        &self.benchmark_id
+    }
+
+    /// Decode every validated payload range exactly once.
+    ///
+    /// # Errors
+    ///
+    /// Returns contextual errors for an invalid range, decode failure, or
+    /// checked record-count overflow.
+    pub fn decode_pass(&mut self) -> Result<usize> {
+        decode_loaded_pass(&self.loaded, &self.options, &mut self.scratch)
+    }
+
+    /// Time complete decode passes, returning no duration if any pass fails.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first contextual decode failure. Callers must not record a
+    /// Criterion sample unless this method returns `Ok`.
+    pub fn measure_decode_iterations(&mut self, iterations: u64) -> Result<Duration> {
+        let start = Instant::now();
+        for iteration in 0..iterations {
+            let _decoded = self
+                .decode_pass()
+                .with_context(|| format!("external-input decode iteration {iteration} failed"))?;
+        }
+        Ok(start.elapsed())
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ExternalInputPreflight {
     manifest_sha256: String,
@@ -288,6 +341,116 @@ impl ValidatedExternalInput {
 /// copybook layout disagreement, integrity mismatch, or invalid record framing.
 pub fn load_external_input(manifest_path: &Path) -> Result<ValidatedExternalInput> {
     Ok(load_external_input_bundle(manifest_path, None)?.validated)
+}
+
+/// Prepare one validated external-input dataset for local Criterion decoding.
+///
+/// # Errors
+///
+/// Returns an error when manifest loading or validation fails, when the
+/// payload-byte total overflows, or when the initial decode witness fails.
+pub fn prepare_external_input_decode_benchmark(
+    manifest_path: &Path,
+) -> Result<ExternalInputDecodeBenchmark> {
+    let loaded = load_external_input_bundle(manifest_path, None)?;
+    let options = loaded.validated.decode_options();
+    let payload_bytes = checked_payload_bytes(&loaded)?;
+    let benchmark_id = benchmark_identity(&loaded)?;
+    let mut benchmark = ExternalInputDecodeBenchmark {
+        loaded,
+        options,
+        scratch: ScratchBuffers::new(),
+        payload_bytes,
+        benchmark_id,
+    };
+    let decoded_records = benchmark.decode_pass()?;
+    ensure!(
+        decoded_records == benchmark.loaded.validated.payload_ranges.len(),
+        "external-input initial decode count does not match validated payload ranges"
+    );
+    Ok(benchmark)
+}
+
+fn benchmark_identity(loaded: &LoadedExternalInput) -> Result<String> {
+    let manifest = &loaded.validated.manifest;
+    let format = match manifest.record_format {
+        ExternalRecordFormat::Fixed => "fixed",
+        ExternalRecordFormat::Rdw => "rdw",
+    };
+    let codepage = match manifest.codepage {
+        ExternalCodepage::Ascii => "ascii",
+        ExternalCodepage::Cp037 => "cp037",
+        ExternalCodepage::Cp273 => "cp273",
+        ExternalCodepage::Cp500 => "cp500",
+        ExternalCodepage::Cp1047 => "cp1047",
+        ExternalCodepage::Cp1140 => "cp1140",
+    };
+    let workload = match manifest.workload {
+        ExternalWorkload::DisplayHeavy => "display-heavy",
+        ExternalWorkload::Comp3Heavy => "comp3-heavy",
+        ExternalWorkload::Mixed => "mixed",
+    };
+    let digest = loaded
+        .manifest_sha256
+        .get(..12)
+        .context("validated manifest SHA-256 is shorter than 12 hexadecimal characters")?;
+    Ok(format!(
+        "{format}-{codepage}-{workload}-l{}-n{}-{digest}",
+        manifest.record_length, manifest.record_count
+    ))
+}
+
+fn checked_payload_bytes(loaded: &LoadedExternalInput) -> Result<usize> {
+    loaded
+        .validated
+        .payload_ranges
+        .iter()
+        .try_fold(0_usize, |total, range| {
+            let payload = loaded
+                .validated
+                .dataset
+                .get(range.clone())
+                .with_context(|| {
+                    format!(
+                        "payload range {}..{} is outside the validated dataset",
+                        range.start, range.end
+                    )
+                })?;
+            total
+                .checked_add(payload.len())
+                .context("external-input payload byte total overflows usize")
+        })
+}
+
+fn decode_loaded_pass(
+    loaded: &LoadedExternalInput,
+    options: &DecodeOptions,
+    scratch: &mut ScratchBuffers,
+) -> Result<usize> {
+    let mut decoded_records = 0_usize;
+    for (record_index, range) in loaded.validated.payload_ranges.iter().enumerate() {
+        let payload = loaded
+            .validated
+            .dataset
+            .get(range.clone())
+            .with_context(|| {
+                format!(
+                    "record {record_index} payload range {}..{} is outside the validated dataset",
+                    range.start, range.end
+                )
+            })?;
+        let _decoded = decode_record_with_scratch(&loaded.schema, payload, options, scratch)
+            .with_context(|| {
+                format!(
+                    "failed to decode record {record_index} payload range {}..{}",
+                    range.start, range.end
+                )
+            })?;
+        decoded_records = decoded_records
+            .checked_add(1)
+            .context("external-input decoded record count overflows usize")?;
+    }
+    Ok(decoded_records)
 }
 
 fn load_external_input_bundle(
@@ -396,34 +559,8 @@ fn run_external_input_preflight(
     let loaded = load_external_input_bundle(manifest_path, stale_output)?;
     let options = loaded.validated.decode_options();
     let mut scratch = ScratchBuffers::new();
-    let mut decoded_records = 0_usize;
-    let mut payload_bytes = 0_usize;
-
-    for (record_index, range) in loaded.validated.payload_ranges.iter().enumerate() {
-        let payload = loaded
-            .validated
-            .dataset
-            .get(range.clone())
-            .with_context(|| {
-                format!(
-                    "record {record_index} payload range {}..{} is outside the validated dataset",
-                    range.start, range.end
-                )
-            })?;
-        payload_bytes = payload_bytes
-            .checked_add(payload.len())
-            .context("external-input payload byte total overflows usize")?;
-        let _decoded = decode_record_with_scratch(&loaded.schema, payload, &options, &mut scratch)
-            .with_context(|| {
-                format!(
-                    "failed to decode record {record_index} payload range {}..{}",
-                    range.start, range.end
-                )
-            })?;
-        decoded_records = decoded_records
-            .checked_add(1)
-            .context("external-input decoded record count overflows usize")?;
-    }
+    let payload_bytes = checked_payload_bytes(&loaded)?;
+    let decoded_records = decode_loaded_pass(&loaded, &options, &mut scratch)?;
 
     let physical_bytes = loaded.validated.dataset.len();
     let framing_bytes = physical_bytes
@@ -831,9 +968,12 @@ mod tests {
     use super::{
         ExternalCodepage, ExternalRecordFormat, ExternalWorkload, IntegrityArtifact,
         ManifestIntegrityError, PreflightInputArtifact, PreflightOutputAliasError,
-        PreflightOutputLock, comparable_path, load_external_input,
+        PreflightOutputLock, load_external_input, prepare_external_input_decode_benchmark,
         publish_external_input_preflight, run_external_input_preflight, write_report_atomically,
     };
+
+    #[cfg(unix)]
+    use super::comparable_path;
 
     fn fixtures() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("test_fixtures/external_input")
@@ -971,6 +1111,99 @@ mod tests {
         ensure!(
             run_external_input_preflight(&path, None)?
                 == run_external_input_preflight(&path, None)?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_benchmark_decodes_all_four_manifests() -> Result<()> {
+        let mut identities = Vec::new();
+        for name in [
+            "fixed-ascii.json",
+            "fixed-cp037.json",
+            "rdw-ascii.json",
+            "rdw-cp037.json",
+        ] {
+            let mut benchmark = prepare_external_input_decode_benchmark(&fixtures().join(name))?;
+            ensure!(benchmark.payload_bytes() == 5);
+            ensure!(benchmark.benchmark_id().len() <= 80);
+            identities.push(benchmark.benchmark_id().to_string());
+            ensure!(benchmark.decode_pass()? == 1);
+            ensure!(benchmark.decode_pass()? == 1);
+        }
+        let mut distinct = identities.clone();
+        distinct.sort_unstable();
+        distinct.dedup();
+        ensure!(distinct.len() == identities.len());
+        let repeat = prepare_external_input_decode_benchmark(&fixtures().join("fixed-ascii.json"))?;
+        ensure!(repeat.benchmark_id() == identities[0]);
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_benchmark_target_is_explicitly_feature_gated() -> Result<()> {
+        let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let cargo_toml = fs::read_to_string(crate_root.join("Cargo.toml"))?;
+        ensure!(cargo_toml.contains("external-input = []"));
+        ensure!(cargo_toml.contains(
+            "name = \"external_input_decode\"\nharness = false\nrequired-features = [\"external-input\"]"
+        ));
+
+        let target = fs::read_to_string(crate_root.join("benches/external_input_decode.rs"))?;
+        ensure!(target.contains("COPYBOOK_EXTERNAL_INPUT_MANIFEST"));
+        ensure!(target.contains("must name one external-input manifest"));
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_benchmark_rejects_decode_invalid_payload() -> Result<()> {
+        let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+        let numeric_copybook = b"       01 RECORD PIC 9(5).\n";
+        fs::write(temp.path().join("simple.cpy"), numeric_copybook)?;
+        edit_manifest(&manifest, |root| {
+            root.insert(
+                "copybook_sha256".to_string(),
+                json!(format!("{:x}", Sha256::digest(numeric_copybook))),
+            );
+        })?;
+        let error = prepare_external_input_decode_benchmark(&manifest)
+            .err()
+            .context("decode-invalid input unexpectedly prepared a benchmark")?;
+        ensure!(
+            error
+                .to_string()
+                .contains("failed to decode record 0 payload range 0..5")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_benchmark_returns_no_timing_after_decode_failure() -> Result<()> {
+        let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
+        let numeric_copybook = b"       01 RECORD PIC 9(5).\n";
+        let valid_dataset = b"12345";
+        fs::write(temp.path().join("simple.cpy"), numeric_copybook)?;
+        fs::write(temp.path().join("fixed-ascii.bin"), valid_dataset)?;
+        edit_manifest(&manifest, |root| {
+            root.insert(
+                "copybook_sha256".to_string(),
+                json!(format!("{:x}", Sha256::digest(numeric_copybook))),
+            );
+            root.insert(
+                "dataset_sha256".to_string(),
+                json!(format!("{:x}", Sha256::digest(valid_dataset))),
+            );
+        })?;
+        let mut benchmark = prepare_external_input_decode_benchmark(&manifest)?;
+        benchmark.loaded.validated.dataset.copy_from_slice(b"ABCDE");
+        let error = benchmark
+            .measure_decode_iterations(2)
+            .err()
+            .context("decode failure unexpectedly returned a timing sample")?;
+        ensure!(
+            error
+                .to_string()
+                .contains("external-input decode iteration 0 failed")
         );
         Ok(())
     }

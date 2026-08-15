@@ -31,6 +31,11 @@ name = "diagnostics_benches"
 harness = false
 required-features = ["diagnostics"]
 
+[[bench]]
+name = "external_input_decode"
+harness = false
+required-features = ["external-input"]
+
 [dependencies]
 copybook-core = { workspace = true }
 copybook-codec = { workspace = true }
@@ -54,5 +59,7 @@ default = []
 progressive = []
 # AC5: Diagnostics benchmarks for infrastructure overhead measurement (opt-in)
 diagnostics = []
+# Opt-in local benchmark over a caller-selected validated manifest.
+external-input = []
 # Performance-only tests: throughput assertions for dedicated perf workflow
 perf = []

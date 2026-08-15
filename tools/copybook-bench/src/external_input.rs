@@ -1001,6 +1001,139 @@ mod tests {
         Ok(())
     }
 
+    #[derive(Clone, Copy)]
+    enum TomlMultilineString {
+        Basic,
+        Literal,
+    }
+
+    fn line_is_toml_structure(line: &str, multiline: &mut Option<TomlMultilineString>) -> bool {
+        let bytes = line.as_bytes();
+        let mut cursor = 0;
+        let mut basic_string = false;
+        let mut literal_string = false;
+        let mut escaped = false;
+        let mut touched_multiline = multiline.is_some();
+
+        while cursor < bytes.len() {
+            if let Some(delimiter) = *multiline {
+                let marker = match delimiter {
+                    TomlMultilineString::Basic => b"\"\"\"".as_slice(),
+                    TomlMultilineString::Literal => b"'''".as_slice(),
+                };
+                if bytes
+                    .get(cursor..)
+                    .is_some_and(|tail| tail.starts_with(marker))
+                    && (!matches!(delimiter, TomlMultilineString::Basic) || !escaped)
+                {
+                    *multiline = None;
+                    cursor += marker.len();
+                    escaped = false;
+                    continue;
+                }
+                escaped = matches!(delimiter, TomlMultilineString::Basic)
+                    && bytes.get(cursor) == Some(&b'\\')
+                    && !escaped;
+                cursor += 1;
+                continue;
+            }
+
+            if !basic_string
+                && !literal_string
+                && bytes
+                    .get(cursor..)
+                    .is_some_and(|tail| tail.starts_with(b"\"\"\""))
+            {
+                *multiline = Some(TomlMultilineString::Basic);
+                touched_multiline = true;
+                cursor += 3;
+                continue;
+            }
+            if !basic_string
+                && !literal_string
+                && bytes
+                    .get(cursor..)
+                    .is_some_and(|tail| tail.starts_with(b"'''"))
+            {
+                *multiline = Some(TomlMultilineString::Literal);
+                touched_multiline = true;
+                cursor += 3;
+                continue;
+            }
+
+            match bytes.get(cursor) {
+                Some(b'#') if !basic_string && !literal_string => break,
+                Some(b'\"') if !literal_string && !escaped => basic_string = !basic_string,
+                Some(b'\'') if !basic_string => literal_string = !literal_string,
+                _ => {}
+            }
+            escaped = basic_string && bytes.get(cursor) == Some(&b'\\') && !escaped;
+            cursor += 1;
+        }
+
+        !touched_multiline
+    }
+
+    fn has_adjacent_toml_lines(source: &str, expected: &[&str]) -> bool {
+        let Some((first, tail)) = expected.split_first() else {
+            return false;
+        };
+        let mut multiline = None;
+        let mut matched_tail: Option<&[&str]> = None;
+        for line in source.lines() {
+            if !line_is_toml_structure(line, &mut multiline) {
+                matched_tail = None;
+                continue;
+            }
+            if let Some(expected_tail) = matched_tail.as_mut() {
+                if expected_tail
+                    .first()
+                    .is_some_and(|expected| line == *expected)
+                {
+                    *expected_tail = expected_tail.get(1..).unwrap_or_default();
+                    if expected_tail.is_empty() {
+                        return true;
+                    }
+                    continue;
+                }
+                matched_tail = None;
+            }
+            if line == *first {
+                if tail.is_empty() {
+                    return true;
+                }
+                matched_tail = Some(tail);
+            }
+        }
+        false
+    }
+
+    fn cargo_manifest_admits_external_input_benchmark(source: &str) -> bool {
+        let mut multiline = None;
+        let mut in_features = false;
+        let mut feature_declared = false;
+        for line in source.lines() {
+            if !line_is_toml_structure(line, &mut multiline) {
+                continue;
+            }
+            if line.starts_with('[') {
+                in_features = line == "[features]";
+            } else if in_features && line == "external-input = []" {
+                feature_declared = true;
+            }
+        }
+        feature_declared
+            && has_adjacent_toml_lines(
+                source,
+                &[
+                    "[[bench]]",
+                    "name = \"external_input_decode\"",
+                    "harness = false",
+                    "required-features = [\"external-input\"]",
+                ],
+            )
+    }
+
     #[test]
     fn external_input_accepts_fixed_rdw_ascii_cp037_matrix() -> Result<()> {
         let cases = [
@@ -1144,14 +1277,52 @@ mod tests {
     fn external_input_benchmark_target_is_explicitly_feature_gated() -> Result<()> {
         let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
         let cargo_toml = fs::read_to_string(crate_root.join("Cargo.toml"))?;
-        ensure!(cargo_toml.contains("external-input = []"));
-        ensure!(cargo_toml.contains(
-            "name = \"external_input_decode\"\nharness = false\nrequired-features = [\"external-input\"]"
-        ));
+        ensure!(cargo_manifest_admits_external_input_benchmark(&cargo_toml));
 
         let target = fs::read_to_string(crate_root.join("benches/external_input_decode.rs"))?;
         ensure!(target.contains("COPYBOOK_EXTERNAL_INPUT_MANIFEST"));
         ensure!(target.contains("must name one external-input manifest"));
+        Ok(())
+    }
+
+    #[test]
+    fn external_input_benchmark_admission_is_crlf_safe_and_fail_closed() -> Result<()> {
+        let valid = "[package]\nname = \"copybook-bench\"\n\n[[bench]]\nname = \"external_input_decode\"\nharness = false\nrequired-features = [\"external-input\"]\n\n[features]\ndefault = []\nexternal-input = []\n";
+        ensure!(cargo_manifest_admits_external_input_benchmark(valid));
+        ensure!(cargo_manifest_admits_external_input_benchmark(
+            &valid.replace('\n', "\r\n")
+        ));
+
+        for delimiter in ["\"\"\"", "'''"] {
+            let fake = format!(
+                "[package]\nname = \"copybook-bench\"\n\n[package.metadata]\ntext = {delimiter}\n[features]\nexternal-input = []\n\n[[bench]]\nname = \"external_input_decode\"\nharness = false\nrequired-features = [\"external-input\"]\n{delimiter}\n"
+            );
+            ensure!(!cargo_manifest_admits_external_input_benchmark(&fake));
+        }
+
+        for rejected in [
+            valid.replace("external-input = []\n", ""),
+            valid.replace("[features]\n", "[package.metadata]\n"),
+            valid.replace("required-features = [\"external-input\"]\n", ""),
+            valid.replace(
+                "required-features = [\"external-input\"]",
+                "required-features = [\"diagnostics\"]",
+            ),
+            valid.replace(
+                "harness = false\nrequired-features = [\"external-input\"]",
+                "required-features = [\"external-input\"]\nharness = false",
+            ),
+            valid.replace(
+                "harness = false\nrequired-features = [\"external-input\"]",
+                "harness = false\n\n[[bench]]\nname = \"detached\"\nharness = false\nrequired-features = [\"external-input\"]",
+            ),
+            valid.replace(
+                "name = \"external_input_decode\"",
+                "name = \"decode_performance\"",
+            ),
+        ] {
+            ensure!(!cargo_manifest_admits_external_input_benchmark(&rejected));
+        }
         Ok(())
     }
 

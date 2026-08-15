@@ -339,3 +339,59 @@ fn workflow_is_manual_fixed_inventory_telemetry_only() -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn criterion_workflow_is_manual_fixed_inventory_telemetry_only() -> Result<()> {
+    let workflow = fs::read_to_string(
+        workspace_root().join(".github/workflows/external-input-criterion.yml"),
+    )?;
+    ensure!(workflow.contains("workflow_dispatch: {}"));
+    for forbidden in [
+        "schedule:",
+        "matrix:",
+        "inputs:",
+        "continue-on-error",
+        "threshold",
+        "SLO",
+        "perf.json",
+        "receipt",
+    ] {
+        ensure!(!workflow.contains(forbidden));
+    }
+    ensure!(has_adjacent_lines(
+        &workflow,
+        "permissions:",
+        "  contents: read"
+    ));
+    ensure!(workflow.contains("runs-on: ubuntu-latest"));
+    ensure!(workflow.contains("timeout-minutes: 20"));
+    ensure!(workflow.contains("persist-credentials: false"));
+    ensure!(workflow.contains("set -euo pipefail"));
+    ensure!(workflow.contains("--features external-input"));
+    ensure!(workflow.contains("COPYBOOK_EXTERNAL_INPUT_MANIFEST=\"$manifest\""));
+    ensure!(workflow.contains("--warm-up-time 1 --measurement-time 1 --sample-size 10"));
+
+    let manifests = [
+        "fixed-ascii.json",
+        "fixed-cp037.json",
+        "rdw-ascii.json",
+        "rdw-cp037.json",
+    ];
+    let mut prior = 0_usize;
+    for manifest in manifests {
+        ensure!(workflow.matches(manifest).count() == 1);
+        let position = workflow
+            .find(manifest)
+            .with_context(|| format!("Criterion workflow omits {manifest}"))?;
+        ensure!(position > prior);
+        prior = position;
+    }
+    let upload = workflow
+        .find("uses: actions/upload-artifact@v7")
+        .context("Criterion workflow omits artifact upload")?;
+    ensure!(upload > prior);
+    ensure!(workflow.contains("name: external-input-criterion-${{ github.sha }}"));
+    ensure!(workflow.contains("path: target/criterion/external_input_decode/**"));
+    ensure!(workflow.contains("if-no-files-found: error"));
+    Ok(())
+}

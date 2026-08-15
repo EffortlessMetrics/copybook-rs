@@ -113,6 +113,17 @@ fn shell_array_entries<'a>(text: &'a str, declaration: &str) -> Option<Vec<&'a s
     None
 }
 
+fn has_exact_workspace_manifest_binding(text: &str) -> bool {
+    const EXPECTED: &str = "COPYBOOK_EXTERNAL_INPUT_MANIFEST=\"$GITHUB_WORKSPACE/$manifest\" \\";
+    let mut bindings = text.lines().filter_map(|line| {
+        let normalized = line.trim_start().trim_end_matches('\r');
+        normalized
+            .starts_with("COPYBOOK_EXTERNAL_INPUT_MANIFEST=")
+            .then_some(normalized)
+    });
+    bindings.next() == Some(EXPECTED) && bindings.next().is_none()
+}
+
 #[test]
 fn adjacent_lines_are_eol_agnostic_but_layout_sensitive() -> Result<()> {
     let first = "permissions:";
@@ -428,7 +439,7 @@ fn criterion_workflow_is_manual_fixed_inventory_telemetry_only() -> Result<()> {
     ensure!(workflow.contains("persist-credentials: false"));
     ensure!(workflow.contains("set -euo pipefail"));
     ensure!(workflow.contains("--features external-input"));
-    ensure!(workflow.contains("COPYBOOK_EXTERNAL_INPUT_MANIFEST=\"$manifest\""));
+    ensure!(has_exact_workspace_manifest_binding(&workflow));
     ensure!(workflow.contains("--warm-up-time 1 --measurement-time 1 --sample-size 10"));
 
     let manifests = [
@@ -492,6 +503,25 @@ fn workflow_contract_helpers_reject_extra_triggers_and_manifests() -> Result<()>
         "manifests=(\n  fixed.json\n  rdw.json\n)\nmanifests=(\n  fixed.json\n  rdw.json\n)\n",
     ] {
         ensure!(shell_array_entries(rejected, "manifests=(") != Some(expected_manifests.to_vec()));
+    }
+
+    let binding = "COPYBOOK_EXTERNAL_INPUT_MANIFEST=\"$GITHUB_WORKSPACE/$manifest\" \\\n";
+    ensure!(has_exact_workspace_manifest_binding(binding));
+    ensure!(has_exact_workspace_manifest_binding(
+        &binding.replace('\n', "\r\n")
+    ));
+    for rejected in [
+        String::new(),
+        "COPYBOOK_EXTERNAL_INPUT_MANIFES=\"$GITHUB_WORKSPACE/$manifest\" \\\n".to_string(),
+        "COPYBOOK_EXTERNAL_INPUT_MANIFEST=\"$GITHUB_WORKSPACE/$manifest\" \\   \n".to_string(),
+        "COPYBOOK_EXTERNAL_INPUT_MANIFEST=\"$manifest\" \\\n".to_string(),
+        "COPYBOOK_EXTERNAL_INPUT_MANIFEST=\"$GITHUB_WORKSPACE$manifest\" \\\n".to_string(),
+        format!("{binding}{binding}"),
+    ] {
+        ensure!(!has_exact_workspace_manifest_binding(&rejected));
+        ensure!(!has_exact_workspace_manifest_binding(
+            &rejected.replace('\n', "\r\n")
+        ));
     }
     Ok(())
 }

@@ -38,7 +38,7 @@ jobs:
             tools/copybook-bench/test_fixtures/external_input/rdw-cp037.json
           )
           for manifest in "${manifests[@]}"; do
-            COPYBOOK_EXTERNAL_INPUT_MANIFEST="$manifest" \
+            COPYBOOK_EXTERNAL_INPUT_MANIFEST="$GITHUB_WORKSPACE/$manifest" \
               cargo bench -p copybook-bench --features external-input \
                 --bench external_input_decode -- \
                 --warm-up-time 1 --measurement-time 1 --sample-size 10

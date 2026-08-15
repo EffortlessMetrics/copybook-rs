@@ -8,6 +8,7 @@ const ROLLUP_MARKER_NAMESPACE = "copybook-security-rollup:";
 const FINDINGS_MARKER_NAMESPACE = "copybook-security-findings:";
 const FINGERPRINT_PATTERN = /^sha256:[0-9a-f]{64}$/;
 const ARTIFACT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const AUTHOR_PATTERN = /^[A-Za-z0-9][A-Za-z0-9-]*(?:\[bot\])?$/;
 const FINDINGS_MARKER_PATTERN =
   /^<!-- copybook-security-findings:v1 fingerprint=(sha256:[0-9a-f]{64}) count=([1-9][0-9]*) -->$/;
 
@@ -93,7 +94,24 @@ function validateScan(scanValue) {
   return { ...scan };
 }
 
-function flattenComments(issue, label) {
+function validateTrustedAuthors(value) {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new TypeError("snapshot.trustedAuthors must be a non-empty array");
+  }
+  const trusted = new Set();
+  for (const [index, author] of value.entries()) {
+    if (typeof author !== "string" || author.length > 64 || !AUTHOR_PATTERN.test(author)) {
+      throw new TypeError(`snapshot.trustedAuthors[${index}] is invalid`);
+    }
+    if (trusted.has(author)) {
+      throw new TypeError(`snapshot.trustedAuthors contains duplicate author ${author}`);
+    }
+    trusted.add(author);
+  }
+  return trusted;
+}
+
+function flattenComments(issue, label, trustedAuthors) {
   if (!Array.isArray(issue.commentPages)) {
     throw new TypeError(`${label}.commentPages must be an array of pages`);
   }
@@ -106,22 +124,25 @@ function flattenComments(issue, label) {
     for (const [commentIndex, commentValue] of page.entries()) {
       const commentLabel = `${label}.commentPages[${pageIndex}][${commentIndex}]`;
       const comment = requireObject(commentValue, commentLabel);
-      requireExactKeys(comment, ["body", "id"], commentLabel);
+      requireExactKeys(comment, ["author", "body", "id"], commentLabel);
       const identifier = requirePositiveInteger(comment.id, `${commentLabel}.id`);
       if (identifiers.has(identifier)) {
         throw new TypeError(`${label} contains duplicate comment id ${identifier}`);
       }
       identifiers.add(identifier);
-      if (typeof comment.body !== "string") {
-        throw new TypeError(`${commentLabel}.body must be a string`);
+      if (typeof comment.author !== "string" || typeof comment.body !== "string") {
+        throw new TypeError(`${commentLabel}.author and body must be strings`);
       }
-      comments.push({ ...comment, marker: parseFindingsMarker(comment.body, commentLabel) });
+      const marker = trustedAuthors.has(comment.author)
+        ? parseFindingsMarker(comment.body, commentLabel)
+        : null;
+      comments.push({ ...comment, marker });
     }
   }
   return comments;
 }
 
-function flattenIssues(pagesValue) {
+function flattenIssues(pagesValue, trustedAuthors) {
   if (!Array.isArray(pagesValue)) {
     throw new TypeError("snapshot.issuePages must be an array of pages");
   }
@@ -150,7 +171,7 @@ function flattenIssues(pagesValue) {
         ...issue,
         number,
         marked: parseRollupMarker(issue.body, label),
-        comments: flattenComments(issue, label),
+        comments: flattenComments(issue, label, trustedAuthors),
       });
     }
   }
@@ -176,7 +197,10 @@ function basePlan(action, issueNumber, reason) {
 
 function latestMarker(issue) {
   const markers = issue.comments.filter((comment) => comment.marker !== null);
-  return markers.length === 0 ? null : markers.at(-1).marker;
+  if (markers.length === 0) {
+    return null;
+  }
+  return markers.reduce((latest, comment) => (comment.id > latest.id ? comment : latest)).marker;
 }
 
 function sameFindings(marker, scan) {
@@ -186,9 +210,10 @@ function sameFindings(marker, scan) {
 /** Return one deterministic, side-effect-free lifecycle action. */
 export function planSecurityIssueLifecycle(snapshotValue) {
   const snapshot = requireObject(snapshotValue, "snapshot");
-  requireExactKeys(snapshot, ["issuePages", "scan"], "snapshot");
+  requireExactKeys(snapshot, ["issuePages", "scan", "trustedAuthors"], "snapshot");
   const scan = validateScan(snapshot.scan);
-  const issues = flattenIssues(snapshot.issuePages);
+  const trustedAuthors = validateTrustedAuthors(snapshot.trustedAuthors);
+  const issues = flattenIssues(snapshot.issuePages, trustedAuthors);
   const candidates = issues.filter((issue) => issue.marked || issue.title === ROLLUP_TITLE);
   if (candidates.length > 1) {
     throw new TypeError("snapshot contains multiple canonical or legacy roll-up candidates");

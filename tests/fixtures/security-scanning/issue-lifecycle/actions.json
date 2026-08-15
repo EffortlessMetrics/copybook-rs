@@ -41,6 +41,7 @@
             [
               {
                 "id": 101,
+                "author": "github-actions[bot]",
                 "body": "<!-- copybook-security-findings:v1 fingerprint=sha256:1111111111111111111111111111111111111111111111111111111111111111 count=2 -->\n\nRecorded."
               }
             ]

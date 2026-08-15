@@ -27,7 +27,11 @@ function findings(fingerprint = first, findingCount = 2) {
 }
 
 function snapshot(source, scan) {
-  return { issuePages: structuredClone(source.issuePages), scan };
+  return {
+    issuePages: structuredClone(source.issuePages),
+    scan,
+    trustedAuthors: ["github-actions[bot]", "security-maintainer"],
+  };
 }
 
 test("plans create and clean no-op without a roll-up", () => {
@@ -89,6 +93,7 @@ test("reopens a closed marked issue and suppresses an unchanged comment", () => 
   const source = structuredClone(fixture.closedMarked);
   source.issuePages[0][0].commentPages = [[{
     id: 201,
+    author: "github-actions[bot]",
     body: `<!-- copybook-security-findings:v1 fingerprint=${first} count=2 -->`,
   }]];
   const repeated = planSecurityIssueLifecycle(snapshot(source, findings()));
@@ -125,18 +130,62 @@ test("rejects malformed embedded duplicate and conflicting marker content", () =
   ];
   for (const body of comments) {
     const source = structuredClone(fixture.closedMarked);
-    source.issuePages[0][0].commentPages = [[{ id: 301, body }]];
+    source.issuePages[0][0].commentPages = [[{
+      id: 301,
+      author: "github-actions[bot]",
+      body,
+    }]];
     assert.throws(() => planSecurityIssueLifecycle(snapshot(source, findings())), /marker/u);
   }
 });
 
+test("ignores untrusted marker-like comments and selects the highest trusted comment id", () => {
+  const untrusted = structuredClone(fixture.markedAcrossPages);
+  untrusted.issuePages[1][0].commentPages = [[
+    {
+      id: 999,
+      author: "public-contributor",
+      body: `<!-- copybook-security-findings:v1 fingerprint=${second} count=3 -->`,
+    },
+    {
+      id: 1000,
+      author: "public-contributor",
+      body: `prefix <!-- copybook-security-findings:v1 fingerprint=${second} count=3 -->`,
+    },
+  ]];
+  assert.equal(
+    planSecurityIssueLifecycle(snapshot(untrusted, findings(second, 3))).action,
+    "update",
+  );
+
+  const reversed = structuredClone(fixture.markedAcrossPages);
+  reversed.issuePages[1][0].commentPages = [
+    [{
+      id: 202,
+      author: "github-actions[bot]",
+      body: `<!-- copybook-security-findings:v1 fingerprint=${second} count=3 -->`,
+    }],
+    [{
+      id: 101,
+      author: "github-actions[bot]",
+      body: `<!-- copybook-security-findings:v1 fingerprint=${first} count=2 -->`,
+    }],
+  ];
+  assert.equal(
+    planSecurityIssueLifecycle(snapshot(reversed, findings(second, 3))).action,
+    "no-op",
+  );
+});
+
 test("rejects malformed snapshots fingerprints counts artifacts and duplicate ids", () => {
   const invalidSnapshots = [
-    { issuePages: {}, scan: findings() },
-    { issuePages: [[]], scan: { ...findings(), findingsFingerprint: "sha256:ABC" } },
-    { issuePages: [[]], scan: { ...findings(), findingCount: 0 } },
-    { issuePages: [[]], scan: { ...findings(), artifactName: "bad artifact" } },
-    { issuePages: [[]], scan: { state: "clean", findingCount: 0 } },
+    { issuePages: {}, scan: findings(), trustedAuthors: ["github-actions[bot]"] },
+    { issuePages: [[]], scan: { ...findings(), findingsFingerprint: "sha256:ABC" }, trustedAuthors: ["github-actions[bot]"] },
+    { issuePages: [[]], scan: { ...findings(), findingCount: 0 }, trustedAuthors: ["github-actions[bot]"] },
+    { issuePages: [[]], scan: { ...findings(), artifactName: "bad artifact" }, trustedAuthors: ["github-actions[bot]"] },
+    { issuePages: [[]], scan: { state: "clean", findingCount: 0 }, trustedAuthors: ["github-actions[bot]"] },
+    { issuePages: [[]], scan: { state: "clean" }, trustedAuthors: [] },
+    { issuePages: [[]], scan: { state: "clean" }, trustedAuthors: ["bad author"] },
   ];
   for (const invalid of invalidSnapshots) {
     assert.throws(() => planSecurityIssueLifecycle(invalid), TypeError);
@@ -148,8 +197,8 @@ test("rejects malformed snapshots fingerprints counts artifacts and duplicate id
 
   const duplicateComment = structuredClone(fixture.closedMarked);
   duplicateComment.issuePages[0][0].commentPages = [[
-    { id: 8, body: "first" },
-    { id: 8, body: "second" },
+    { id: 8, author: "github-actions[bot]", body: "first" },
+    { id: 8, author: "github-actions[bot]", body: "second" },
   ]];
   assert.throws(() => planSecurityIssueLifecycle(snapshot(duplicateComment, findings())), /duplicate comment/u);
 });

@@ -31,6 +31,10 @@ name = "diagnostics_benches"
 harness = false
 required-features = ["diagnostics"]
 
+[[bench]]
+name = "external_input_decode"
+harness = false
+
 [dependencies]
 copybook-core = { workspace = true }
 copybook-codec = { workspace = true }

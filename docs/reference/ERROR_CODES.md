@@ -324,14 +324,14 @@ Fixed-length record processing failed: incomplete record at end of file
 ```
 
 #### CBKR201_RDW_READ_ERROR
-**Description**: Error reading Record Descriptor Word (RDW) header
+**Description**: I/O error reading a Record Descriptor Word (RDW) header or payload
 **Severity**: Fatal
 **Context**: Record number, I/O error details
 **Resolution**: Check file integrity and record format
 
-```
+```text
 Error: CBKR201_RDW_READ_ERROR at record 100
-Failed to read RDW header: Unexpected end of file
+Failed to read RDW payload: I/O device error
 ```
 
 #### CBKR202_RDW_WRITE_ERROR
@@ -681,9 +681,9 @@ Possible text-mode transfer corruption
 ```
 
 #### CBKF221_RDW_UNDERFLOW
-**Description**: RDW length less than minimum record size
+**Description**: RDW header or declared payload is truncated, or the RDW length is below the required minimum
 **Severity**: Fatal
-**Context**: Record number, RDW length, minimum required
+**Context**: Record number, available or declared RDW length, minimum required
 **Resolution**: Check data integrity or record format
 
 ```

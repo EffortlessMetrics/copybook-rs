@@ -62,7 +62,9 @@ report = {
     "timestamp": timestamp,
     "commit": commit,
     "toolchain": "cargo bench (criterion)",
-    "status": "pass",
+    # Measurement generation does not decide policy. The separate
+    # `bench-report gate` command owns pass/fail threshold evaluation.
+    "status": "measured",
     "display_mibps": display["mean_mibps"],
     "display_gibps": display["mean_mibps"] / 1024.0,
     "comp3_mibps": comp3["mean_mibps"],

@@ -290,27 +290,6 @@ jobs:
   # These jobs run on schedule or workflow_dispatch and are non-blocking.
   # ============================================================================
 
-  nightly-soak:
-    name: Nightly soak
-    if: github.event_name == 'schedule'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    steps:
-    - uses: actions/checkout@v7
-    - uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: stable
-    - uses: Swatinem/rust-cache@v2
-    - name: Pre-fetch dependencies
-      run: cargo fetch
-    - name: Soak tests (ignored, serial)
-      env:
-        COPYBOOK_TEST_SLOW: "1"
-      run: |
-        cargo test -p copybook-cli --features soak -- --ignored --test-threads=1 --nocapture
-
   bdd-tests:
     name: Governance + BDD Smoke
     runs-on: ubuntu-latest

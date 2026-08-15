@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/EffortlessMetrics/copybook-rs/schemas/external-input-manifest.json",
+  "title": "Copybook External Benchmark Input Manifest",
+  "description": "Offline metadata contract for deterministic external benchmark inputs; it does not assert performance thresholds or results.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "copybook",
+    "copybook_sha256",
+    "dataset",
+    "record_format",
+    "codepage",
+    "workload",
+    "record_length",
+    "record_count",
+    "dataset_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "copybook": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Safe relative path to the copybook from the manifest directory."
+    },
+    "copybook_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 of the exact UTF-8 copybook bytes passed to the parser; no newline or whitespace normalization is applied."
+    },
+    "dataset": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Safe relative path to the dataset from the manifest directory."
+    },
+    "record_format": {
+      "type": "string",
+      "enum": ["fixed", "rdw"]
+    },
+    "codepage": {
+      "type": "string",
+      "enum": ["ascii", "cp037", "cp273", "cp500", "cp1047", "cp1140"]
+    },
+    "workload": {
+      "type": "string",
+      "enum": ["display-heavy", "comp3-heavy", "mixed"]
+    },
+    "record_length": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Payload bytes in every record."
+    },
+    "record_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "dataset_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

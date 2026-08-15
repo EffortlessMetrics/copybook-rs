@@ -39,6 +39,11 @@
       "type": "string",
       "description": "CPU target flags used during compilation (e.g., native, generic)"
     },
+    "status": {
+      "type": "string",
+      "enum": ["measured", "pass", "fail", "warn", "success", "failure", "warning"],
+      "description": "Optional producer status. 'measured' means measurement completed without asserting policy. Legacy pass/fail/warn and success/failure/warning values remain schema-compatible; consumers must apply their own gate contract."
+    },
     "environment": {
       "type": "object",
       "required": [

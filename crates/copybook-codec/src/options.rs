@@ -339,6 +339,9 @@ impl JsonNumberMode {
 /// - `RecordRDW` — RDW header plus record payload in `raw_b64` and compatibility `__raw_b64`
 /// - `Field` — only per-field raw bytes in `<FIELD_NAME>_raw_b64`
 ///
+/// Whole-record capture also emits `raw_capture` with `record` or `record+rdw`
+/// so RDW replay does not infer framing from byte contents.
+///
 /// # Examples
 ///
 /// ```
@@ -453,6 +456,8 @@ impl DecodeOptions {
     /// - `RawMode::Record` — record payload in `raw_b64` and compatibility `__raw_b64`
     /// - `RawMode::RecordRDW` — RDW header plus payload in `raw_b64` and compatibility `__raw_b64`
     /// - `RawMode::Field` — only per-field raw values in `<FIELD>_raw_b64`
+    ///
+    /// Whole-record capture also emits matching `raw_capture` provenance.
     #[must_use]
     #[inline]
     pub fn with_emit_raw(mut self, emit_raw: RawMode) -> Self {

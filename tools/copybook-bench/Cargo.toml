@@ -41,9 +41,9 @@ num_cpus = { workspace = true }
 chrono = { workspace = true, features = ["serde", "std", "clock"] }
 serde = { workspace = true }
 anyhow.workspace = true
+tempfile.workspace = true
 
 [dev-dependencies]
-tempfile.workspace = true
 regex.workspace = true
 [lints]
 workspace = true

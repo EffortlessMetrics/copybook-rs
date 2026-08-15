@@ -1141,6 +1141,21 @@ mod tests {
     }
 
     #[test]
+    fn external_input_benchmark_target_is_explicitly_feature_gated() -> Result<()> {
+        let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let cargo_toml = fs::read_to_string(crate_root.join("Cargo.toml"))?;
+        ensure!(cargo_toml.contains("external-input = []"));
+        ensure!(cargo_toml.contains(
+            "name = \"external_input_decode\"\nharness = false\nrequired-features = [\"external-input\"]"
+        ));
+
+        let target = fs::read_to_string(crate_root.join("benches/external_input_decode.rs"))?;
+        ensure!(target.contains("COPYBOOK_EXTERNAL_INPUT_MANIFEST"));
+        ensure!(target.contains("must name one external-input manifest"));
+        Ok(())
+    }
+
+    #[test]
     fn external_input_benchmark_rejects_decode_invalid_payload() -> Result<()> {
         let (temp, manifest) = copy_fixture("fixed-ascii.json")?;
         let numeric_copybook = b"       01 RECORD PIC 9(5).\n";

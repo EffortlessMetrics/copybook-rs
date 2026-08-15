@@ -24,7 +24,7 @@ cargo bench -p copybook-bench --bench comp3
 cargo test -p copybook-bench --features perf
 
 COPYBOOK_EXTERNAL_INPUT_MANIFEST="$(pwd)/tools/copybook-bench/test_fixtures/external_input/fixed-ascii.json" \
-  cargo bench -p copybook-bench --bench external_input_decode
+  cargo bench -p copybook-bench --features external-input --bench external_input_decode
 
 cargo test -p copybook-bench --test baseline_reconciliation
 cargo test -p copybook-bench --test regression_detection
@@ -32,8 +32,10 @@ cargo test -p copybook-bench --test ci_integration
 ```
 
 The external-input target is an opt-in local measurement over one validated
-manifest. It reports payload-byte throughput and does not define a threshold,
-SLO, receipt, or scheduled performance claim.
+manifest. Both the `external-input` Cargo feature and the manifest environment
+variable are required, so ordinary benchmark suites do not launch it. It
+reports payload-byte throughput and does not define a threshold, SLO, receipt,
+or scheduled performance claim.
 
 ## Performance baseline
 

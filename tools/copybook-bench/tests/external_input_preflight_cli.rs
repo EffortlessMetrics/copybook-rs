@@ -116,10 +116,10 @@ fn shell_array_entries<'a>(text: &'a str, declaration: &str) -> Option<Vec<&'a s
 fn has_exact_workspace_manifest_binding(text: &str) -> bool {
     const EXPECTED: &str = "COPYBOOK_EXTERNAL_INPUT_MANIFEST=\"$GITHUB_WORKSPACE/$manifest\" \\";
     let mut bindings = text.lines().filter_map(|line| {
-        let trimmed = line.trim();
-        trimmed
+        let normalized = line.trim_start().trim_end_matches('\r');
+        normalized
             .starts_with("COPYBOOK_EXTERNAL_INPUT_MANIFEST=")
-            .then_some(trimmed)
+            .then_some(normalized)
     });
     bindings.next() == Some(EXPECTED) && bindings.next().is_none()
 }
@@ -512,11 +512,16 @@ fn workflow_contract_helpers_reject_extra_triggers_and_manifests() -> Result<()>
     ));
     for rejected in [
         String::new(),
+        "COPYBOOK_EXTERNAL_INPUT_MANIFES=\"$GITHUB_WORKSPACE/$manifest\" \\\n".to_string(),
+        "COPYBOOK_EXTERNAL_INPUT_MANIFEST=\"$GITHUB_WORKSPACE/$manifest\" \\   \n".to_string(),
         "COPYBOOK_EXTERNAL_INPUT_MANIFEST=\"$manifest\" \\\n".to_string(),
         "COPYBOOK_EXTERNAL_INPUT_MANIFEST=\"$GITHUB_WORKSPACE$manifest\" \\\n".to_string(),
         format!("{binding}{binding}"),
     ] {
         ensure!(!has_exact_workspace_manifest_binding(&rejected));
+        ensure!(!has_exact_workspace_manifest_binding(
+            &rejected.replace('\n', "\r\n")
+        ));
     }
     Ok(())
 }

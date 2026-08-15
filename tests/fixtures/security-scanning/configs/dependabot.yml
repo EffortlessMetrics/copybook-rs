@@ -16,8 +16,9 @@ updates:
       - "dependencies"
       - "rust"
     commit-message:
+      # No "include: scope": with a scoped prefix it produces
+      # "chore(deps)(deps): ..." titles, which commit-lint rejects.
       prefix: "chore(deps)"
-      include: "scope"
     groups:
       patch-updates:
         patterns:

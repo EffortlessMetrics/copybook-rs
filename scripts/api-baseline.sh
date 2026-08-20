@@ -122,6 +122,12 @@ require_cargo_semver_checks() {
     local required_floor
     required_floor="${REQUIRED_SEMVER_CHECKS_VERSION}"
 
+    if [[ ! "$installed_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+        print_error "Unable to determine a valid cargo-semver-checks version from: ${installed_version}"
+        print_compatibility_context
+        exit 1
+    fi
+
     if [[ "$(printf '%s\n%s\n' "$required_floor" "$installed_version" | sort -V | head -n1)" != "$required_floor" ]]; then
         print_error "cargo-semver-checks version ${installed_version} is older than required ${REQUIRED_SEMVER_CHECKS_VERSION}."
         print_info "Upgrade with: cargo install --locked cargo-semver-checks --version ${REQUIRED_SEMVER_CHECKS_VERSION}"
@@ -130,10 +136,41 @@ require_cargo_semver_checks() {
     fi
 }
 
+require_rustdoc_toolchain() {
+    local tool
+    for tool in rustc rustdoc; do
+        if ! command -v "$tool" &> /dev/null; then
+            print_error "${tool} is not installed."
+            print_compatibility_context
+            return 1
+        fi
+    done
+}
+
 preflight() {
+    local stable_packages
+    local workspace_packages
+    local exclude_args
+    local current_revision
+
     print_info "Checking API-freeze toolchain compatibility."
     print_compatibility_context
-    print_success "cargo-semver-checks ${REQUIRED_SEMVER_CHECKS_VERSION}+ is required for rustdoc JSON ${SUPPORTED_RUSTDOC_JSON_FORMAT}."
+    require_rustdoc_toolchain
+
+    stable_packages="$(load_stable_packages | sort)"
+    workspace_packages="$(load_workspace_packages | sort)"
+    validate_stable_workspace_alignment "$stable_packages" "$workspace_packages"
+    exclude_args="$(build_exclude_args "$workspace_packages" "$stable_packages")"
+    current_revision="$(cd "$PROJECT_ROOT" && git rev-parse HEAD)"
+
+    print_info "Probing cargo-semver-checks against current rustdoc JSON at ${current_revision}..."
+    if ! run_stable_semver_check "$current_revision" "$exclude_args"; then
+        print_error "cargo-semver-checks could not parse the active rustdoc JSON format"
+        print_compatibility_context
+        return 1
+    fi
+
+    print_success "cargo-semver-checks ${REQUIRED_SEMVER_CHECKS_VERSION}+ parsed rustdoc JSON ${SUPPORTED_RUSTDOC_JSON_FORMAT}."
 }
 
 load_stable_packages() {
@@ -216,7 +253,7 @@ build_exclude_args() {
     local stable_packages="$2"
     local -a workspace
     local -a stable
-    local -a excludes
+    local -a excludes=()
     local package
     local stable_package
 

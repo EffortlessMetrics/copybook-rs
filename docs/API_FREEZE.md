@@ -129,7 +129,7 @@ bash scripts/api-baseline.sh freeze-status
 # Install the first release that supports rustdoc JSON v60
 cargo install --locked cargo-semver-checks --version 0.49.0
 
-# Report Rust, rustdoc, and cargo-semver-checks compatibility context
+# Run hostile preflight tests and report Rust, rustdoc, and cargo-semver-checks compatibility context
 bash scripts/api-baseline.sh preflight
 
 # Check API compatibility via the repository script (stable-surface baseline)
@@ -139,10 +139,13 @@ bash scripts/api-baseline.sh check
 The API-freeze workflow uses Rust stable and pins `cargo-semver-checks` to
 `0.49.0`, the first release whose `trustfall_rustdoc` loader supports rustdoc
 JSON v60. Keep the workflow install, script version floor, and this procedure
-aligned. The preflight output records the active Rust/rustdoc versions, the
+aligned. The preflight runs the stable-surface semver probe against the current
+revision, so it exercises the active rustdoc JSON parser without writing
+baseline metadata. Its output records the active Rust/rustdoc versions, the
 expected rustdoc JSON format, and the installed semver-checks version; if a
 compatibility failure occurs, preserve that diagnostic instead of regenerating
-the baseline.
+the baseline. The workflow also runs hostile missing, old, malformed-version,
+and parser-failure tests for the preflight’s fail-closed behavior.
 
 ## How to Update Baseline
 

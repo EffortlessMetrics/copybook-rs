@@ -9,8 +9,9 @@ compliance. For architecture and claim boundaries, see the
 ## Before you start
 
 You need a repository checkout, GitHub Actions access, and (for local proof)
-Python 3 and Node.js. The workflow installs `cargo-deny`, `cargo-audit`, and
-`check-jsonschema` itself. Do not add a second security job to `ci.yml`; the
+Python 3, Node.js, and `check-jsonschema==0.38.0`. The workflow installs
+`cargo-deny`, `cargo-audit`, and that pinned `check-jsonschema` version itself.
+Do not add a second security job to `ci.yml`; the
 weekly workflow is owned by
 [`.github/workflows/security-scan.yml`](../../.github/workflows/security-scan.yml).
 
@@ -87,10 +88,16 @@ The classifier
 [`classify_security_audit.py`](../../scripts/ci/classify_security_audit.py)
 requires valid JSON and a consistent `vulnerabilities.list`:
 
-- `clean`: no findings and audit exit code `0`;
-- `findings`: one or more findings; lifecycle eligibility requires audit exit
-  code `1`; and
-- tool/error or inconsistent output: not eligible for lifecycle mutation.
+| Raw finding list | Audit exit | Classifier state | Eligible |
+| --- | ---: | --- | --- |
+| empty | `0` | `clean` | yes |
+| non-empty | `1` | `findings` | yes |
+| empty | non-zero | `clean` | no (tool error) |
+| non-empty | other than `1` | `findings` | no (tool error) |
+
+The classifier state is separate from the v2 receipt state: the receipt
+normalizes an empty non-zero report to `tool_error`. Malformed or inconsistent
+JSON fails classification.
 
 The workflow uploads `cargo-audit-raw-{workflow-run-id}` with 90-day retention,
 then generates, semantically validates, schema-validates, and uploads
@@ -125,16 +132,19 @@ ID, commit SHA, artifact names, and commands in any evidence note. A checkout
 or platform conversion that changes line endings changes the raw-byte hash;
 use bytes downloaded from the workflow for this check.
 
-The receipt's `receipt_id` is a deterministic identity for schema version,
-explicit scan identity, and scanner tuple. It is not a signature or a digest
-of findings. The lifecycle fingerprint is independent and uses sorted
-advisory/package/version identities.
+The receipt's `receipt_id` is `sha256:` plus the SHA-256 of canonical compact
+JSON containing the schema version, identity object, and scanner object with
+sorted keys. It is not a signature or a digest of findings. The receipt's
+`identity.raw_audit_sha256` is computed from the exact raw bytes consumed by
+the generator, without line-ending normalization. The lifecycle fingerprint
+is independent and uses sorted advisory/package/version identities.
 
 ## Lifecycle dry-run and mutation
 
 Lifecycle execution is gated on successful raw upload, receipt generation,
 semantic validation, schema validation, normalized upload, and eligible
-classification. The adapter then:
+classification. Both an eligible clean scan and an eligible findings scan can
+reach planning. The adapter then:
 
 1. lists only `security`-labeled issues;
 2. fetches all issue/comment pages (100 items per page);
@@ -143,11 +153,13 @@ classification. The adapter then:
 5. asks the pure planner for `create`, `adopt`, `update`, `no-op`, `close`, or
    `reopen`.
 
-Manual dry runs perform discovery and planning but zero writes. Live execution
-writes only the closed plan action and an optional findings comment. The
-adapter fails closed when the scan is not eligible or the snapshot/markers are
-malformed. A roll-up issue records operational state; it does not prove
-remediation or compliance.
+Manual dry runs perform discovery and planning but zero writes. A clean scan
+can produce a `no-op` plan or a `close` plan for an existing open roll-up,
+without a findings comment. Findings can produce the other closed actions.
+Live execution writes only the closed plan action and an optional findings
+comment. The adapter fails closed when the scan is not eligible or the
+snapshot/markers are malformed. A roll-up issue records operational state; it
+does not prove remediation or compliance.
 
 ## Troubleshooting
 
@@ -172,11 +184,12 @@ Receipt publication failure prevents lifecycle mutation.
 
 ### Lifecycle does not run
 
-This is expected for a clean scan, an ineligible tool/error state, or any run
-where raw/normalized evidence gates did not succeed. For a manual run, verify
-that `dry_run` was explicitly set to `false` before expecting writes. Inspect
-classifier outputs and the lifecycle step rather than inferring issue state
-from a receipt.
+This is expected for an ineligible tool/error state or any run where
+raw/normalized evidence gates did not succeed. An eligible clean scan can still
+reach lifecycle planning and produce a no-op or close plan. For a manual run,
+verify that `dry_run` was explicitly set to `false` before expecting writes;
+dry-run planning performs zero writes. Inspect classifier outputs and the
+lifecycle step rather than inferring issue state from a receipt.
 
 ## V1 and V2 transition
 

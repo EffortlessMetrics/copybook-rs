@@ -21,7 +21,7 @@ closed, schema-valid representation of the same scan. The issue lifecycle is a
 separate operational projection and does not replace either artifact.
 
 ```text
-checkout (credentials removed)
+checkout (credentials not persisted)
   -> advisory-db-v2 preparation -> cargo-deny check
   -> advisory-db-v2 preparation -> cargo audit -q --json
        |-> classify state and eligibility
@@ -29,12 +29,15 @@ checkout (credentials removed)
        |-> generate receipt v2 from exact raw bytes
            -> semantic validation -> JSON Schema validation
            -> upload security-receipt-v2-{run_id}
-                |-> eligible findings: plan/execute issue lifecycle
+                 |-> eligible clean/findings: plan/execute issue lifecycle
 ```
 
-The final enforcement step runs with `if: always()` and reports policy,
-scanner, classification, artifact-upload, receipt-publication, and eligible
-lifecycle failures even when an earlier step fails.
+The final enforcement step runs with `if: always()`. It invokes
+`classify_security_audit.py enforce` and then checks artifact publication and
+eligible lifecycle outcomes. The shell is fail-fast: if the enforcement
+command itself fails, later checks in that step are not reached. This is a
+visibility gate, not a combined diagnostic accumulator; the workflow's earlier
+steps retain their individual outcomes.
 
 ## Triggers and permissions
 
@@ -47,9 +50,11 @@ lifecycle failures even when an earlier step fails.
   in-progress run.
 
 The workflow requests `contents: read` and `issues: write`. Checkout sets
-`persist-credentials: false`; the checkout token is not retained in local Git
-configuration. Issue-write permission is used only by the live lifecycle
-adapter.
+`persist-credentials: false`, so checkout credentials are not persisted in
+local Git configuration. Manual dry runs still receive the workflow's
+`GITHUB_TOKEN` and declared `issues: write` permission; dry-run behavior is
+implemented by suppressing adapter write requests, not by reducing token
+permissions. Issue writes are used only by the live lifecycle adapter.
 
 ## Advisory database preparation
 
@@ -73,13 +78,19 @@ failure are not treated as the same state.
 
 [`classify_security_audit.py`](../../scripts/ci/classify_security_audit.py)
 requires valid JSON with `vulnerabilities.list` and checks any declared count
-against that list. It emits:
+against that list. Its classifier state and eligibility are separate outputs:
 
-- `clean` when the list is empty and audit exits `0`;
-- `findings` when the list is non-empty; lifecycle eligibility requires audit
-  exit `1`; or
-- a non-eligible tool/error condition when the report or exit status is
-  inconsistent.
+| Raw finding list | Audit exit | Classifier state | Eligible for lifecycle |
+| --- | ---: | --- | --- |
+| empty | `0` | `clean` | yes |
+| non-empty | `1` | `findings` | yes |
+| empty | any non-zero | `clean` | no (tool error) |
+| non-empty | any other than `1` | `findings` | no (tool error) |
+
+The classifier's `clean`/`findings` state is not the same field as the v2
+receipt's outcome state. The receipt uses `clean`, `findings`, or `tool_error`
+after combining the raw list with the recorded exit code. Malformed or
+inconsistent raw JSON causes classification itself to fail.
 
 For findings, the lifecycle fingerprint is a SHA-256 digest of sorted
 `(advisory.id, package.name, package.version)` tuples. It is independent from
@@ -105,7 +116,11 @@ After raw upload, the workflow:
 The receipt contains `schema_version: "2.0"`, a deterministic `receipt_id`,
 explicit commit/scan/run identity, `identity.raw_audit_sha256`, scanner
 name/version/exit code, outcome state (`clean`, `findings`, or `tool_error`),
-severity counts including `unknown`, and normalized findings. The generator
+severity counts including `unknown`, and normalized findings. `receipt_id` is
+`sha256:` followed by the SHA-256 of canonical JSON containing exactly the
+schema version, identity object, and scanner object (sorted keys and compact
+JSON). `identity.raw_audit_sha256` hashes the exact raw input bytes consumed by
+the generator; no line-ending normalization is performed. The generator
 rejects malformed reports, inconsistent counts, unsupported values, and output
 paths that alias the raw input.
 
@@ -124,9 +139,11 @@ certification or a regulatory determination.
 The adapter
 [`security_issue_lifecycle_adapter.mjs`](../../scripts/ci/security_issue_lifecycle_adapter.mjs)
 runs only after raw upload, normalized generation, both validations, and
-normalized upload succeed, and only for eligible findings. It receives the raw
-artifact name and independent findings fingerprint; it does not use
-`receipt_id` as a finding identity.
+normalized upload succeed, and only when classifier eligibility is true. It
+receives the classifier state, the raw artifact name, and (for findings) an
+independent findings fingerprint; it does not use `receipt_id` as a finding
+identity. An eligible clean scan reaches the planner with `state: clean` and
+can produce a no-op or close plan without a findings comment.
 
 The adapter discovers only `security`-labeled issues, paginates issues and
 comments in pages of 100, rejects duplicate IDs, and trusts findings markers

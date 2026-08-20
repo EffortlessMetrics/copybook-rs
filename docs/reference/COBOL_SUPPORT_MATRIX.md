@@ -32,6 +32,14 @@
 
 ## Structural Features
 
+REDEFINES decode views have an explicit order contract: scalar-target group
+children are flattened at the group's declaration position, the named group
+view is retained after the enclosing sibling scan, scalar REDEFINES remain in
+declaration order, and group-over-group REDEFINES retain their skip behavior.
+The standard and scratch-buffer codec paths share this contract; see
+`comprehensive_redefines_odo_tests.rs::test_redefines_declaration_order` and
+`comprehensive_redefines_odo_tests.rs::test_redefines_order_contract_covers_scalar_cluster_and_group_skip`.
+
 | Feature | Status | Test Evidence | Notes |
 |---------|--------|---------------|-------|
 | ODO (`occurs-depending`) | ✅ Fully Supported | `odo_comprehensive.rs::test_valid_odo_configuration`, `odo_comprehensive.rs::test_odo_payload_length_correctness`, `odo_counter_types.rs::test_odo_zoned_counter`, `structural_evidence_matrix.rs::odo_variable_length_decodes_through_rdw` | Driver validation, tail constraints, payload length, clipping/raising; RDW variable-length records shorter than the schema maximum |

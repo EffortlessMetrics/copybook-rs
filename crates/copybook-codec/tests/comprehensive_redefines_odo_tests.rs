@@ -61,6 +61,28 @@ fn record_len_from_schema(schema: &Schema) -> usize {
         })
 }
 
+fn field_keys(value: &Value) -> Vec<String> {
+    value
+        .get("fields")
+        .and_then(Value::as_object)
+        .unwrap()
+        .keys()
+        .cloned()
+        .collect()
+}
+
+fn decode_plain_and_scratch(
+    schema: &Schema,
+    data: &[u8],
+    options: &DecodeOptions,
+) -> (Value, Value) {
+    let plain = copybook_codec::decode_record(schema, data, options).unwrap();
+    let mut scratch = copybook_codec::runtime::ScratchBuffers::new();
+    let with_scratch =
+        copybook_codec::decode_record_with_scratch(schema, data, options, &mut scratch).unwrap();
+    (plain, with_scratch)
+}
+
 #[test]
 fn test_redefines_shorter_equal_longer_overlays() {
     // Test REDEFINES with different lengths: shorter, equal, longer
@@ -620,8 +642,7 @@ fn test_redefines_declaration_order() {
     test_data[..8].copy_from_slice(b"12345678");
     schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
 
-    // Use decode_record to avoid JSON string round-trip that might reorder keys
-    let json_record = copybook_codec::decode_record(&schema, &test_data, &options).unwrap();
+    let (json_record, scratch_record) = decode_plain_and_scratch(&schema, &test_data, &options);
 
     let fields = json_record
         .get("fields")
@@ -640,19 +661,84 @@ fn test_redefines_declaration_order() {
     assert!(first_redefine.get("PART-A").is_some());
     assert!(first_redefine.get("PART-B").is_some());
 
-    // JSON object should maintain insertion order (declaration order)
-    let keys: Vec<&str> = fields.keys().map(std::string::String::as_str).collect();
-    let expected_order = vec![
+    // A scalar-target group emits its children at the group's declaration
+    // position. Its named group view is retained after all enclosing siblings.
+    // This is the intentional PR #593 contract, not an incidental map order.
+    let expected_order = [
         "ORIGINAL",
         "THIRD-REDEFINE",
-        "FIRST-REDEFINE",
+        "PART-A",
+        "PART-B",
         "SECOND-REDEFINE",
+        "FIRST-REDEFINE",
     ];
+    assert_eq!(
+        fields.keys().map(String::as_str).collect::<Vec<_>>(),
+        expected_order,
+    );
+    assert_eq!(
+        first_redefine
+            .keys()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        ["PART-A", "PART-B"],
+    );
+    assert_eq!(
+        field_keys(&scratch_record),
+        expected_order
+            .iter()
+            .map(|key| (*key).to_owned())
+            .collect::<Vec<_>>(),
+        "scratch-buffer decode must preserve the REDEFINES view order",
+    );
+    assert_eq!(json_record, scratch_record);
+}
 
-    for (i, expected_key) in expected_order.iter().enumerate() {
-        assert!(
-            keys.iter().position(|&k| k == *expected_key).unwrap() == i,
-            "Field {expected_key} not in expected position. Actual order: {keys:?}, Expected: {expected_order:?}",
-        );
-    }
+#[test]
+fn test_redefines_order_contract_covers_scalar_cluster_and_group_skip() {
+    let copybook = r#"
+01 ORDER-BOUNDARIES.
+   05 ORIGINAL PIC X(4).
+   05 FIRST-SCALAR REDEFINES ORIGINAL PIC X(4).
+   05 SECOND-SCALAR REDEFINES ORIGINAL PIC 9(4).
+   05 AFTER-SCALAR PIC X(2).
+   05 ORIGINAL-GROUP.
+      10 GROUP-A PIC X(2).
+      10 GROUP-B PIC X(2).
+   05 GROUP-REDEFINE REDEFINES ORIGINAL-GROUP.
+      10 ALTERNATE PIC X(4).
+   05 AFTER-GROUP PIC X(2).
+"#;
+
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = create_test_decode_options(false);
+    let record_len = record_len_from_schema(&schema).max(14);
+    let test_data = vec![b'0'; record_len];
+    schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, &test_data, &options);
+    let expected_order = [
+        "ORIGINAL",
+        "FIRST-SCALAR",
+        "SECOND-SCALAR",
+        "AFTER-SCALAR",
+        "ORIGINAL-GROUP",
+        "AFTER-GROUP",
+    ];
+    assert_eq!(
+        field_keys(&plain),
+        expected_order
+            .iter()
+            .map(|key| (*key).to_owned())
+            .collect::<Vec<_>>(),
+    );
+    assert_eq!(plain, with_scratch);
+    assert!(
+        plain
+            .get("fields")
+            .and_then(Value::as_object)
+            .unwrap()
+            .get("GROUP-REDEFINE")
+            .is_none()
+    );
 }

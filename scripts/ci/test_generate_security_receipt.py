@@ -71,6 +71,17 @@ class SecurityReceiptV2Tests(unittest.TestCase):
                 self.assertEqual(generate_case(case), generated)
                 validate_receipt(generated)
 
+    def test_every_published_fixture_binds_to_exact_raw_fixture_bytes(self) -> None:
+        for case in CASES:
+            name = case[0]
+            with self.subTest(case=name):
+                raw_bytes = (RAW_ROOT / f"{name}.json").read_bytes()
+                receipt = generate_case(case)
+                self.assertEqual(
+                    receipt["identity"]["raw_audit_sha256"],
+                    hashlib.sha256(raw_bytes).hexdigest(),
+                )
+
     def test_digest_and_findings_bind_the_same_single_read(self) -> None:
         findings_bytes = (RAW_ROOT / "findings.json").read_bytes()
         clean_bytes = (RAW_ROOT / "clean.json").read_bytes()

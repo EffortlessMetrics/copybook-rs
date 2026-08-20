@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://copybook-rs.effortlessmetrics.com/schemas/security-receipt-v2.0.json",
   "title": "copybook-rs Normalized Security Evidence v2",
-  "description": "Closed shape contract for deterministic normalized cargo-audit evidence. JSON Schema validation alone does not prove aggregate parity; consumers must also run validate_receipt or an equivalent semantic validator. This is not a security certification or regulatory-compliance determination.",
+  "description": "Closed shape contract for deterministic normalized cargo-audit evidence. The weekly workflow publishes security-receipt-v2-{workflow-run-id} alongside cargo-audit-raw-{workflow-run-id}; the normalized document is generated from and linked to the exact raw bytes, semantically validated, schema-validated, and retained for 90 days before upload. JSON Schema validation alone does not prove aggregate parity; consumers must also run validate_receipt or an equivalent semantic validator. This is not a security certification or regulatory-compliance determination.",
   "type": "object",
   "required": [
     "schema_version",

@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Remove an unusable cargo-audit advisory database before audit initializes it."""
+"""Remove an unusable cargo-audit advisory database before audit initializes it.
+
+The command intentionally has no path override: production cleanup is limited
+to ``$CARGO_HOME/advisory-db``, cargo-audit's own database location. The
+``remove_if_unusable`` helper accepts a path only so fixture tests can exercise
+the cleanup behavior without touching a real cargo home.
+"""
 
 from __future__ import annotations
 
@@ -59,14 +65,14 @@ def default_advisory_db() -> Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--path", type=Path, default=default_advisory_db())
-    args = parser.parse_args()
+    parser.parse_args()
+    path = default_advisory_db()
 
-    removed = remove_if_unusable(args.path)
+    removed = remove_if_unusable(path)
     if removed:
-        print(f"Removed unusable cargo-audit advisory database: {args.path}")
+        print(f"Removed unusable cargo-audit advisory database: {path}")
     else:
-        print(f"Cargo-audit advisory database is reusable or absent: {args.path}")
+        print(f"Cargo-audit advisory database is reusable or absent: {path}")
     return 0
 
 

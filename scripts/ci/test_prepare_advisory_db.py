@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -40,6 +42,48 @@ class PrepareAdvisoryDbTests(unittest.TestCase):
 
             self.assertTrue(remove_if_unusable(path))
             self.assertFalse(path.exists())
+
+    def test_symlink_is_removed_without_touching_target(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "outside"
+            target.mkdir()
+            (target / "sentinel").write_text("keep", encoding="utf-8")
+            link = root / "advisory-db"
+            try:
+                os.symlink(target, link, target_is_directory=True)
+            except (OSError, NotImplementedError) as error:
+                self.skipTest(f"symlink fixtures unavailable: {error}")
+
+            self.assertTrue(remove_if_unusable(link))
+            self.assertFalse(link.exists())
+            self.assertEqual((target / "sentinel").read_text(encoding="utf-8"), "keep")
+
+    def test_cli_has_no_arbitrary_path_override(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            result = subprocess.run(
+                [sys.executable, str(Path(__file__).with_name("prepare_advisory_db.py")), "--path", temporary],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+
+    def test_cli_only_uses_cargo_home_advisory_db(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            cargo_home = Path(temporary) / "cargo"
+            unrelated = Path(temporary) / "unrelated" / "advisory-db"
+            unrelated.mkdir(parents=True)
+            (unrelated / "sentinel").write_text("keep", encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(Path(__file__).with_name("prepare_advisory_db.py"))],
+                check=False,
+                capture_output=True,
+                text=True,
+                env={**os.environ, "CARGO_HOME": str(cargo_home)},
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((unrelated / "sentinel").exists())
 
     def test_valid_committed_checkout_is_reused(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

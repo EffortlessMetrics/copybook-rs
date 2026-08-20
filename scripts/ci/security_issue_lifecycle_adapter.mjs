@@ -28,7 +28,8 @@ function hasSecurityLabel(issue) {
 function issueSnapshot(issue, commentPages) {
   if (issue === null || typeof issue !== "object" || Array.isArray(issue)) throw new TypeError("issue must be an object");
   const number = requirePositiveInteger(issue.number, "issue.number");
-  if (typeof issue.title !== "string" || typeof issue.body !== "string") throw new TypeError("issue title and body must be strings");
+  const body = issue.body === null ? "" : issue.body;
+  if (typeof issue.title !== "string" || typeof body !== "string") throw new TypeError("issue title and body must be strings or a null body");
   if (issue.state !== "open" && issue.state !== "closed") throw new TypeError("issue.state must be open or closed");
   const normalizedComments = commentPages.map((page, pageIndex) => requireArray(page, `comment page ${pageIndex}`).map((comment) => {
     if (comment === null || typeof comment !== "object" || Array.isArray(comment)) throw new TypeError("comment must be an object");
@@ -38,7 +39,7 @@ function issueSnapshot(issue, commentPages) {
       body: comment.body,
     };
   }));
-  return { number, title: issue.title, body: issue.body, state: issue.state, commentPages: normalizedComments };
+  return { number, title: issue.title, body, state: issue.state, commentPages: normalizedComments };
 }
 
 async function allPages(fetchPage, label) {
@@ -161,14 +162,16 @@ function booleanInput(value) {
 async function main() {
   const args = new Map();
   for (let index = 2; index < process.argv.length; index += 2) args.set(process.argv[index], process.argv[index + 1]);
-  const scan = {
-    state: args.get("--state"),
-    eligible: args.get("--eligible") === "true",
-    findingCount: Number(args.get("--finding-count")),
-    findingsFingerprint: args.get("--findings-fingerprint"),
-    artifactName: args.get("--artifact-name"),
-  };
-  if (scan.state === "clean") delete scan.findingCount;
+  const state = args.get("--state");
+  const scan = state === "clean"
+    ? { state }
+    : {
+        state,
+        findingCount: Number(args.get("--finding-count")),
+        findingsFingerprint: args.get("--findings-fingerprint"),
+        artifactName: args.get("--artifact-name"),
+      };
+  scan.eligible = args.get("--eligible") === "true";
   const client = createGitHubClient({ token: process.env.GITHUB_TOKEN, owner: process.env.GITHUB_REPOSITORY?.split("/")[0], repo: process.env.GITHUB_REPOSITORY?.split("/")[1] });
   const result = await runLifecycle({ client, scan, dryRun: booleanInput(args.get("--dry-run")) });
   console.log(JSON.stringify(result));

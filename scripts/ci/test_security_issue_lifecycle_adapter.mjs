@@ -89,6 +89,29 @@ test("dry-run plans but performs zero writes", async () => {
   assert.equal(client.calls.filter((call) => call[0].endsWith("Issue") || call[0] === "createComment").length, 0);
 });
 
+test("clean scans close open roll-ups and no-op closed roll-ups", async () => {
+  const open = fixture.markedAcrossPages.issuePages[1][0];
+  const openClient = fakeClient([[rawIssue(open)]], new Map([[open.number, [rawComments(open)]]]));
+  const closed = fixture.closedMarked.issuePages[0][0];
+  const closedClient = fakeClient([[rawIssue(closed)]], new Map([[closed.number, [rawComments(closed)]]]));
+  const close = await runLifecycle({ client: openClient, scan: { state: "clean", eligible: true }, dryRun: true });
+  const noOp = await runLifecycle({ client: closedClient, scan: { state: "clean", eligible: true }, dryRun: true });
+  assert.equal(close.plan.action, "close");
+  assert.equal(noOp.plan.action, "no-op");
+  assert.equal(close.execution.writes, 0);
+  assert.equal(noOp.execution.writes, 0);
+});
+
+test("normalizes null issue bodies but rejects other malformed bodies", async () => {
+  const legacy = fixture.legacy.issuePages[0][0];
+  const nullBody = rawIssue({ ...legacy, body: null });
+  const client = fakeClient([[nullBody]], new Map([[legacy.number, [[]]]]));
+  const snapshot = await discoverSnapshot(client);
+  assert.equal(snapshot.issuePages[0][0].body, "");
+  const malformed = fakeClient([[rawIssue({ ...legacy, body: 7 })]], new Map([[legacy.number, [[]]]]));
+  await assert.rejects(() => discoverSnapshot(malformed), /body must be strings/u);
+});
+
 test("rejects duplicate identities and API failures before any write", async () => {
   const source = fixture.closedMarked.issuePages[0][0];
   const duplicate = rawIssue(source);

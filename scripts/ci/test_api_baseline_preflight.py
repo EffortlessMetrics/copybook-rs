@@ -85,7 +85,11 @@ exit 99
                 self.write_tool(temp_path / "cargo-semver-checks", tool)
 
             env = os.environ.copy()
-            env["PATH"] = f"{temp}{os.pathsep}{env.get('PATH', '')}"
+            # Keep the fixture toolchain isolated from runner-global binaries.
+            # In particular, hosted runners install cargo-semver-checks in
+            # $CARGO_HOME/bin; retaining the ambient PATH would make the
+            # missing-tool negative control pass through the real tool.
+            env["PATH"] = f"{temp}{os.pathsep}{os.defpath}"
             env["HOME"] = temp
             return subprocess.run(
                 [self.bash, "scripts/api-baseline.sh", "preflight"],

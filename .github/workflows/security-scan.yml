@@ -42,13 +42,24 @@ jobs:
       - name: Cache cargo dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: advisory-db
+          # v2 avoids restoring the legacy cache that could contain a
+          # partially initialized advisory database.
+          shared-key: advisory-db-v2
+          cache-directories: ~/.cargo/advisory-db
 
       - name: Install cargo-deny
         run: cargo install cargo-deny@0.19.0 --locked
 
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
+
+      - name: Prepare and refresh cargo-audit advisory database
+        id: advisory_db
+        if: always()
+        continue-on-error: true
+        run: |
+          python3 scripts/ci/prepare_advisory_db.py
+          cargo audit fetch --force
 
       - name: Run cargo deny check
         id: deny
@@ -63,7 +74,7 @@ jobs:
 
       - name: Run cargo audit
         id: audit
-        if: always()
+        if: always() && steps.advisory_db.outcome == 'success'
         # cargo audit exits 1 on warnings (e.g. unmaintained crates) AND
         # vulnerabilities. Capture JSON regardless; continue-on-error lets
         # the issue step below report actual vulnerabilities.

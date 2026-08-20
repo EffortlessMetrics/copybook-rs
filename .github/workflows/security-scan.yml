@@ -8,6 +8,20 @@ on:
   schedule:
     - cron: "0 9 * * 1"   # Mondays 09:00 UTC
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Discover and plan without mutating GitHub issues/comments"
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: security-weekly-lifecycle
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -17,10 +31,6 @@ jobs:
     name: Weekly Security Audit
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: read
-      issues: write  # For automated issue creation
-
     steps:
       - uses: actions/checkout@v7
         with:
@@ -32,13 +42,22 @@ jobs:
       - name: Cache cargo dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: advisory-db
+          # v2 avoids restoring the legacy cache that could contain a
+          # partially initialized advisory database.
+          shared-key: advisory-db-v2
+          cache-directories: ~/.cargo/advisory-db
 
       - name: Install cargo-deny
         run: cargo install cargo-deny@0.19.0 --locked
 
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
+
+      - name: Prepare cargo-audit advisory database before cargo-deny
+        id: advisory_db_before_deny
+        if: always()
+        continue-on-error: true
+        run: python3 scripts/ci/prepare_advisory_db.py
 
       - name: Run cargo deny check
         id: deny
@@ -51,10 +70,17 @@ jobs:
           echo "exit_status=${deny_status}" >> "$GITHUB_OUTPUT"
           exit "${deny_status}"
 
+      - name: Prepare cargo-audit advisory database
+        id: advisory_db
+        if: always()
+        continue-on-error: true
+        run: python3 scripts/ci/prepare_advisory_db.py
+
       - name: Run cargo audit
         id: audit
-        if: always()
-        # cargo audit exits 1 on warnings (e.g. unmaintained crates) AND
+        if: always() && steps.advisory_db.outcome == 'success'
+        # cargo audit owns advisory-db fetching when --no-fetch is absent.
+        # It exits 1 on warnings (e.g. unmaintained crates) AND
         # vulnerabilities. Capture JSON regardless; continue-on-error lets
         # the issue step below report actual vulnerabilities.
         continue-on-error: true
@@ -74,38 +100,91 @@ jobs:
           python3 scripts/ci/classify_security_audit.py \
             classify \
             target/security.audit.json \
+            --audit-exit-status "${{ steps.audit.outputs.exit_status }}" \
             --github-output "$GITHUB_OUTPUT"
 
-      - name: Open/update roll-up issue on findings
-        if: steps.classify.outcome == 'success' && steps.classify.outputs.decision == 'create_or_update'
-        uses: actions/github-script@v9
-        env:
-          FINDING_COUNT: ${{ steps.classify.outputs.finding_count }}
-        with:
-          script: |
-            const title = "Weekly Security Audit Findings";
-            const { data: issues } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner, repo: context.repo.repo, state: "open", labels: "security"
-            });
-            const body = `${process.env.FINDING_COUNT} vulnerabilities detected. ` +
-              `See raw cargo-audit artifact \`cargo-audit-raw-${context.runId}\`.`;
-            const existing = issues.find(i => i.title === title);
-            if (existing) {
-              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body });
-            } else {
-              await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ["security","infrastructure"] });
-            }
-
       - name: Upload raw cargo-audit output
+        id: upload
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: cargo-audit-raw-${{ github.run_id }}
           path: target/security.audit.json
           retention-days: 90
-          if-no-files-found: warn
+          if-no-files-found: error
 
-      - name: Enforce audit and classification outcome
+      - name: Install JSON Schema validator
+        id: schema_validator
+        if: steps.upload.outcome == 'success'
+        run: |
+          set -euo pipefail
+          # PyPI provenance: https://pypi.org/project/check-jsonschema/0.38.0/
+          python3 -m pip install --disable-pip-version-check --user \
+            'check-jsonschema==0.38.0'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Generate normalized security receipt v2
+        id: receipt_generate
+        if: steps.schema_validator.outcome == 'success'
+        env:
+          AUDIT_EXIT_STATUS: ${{ steps.audit.outputs.exit_status }}
+        run: |
+          set -euo pipefail
+          test -f target/security.audit.json
+          cargo_audit_version="$(cargo audit --version | awk '{print $2}')"
+          test -n "${cargo_audit_version}"
+          python3 scripts/ci/generate_security_receipt.py generate \
+            target/security.audit.json \
+            --commit-sha "${{ github.sha }}" \
+            --scan-type weekly-scan \
+            --workflow-run-id "${{ github.run_id }}" \
+            --cargo-audit-version "${cargo_audit_version}" \
+            --audit-exit-code "${AUDIT_EXIT_STATUS}" \
+            --output target/security-receipt-v2.json
+
+      - name: Validate normalized security receipt semantics
+        id: receipt_semantic
+        if: steps.receipt_generate.outcome == 'success'
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/generate_security_receipt.py validate \
+            target/security-receipt-v2.json
+
+      - name: Validate normalized security receipt schema
+        id: receipt_schema
+        if: steps.receipt_semantic.outcome == 'success'
+        run: |
+          set -euo pipefail
+          check-jsonschema \
+            --schemafile docs/reference/security-receipt-schema-v2.json \
+            target/security-receipt-v2.json
+
+      - name: Upload normalized security receipt v2
+        id: upload_receipt
+        if: steps.receipt_schema.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: security-receipt-v2-${{ github.run_id }}
+          path: target/security-receipt-v2.json
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Plan and optionally execute roll-up lifecycle
+        id: lifecycle
+        if: steps.upload_receipt.outcome == 'success' && steps.upload.outcome == 'success' && steps.classify.outcome == 'success' && steps.classify.outputs.eligible == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          node scripts/ci/security_issue_lifecycle_adapter.mjs \
+            --state "${{ steps.classify.outputs.state }}" \
+            --finding-count "${{ steps.classify.outputs.finding_count }}" \
+            --findings-fingerprint "${{ steps.classify.outputs.findings_fingerprint }}" \
+            --artifact-name "cargo-audit-raw-${{ github.run_id }}" \
+            --eligible "${{ steps.classify.outputs.eligible }}" \
+            --dry-run "${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}"
+
+      - name: Enforce audit and lifecycle outcome
         if: always()
         run: |
           python3 scripts/ci/classify_security_audit.py enforce \
@@ -113,3 +192,15 @@ jobs:
             --audit-exit-status "${{ steps.audit.outputs.exit_status }}" \
             --classification-outcome "${{ steps.classify.outcome }}" \
             --decision "${{ steps.classify.outputs.decision }}"
+          if [ "${{ steps.upload.outcome }}" != "success" ]; then
+            echo "raw audit artifact upload failed"
+            exit 1
+          fi
+          if [ "${{ steps.upload_receipt.outcome }}" != "success" ]; then
+            echo "normalized security receipt v2 publication failed"
+            exit 1
+          fi
+          if [ "${{ steps.classify.outputs.eligible }}" = "true" ] && [ "${{ steps.lifecycle.outcome }}" != "success" ]; then
+            echo "eligible lifecycle did not complete"
+            exit 1
+          fi

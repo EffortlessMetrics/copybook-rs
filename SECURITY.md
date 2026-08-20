@@ -123,7 +123,9 @@ copybook-rs implements multiple layers of security controls to ensure safe opera
 
 ### Testing & Validation
 
-- **Comprehensive Test Suite**: 1550+ tests passing (68 skipped/ignored)
+- **Automated Test Suite**: Unit, integration, property, determinism, and
+  scheduled fuzzing lanes provide evidence for their executed scopes; counts
+  are intentionally not a security or coverage claim.
 - **Golden Fixtures**: SHA-256 verification of test outputs with structural validation
 - **Determinism Validation**: Byte-identical results across runs and worker configurations
 - **Error Taxonomy**: Stable error codes (CBKP*, CBKS*, CBKD*, CBKE*, CBKR*) for predictable error handling
@@ -148,11 +150,16 @@ See [.github/workflows/security-scan.yml](.github/workflows/security-scan.yml) f
 - **Bounded Memory**: Streaming I/O architecture with <256 MiB steady-state for multi-GB files
 - **Input Validation**: Comprehensive COBOL parsing with error recovery and bounds checking
 - **Data Isolation**: Field projection (`--select`) for selective data processing and minimization
-- **Audit Support**: Optional compliance framework (SOX, HIPAA, GDPR, PCI DSS) via feature flags (experimental)
+- **Audit Support**: Experimental audit telemetry exists behind feature flags;
+  it is not a compliance framework or attestation.
 
 ## Security Scanning Infrastructure
 
-copybook-rs implements comprehensive dependency and security scanning to protect enterprise mainframe data processing systems.
+The canonical implementation is
+[`.github/workflows/security-scan.yml`](.github/workflows/security-scan.yml).
+It produces engineering evidence for the configured scan; it is not a
+regulatory certification, compliance attestation, or proof that vulnerabilities
+are absent beyond the executed scanner scope.
 
 ### Automated Security Scanning
 
@@ -164,15 +171,41 @@ copybook-rs implements comprehensive dependency and security scanning to protect
 
 **Weekly Proactive Scanning**:
 - Scheduled Monday 09:00 UTC via `.github/workflows/security-scan.yml`
-- Automatic GitHub issue creation/update on vulnerability detection
-- Manual trigger available via GitHub Actions workflow_dispatch
+- Scheduled runs are configured to pass `dry-run=false` to the marker-based
+  lifecycle adapter. A scheduled live-mutation witness is **NOT_PROVEN** here:
+  no claim that a scheduled run created, updated, closed, or reopened an issue
+  may be inferred from this policy document or from a manual dry run.
+- Manual `workflow_dispatch` defaults to `dry_run=true` and performs discovery
+  and planning with zero issue/comment writes. A manual run with
+  `dry_run=false` is the explicit opt-in for live writes.
+- The workflow requests `contents: read` and `issues: write`; checkout uses
+  `persist-credentials: false`. Dry-run suppresses adapter write requests but
+  does not reduce the declared token permissions.
 - Raw `cargo audit --json` output uploaded as an artifact with 90-day retention
-- Marker-based pagination, duplicate suppression, and close-on-clean behavior
-  for the findings issue are not wired into the live workflow. A deterministic
-  offline planner and its snapshot tests are tracked in
-  [#803](https://github.com/EffortlessMetrics/copybook-rs/issues/803); live API
-  mutation remains separate lifecycle work under
-  [#763](https://github.com/EffortlessMetrics/copybook-rs/issues/763).
+- A normalized v2 receipt is uploaded alongside the raw artifact as
+  `security-receipt-v2-<workflow-run-id>` with 90-day retention. It is generated
+  from the exact raw bytes, semantically validated, and JSON-Schema validated
+  before upload; lifecycle mutation is gated on successful publication.
+- Lifecycle eligibility is fail-closed. An empty report with audit exit `0` is
+  classifier state `clean` and eligible for a planner `no-op` or `close`; a
+  non-empty report with exit `1` is eligible `findings`. An empty report with
+  any other exit is ineligible tool error, and a non-empty report with any
+  other exit is ineligible findings. Malformed or inconsistent JSON fails
+  classification. The v2 receipt separately records `clean`, `findings`, or
+  `tool_error`.
+- Marker-based pagination, duplicate rejection, trusted-author filtering,
+  close-on-clean behavior, and serialized writes are implemented by the live
+  adapter in `scripts/ci/security_issue_lifecycle_adapter.mjs` (merged in
+  [#808](https://github.com/EffortlessMetrics/copybook-rs/pull/808)). Its pure
+  decision contract was introduced in [#804](https://github.com/EffortlessMetrics/copybook-rs/pull/804).
+
+The adapter selects only `security`-labeled issues and identifies the canonical
+roll-up by the exact marker `<!-- copybook-security-rollup:v1 -->` (with a
+legacy title-only adoption path). Findings markers are accepted only from the
+hardcoded trusted author `github-actions[bot]`; malformed markers, duplicate
+issue/comment IDs, multiple candidates, and invalid fingerprints fail closed.
+It paginates issues and comments in pages of 100 and executes only the closed
+planner action set (`create`, `adopt`, `update`, `no-op`, `close`, `reopen`).
 
 **Dependency Automation (Dependabot)**:
 - Weekly dependency update PRs for Cargo ecosystem (Monday 09:00 UTC)
@@ -195,12 +228,33 @@ Enhanced `deny.toml` policies enforce enterprise security requirements:
 **Artifact Retention**:
 - Raw cargo-audit results are retained for 90 days as
   `cargo-audit-raw-<workflow-run-id>` artifacts.
+- Normalized v2 receipts are retained for 90 days as
+  `security-receipt-v2-<workflow-run-id>` artifacts and link to the exact raw
+  bytes through `identity.raw_audit_sha256`.
 - GitHub records the workflow run and exact commit separately from the raw
   scanner output.
 - These raw artifacts do not conform to
-  `docs/reference/security-receipt-schema.json`; schema-valid receipt
-  generation is tracked separately in
-  [#761](https://github.com/EffortlessMetrics/copybook-rs/issues/761).
+  `docs/reference/security-receipt-schema.json` (the compatibility v1 schema).
+  The weekly normalized artifact conforms to the closed v2 contract in
+  [`docs/reference/security-receipt-schema-v2.json`](docs/reference/security-receipt-schema-v2.json)
+  after both semantic and JSON-Schema validation. Artifact publication is
+  shipped by [#817](https://github.com/EffortlessMetrics/copybook-rs/pull/817).
+
+The v1 reference remains for compatibility. V2 does not generate deprecated v1
+`compliance_metadata` or `*_compliant` fields. The v2 `receipt_id` is a
+deterministic identity for the explicit scan identity and scanner tuple; it is
+not authentication or a digest of findings. `identity.raw_audit_sha256` hashes
+the exact raw bytes consumed by the generator without line-ending
+normalization.
+
+Tracking status: [#761](https://github.com/EffortlessMetrics/copybook-rs/issues/761)
+remains open as the normalized-receipt parent; publication shipped in
+[#817](https://github.com/EffortlessMetrics/copybook-rs/pull/817).
+[#763](https://github.com/EffortlessMetrics/copybook-rs/issues/763) remains open
+for lifecycle follow-up; the pure planner shipped in
+[#804](https://github.com/EffortlessMetrics/copybook-rs/pull/804) and the live
+adapter shipped in [#808](https://github.com/EffortlessMetrics/copybook-rs/pull/808).
+Those merged PRs do not constitute a witnessed scheduled live-mutation run.
 
 Security scans and retention provide engineering evidence. They do not by
 themselves establish regulatory compliance or certification.
@@ -208,26 +262,44 @@ themselves establish regulatory compliance or certification.
 ### Responding to Security Findings
 
 **Automated Process**:
-1. Vulnerability detected → CI fails (PR gate) or GitHub issue created/updated (weekly scan)
-2. Security team notified via issue assignment
-3. Fix applied within 48 hours for HIGH/CRITICAL (per existing security policy)
-4. Dependabot PR reviewed and merged, or manual patch applied
-5. Verification scan confirms vulnerability resolution
+1. A PR `cargo-audit` run may fail its configured CI check when the scanner
+   executes and reports a vulnerability; skipped checks are not evidence of a
+   clean audit.
+2. An eligible weekly findings run may plan a marker-based roll-up create,
+   adopt, update, or reopen action. An eligible clean run may plan `no-op` or
+   `close`; ineligible tool/error states do not plan lifecycle mutation.
+3. Review the raw artifact, normalized v2 receipt, classifier outputs, and
+   lifecycle plan/execution separately. Apply fixes according to the response
+   targets above, including the existing high/critical target; the workflow
+   does not assign issues or prove remediation.
+4. Dependabot PRs are reviewed and merged, or a manual patch is applied,
+   according to maintainer review and release policy.
+5. A later verification scan can provide evidence about that later execution;
+   it does not retroactively prove a prior scheduled run.
+
+The response timelines above remain the security-policy targets. They are not
+implemented or measured by the scanning workflow and must not be inferred from
+artifact retention, issue state, or a green check.
 
 **Manual Procedures**:
 - Review raw cargo-audit output in workflow artifacts
-- Check "Security Alert:" prefixed issues
+- Find the canonical roll-up by its exact marker and `security` label; do not
+  rely on a legacy alert-title prefix
 - Use time-boxed ignores in `deny.toml` for false positives (with expiry dates)
 
 ### Emergency Procedures
 
-**Disable Security Scanning (Critical Vulnerabilities)**:
-- Edit `.github/workflows/ci.yml`: Comment out security-audit job temporarily
-- Notify security team with justification and timeline for re-enablement
-- Document in pull request description
+**Emergency handling**:
+- Do not edit a stale or hypothetical `security-audit` job in `ci.yml`; the
+  weekly owner is `.github/workflows/security-scan.yml`.
+- Preserve raw and normalized evidence and inspect the final enforcement result
+  when a scan or lifecycle step fails.
+- Any workflow or policy change requires a separately reviewed, explicitly
+  authorized CI/policy change with rollback and re-enablement evidence.
 
 **Rollback Procedures**:
-See `docs/how-to/configure-security-scanning.md` §8 for detailed rollback instructions.
+See [the security-scanning how-to](docs/how-to/configure-security-scanning.md)
+for current trigger, artifact, validation, and lifecycle boundaries.
 
 ## Security Scope
 
@@ -289,7 +361,7 @@ For commercial licensing or enterprise security inquiries, see [README.md](READM
 
 ---
 
-**Last Updated**: 2026-02-19
+**Last Updated**: 2026-08-20
 **Security Contact**: Use GitHub Security Advisories (preferred) or GitHub Issues with `security` label
 
 Thank you for helping keep copybook-rs and its users secure!

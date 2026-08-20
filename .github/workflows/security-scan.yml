@@ -43,13 +43,11 @@ jobs:
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
 
-      - name: Prepare and refresh cargo-audit advisory database
-        id: advisory_db
+      - name: Prepare cargo-audit advisory database before cargo-deny
+        id: advisory_db_before_deny
         if: always()
         continue-on-error: true
-        run: |
-          python3 scripts/ci/prepare_advisory_db.py
-          cargo audit fetch --force
+        run: python3 scripts/ci/prepare_advisory_db.py
 
       - name: Run cargo deny check
         id: deny
@@ -62,10 +60,17 @@ jobs:
           echo "exit_status=${deny_status}" >> "$GITHUB_OUTPUT"
           exit "${deny_status}"
 
+      - name: Prepare cargo-audit advisory database
+        id: advisory_db
+        if: always()
+        continue-on-error: true
+        run: python3 scripts/ci/prepare_advisory_db.py
+
       - name: Run cargo audit
         id: audit
         if: always() && steps.advisory_db.outcome == 'success'
-        # cargo audit exits 1 on warnings (e.g. unmaintained crates) AND
+        # cargo audit owns advisory-db fetching when --no-fetch is absent.
+        # It exits 1 on warnings (e.g. unmaintained crates) AND
         # vulnerabilities. Capture JSON regardless; continue-on-error lets
         # the issue step below report actual vulnerabilities.
         continue-on-error: true

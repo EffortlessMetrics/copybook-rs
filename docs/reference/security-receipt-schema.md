@@ -14,6 +14,11 @@ not a security certification or a regulatory-compliance determination.
 **JSON Schema Draft**: draft-07
 **Schema ID**: `https://copybook-rs.effortlessmetrics.com/schemas/security-receipt-v1.0.json`
 
+This document is the compatibility v1 reference. The weekly publication
+contract uses the separate closed v2 schema at
+[`security-receipt-schema-v2.json`](security-receipt-schema-v2.json); v1
+fixtures and producers remain supported and are not rewritten by the v2 lane.
+
 ---
 
 ## Table of Contents
@@ -66,6 +71,18 @@ Intended generation contexts are:
   validation, and normalized upload all succeed before lifecycle mutation may
   run
 - **Access**: Download via `gh run download <run-id> --name <artifact-name>`
+
+For a weekly run, download both evidence artifacts and validate the normalized
+one against the v2 schema and semantic validator:
+
+```bash
+gh run download <run-id> --name cargo-audit-raw-<workflow-run-id>
+gh run download <run-id> --name security-receipt-v2-<workflow-run-id>
+check-jsonschema --schemafile docs/reference/security-receipt-schema-v2.json \
+  security-receipt-v2-<workflow-run-id>/security-receipt-v2.json
+python3 scripts/ci/generate_security_receipt.py validate \
+  security-receipt-v2-<workflow-run-id>/security-receipt-v2.json
+```
 
 ---
 

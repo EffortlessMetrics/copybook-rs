@@ -118,7 +118,9 @@ jobs:
         if: steps.upload.outcome == 'success'
         run: |
           set -euo pipefail
-          python3 -m pip install --disable-pip-version-check --user check-jsonschema
+          # PyPI provenance: https://pypi.org/project/check-jsonschema/0.38.0/
+          python3 -m pip install --disable-pip-version-check --user \
+            'check-jsonschema==0.38.0'
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Generate normalized security receipt v2

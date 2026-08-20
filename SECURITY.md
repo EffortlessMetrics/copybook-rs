@@ -168,6 +168,10 @@ copybook-rs implements comprehensive dependency and security scanning to protect
   manual `workflow_dispatch` defaults to dry-run and performs no issue/comment
   writes unless explicitly opted in
 - Raw `cargo audit --json` output uploaded as an artifact with 90-day retention
+- A normalized v2 receipt is uploaded alongside the raw artifact as
+  `security-receipt-v2-<workflow-run-id>` with 90-day retention. It is generated
+  from the exact raw bytes, semantically validated, and JSON-Schema validated
+  before upload; lifecycle mutation is gated on successful publication.
 - Lifecycle eligibility is fail-closed: a clean report requires cargo-audit
   exit status `0`; a findings report requires exit status `1` plus validated
   identities and a fingerprint. Missing or any other status never plans or
@@ -199,12 +203,17 @@ Enhanced `deny.toml` policies enforce enterprise security requirements:
 **Artifact Retention**:
 - Raw cargo-audit results are retained for 90 days as
   `cargo-audit-raw-<workflow-run-id>` artifacts.
+- Normalized v2 receipts are retained for 90 days as
+  `security-receipt-v2-<workflow-run-id>` artifacts and link to the exact raw
+  bytes through `identity.raw_audit_sha256`.
 - GitHub records the workflow run and exact commit separately from the raw
   scanner output.
 - These raw artifacts do not conform to
-  `docs/reference/security-receipt-schema.json`; schema-valid receipt
-  generation is tracked separately in
-  [#761](https://github.com/EffortlessMetrics/copybook-rs/issues/761).
+  `docs/reference/security-receipt-schema.json` (the compatibility v1 schema).
+  The weekly normalized artifact conforms to the closed v2 contract in
+  [`docs/reference/security-receipt-schema-v2.json`](docs/reference/security-receipt-schema-v2.json)
+  after both semantic and JSON-Schema validation. Artifact publication is
+  tracked in [#815](https://github.com/EffortlessMetrics/copybook-rs/issues/815).
 
 Security scans and retention provide engineering evidence. They do not by
 themselves establish regulatory compliance or certification.

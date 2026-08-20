@@ -24,6 +24,8 @@ test("workflow uses fixed trust, labels, raw artifact, and adapter", () => {
 
 test("normalized publication is explicit, validated, and distinct from raw evidence", () => {
   assert.match(workflow, /id: schema_validator[\s\S]*?check-jsonschema/u);
+  assert.match(workflow, /check-jsonschema==0\.38\.0/u);
+  assert.match(workflow, /pypi\.org\/project\/check-jsonschema\/0\.38\.0/u);
   assert.match(workflow, /id: receipt_generate[\s\S]*?generate_security_receipt\.py generate/u);
   assert.match(workflow, /--commit-sha "\$\{\{ github\.sha \}\}"/u);
   assert.match(workflow, /--workflow-run-id "\$\{\{ github\.run_id \}\}"/u);

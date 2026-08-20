@@ -258,11 +258,11 @@ validate_cargo_audit() {
         local version=$(cargo audit --version | awk '{print $2}')
         print_pass "cargo-audit installed: version $version"
 
-        # Test audit database fetch
-        if cargo audit fetch --force >/dev/null 2>&1; then
-            print_pass "Advisory database fetch successful"
+        # The default audit command owns advisory database refresh.
+        if cargo audit --quiet >/dev/null 2>&1; then
+            print_pass "Advisory database refresh and audit successful"
         else
-            print_fail "Advisory database fetch failed"
+            print_fail "Advisory database refresh or audit failed"
         fi
     else
         print_skip "cargo-audit not installed"

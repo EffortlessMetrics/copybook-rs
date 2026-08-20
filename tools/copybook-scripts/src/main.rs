@@ -467,8 +467,7 @@ fn parse_cpu_model() -> String {
 
 fn parse_wsl2() -> bool {
     fs::read_to_string("/proc/version")
-        .ok()
-        .is_some_and(|content| content.to_lowercase().contains("microsoft"))
+        .is_ok_and(|content| content.to_lowercase().contains("microsoft"))
 }
 
 fn perf_annotate_host() -> Result<()> {

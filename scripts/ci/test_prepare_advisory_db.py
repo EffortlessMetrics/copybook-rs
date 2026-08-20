@@ -10,7 +10,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from prepare_advisory_db import remove_if_unusable
+try:
+    from prepare_advisory_db import remove_if_unusable
+except ModuleNotFoundError:
+    from scripts.ci.prepare_advisory_db import remove_if_unusable
 
 
 class PrepareAdvisoryDbTests(unittest.TestCase):

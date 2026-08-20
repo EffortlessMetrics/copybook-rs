@@ -113,9 +113,65 @@ jobs:
           retention-days: 90
           if-no-files-found: error
 
+      - name: Install JSON Schema validator
+        id: schema_validator
+        if: steps.upload.outcome == 'success'
+        run: |
+          set -euo pipefail
+          # PyPI provenance: https://pypi.org/project/check-jsonschema/0.38.0/
+          python3 -m pip install --disable-pip-version-check --user \
+            'check-jsonschema==0.38.0'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Generate normalized security receipt v2
+        id: receipt_generate
+        if: steps.schema_validator.outcome == 'success'
+        env:
+          AUDIT_EXIT_STATUS: ${{ steps.audit.outputs.exit_status }}
+        run: |
+          set -euo pipefail
+          test -f target/security.audit.json
+          cargo_audit_version="$(cargo audit --version | awk '{print $2}')"
+          test -n "${cargo_audit_version}"
+          python3 scripts/ci/generate_security_receipt.py generate \
+            target/security.audit.json \
+            --commit-sha "${{ github.sha }}" \
+            --scan-type weekly-scan \
+            --workflow-run-id "${{ github.run_id }}" \
+            --cargo-audit-version "${cargo_audit_version}" \
+            --audit-exit-code "${AUDIT_EXIT_STATUS}" \
+            --output target/security-receipt-v2.json
+
+      - name: Validate normalized security receipt semantics
+        id: receipt_semantic
+        if: steps.receipt_generate.outcome == 'success'
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/generate_security_receipt.py validate \
+            target/security-receipt-v2.json
+
+      - name: Validate normalized security receipt schema
+        id: receipt_schema
+        if: steps.receipt_semantic.outcome == 'success'
+        run: |
+          set -euo pipefail
+          check-jsonschema \
+            --schemafile docs/reference/security-receipt-schema-v2.json \
+            target/security-receipt-v2.json
+
+      - name: Upload normalized security receipt v2
+        id: upload_receipt
+        if: steps.receipt_schema.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: security-receipt-v2-${{ github.run_id }}
+          path: target/security-receipt-v2.json
+          retention-days: 90
+          if-no-files-found: error
+
       - name: Plan and optionally execute roll-up lifecycle
         id: lifecycle
-        if: steps.upload.outcome == 'success' && steps.classify.outcome == 'success' && steps.classify.outputs.eligible == 'true'
+        if: steps.upload_receipt.outcome == 'success' && steps.upload.outcome == 'success' && steps.classify.outcome == 'success' && steps.classify.outputs.eligible == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -138,6 +194,10 @@ jobs:
             --decision "${{ steps.classify.outputs.decision }}"
           if [ "${{ steps.upload.outcome }}" != "success" ]; then
             echo "raw audit artifact upload failed"
+            exit 1
+          fi
+          if [ "${{ steps.upload_receipt.outcome }}" != "success" ]; then
+            echo "normalized security receipt v2 publication failed"
             exit 1
           fi
           if [ "${{ steps.classify.outputs.eligible }}" = "true" ] && [ "${{ steps.lifecycle.outcome }}" != "success" ]; then

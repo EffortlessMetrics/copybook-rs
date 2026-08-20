@@ -14,6 +14,11 @@ not a security certification or a regulatory-compliance determination.
 **JSON Schema Draft**: draft-07
 **Schema ID**: `https://copybook-rs.effortlessmetrics.com/schemas/security-receipt-v1.0.json`
 
+This document is the compatibility v1 reference. The weekly publication
+contract uses the separate closed v2 schema at
+[`security-receipt-schema-v2.json`](security-receipt-schema-v2.json); v1
+fixtures and producers remain supported and are not rewritten by the v2 lane.
+
 ---
 
 ## Table of Contents
@@ -40,11 +45,13 @@ documenting security scan results. Each normalized document can support:
 
 ### Generation Status
 
-This schema defines the contract for a normalized security receipt. Current CI
-workflows upload raw `cargo audit --json` scanner output, which is useful scan
-evidence but is **not** a schema-valid receipt. Normalized receipt generation is
-tracked separately in
-[#761](https://github.com/EffortlessMetrics/copybook-rs/issues/761).
+This schema defines the contract for a normalized security receipt. Raw
+`cargo audit --json` output remains diagnostic evidence; the weekly workflow
+also publishes the closed v2 receipt defined by
+[`security-receipt-schema-v2.json`](security-receipt-schema-v2.json). The v2
+receipt is generated from the exact uploaded raw bytes and must pass semantic
+and JSON Schema validation before publication. This publication contract is
+tracked in [#815](https://github.com/EffortlessMetrics/copybook-rs/issues/815).
 
 Intended generation contexts are:
 
@@ -54,11 +61,31 @@ Intended generation contexts are:
 
 ### Storage & Retention
 
-- **Normalized receipt retention**: to be defined and verified by the
-  receipt-generator lane
-- **Normalized receipt naming**: to be defined by the receipt-generator lane
+- **Raw weekly artifact retention**: 90 days, configured by the weekly workflow
+- **Normalized receipt retention**: 90 days, configured by the weekly workflow
+- **Normalized receipt naming**: `security-receipt-v2-{workflow-run-id}`
 - **Current raw weekly artifact**: `cargo-audit-raw-{workflow-run-id}`
-- **Access**: Download via `gh run download <run-id> --name <artifact-name>`
+- **Raw-byte linkage**: `identity.raw_audit_sha256` is the SHA-256 of the exact
+  raw bytes consumed by the generator; the normalized artifact never replaces
+  or aliases the raw artifact
+- **Publication gate**: raw upload, generation, semantic validation, schema
+  validation, and normalized upload all succeed before lifecycle mutation may
+  run
+- **Access**: Download both artifacts with `gh run download <run-id> --name cargo-audit-raw-<workflow-run-id> --name security-receipt-v2-<workflow-run-id> --dir evidence`
+
+For a weekly run, download both evidence artifacts and validate the normalized
+one against the v2 schema and semantic validator:
+
+```bash
+gh run download <run-id> \
+  --name cargo-audit-raw-<workflow-run-id> \
+  --name security-receipt-v2-<workflow-run-id> \
+  --dir evidence
+check-jsonschema --schemafile docs/reference/security-receipt-schema-v2.json \
+  evidence/security-receipt-v2-<workflow-run-id>/security-receipt-v2.json
+python3 scripts/ci/generate_security_receipt.py validate \
+  evidence/security-receipt-v2-<workflow-run-id>/security-receipt-v2.json
+```
 
 ---
 

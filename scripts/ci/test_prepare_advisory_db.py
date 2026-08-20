@@ -24,12 +24,24 @@ class PrepareAdvisoryDbTests(unittest.TestCase):
         self.assertIn("shared-key: advisory-db-v2", workflow)
         self.assertIn("cache-directories: ~/.cargo/advisory-db", workflow)
         self.assertIn("python3 scripts/ci/prepare_advisory_db.py", workflow)
-        self.assertIn("cargo audit fetch --force", workflow)
-        self.assertIn("if: always() && steps.advisory_db.outcome == 'success'", workflow)
-        self.assertLess(
-            workflow.index("cargo audit fetch --force"),
-            workflow.index("name: Run cargo audit"),
+        self.assertNotIn("cargo audit fetch", workflow)
+        audit_step_start = workflow.index("      - name: Run cargo audit")
+        audit_step_end = workflow.index(
+            "      - name: Classify raw cargo-audit output", audit_step_start
         )
+        audit_command = "cargo audit -q --json > target/security.audit.json"
+        audit_command_index = workflow.index(audit_command, audit_step_start, audit_step_end)
+        self.assertIn(audit_command, workflow[audit_step_start:audit_step_end])
+        self.assertIn("if: always() && steps.advisory_db.outcome == 'success'", workflow)
+        self.assertEqual(workflow.count("python3 scripts/ci/prepare_advisory_db.py"), 2)
+        first_prepare = workflow.index("python3 scripts/ci/prepare_advisory_db.py")
+        deny_step = workflow.index("name: Run cargo deny check")
+        second_prepare = workflow.index(
+            "python3 scripts/ci/prepare_advisory_db.py", first_prepare + 1
+        )
+        self.assertLess(first_prepare, deny_step)
+        self.assertLess(deny_step, second_prepare)
+        self.assertLess(second_prepare, audit_command_index)
 
     def test_absent_database_is_left_absent(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

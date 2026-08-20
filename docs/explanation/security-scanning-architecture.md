@@ -73,8 +73,6 @@ security-audit:
     - uses: taiki-e/install-action@v2
       with:
         tool: cargo-audit
-    - name: Fetch advisory database
-      run: cargo audit fetch --force
     - name: Run security audit
       run: cargo audit --json --all-features --workspace --deny warnings > audit.json
     - name: Generate security receipt

@@ -76,9 +76,6 @@ cargo audit --json --all-features --workspace --deny warnings
         with:
           tool: cargo-audit
 
-      - name: Fetch advisory database
-        run: cargo audit fetch --force
-
       - name: Run security audit
         id: audit
         run: |
@@ -191,7 +188,6 @@ jobs:
       - name: Run security audit
         id: audit
         run: |
-          cargo audit fetch --force
           cargo audit --json --all-features --workspace > audit.json
 
           # Check for vulnerabilities
@@ -997,7 +993,7 @@ check-jsonschema \
 
 ### 11.1 cargo-audit Fails with Advisory Database Error
 
-**Symptom**: `cargo audit fetch --force` fails with network error.
+**Symptom**: `cargo audit --json` fails while refreshing the advisory database.
 
 **Solution**:
 ```bash
@@ -1006,13 +1002,13 @@ ls -la ~/.cargo/advisory-db/
 
 # Manual refresh
 rm -rf ~/.cargo/advisory-db/
-cargo audit fetch --force
+cargo audit --json --all-features --workspace > audit.json
 
 # CI workaround: Add retry logic
-- name: Fetch advisory database
+- name: Run security audit with retry
   run: |
     for i in 1 2 3; do
-      cargo audit fetch --force && break
+      cargo audit --json --all-features --workspace > audit.json && break
       echo "Retry $i/3..."
       sleep 5
     done

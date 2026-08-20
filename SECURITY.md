@@ -164,15 +164,15 @@ copybook-rs implements comprehensive dependency and security scanning to protect
 
 **Weekly Proactive Scanning**:
 - Scheduled Monday 09:00 UTC via `.github/workflows/security-scan.yml`
-- Automatic GitHub issue creation/update on vulnerability detection
-- Manual trigger available via GitHub Actions workflow_dispatch
+- Scheduled runs execute the deterministic, marker-based findings lifecycle;
+  manual `workflow_dispatch` defaults to dry-run and performs no issue/comment
+  writes unless explicitly opted in
 - Raw `cargo audit --json` output uploaded as an artifact with 90-day retention
-- Marker-based pagination, duplicate suppression, and close-on-clean behavior
-  for the findings issue are not wired into the live workflow. A deterministic
-  offline planner and its snapshot tests are tracked in
-  [#803](https://github.com/EffortlessMetrics/copybook-rs/issues/803); live API
-  mutation remains separate lifecycle work under
-  [#763](https://github.com/EffortlessMetrics/copybook-rs/issues/763).
+- Marker-based pagination, duplicate rejection, trusted-author filtering,
+  close-on-clean behavior, and serialized writes are implemented by the
+  injected-client adapter in `scripts/ci/security_issue_lifecycle_adapter.mjs`.
+  Its pure decision contract remains covered by
+  [#804](https://github.com/EffortlessMetrics/copybook-rs/pull/804).
 
 **Dependency Automation (Dependabot)**:
 - Weekly dependency update PRs for Cargo ecosystem (Monday 09:00 UTC)

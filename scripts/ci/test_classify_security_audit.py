@@ -9,7 +9,10 @@ import unittest
 from itertools import product
 from pathlib import Path
 
-from classify_security_audit import classify, evaluate_outcome
+try:
+    from classify_security_audit import classify, classify_lifecycle, evaluate_outcome
+except ModuleNotFoundError:
+    from scripts.ci.classify_security_audit import classify, classify_lifecycle, evaluate_outcome
 
 
 class ClassifySecurityAuditTests(unittest.TestCase):
@@ -37,6 +40,41 @@ class ClassifySecurityAuditTests(unittest.TestCase):
                 },
             )
             self.assertEqual(classify(path), ("create_or_update", 1))
+
+    def test_fingerprint_is_stable_for_reordered_findings(self) -> None:
+        findings = [
+            {"advisory": {"id": "RUSTSEC-2"}, "package": {"name": "b", "version": "2.0"}},
+            {"advisory": {"id": "RUSTSEC-1"}, "package": {"name": "a", "version": "1.0"}},
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            first = self.write_document(Path(temporary), {"vulnerabilities": {"count": 2, "list": findings}})
+            original = classify_lifecycle(first, "1")
+            second = Path(temporary) / "reordered.json"
+            second.write_text(json.dumps({"vulnerabilities": {"count": 2, "list": list(reversed(findings))}}), encoding="utf-8")
+            reordered = classify_lifecycle(second, "1")
+            self.assertEqual(original["findings_fingerprint"], reordered["findings_fingerprint"])
+            changed = json.loads(second.read_text(encoding="utf-8"))
+            changed["vulnerabilities"]["list"][0]["package"]["version"] = "2.1"
+            second.write_text(json.dumps(changed), encoding="utf-8")
+            self.assertNotEqual(original["findings_fingerprint"], classify_lifecycle(second, "1")["findings_fingerprint"])
+
+    def test_lifecycle_eligibility_is_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            clean = self.write_document(root, {"vulnerabilities": {"count": 0, "list": []}})
+            self.assertTrue(classify_lifecycle(clean, "0")["eligible"])
+            self.assertFalse(classify_lifecycle(clean, "1")["eligible"])
+            findings = self.write_document(root, {"vulnerabilities": {"count": 1, "list": [{"advisory": {"id": "RUSTSEC-1"}, "package": {"name": "a", "version": "1"}}]}})
+            self.assertTrue(classify_lifecycle(findings, "1")["eligible"])
+            self.assertFalse(classify_lifecycle(findings, "2")["eligible"])
+            self.assertFalse(classify_lifecycle(findings, "0")["eligible"])
+            self.assertFalse(classify_lifecycle(findings, None)["eligible"])
+
+    def test_fingerprint_identity_is_required(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = self.write_document(Path(temporary), {"vulnerabilities": {"count": 1, "list": [{"advisory": {"id": "RUSTSEC-1"}, "package": {"name": "a"}}]}})
+            with self.assertRaisesRegex(ValueError, "package.version"):
+                classify_lifecycle(path, "1")
 
     def test_malformed_json_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

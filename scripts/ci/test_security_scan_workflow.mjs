@@ -23,6 +23,10 @@ test("workflow uses fixed trust, labels, raw artifact, and adapter", () => {
 });
 
 test("normalized publication is explicit, validated, and distinct from raw evidence", () => {
+  const normalizedUploadStart = workflow.indexOf("id: upload_receipt");
+  const lifecycleStart = workflow.indexOf("id: lifecycle");
+  assert.ok(normalizedUploadStart >= 0 && lifecycleStart > normalizedUploadStart);
+  const normalizedUploadStep = workflow.slice(normalizedUploadStart, lifecycleStart);
   assert.match(workflow, /id: schema_validator[\s\S]*?check-jsonschema/u);
   assert.match(workflow, /check-jsonschema==0\.38\.0/u);
   assert.match(workflow, /pypi\.org\/project\/check-jsonschema\/0\.38\.0/u);
@@ -32,9 +36,10 @@ test("normalized publication is explicit, validated, and distinct from raw evide
   assert.match(workflow, /--audit-exit-code "\$\{AUDIT_EXIT_STATUS\}"/u);
   assert.match(workflow, /id: receipt_semantic[\s\S]*?generate_security_receipt\.py validate/u);
   assert.match(workflow, /id: receipt_schema[\s\S]*?security-receipt-schema-v2\.json/u);
-  assert.match(workflow, /id: upload_receipt[\s\S]*?name: security-receipt-v2-\$\{\{ github\.run_id \}\}/u);
-  assert.match(workflow, /id: upload_receipt[\s\S]*?if-no-files-found: error/u);
-  assert.match(workflow, /retention-days: 90/gu);
+  assert.match(normalizedUploadStep, /name: security-receipt-v2-\$\{\{ github\.run_id \}\}/u);
+  assert.match(normalizedUploadStep, /uses: actions\/upload-artifact@v7/u);
+  assert.match(normalizedUploadStep, /retention-days: 90/u);
+  assert.match(normalizedUploadStep, /if-no-files-found: error/u);
   assert.match(workflow, /normalized receipt output|security-receipt-v2\.json/u);
 });
 
@@ -56,7 +61,10 @@ test("raw evidence and every receipt gate precede lifecycle mutation", () => {
       enforce > lifecycle,
   );
   assert.match(workflow, /if: always\(\)\s*\n\s*uses: actions\/upload-artifact/u);
-  assert.match(workflow, /if-no-files-found: error/u);
+  const rawUploadStep = workflow.slice(upload, generate);
+  assert.match(rawUploadStep, /name: cargo-audit-raw-\$\{\{ github\.run_id \}\}/u);
+  assert.match(rawUploadStep, /retention-days: 90/u);
+  assert.match(rawUploadStep, /if-no-files-found: error/u);
   assert.match(workflow, /if: steps\.upload_receipt\.outcome == 'success' && steps\.upload\.outcome == 'success' && steps\.classify\.outcome == 'success' && steps\.classify\.outputs\.eligible == 'true'/u);
   assert.match(workflow, /if: always\(\)/gu);
   assert.match(workflow, /raw audit artifact upload failed/u);

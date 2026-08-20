@@ -61,6 +61,7 @@ Intended generation contexts are:
 
 ### Storage & Retention
 
+- **Raw weekly artifact retention**: 90 days, configured by the weekly workflow
 - **Normalized receipt retention**: 90 days, configured by the weekly workflow
 - **Normalized receipt naming**: `security-receipt-v2-{workflow-run-id}`
 - **Current raw weekly artifact**: `cargo-audit-raw-{workflow-run-id}`
@@ -70,18 +71,20 @@ Intended generation contexts are:
 - **Publication gate**: raw upload, generation, semantic validation, schema
   validation, and normalized upload all succeed before lifecycle mutation may
   run
-- **Access**: Download via `gh run download <run-id> --name <artifact-name>`
+- **Access**: Download both artifacts with `gh run download <run-id> --name cargo-audit-raw-<workflow-run-id> --name security-receipt-v2-<workflow-run-id> --dir evidence`
 
 For a weekly run, download both evidence artifacts and validate the normalized
 one against the v2 schema and semantic validator:
 
 ```bash
-gh run download <run-id> --name cargo-audit-raw-<workflow-run-id>
-gh run download <run-id> --name security-receipt-v2-<workflow-run-id>
+gh run download <run-id> \
+  --name cargo-audit-raw-<workflow-run-id> \
+  --name security-receipt-v2-<workflow-run-id> \
+  --dir evidence
 check-jsonschema --schemafile docs/reference/security-receipt-schema-v2.json \
-  security-receipt-v2-<workflow-run-id>/security-receipt-v2.json
+  evidence/security-receipt-v2-<workflow-run-id>/security-receipt-v2.json
 python3 scripts/ci/generate_security_receipt.py validate \
-  security-receipt-v2-<workflow-run-id>/security-receipt-v2.json
+  evidence/security-receipt-v2-<workflow-run-id>/security-receipt-v2.json
 ```
 
 ---

@@ -45,7 +45,12 @@ def remove_if_unusable(path: Path) -> bool:
     The path is deliberately caller-supplied and narrowly scoped to the
     cargo-audit database. A valid checkout is left untouched for cache reuse.
     """
-    if not path.exists() and not path.is_symlink():
+    # Do not let validation follow a symlink into an unrelated repository.
+    # The cache path itself is the only object this helper may remove.
+    if path.is_symlink():
+        path.unlink()
+        return True
+    if not path.exists():
         return False
     if _is_valid_git_checkout(path):
         return False

@@ -59,6 +59,39 @@ class PrepareAdvisoryDbTests(unittest.TestCase):
             self.assertFalse(link.exists())
             self.assertEqual((target / "sentinel").read_text(encoding="utf-8"), "keep")
 
+    def test_symlink_to_valid_checkout_is_removed_without_touching_target(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "outside"
+            target.mkdir()
+            subprocess.run(["git", "-C", str(target), "init"], check=True, capture_output=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(target),
+                    "-c",
+                    "user.name=copybook-test",
+                    "-c",
+                    "user.email=copybook-test@example.invalid",
+                    "commit",
+                    "--allow-empty",
+                    "-m",
+                    "seed",
+                ],
+                check=True,
+                capture_output=True,
+            )
+            link = root / "advisory-db"
+            try:
+                os.symlink(target, link, target_is_directory=True)
+            except (OSError, NotImplementedError) as error:
+                self.skipTest(f"symlink fixtures unavailable: {error}")
+
+            self.assertTrue(remove_if_unusable(link))
+            self.assertFalse(link.exists())
+            self.assertTrue((target / ".git").exists())
+
     def test_cli_has_no_arbitrary_path_override(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             result = subprocess.run(

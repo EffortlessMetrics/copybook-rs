@@ -168,6 +168,10 @@ copybook-rs implements comprehensive dependency and security scanning to protect
   manual `workflow_dispatch` defaults to dry-run and performs no issue/comment
   writes unless explicitly opted in
 - Raw `cargo audit --json` output uploaded as an artifact with 90-day retention
+- Lifecycle eligibility is fail-closed: a clean report requires cargo-audit
+  exit status `0`; a findings report requires exit status `1` plus validated
+  identities and a fingerprint. Missing or any other status never plans or
+  closes the canonical issue.
 - Marker-based pagination, duplicate rejection, trusted-author filtering,
   close-on-clean behavior, and serialized writes are implemented by the
   injected-client adapter in `scripts/ci/security_issue_lifecycle_adapter.mjs`.

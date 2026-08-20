@@ -62,11 +62,11 @@ export async function discoverSnapshot(client) {
     const selected = [];
     for (const issue of response) {
       if (issue === null || typeof issue !== "object" || Array.isArray(issue)) throw new TypeError("issue must be an object");
-      if (issue.pull_request !== undefined) continue;
-      if (!hasSecurityLabel(issue)) continue;
       const number = requirePositiveInteger(issue.number, "issue.number");
       if (issueIdentifiers.has(number)) throw new TypeError(`snapshot contains duplicate issue number ${number}`);
       issueIdentifiers.add(number);
+      if (issue.pull_request !== undefined) continue;
+      if (!hasSecurityLabel(issue)) continue;
       const commentPages = await allPages(
         (commentPage) => client.listComments(number, commentPage, PAGE_SIZE),
         `comment page for issue ${number}`,

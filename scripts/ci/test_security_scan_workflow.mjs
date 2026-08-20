@@ -29,7 +29,9 @@ test("upload precedes gated lifecycle and final enforcement is always visible", 
   assert.ok(upload >= 0 && lifecycle > upload && enforce > lifecycle);
   assert.match(workflow, /if: always\(\)\s*\n\s*uses: actions\/upload-artifact/u);
   assert.match(workflow, /if-no-files-found: error/u);
-  assert.match(workflow, /steps\.upload\.outcome == 'success'/u);
+  assert.match(workflow, /if: steps\.upload\.outcome == 'success' && steps\.classify\.outcome == 'success' && steps\.classify\.outputs\.eligible == 'true'/u);
   assert.match(workflow, /if: always\(\)/gu);
   assert.match(workflow, /raw audit artifact upload failed/u);
+  assert.match(workflow, /steps\.lifecycle\.outcome\s*\}\}\s*["']\s*!=\s*["']success["']/u);
+  assert.match(workflow, /eligible lifecycle did not complete[\s\S]*?exit 1/u);
 });

@@ -95,6 +95,8 @@ test("rejects duplicate identities and API failures before any write", async () 
   const fillers = Array.from({ length: 99 }, (_, index) => rawIssue({ number: 7000 + index, title: `filler-${index}`, body: "", state: "open", commentPages: [] }));
   const client = fakeClient([[...fillers, duplicate], [duplicate]], new Map([[source.number, [rawComments(source)]]]));
   await assert.rejects(() => discoverSnapshot(client), /duplicate issue/u);
+  const duplicateBeforeFiltering = fakeClient([[rawIssue(source), rawIssue(source, { pullRequest: true })]], new Map([[source.number, [rawComments(source)]]]));
+  await assert.rejects(() => discoverSnapshot(duplicateBeforeFiltering), /duplicate issue/u);
   const failing = { ...fakeClient([]), async listIssues() { throw new Error("API unavailable"); } };
   await assert.rejects(() => runLifecycle({ client: failing, scan: { state: "clean", eligible: true }, dryRun: false }), /API unavailable/u);
 });

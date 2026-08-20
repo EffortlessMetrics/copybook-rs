@@ -597,7 +597,7 @@ mod panic_elimination_audit_tests {
         match result {
             Ok(schema) => {
                 assert!(
-                    schema.lrecl_fixed.map_or(0, |len| len) > 1000,
+                    schema.lrecl_fixed.unwrap_or(0) > 1000,
                     "Complex audit record should have substantial length"
                 );
                 let total_fields = count_schema_fields(&schema);
@@ -753,7 +753,7 @@ mod panic_elimination_integration_tests {
                     "Integration test should produce fields"
                 );
                 assert!(
-                    schema.lrecl_fixed.map_or(0, |len| len) > 0,
+                    schema.lrecl_fixed.unwrap_or(0) > 0,
                     "Integration test should calculate record length"
                 );
 
@@ -902,7 +902,7 @@ mod panic_elimination_performance_tests {
             total_fields
         );
         assert!(
-            schema.lrecl_fixed.map_or(0, |len| len) >= 150,
+            schema.lrecl_fixed.unwrap_or(0) >= 150,
             "Memory test should calculate large record correctly"
         );
     }

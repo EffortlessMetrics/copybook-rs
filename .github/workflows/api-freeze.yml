@@ -36,7 +36,12 @@ jobs:
 
       - name: Install cargo-semver-checks
         run: |
-          cargo install --locked cargo-semver-checks --version 0.46.0
+          cargo install --locked cargo-semver-checks --version 0.49.0
+
+      - name: Verify API freeze toolchain compatibility
+        run: |
+          python3 scripts/ci/test_api_baseline_preflight.py
+          bash scripts/api-baseline.sh preflight
 
       - name: Check if API freeze is active
         id: freeze-check

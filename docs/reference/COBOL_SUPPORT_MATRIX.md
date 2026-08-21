@@ -33,11 +33,12 @@
 ## Structural Features
 
 REDEFINES decode views have an explicit order contract: scalar-target group
-children are flattened in the immediate enclosing map at the group's declaration
-position, the named group view is retained after the enclosing sibling scan, and
-scalar REDEFINES remain in declaration order. Level-01 redefining groups flatten
-without a named wrapper. Group-over-group REDEFINES without OCCURS retain their
-skip behavior; fixed-OCCURS group-over-group views are emitted as named arrays.
+children of nested groups without OCCURS are flattened in the immediate enclosing
+map at the group's declaration position, the named group view is retained after the
+enclosing sibling scan, and scalar REDEFINES remain in declaration order. Level-01
+redefining groups flatten without a named wrapper. Fixed-OCCURS group views take the
+array path and are emitted as named arrays; group-over-group REDEFINES without OCCURS
+retain their skip behavior.
 The standard and scratch-buffer codec paths share this contract; see
 `comprehensive_redefines_odo_tests.rs::cobol_redefines_declaration_order` and
 `comprehensive_redefines_odo_tests.rs::cobol_redefines_order_contract_covers_scalar_cluster_and_group_skip`.

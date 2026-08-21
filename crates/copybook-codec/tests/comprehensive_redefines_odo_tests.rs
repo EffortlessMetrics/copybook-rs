@@ -799,3 +799,30 @@ fn cobol_group_over_group_fixed_occurs_emits_named_array() {
     assert_eq!(redefining_group.len(), 2);
     assert_eq!(plain, with_scratch);
 }
+
+#[test]
+fn cobol_scalar_target_group_fixed_occurs_emits_named_array() {
+    let copybook = r#"
+01 SCALAR-OCCURS-REDEFINES.
+   05 ORIGINAL PIC X(4).
+   05 GROUP-REDEFINE REDEFINES ORIGINAL OCCURS 2 TIMES.
+      10 ALTERNATE PIC X(2).
+"#;
+
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = create_test_decode_options(false);
+    let record_len = record_len_from_schema(&schema).max(4);
+    schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, &[b'0'; 4], &options);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+
+    assert!(fields.get("ORIGINAL").is_some());
+    let redefining_group = fields
+        .get("GROUP-REDEFINE")
+        .and_then(Value::as_array)
+        .expect("fixed-OCCURS scalar-target view should be a named array");
+    assert_eq!(redefining_group.len(), 2);
+    assert!(fields.get("ALTERNATE").is_none());
+    assert_eq!(plain, with_scratch);
+}

@@ -640,11 +640,11 @@ Binary field sizes are determined by PIC digits: ≤4→16b, 5–9→32b, 10–1
 ### Field Ordering
 - Fields output in schema order (pre-order traversal)
 - Groups before children, declaration order within groups
-- REDEFINES: scalar views in declaration order; nested scalar-target group children are flattened
-  in the immediate enclosing map at the group's declaration position and its named group view
-  follows the enclosing sibling scan. A level-01 redefining group is flattened without a named
-  wrapper. Group-over-group views without `OCCURS` are omitted; fixed-`OCCURS` views are emitted
-  as named arrays.
+- REDEFINES: scalar views in declaration order; nested scalar-target groups without `OCCURS`
+  flatten children in the immediate enclosing map at the group's declaration position and retain
+  a named view after the enclosing sibling scan. A level-01 redefining group is flattened without
+  a named wrapper. Any fixed-`OCCURS` group view is emitted through the array path as a named array;
+  group-over-group views without `OCCURS` are omitted.
 
 ### Numeric Representation
 

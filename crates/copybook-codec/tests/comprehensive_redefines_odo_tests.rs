@@ -758,10 +758,7 @@ fn test_level_one_redefines_group_is_flattened_without_named_wrapper() {
     schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
 
     let (plain, with_scratch) = decode_plain_and_scratch(&schema, &[b'0'; 4], &options);
-    let fields = plain
-        .get("fields")
-        .and_then(Value::as_object)
-        .unwrap();
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
 
     assert!(fields.get("ALTERNATE").is_some());
     assert!(fields.get("REDEFINED-RECORD").is_none());

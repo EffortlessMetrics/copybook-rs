@@ -483,6 +483,7 @@ main() {
             echo "Usage: $0 <command>"
             echo ""
             echo "Commands:"
+            echo "  preflight           Check API-freeze toolchain compatibility"
             echo "  generate, baseline  Generate stable API baseline for current version"
             echo "  check               Check API compatibility against stable baseline"
             echo "  info                Show current baseline information"

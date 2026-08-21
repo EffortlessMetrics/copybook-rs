@@ -27,7 +27,10 @@ BASELINE_TOOL_VERSION_FILE="$BASELINE_DIR/tool-version.txt"
 BASELINE_STABILITY_SCOPE_FILE="$BASELINE_DIR/stability-scope.txt"
 BASELINE_PACKAGES_FILE="$BASELINE_DIR/stable-packages.txt"
 
-REQUIRED_SEMVER_CHECKS_VERSION="0.46.0"
+# 0.49.0 is the first release whose rustdoc loader accepts rustdoc JSON v60.
+# Keep this floor aligned with the API-freeze workflow and documentation.
+REQUIRED_SEMVER_CHECKS_VERSION="0.49.0"
+SUPPORTED_RUSTDOC_JSON_FORMAT="v60"
 STABILITY_REGISTRY_PATH="$PROJECT_ROOT/docs/stability/surface-registry.json"
 CARGO_SEMVER_CHECKS=""
 CARGO_SEMVER_CHECKS_MODE="detect"
@@ -52,6 +55,26 @@ print_error() {
     echo -e "${RED}ERR:${NC} $1"
 }
 
+print_compatibility_context() {
+    local rustc_version
+    local rustdoc_version
+    local semver_version="unavailable"
+
+    rustc_version="$(rustc --version 2>&1 || true)"
+    rustdoc_version="$(rustdoc --version 2>&1 || true)"
+
+    if [[ "$CARGO_SEMVER_CHECKS_MODE" == "standalone" && -n "$CARGO_SEMVER_CHECKS" ]]; then
+        semver_version="$("$CARGO_SEMVER_CHECKS" --version 2>&1 || true)"
+    elif [[ "$CARGO_SEMVER_CHECKS_MODE" == "cargo-subcommand" ]]; then
+        semver_version="$(cargo semver-checks --version 2>&1 || true)"
+    fi
+
+    print_info "Rust toolchain: ${rustc_version}"
+    print_info "rustdoc: ${rustdoc_version}"
+    print_info "Expected rustdoc JSON format: ${SUPPORTED_RUSTDOC_JSON_FORMAT}"
+    print_info "cargo-semver-checks: ${semver_version}"
+}
+
 require_cargo_semver_checks() {
     if command -v python3 &> /dev/null; then
         PYTHON_CMD="python3"
@@ -71,6 +94,7 @@ require_cargo_semver_checks() {
     else
         print_error "cargo-semver-checks is not installed."
         print_info "Install with: cargo install --locked cargo-semver-checks --version ${REQUIRED_SEMVER_CHECKS_VERSION}"
+        print_compatibility_context
         exit 1
     fi
 
@@ -84,6 +108,7 @@ require_cargo_semver_checks() {
         print_info "Expected either:"
         print_info "  - cargo-semver-checks check-release (standalone mode)"
         print_info "  - cargo semver-checks check-release (cargo subcommand mode)"
+        print_compatibility_context
         exit 1
     fi
 
@@ -97,11 +122,101 @@ require_cargo_semver_checks() {
     local required_floor
     required_floor="${REQUIRED_SEMVER_CHECKS_VERSION}"
 
-    if [[ "$(printf '%s\n%s\n' "$required_floor" "$installed_version" | sort -V | head -n1)" != "$required_floor" ]]; then
-        print_error "cargo-semver-checks version ${installed_version} is older than required ${REQUIRED_SEMVER_CHECKS_VERSION}."
-        print_info "Upgrade with: cargo install --locked cargo-semver-checks --version ${REQUIRED_SEMVER_CHECKS_VERSION}"
+    if [[ ! "$installed_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+        print_error "Unable to determine a valid cargo-semver-checks version from: ${installed_version}"
+        print_compatibility_context
         exit 1
     fi
+
+    if ! semver_at_least "$installed_version" "$required_floor"; then
+        print_error "cargo-semver-checks version ${installed_version} is older than required ${REQUIRED_SEMVER_CHECKS_VERSION}."
+        print_info "Upgrade with: cargo install --locked cargo-semver-checks --version ${REQUIRED_SEMVER_CHECKS_VERSION}"
+        print_compatibility_context
+        exit 1
+    fi
+}
+
+# Compare SemVer precedence without sort -V, which treats prerelease versions
+# such as 0.49.0-rc.1 as newer than the stable 0.49.0 floor.
+semver_at_least() {
+    local candidate="$1"
+    local required="$2"
+
+    "$PYTHON_CMD" - "$candidate" "$required" <<'PY'
+import re
+import sys
+
+
+def parse(version: str) -> tuple[int, int, int, tuple[str, ...]]:
+    match = re.fullmatch(
+        r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+        r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?",
+        version,
+    )
+    if match is None:
+        raise ValueError(version)
+    prerelease = tuple(match.group(4).split(".")) if match.group(4) else ()
+    return int(match.group(1)), int(match.group(2)), int(match.group(3)), prerelease
+
+
+def compare(left: tuple[int, int, int, tuple[str, ...]], right: tuple[int, int, int, tuple[str, ...]]) -> int:
+    if left[:3] != right[:3]:
+        return (left[:3] > right[:3]) - (left[:3] < right[:3])
+    left_pre, right_pre = left[3], right[3]
+    if not left_pre or not right_pre:
+        return (not left_pre) - (not right_pre)
+    for left_id, right_id in zip(left_pre, right_pre):
+        if left_id == right_id:
+            continue
+        left_numeric = left_id.isdigit()
+        right_numeric = right_id.isdigit()
+        if left_numeric and right_numeric:
+            return (int(left_id) > int(right_id)) - (int(left_id) < int(right_id))
+        if left_numeric != right_numeric:
+            return -1 if left_numeric else 1
+        return (left_id > right_id) - (left_id < right_id)
+    return (len(left_pre) > len(right_pre)) - (len(left_pre) < len(right_pre))
+
+
+sys.exit(0 if compare(parse(sys.argv[1]), parse(sys.argv[2])) >= 0 else 1)
+PY
+}
+
+require_rustdoc_toolchain() {
+    local tool
+    for tool in rustc rustdoc; do
+        if ! command -v "$tool" &> /dev/null; then
+            print_error "${tool} is not installed."
+            print_compatibility_context
+            return 1
+        fi
+    done
+}
+
+preflight() {
+    local stable_packages
+    local workspace_packages
+    local exclude_args
+    local current_revision
+
+    print_info "Checking API-freeze toolchain compatibility."
+    print_compatibility_context
+    require_rustdoc_toolchain
+
+    stable_packages="$(load_stable_packages | sort)"
+    workspace_packages="$(load_workspace_packages | sort)"
+    validate_stable_workspace_alignment "$stable_packages" "$workspace_packages"
+    exclude_args="$(build_exclude_args "$workspace_packages" "$stable_packages")"
+    current_revision="$(cd "$PROJECT_ROOT" && git rev-parse HEAD)"
+
+    print_info "Probing cargo-semver-checks against current rustdoc JSON at ${current_revision}..."
+    if ! run_stable_semver_check "$current_revision" "$exclude_args"; then
+        print_error "cargo-semver-checks could not parse the active rustdoc JSON format"
+        print_compatibility_context
+        return 1
+    fi
+
+    print_success "cargo-semver-checks ${REQUIRED_SEMVER_CHECKS_VERSION}+ parsed rustdoc JSON ${SUPPORTED_RUSTDOC_JSON_FORMAT}."
 }
 
 load_stable_packages() {
@@ -184,7 +299,7 @@ build_exclude_args() {
     local stable_packages="$2"
     local -a workspace
     local -a stable
-    local -a excludes
+    local -a excludes=()
     local package
     local stable_package
 
@@ -278,7 +393,11 @@ generate_baseline() {
     exclude_args="$(build_exclude_args "$workspace_packages" "$stable_packages")"
 
     print_info "Running baseline check once to ensure stable surface is comparable at ${baseline_revision}..."
-    run_stable_semver_check "$baseline_revision" "$exclude_args"
+    if ! run_stable_semver_check "$baseline_revision" "$exclude_args"; then
+        print_error "Unable to generate a compatible stable API baseline"
+        print_compatibility_context
+        return 1
+    fi
 
     record_baseline_state "$stable_packages" "$baseline_revision"
 
@@ -327,6 +446,7 @@ check_api() {
     fi
 
     print_error "Stable API compatibility check failed"
+    print_compatibility_context
     return 1
 }
 
@@ -388,6 +508,9 @@ main() {
     require_cargo_semver_checks
 
     case "$command" in
+        preflight)
+            preflight
+            ;;
         generate|baseline)
             generate_baseline
             ;;
@@ -406,6 +529,7 @@ main() {
             echo "Usage: $0 <command>"
             echo ""
             echo "Commands:"
+            echo "  preflight           Check API-freeze toolchain compatibility"
             echo "  generate, baseline  Generate stable API baseline for current version"
             echo "  check               Check API compatibility against stable baseline"
             echo "  info                Show current baseline information"

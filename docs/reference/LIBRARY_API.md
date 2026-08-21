@@ -333,11 +333,13 @@ Decoded records are wrapped in a stable JSON envelope:
   `emit_meta` is enabled for streaming decode; `offset` is the zero-based physical source offset
   of the decoded record
 
-For a scalar-target group `REDEFINES`, child fields are emitted as flattened top-level views at
-the group's declaration position. The named group view is also retained and emitted after the
-enclosing sibling scan completes. Scalar `REDEFINES` remain in declaration order, while
-group-over-group `REDEFINES` retain the existing skip behavior. This ordering and view shape are
-identical for `decode_record` and `decode_record_with_scratch`.
+For a scalar-target group `REDEFINES` nested under a level-01 record (that is, a group at level
+greater than 1), child fields are emitted as flattened top-level views at the group's declaration
+position. The named group view is also retained and emitted after the enclosing sibling scan
+completes. A level-01 redefining group follows root traversal and emits its children without a
+named group wrapper. Scalar `REDEFINES` remain in declaration order, while group-over-group
+`REDEFINES` retain the existing skip behavior. This ordering and view shape are identical for
+`decode_record` and `decode_record_with_scratch`.
 
 When `emit_raw` is enabled, record-level payloads are emitted as **`raw_b64`** (with the legacy
 `__raw_b64` key also present). The `raw_capture` marker records whether those bytes are payload-only

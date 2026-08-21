@@ -742,3 +742,28 @@ fn test_redefines_order_contract_covers_scalar_cluster_and_group_skip() {
             .is_none()
     );
 }
+
+#[test]
+fn test_level_one_redefines_group_is_flattened_without_named_wrapper() {
+    let copybook = r#"
+01 ORIGINAL-RECORD.
+   05 ORIGINAL PIC X(4).
+01 REDEFINED-RECORD REDEFINES ORIGINAL-RECORD.
+   05 ALTERNATE PIC X(4).
+"#;
+
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = create_test_decode_options(false);
+    let record_len = record_len_from_schema(&schema).max(4);
+    schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, &[b'0'; 4], &options);
+    let fields = plain
+        .get("fields")
+        .and_then(Value::as_object)
+        .unwrap();
+
+    assert!(fields.get("ALTERNATE").is_some());
+    assert!(fields.get("REDEFINED-RECORD").is_none());
+    assert_eq!(plain, with_scratch);
+}

@@ -792,6 +792,10 @@ fn cobol_group_over_group_fixed_occurs_emits_named_array() {
     let fields = plain.get("fields").and_then(Value::as_object).unwrap();
 
     assert!(fields.get("ORIGINAL-GROUP").is_some());
-    assert!(fields.get("GROUP-REDEFINE").is_some());
+    let redefining_group = fields
+        .get("GROUP-REDEFINE")
+        .and_then(Value::as_array)
+        .expect("fixed-OCCURS group-over-group view should be a named array");
+    assert_eq!(redefining_group.len(), 2);
     assert_eq!(plain, with_scratch);
 }

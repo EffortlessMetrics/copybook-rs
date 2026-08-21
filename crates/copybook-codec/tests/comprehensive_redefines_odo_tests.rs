@@ -814,8 +814,7 @@ fn cobol_scalar_target_group_fixed_occurs_emits_named_array() {
     let record_len = record_len_from_schema(&schema).max(4);
     schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
 
-    let (plain, with_scratch) =
-        decode_plain_and_scratch(&schema, &[b'A', b'A', b'B', b'B'], &options);
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABB", &options);
     let fields = plain.get("fields").and_then(Value::as_object).unwrap();
 
     assert!(fields.get("ORIGINAL").is_some());

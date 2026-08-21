@@ -123,6 +123,18 @@ exit 99
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("older than required 0.49.0", output)
 
+    def test_prerelease_at_floor_fails_closed(self) -> None:
+        result = self.run_preflight(
+            """#!/usr/bin/env bash
+if [[ \"$1\" == \"--version\" ]]; then echo 'cargo-semver-checks 0.49.0-rc.1'; exit 0; fi
+if [[ \"$1\" == \"check-release\" && \"$2\" == \"--help\" ]]; then exit 0; fi
+exit 99
+"""
+        )
+        output = result.stdout + result.stderr
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("older than required 0.49.0", output)
+
     def test_malformed_version_fails_closed(self) -> None:
         result = self.run_preflight(
             """#!/usr/bin/env bash

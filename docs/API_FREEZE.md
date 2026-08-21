@@ -130,6 +130,7 @@ bash scripts/api-baseline.sh freeze-status
 cargo install --locked cargo-semver-checks --version 0.49.0
 
 # Run hostile preflight tests and report Rust, rustdoc, and cargo-semver-checks compatibility context
+python3 scripts/ci/test_api_baseline_preflight.py
 bash scripts/api-baseline.sh preflight
 
 # Check API compatibility via the repository script (stable-surface baseline)

@@ -334,11 +334,12 @@ Decoded records are wrapped in a stable JSON envelope:
   of the decoded record
 
 For a scalar-target group `REDEFINES` nested under a level-01 record (that is, a group at level
-greater than 1), child fields are emitted as flattened top-level views at the group's declaration
-position. The named group view is also retained and emitted after the enclosing sibling scan
-completes. A level-01 redefining group follows root traversal and emits its children without a
-named group wrapper. Scalar `REDEFINES` remain in declaration order, while group-over-group
-`REDEFINES` retain the existing skip behavior. This ordering and view shape are identical for
+greater than 1), child fields are emitted as flattened views in the immediate enclosing JSON map
+at the group's declaration position. The named group view is also retained and emitted after that
+enclosing sibling scan completes. A level-01 redefining group follows root traversal and emits its
+children without a named group wrapper. Scalar `REDEFINES` remain in declaration order. A
+group-over-group `REDEFINES` is omitted when it has no `OCCURS`; with fixed `OCCURS`, the array
+path emits the redefining group as a named array. This ordering and view shape are identical for
 `decode_record` and `decode_record_with_scratch`.
 
 When `emit_raw` is enabled, record-level payloads are emitted as **`raw_b64`** (with the legacy

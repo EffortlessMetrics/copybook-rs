@@ -127,10 +127,12 @@ See [NORMATIVE_SPEC.md](NORMATIVE_SPEC.md) section 1.1 for the fixed-scale rende
 
 When a COBOL copybook uses REDEFINES, supported scalar alternative views of the same storage
 are emitted in declaration order. A scalar-target group nested under a level-01 record emits its
-children as flattened views at the group's declaration position and retains a named group view
-after the enclosing sibling scan. A level-01 redefining group emits its children through root
-traversal without a named group wrapper. Group-over-group REDEFINES are intentionally omitted.
-Each emitted view is decoded independently from the underlying bytes.
+children as flattened views in the immediate enclosing JSON map at the group's declaration
+position and retains a named group view after the enclosing sibling scan. A level-01 redefining
+group emits its children through root traversal without a named group wrapper. Group-over-group
+REDEFINES without `OCCURS` are intentionally omitted; fixed-`OCCURS` group-over-group views are
+emitted as named arrays by the array traversal. Each emitted view is decoded independently from
+the underlying bytes.
 
 ```cobol
 01 RECORD.

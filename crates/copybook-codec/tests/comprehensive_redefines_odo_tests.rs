@@ -622,7 +622,7 @@ fn test_odo_minimum_counter_handling() {
 }
 
 #[test]
-fn test_redefines_declaration_order() {
+fn cobol_redefines_declaration_order() {
     // Test that REDEFINES are output in declaration order
     let copybook = r#"
 01 ORDER-TEST-RECORD.
@@ -663,7 +663,7 @@ fn test_redefines_declaration_order() {
 
     // A scalar-target group emits its children at the group's declaration
     // position. Its named group view is retained after all enclosing siblings.
-    // This is the intentional PR #593 contract, not an incidental map order.
+    // This is the intentional Issue #820 / PR #821 contract, not an incidental map order.
     let expected_order = [
         "ORIGINAL",
         "THIRD-REDEFINE",
@@ -695,7 +695,7 @@ fn test_redefines_declaration_order() {
 }
 
 #[test]
-fn test_redefines_order_contract_covers_scalar_cluster_and_group_skip() {
+fn cobol_redefines_order_contract_covers_scalar_cluster_and_group_skip() {
     let copybook = r#"
 01 ORDER-BOUNDARIES.
    05 ORIGINAL PIC X(4).
@@ -732,6 +732,14 @@ fn test_redefines_order_contract_covers_scalar_cluster_and_group_skip() {
             .map(|key| (*key).to_owned())
             .collect::<Vec<_>>(),
     );
+    assert_eq!(
+        field_keys(&with_scratch),
+        expected_order
+            .iter()
+            .map(|key| (*key).to_owned())
+            .collect::<Vec<_>>(),
+        "scratch-buffer decode must preserve the scalar and group skip order",
+    );
     assert_eq!(plain, with_scratch);
     assert!(
         plain
@@ -744,7 +752,7 @@ fn test_redefines_order_contract_covers_scalar_cluster_and_group_skip() {
 }
 
 #[test]
-fn test_level_one_redefines_group_is_flattened_without_named_wrapper() {
+fn cobol_level_one_redefines_group_is_flattened_without_named_wrapper() {
     let copybook = r#"
 01 ORIGINAL-RECORD.
    05 ORIGINAL PIC X(4).
@@ -762,5 +770,28 @@ fn test_level_one_redefines_group_is_flattened_without_named_wrapper() {
 
     assert!(fields.get("ALTERNATE").is_some());
     assert!(fields.get("REDEFINED-RECORD").is_none());
+    assert_eq!(plain, with_scratch);
+}
+
+#[test]
+fn cobol_group_over_group_fixed_occurs_emits_named_array() {
+    let copybook = r#"
+01 OCCURS-REDEFINES.
+   05 ORIGINAL-GROUP OCCURS 2 TIMES.
+      10 ORIGINAL PIC X(2).
+   05 GROUP-REDEFINE REDEFINES ORIGINAL-GROUP OCCURS 2 TIMES.
+      10 ALTERNATE PIC X(2).
+"#;
+
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = create_test_decode_options(false);
+    let record_len = record_len_from_schema(&schema).max(4);
+    schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, &[b'0'; 4], &options);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+
+    assert!(fields.get("ORIGINAL-GROUP").is_some());
+    assert!(fields.get("GROUP-REDEFINE").is_some());
     assert_eq!(plain, with_scratch);
 }

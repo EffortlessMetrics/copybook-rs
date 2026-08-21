@@ -834,3 +834,31 @@ fn cobol_scalar_target_group_fixed_occurs_emits_named_array() {
     assert!(fields.get("ALTERNATE").is_none());
     assert_eq!(plain, with_scratch);
 }
+
+#[test]
+fn cobol_group_array_preserves_child_offsets_across_elements() {
+    let copybook = r#"
+01 MULTI-CHILD-OCCURS.
+   05 PAIR OCCURS 2 TIMES.
+      10 LEFT PIC X(2).
+      10 RIGHT PIC X(2).
+"#;
+
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = create_test_decode_options(false);
+    let record_len = record_len_from_schema(&schema).max(8);
+    schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABBCCDD", &options);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+    let pairs = fields
+        .get("PAIR")
+        .and_then(Value::as_array)
+        .expect("group OCCURS should decode as an array");
+    assert_eq!(pairs.len(), 2);
+    assert_eq!(pairs[0].get("LEFT").and_then(Value::as_str), Some("AA"));
+    assert_eq!(pairs[0].get("RIGHT").and_then(Value::as_str), Some("BB"));
+    assert_eq!(pairs[1].get("LEFT").and_then(Value::as_str), Some("CC"));
+    assert_eq!(pairs[1].get("RIGHT").and_then(Value::as_str), Some("DD"));
+    assert_eq!(plain, with_scratch);
+}

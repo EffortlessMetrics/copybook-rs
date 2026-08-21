@@ -814,7 +814,8 @@ fn cobol_scalar_target_group_fixed_occurs_emits_named_array() {
     let record_len = record_len_from_schema(&schema).max(4);
     schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
 
-    let (plain, with_scratch) = decode_plain_and_scratch(&schema, &[b'0'; 4], &options);
+    let (plain, with_scratch) =
+        decode_plain_and_scratch(&schema, &[b'A', b'A', b'B', b'B'], &options);
     let fields = plain.get("fields").and_then(Value::as_object).unwrap();
 
     assert!(fields.get("ORIGINAL").is_some());
@@ -823,6 +824,14 @@ fn cobol_scalar_target_group_fixed_occurs_emits_named_array() {
         .and_then(Value::as_array)
         .expect("fixed-OCCURS scalar-target view should be a named array");
     assert_eq!(redefining_group.len(), 2);
+    assert_eq!(
+        redefining_group[0].get("ALTERNATE").and_then(Value::as_str),
+        Some("AA")
+    );
+    assert_eq!(
+        redefining_group[1].get("ALTERNATE").and_then(Value::as_str),
+        Some("BB")
+    );
     assert!(fields.get("ALTERNATE").is_none());
     assert_eq!(plain, with_scratch);
 }

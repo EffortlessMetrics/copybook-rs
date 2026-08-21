@@ -906,20 +906,19 @@ fn process_array_field_with_scratch(
                 // For group arrays, each element should be an object with child fields
                 let mut group_obj = serde_json::Map::new();
 
-                // Create a temporary field for processing group element
+                // Rebase every child to this element, matching the standard
+                // traversal so scratch and non-scratch decoding see the same
+                // bytes for each repeated group element.
                 let element_offset_u32 = u32::try_from(element_offset).map_err(|_| {
                     Error::new(
                         ErrorCode::CBKD301_RECORD_TOO_SHORT,
                         format!("Array element offset {element_offset} exceeds supported range"),
                     )
                 })?;
-
-                let mut element_field = field.clone();
-                element_field.offset = element_offset_u32;
-                element_field.occurs = None; // Remove OCCURS for individual element
+                let adjusted_children = adjust_field_offsets(&field.children, element_offset_u32);
 
                 process_fields_recursive_with_scratch(
-                    &element_field.children,
+                    &adjusted_children,
                     data,
                     &mut group_obj,
                     options,

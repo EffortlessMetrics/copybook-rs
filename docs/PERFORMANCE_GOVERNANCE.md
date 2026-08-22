@@ -22,6 +22,29 @@ payload-byte throughput is diagnostic only and is not a canonical receipt,
 baseline, gate, threshold, SLO, or scheduled result. Current performance claims must instead use
 `scripts/bench/perf.json` and the governed baseline/gate process below.
 
+### External-input claim boundary
+
+The evidence classes below are intentionally separate; evidence in one row does
+not imply the claims in a later row.
+
+| Evidence | Establishes | Does not establish |
+| --- | --- | --- |
+| Decode-preflight JSON from `external-input-preflight.yml` | Manifest validation, decode success, byte accounting, and commit/input identity | Timing, throughput, receipt, baseline, threshold, gate, SLO, or representativeness |
+| Raw Criterion artifacts from the manual `external-input-criterion.yml` workflow or a local opt-in run | Diagnostic payload-byte measurements for the selected checked-in manifests | A canonical receipt, comparison with `baseline.json`, a blocking threshold/gate, an SLO, a scheduled result, or production representativeness |
+| A validated entry in `scripts/bench/perf.json` | A canonical, integrity-checked measurement suitable for current performance references | Automatic baseline promotion, a new threshold, or an SLO decision |
+| A reviewed change to `scripts/bench/baseline.json` following `BASELINE_METHODOLOGY.md` | The approved comparison reference used by the existing regression gate | Representativeness or an SLO outside the governed workload and gate contract |
+| An explicitly approved threshold/gate or SLO decision | Only the named policy decision and its stated scope | Any broader claim not covered by that decision |
+
+External-input telemetry may be proposed for promotion only after a separate,
+reviewed evidence package identifies the copybook, manifest, dataset, commit,
+environment, build profile, target CPU, workload definition, raw measurements,
+and integrity hashes; demonstrates reproducibility with independent runs and
+the applicable variance analysis; and records the baseline comparison and
+separately approved threshold or SLO decision. Until that package exists, the
+four checked-in manifests remain diagnostic telemetry only. Generated-dataset
+representativeness and scheduled execution are separate follow-up concerns and
+are not implied by this policy.
+
 ## Canonical Receipt Requirements
 
 ### Required Elements for Performance Claims

@@ -13,6 +13,24 @@ not establish a canonical receipt, baseline, threshold, SLO, gate, or scheduled
 result. Use the canonical `scripts/bench/perf.json` and governed baseline
 process for current performance claims.
 
+### External-input promotion boundary
+
+The external-input target is not a shortcut into the canonical baseline. Its
+manual Criterion output remains diagnostic until a separate reviewed evidence
+package satisfies both this methodology and the performance governance policy.
+That package must pin the copybook, manifest, dataset, source commit, build
+profile, target CPU, and environment; define the workload and its intended
+representativeness; retain raw measurements with integrity hashes; complete the
+independent-run and coefficient-of-variation analysis below; compare against
+the current baseline; and obtain explicit approval for any threshold, gate, or
+SLO claim. A receipt, baseline update, blocking gate, and SLO are distinct
+decisions and must not be inferred from one another.
+
+This section defines prerequisites only. It does not promote the checked-in
+manifests, change `scripts/bench/perf.json` or `scripts/bench/baseline.json`,
+set a new floor, or create a scheduled workflow. Generated representative
+datasets and scheduling require separate #776 follow-up work.
+
 ## Baseline Measurement Procedure
 
 ### Prerequisites

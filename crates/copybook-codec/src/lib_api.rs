@@ -817,14 +817,13 @@ fn process_array_field(
 ) -> Result<()> {
     use copybook_core::FieldKind;
 
-    let scratch = scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
     let count = resolve_array_count(
         field,
         occurs,
         data,
         options,
         all_fields,
-        scratch,
+        &mut ArrayScratch::Optional(scratch_buffers),
         record_index,
     )?;
 
@@ -931,7 +930,7 @@ fn process_array_field_with_scratch(
         data,
         options,
         all_fields,
-        scratch,
+        &mut ArrayScratch::Direct(scratch),
         record_index,
     )?;
 
@@ -1015,13 +1014,18 @@ fn process_array_field_with_scratch(
 }
 
 /// Find and read the value of a counter field for ODO arrays
+enum ArrayScratch<'a> {
+    Optional(&'a mut Option<crate::memory::ScratchBuffers>),
+    Direct(&'a mut crate::memory::ScratchBuffers),
+}
+
 fn resolve_array_count(
     field: &copybook_core::Field,
     occurs: &copybook_core::Occurs,
     data: &[u8],
     options: &DecodeOptions,
     all_fields: &[copybook_core::Field],
-    scratch: &mut crate::memory::ScratchBuffers,
+    scratch: &mut ArrayScratch<'_>,
     record_index: u64,
 ) -> Result<u32> {
     match occurs {
@@ -1031,6 +1035,12 @@ fn resolve_array_count(
             max,
             counter_path,
         } => {
+            let scratch = match scratch {
+                ArrayScratch::Optional(slot) => {
+                    slot.get_or_insert_with(crate::memory::ScratchBuffers::new)
+                }
+                ArrayScratch::Direct(value) => value,
+            };
             let counter_value = find_and_read_counter_field(
                 counter_path,
                 all_fields,

@@ -330,9 +330,7 @@ fn process_fields_recursive(
                 if is_scalar_target_group_redefine(field, fields) {
                     let group_value = Value::Object(group_obj);
                     if let Value::Object(group_fields) = &group_value {
-                        for (name, value) in group_fields {
-                            insert_decoded_field(json_obj, name, value.clone());
-                        }
+                        insert_decoded_group_fields(json_obj, group_fields);
                     }
                     deferred_group_views.push((field.name.clone(), group_value));
                 } else if field.redefines_of.is_none() {
@@ -379,20 +377,74 @@ fn process_fields_recursive(
 /// siblings. Preserve every view in traversal order using the repository's
 /// deterministic duplicate-name convention.
 fn insert_decoded_field(json_obj: &mut serde_json::Map<String, Value>, name: &str, value: Value) {
+    let _ = insert_decoded_field_with_key(json_obj, name, value);
+}
+
+/// Flatten a decoded group while keeping field raw sidecars paired with their
+/// emitted collision key.
+fn insert_decoded_group_fields(
+    json_obj: &mut serde_json::Map<String, Value>,
+    group_fields: &serde_json::Map<String, Value>,
+) {
+    let mut emitted_keys = Vec::new();
+    for (name, value) in group_fields {
+        if let Some(field_name) = name.strip_suffix("_raw_b64")
+            && let Some((_, emitted_key)) = emitted_keys
+                .iter()
+                .rev()
+                .find(|(original, _)| original == field_name)
+        {
+            json_obj.insert(format!("{emitted_key}_raw_b64"), value.clone());
+            continue;
+        }
+
+        let emitted_key = insert_decoded_field_with_key(json_obj, name, value.clone());
+        if !name.ends_with("_raw_b64") {
+            emitted_keys.push((name.clone(), emitted_key));
+        }
+    }
+}
+
+/// Insert a decoded field and return the key actually emitted into the map.
+fn insert_decoded_field_with_key(
+    json_obj: &mut serde_json::Map<String, Value>,
+    name: &str,
+    value: Value,
+) -> String {
     // FILLER output and encode handling retain their existing overwrite
     // contract until the dedicated raw-sidecar/filler follow-up.
     if name.eq_ignore_ascii_case("FILLER") || name.starts_with("_filler_") {
         json_obj.insert(name.to_owned(), value);
-        return;
+        return name.to_owned();
     }
 
-    let mut candidate = name.to_owned();
+    let (base_name, has_duplicate_suffix) = duplicate_name_base(name);
+    let mut candidate = if has_duplicate_suffix && json_obj.contains_key(base_name) {
+        base_name.to_owned()
+    } else {
+        name.to_owned()
+    };
     let mut suffix = 2;
     while json_obj.contains_key(&candidate) {
-        candidate = format!("{name}__dup{suffix}");
+        candidate = format!("{base_name}__dup{suffix}");
         suffix += 1;
     }
-    json_obj.insert(candidate, value);
+    json_obj.insert(candidate.clone(), value);
+    candidate
+}
+
+/// Return the unsuffixed schema name for a conventional `__dupN` key.
+fn duplicate_name_base(name: &str) -> (&str, bool) {
+    let Some((base, suffix)) = name.rsplit_once("__dup") else {
+        return (name, false);
+    };
+    let Ok(number) = suffix.parse::<usize>() else {
+        return (name, false);
+    };
+    if base.is_empty() || number < 2 {
+        return (name, false);
+    }
+    (base, true)
 }
 
 /// Optimized field processing with scratch buffers for COMP-3 performance
@@ -443,9 +495,7 @@ fn process_fields_recursive_with_scratch(
                 if is_scalar_target_group_redefine(field, fields) {
                     let group_value = Value::Object(group_obj);
                     if let Value::Object(group_fields) = &group_value {
-                        for (name, value) in group_fields {
-                            insert_decoded_field(json_obj, name, value.clone());
-                        }
+                        insert_decoded_group_fields(json_obj, group_fields);
                     }
                     deferred_group_views.push((field.name.clone(), group_value));
                 } else if field.redefines_of.is_none() {
@@ -580,11 +630,11 @@ fn process_scalar_field_standard(
         collect_zoned_encoding_info(field, field_data, options, encoding_acc);
     }
 
-    insert_decoded_field(json_obj, &field.name, value);
+    let emitted_key = insert_decoded_field_with_key(json_obj, &field.name, value);
 
     // Emit field-level raw bytes when RawMode::Field is active
     if matches!(options.emit_raw, crate::options::RawMode::Field) {
-        let raw_key = format!("{}_raw_b64", field.name);
+        let raw_key = format!("{emitted_key}_raw_b64");
         let raw_b64 = base64::engine::general_purpose::STANDARD.encode(field_data);
         json_obj.insert(raw_key, Value::String(raw_b64));
     }
@@ -686,11 +736,11 @@ fn process_scalar_field_with_scratch(
         collect_zoned_encoding_info(field, field_data, options, encoding_acc);
     }
 
-    insert_decoded_field(json_obj, &field.name, value);
+    let emitted_key = insert_decoded_field_with_key(json_obj, &field.name, value);
 
     // Emit field-level raw bytes when RawMode::Field is active
     if matches!(options.emit_raw, crate::options::RawMode::Field) {
-        let raw_key = format!("{}_raw_b64", field.name);
+        let raw_key = format!("{emitted_key}_raw_b64");
         let raw_b64 = base64::engine::general_purpose::STANDARD.encode(field_data);
         json_obj.insert(raw_key, Value::String(raw_b64));
     }

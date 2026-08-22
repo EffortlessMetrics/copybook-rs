@@ -342,6 +342,10 @@ declaration order. A group `REDEFINES` with fixed `OCCURS` takes the array path 
 the redefining group as a named array (without scalar-target flattening). Group-over-group
 `REDEFINES` without `OCCURS` are omitted. This ordering and view shape are identical for
 `decode_record` and `decode_record_with_scratch`.
+When a flattened, nested, or reverse-order view collides with an existing field in the enclosing
+JSON map, the later decoded value receives the deterministic `__dupN` suffix instead of replacing
+the earlier value. This collision naming is identical for standard and scratch decoding; encoding
+metadata and raw-sidecar identity are separate contracts.
 
 When `emit_raw` is enabled, record-level payloads are emitted as **`raw_b64`** (with the legacy
 `__raw_b64` key also present). The `raw_capture` marker records whether those bytes are payload-only

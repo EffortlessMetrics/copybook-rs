@@ -331,12 +331,12 @@ fn process_fields_recursive(
                     let group_value = Value::Object(group_obj);
                     if let Value::Object(group_fields) = &group_value {
                         for (name, value) in group_fields {
-                            json_obj.insert(name.clone(), value.clone());
+                            insert_decoded_field(json_obj, name, value.clone());
                         }
                     }
                     deferred_group_views.push((field.name.clone(), group_value));
                 } else if field.redefines_of.is_none() {
-                    json_obj.insert(field.name.clone(), Value::Object(group_obj));
+                    insert_decoded_field(json_obj, &field.name, Value::Object(group_obj));
                 }
             }
             (FieldKind::Group, None) => {
@@ -367,10 +367,32 @@ fn process_fields_recursive(
     }
 
     for (name, value) in deferred_group_views {
-        json_obj.insert(name, value);
+        insert_decoded_field(json_obj, &name, value);
     }
 
     Ok(())
+}
+
+/// Insert a decoded field without overwriting an earlier colliding view.
+///
+/// Flattened REDEFINES children share the enclosing JSON map with their
+/// siblings. Preserve every view in traversal order using the repository's
+/// deterministic duplicate-name convention.
+fn insert_decoded_field(json_obj: &mut serde_json::Map<String, Value>, name: &str, value: Value) {
+    // FILLER output and encode handling retain their existing overwrite
+    // contract until the dedicated raw-sidecar/filler follow-up.
+    if name.eq_ignore_ascii_case("FILLER") || name.starts_with("_filler_") {
+        json_obj.insert(name.to_owned(), value);
+        return;
+    }
+
+    let mut candidate = name.to_owned();
+    let mut suffix = 2;
+    while json_obj.contains_key(&candidate) {
+        candidate = format!("{name}__dup{suffix}");
+        suffix += 1;
+    }
+    json_obj.insert(candidate, value);
 }
 
 /// Optimized field processing with scratch buffers for COMP-3 performance
@@ -422,12 +444,12 @@ fn process_fields_recursive_with_scratch(
                     let group_value = Value::Object(group_obj);
                     if let Value::Object(group_fields) = &group_value {
                         for (name, value) in group_fields {
-                            json_obj.insert(name.clone(), value.clone());
+                            insert_decoded_field(json_obj, name, value.clone());
                         }
                     }
                     deferred_group_views.push((field.name.clone(), group_value));
                 } else if field.redefines_of.is_none() {
-                    json_obj.insert(field.name.clone(), Value::Object(group_obj));
+                    insert_decoded_field(json_obj, &field.name, Value::Object(group_obj));
                 }
             }
             (FieldKind::Group, None) => {
@@ -456,7 +478,7 @@ fn process_fields_recursive_with_scratch(
     }
 
     for (name, value) in deferred_group_views {
-        json_obj.insert(name, value);
+        insert_decoded_field(json_obj, &name, value);
     }
 
     Ok(())
@@ -518,7 +540,7 @@ fn process_scalar_field_standard(
             options.codepage,
             options.on_decode_unmappable,
         )?;
-        json_obj.insert(field.name.clone(), Value::String(text));
+        insert_decoded_field(json_obj, &field.name, Value::String(text));
         return Ok(());
     }
 
@@ -558,7 +580,7 @@ fn process_scalar_field_standard(
         collect_zoned_encoding_info(field, field_data, options, encoding_acc);
     }
 
-    json_obj.insert(field.name.clone(), value);
+    insert_decoded_field(json_obj, &field.name, value);
 
     // Emit field-level raw bytes when RawMode::Field is active
     if matches!(options.emit_raw, crate::options::RawMode::Field) {
@@ -617,7 +639,7 @@ fn process_scalar_field_with_scratch(
             options.codepage,
             options.on_decode_unmappable,
         )?;
-        json_obj.insert(field.name.clone(), Value::String(text));
+        insert_decoded_field(json_obj, &field.name, Value::String(text));
         return Ok(());
     }
 
@@ -664,7 +686,7 @@ fn process_scalar_field_with_scratch(
         collect_zoned_encoding_info(field, field_data, options, encoding_acc);
     }
 
-    json_obj.insert(field.name.clone(), value);
+    insert_decoded_field(json_obj, &field.name, value);
 
     // Emit field-level raw bytes when RawMode::Field is active
     if matches!(options.emit_raw, crate::options::RawMode::Field) {
@@ -816,7 +838,7 @@ fn process_array_field(
         array_values.push(element_value);
     }
 
-    json_obj.insert(field.name.clone(), Value::Array(array_values));
+    insert_decoded_field(json_obj, &field.name, Value::Array(array_values));
     Ok(())
 }
 
@@ -945,7 +967,7 @@ fn process_array_field_with_scratch(
         array_values.push(element_value);
     }
 
-    json_obj.insert(field.name.clone(), Value::Array(array_values));
+    insert_decoded_field(json_obj, &field.name, Value::Array(array_values));
     Ok(())
 }
 

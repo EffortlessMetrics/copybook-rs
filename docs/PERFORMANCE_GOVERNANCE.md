@@ -16,6 +16,12 @@ accounting, and commit/input identity only. They contain no clock, duration, or
 throughput fields and are not performance receipts, benchmark results, gates,
 baselines, thresholds, or SLO evidence.
 
+The opt-in `copybook-bench` external-input Criterion target is a manual local or
+hosted telemetry instrument for explicitly selected checked-in manifests. Its
+payload-byte throughput is diagnostic only and is not a canonical receipt,
+baseline, gate, threshold, SLO, or scheduled result. Current performance claims must instead use
+`scripts/bench/perf.json` and the governed baseline/gate process below.
+
 ## Canonical Receipt Requirements
 
 ### Required Elements for Performance Claims

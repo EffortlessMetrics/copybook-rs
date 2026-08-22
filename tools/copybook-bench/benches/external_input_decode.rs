@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Opt-in local Criterion target for one validated external-input manifest.
+//! Opt-in local telemetry target for one validated external-input manifest.
+//!
+//! This target reports diagnostic payload-byte throughput only, whether run
+//! locally or by the manual hosted workflow. It is not a canonical receipt,
+//! baseline, gate, threshold, SLO, or scheduled result.
 
 use std::env;
 use std::hint::black_box;

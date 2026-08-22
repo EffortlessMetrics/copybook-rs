@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# Manual decode telemetry only: this workflow does not benchmark or establish
+# a receipt, baseline, threshold, SLO, or scheduled performance claim.
 name: External Input Decode Preflight
 
 on:
@@ -37,6 +39,8 @@ jobs:
           ./target/release/external-input-preflight tools/copybook-bench/test_fixtures/external_input/rdw-ascii.json artifacts/external-input-preflight/rdw-ascii.json
           ./target/release/external-input-preflight tools/copybook-bench/test_fixtures/external_input/rdw-cp037.json artifacts/external-input-preflight/rdw-cp037.json
 
+      # Reports prove validation, decode, byte accounting, and input identity;
+      # they intentionally contain no timing or throughput measurements.
       - name: Upload decode telemetry
         uses: actions/upload-artifact@v7
         with:

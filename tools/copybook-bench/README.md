@@ -69,7 +69,14 @@ Current performance claims and CI thresholds are governed by
 The external-input target above remains manual diagnostic telemetry only,
 whether run locally or by the hosted workflow; it does not promote a baseline
 or establish a threshold, SLO, receipt, or scheduled claim.
-See `BASELINE_METHODOLOGY.md` for the separate canonical baseline procedure.
+See [`BASELINE_METHODOLOGY.md`](BASELINE_METHODOLOGY.md) and
+[`docs/PERFORMANCE_GOVERNANCE.md`](../../docs/PERFORMANCE_GOVERNANCE.md) for
+the separate canonical baseline procedure and the evidence promotion boundary.
+Any future promotion requires pinned input/environment identity, raw
+integrity-checked measurements, independent-run variance evidence, baseline
+review, and a separately approved threshold or SLO decision. The current
+checked-in manifests do not satisfy that promotion boundary; generated
+representativeness and scheduled execution remain separate follow-ups.
 
 ## License
 

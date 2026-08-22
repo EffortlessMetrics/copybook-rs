@@ -331,12 +331,12 @@ fn process_fields_recursive(
                     let group_value = Value::Object(group_obj);
                     if let Value::Object(group_fields) = &group_value {
                         for (name, value) in group_fields {
-                            insert_decoded_field(json_obj, name, value.clone());
+                            insert_flattened_group_field(json_obj, name, value.clone());
                         }
                     }
                     deferred_group_views.push((field.name.clone(), group_value));
                 } else if field.redefines_of.is_none() {
-                    insert_decoded_field(json_obj, &field.name, Value::Object(group_obj));
+                    json_obj.insert(field.name.clone(), Value::Object(group_obj));
                 }
             }
             (FieldKind::Group, None) => {
@@ -367,7 +367,7 @@ fn process_fields_recursive(
     }
 
     for (name, value) in deferred_group_views {
-        insert_decoded_field(json_obj, &name, value);
+        json_obj.insert(name, value);
     }
 
     Ok(())
@@ -422,12 +422,12 @@ fn process_fields_recursive_with_scratch(
                     let group_value = Value::Object(group_obj);
                     if let Value::Object(group_fields) = &group_value {
                         for (name, value) in group_fields {
-                            insert_decoded_field(json_obj, name, value.clone());
+                            insert_flattened_group_field(json_obj, name, value.clone());
                         }
                     }
                     deferred_group_views.push((field.name.clone(), group_value));
                 } else if field.redefines_of.is_none() {
-                    insert_decoded_field(json_obj, &field.name, Value::Object(group_obj));
+                    json_obj.insert(field.name.clone(), Value::Object(group_obj));
                 }
             }
             (FieldKind::Group, None) => {
@@ -456,7 +456,7 @@ fn process_fields_recursive_with_scratch(
     }
 
     for (name, value) in deferred_group_views {
-        insert_decoded_field(json_obj, &name, value);
+        json_obj.insert(name, value);
     }
 
     Ok(())
@@ -518,7 +518,7 @@ fn process_scalar_field_standard(
             options.codepage,
             options.on_decode_unmappable,
         )?;
-        insert_decoded_field(json_obj, &field.name, Value::String(text));
+        json_obj.insert(field.name.clone(), Value::String(text));
         return Ok(());
     }
 
@@ -558,7 +558,7 @@ fn process_scalar_field_standard(
         collect_zoned_encoding_info(field, field_data, options, encoding_acc);
     }
 
-    insert_decoded_field(json_obj, &field.name, value);
+    json_obj.insert(field.name.clone(), value);
 
     // Emit field-level raw bytes when RawMode::Field is active
     if matches!(options.emit_raw, crate::options::RawMode::Field) {
@@ -617,7 +617,7 @@ fn process_scalar_field_with_scratch(
             options.codepage,
             options.on_decode_unmappable,
         )?;
-        insert_decoded_field(json_obj, &field.name, Value::String(text));
+        json_obj.insert(field.name.clone(), Value::String(text));
         return Ok(());
     }
 
@@ -664,7 +664,7 @@ fn process_scalar_field_with_scratch(
         collect_zoned_encoding_info(field, field_data, options, encoding_acc);
     }
 
-    insert_decoded_field(json_obj, &field.name, value);
+    json_obj.insert(field.name.clone(), value);
 
     // Emit field-level raw bytes when RawMode::Field is active
     if matches!(options.emit_raw, crate::options::RawMode::Field) {
@@ -816,7 +816,7 @@ fn process_array_field(
         array_values.push(element_value);
     }
 
-    insert_decoded_field(json_obj, &field.name, Value::Array(array_values));
+    json_obj.insert(field.name.clone(), Value::Array(array_values));
     Ok(())
 }
 
@@ -945,7 +945,7 @@ fn process_array_field_with_scratch(
         array_values.push(element_value);
     }
 
-    insert_decoded_field(json_obj, &field.name, Value::Array(array_values));
+    json_obj.insert(field.name.clone(), Value::Array(array_values));
     Ok(())
 }
 
@@ -1394,12 +1394,16 @@ fn is_scalar_target_group_redefine(
             .is_ok_and(|target| !matches!(target.kind, copybook_core::FieldKind::Group))
 }
 
-/// Insert a decoded field without overwriting an existing field.
+/// Insert a flattened group child without overwriting an enclosing field.
 ///
 /// The parser disambiguates true siblings, but flattened children can collide
 /// with fields in their enclosing map. Preserve both values with the same
 /// deterministic `__dupN` suffix convention used by schema names.
-fn insert_decoded_field(json_obj: &mut serde_json::Map<String, Value>, name: &str, value: Value) {
+fn insert_flattened_group_field(
+    json_obj: &mut serde_json::Map<String, Value>,
+    name: &str,
+    value: Value,
+) {
     let mut candidate = name.to_owned();
     let mut suffix = 2;
     while json_obj.contains_key(&candidate) {

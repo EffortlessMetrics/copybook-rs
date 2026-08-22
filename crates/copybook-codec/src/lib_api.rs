@@ -428,13 +428,6 @@ fn insert_decoded_field_with_key(
     name: &str,
     value: Value,
 ) -> Option<String> {
-    // FILLER output and encode handling retain their existing overwrite
-    // contract until the dedicated raw-sidecar/filler follow-up.
-    if name.eq_ignore_ascii_case("FILLER") || name.starts_with("_filler_") {
-        json_obj.insert(name.to_owned(), value);
-        return None;
-    }
-
     match json_obj.entry(name.to_owned()) {
         serde_json::map::Entry::Vacant(entry) => {
             entry.insert(value);

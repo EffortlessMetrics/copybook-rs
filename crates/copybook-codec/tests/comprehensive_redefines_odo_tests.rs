@@ -16,7 +16,9 @@ use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
     UnmappablePolicy, ZonedEncodingFormat,
 };
-use copybook_core::{ErrorCode, Occurs, Schema, parse_copybook};
+use copybook_core::{
+    ErrorCode, Occurs, ParseOptions, Schema, parse_copybook, parse_copybook_with_options,
+};
 use serde_json::{Value, json};
 use std::io::Cursor;
 
@@ -916,6 +918,57 @@ fn cobol_collision_raw_sidecars_follow_emitted_keys() {
     );
     assert!(fields.get("EXISTING_raw_b64__dup2").is_none());
     assert_eq!(plain, with_scratch);
+}
+
+#[test]
+fn cobol_emitted_filler_collision_sidecars_round_trip_by_emitted_key() {
+    let copybook = r#"
+01 FILLER-COLLISION.
+   05 FILLER PIC X(2).
+   05 FILLER PIC X(2).
+"#;
+    let schema = parse_copybook_with_options(
+        copybook,
+        &ParseOptions {
+            emit_filler: true,
+            ..ParseOptions::default()
+        },
+    )
+    .unwrap();
+    let options = DecodeOptions {
+        emit_filler: true,
+        emit_raw: RawMode::Field,
+        ..create_test_decode_options(false)
+    };
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABB", &options);
+    assert_eq!(plain, with_scratch);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+    assert_eq!(fields.get("_filler_0").and_then(Value::as_str), Some("AA"));
+    assert_eq!(
+        fields.get("_filler_0__dup2").and_then(Value::as_str),
+        Some("BB")
+    );
+    assert_eq!(
+        fields.get("_filler_0_raw_b64").and_then(Value::as_str),
+        Some("QUE=")
+    );
+    assert_eq!(
+        fields
+            .get("_filler_0__dup2_raw_b64")
+            .and_then(Value::as_str),
+        Some("QkI=")
+    );
+
+    let mut modified = plain;
+    modified
+        .get_mut("fields")
+        .and_then(Value::as_object_mut)
+        .unwrap()
+        .insert("_filler_0__dup2".to_owned(), Value::String("CC".to_owned()));
+    let encoded =
+        copybook_codec::encode_record(&schema, &modified, &create_test_encode_options(false))
+            .unwrap();
+    assert_eq!(encoded, b"AACC");
 }
 
 #[test]

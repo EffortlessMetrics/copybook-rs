@@ -1027,6 +1027,46 @@ fn cobol_nested_emitted_filler_collision_round_trips_by_emitted_key() {
 }
 
 #[test]
+fn cobol_scalar_occurs_raw_sidecars_follow_duplicate_emitted_arrays() {
+    let copybook = r#"
+01 OCCURS-RAW-COLLISION.
+   05 NAME OCCURS 2 TIMES PIC X(2).
+   05 NAME OCCURS 2 TIMES PIC X(2).
+   05 AMOUNT OCCURS 2 TIMES PIC 9(2).
+   05 AMOUNT OCCURS 2 TIMES PIC 9(2).
+"#;
+    let mut schema = parse_copybook(copybook).unwrap();
+    schema.lrecl_fixed = Some(16);
+    let options = DecodeOptions {
+        emit_raw: RawMode::Field,
+        ..create_test_decode_options(false)
+    };
+    let data = [
+        b'A', b'A', b'B', b'B', b'C', b'C', b'D', b'D', 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38,
+    ];
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, &data, &options);
+    assert_eq!(plain, with_scratch);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+    assert_eq!(
+        fields.get("NAME_raw_b64"),
+        Some(&serde_json::json!(["QUE=", "QkI="]))
+    );
+    assert_eq!(
+        fields.get("NAME__dup2_raw_b64"),
+        Some(&serde_json::json!(["Q0M=", "REQ="]))
+    );
+    assert_eq!(
+        fields.get("AMOUNT_raw_b64"),
+        Some(&serde_json::json!(["MTI=", "MzQ="]))
+    );
+    assert_eq!(
+        fields.get("AMOUNT__dup2_raw_b64"),
+        Some(&serde_json::json!(["NTY=", "Nzg="]))
+    );
+}
+
+#[test]
 fn cobol_zoned_collision_metadata_follows_emitted_keys() {
     let copybook = r#"
 01 ZONED-COLLISION.

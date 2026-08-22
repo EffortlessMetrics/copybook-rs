@@ -2236,13 +2236,22 @@ fn encode_fields_recursive(
             options,
         )?;
 
-        name_occurrences.insert(field.name.as_str(), occurrence + 1);
+        let emitted_group = json_obj.contains_key(&field.name);
+        if field.redefines_of.is_none() || emitted_group {
+            name_occurrences.insert(field.name.as_str(), occurrence + 1);
+        }
 
         if matches!(field.kind, copybook_core::FieldKind::Group)
             && field.redefines_of.is_some()
             && !json_obj.contains_key(&field.name)
         {
             for child in &field.children {
+                if matches!(child.kind, copybook_core::FieldKind::Group)
+                    && child.redefines_of.is_some()
+                    && !json_obj.contains_key(&child.name)
+                {
+                    continue;
+                }
                 let has_emitted_child = json_obj.contains_key(&child.name)
                     || json_obj.contains_key(&format!("{}__dup2", child.name));
                 if has_emitted_child {

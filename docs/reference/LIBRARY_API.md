@@ -366,6 +366,11 @@ let opts = DecodeOptions::new().with_emit_raw(RawMode::Field);
 // JSON excerpt: { "fields": { "FIELD1": "decoded", "FIELD1__raw_b64": "AAA..." } }
 ```
 
+For scalar `OCCURS` fields, the `<FIELD>_raw_b64` value is an array aligned with
+the decoded field array. Duplicate emitted field names retain separate sidecar
+arrays, such as `AMOUNT_raw_b64` and `AMOUNT__dup2_raw_b64`. Group-array
+sidecar topology is not part of this contract.
+
 **Roundtrip Encoding**:
 When `use_raw` is enabled in `EncodeOptions`, the encoder consumes `raw_b64` (or the legacy
 `__raw_b64`) from the JSON input. For RDW output, `raw_capture` routes payload-only and framed

@@ -69,9 +69,20 @@
           "description": "FILLER fields with byte offset naming"
         },
         ".*_raw_b64$": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
-          "description": "Field-level base64 payload when `emit_raw=Field`"
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              }
+            }
+          ],
+          "description": "Field-level base64 payload when `emit_raw=Field`; scalar OCCURS fields use an element-aligned array"
         },
         "^_encoding_metadata$": {
           "type": "object",

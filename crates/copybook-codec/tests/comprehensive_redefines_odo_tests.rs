@@ -774,6 +774,151 @@ fn cobol_level_one_redefines_group_is_flattened_without_named_wrapper() {
 }
 
 #[test]
+fn cobol_scalar_target_group_collision_preserves_both_views() {
+    let copybook = r#"
+01 COLLIDING-REDEFINES.
+   05 EXISTING PIC X(2).
+   05 ORIGINAL PIC X(2).
+   05 GROUP-REDEFINE REDEFINES ORIGINAL.
+      10 EXISTING PIC X(2).
+"#;
+
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = create_test_decode_options(false);
+    let record_len = record_len_from_schema(&schema).max(4);
+    schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABB", &options);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+
+    assert_eq!(fields.get("EXISTING").and_then(Value::as_str), Some("AA"));
+    assert_eq!(
+        fields.get("EXISTING__dup2").and_then(Value::as_str),
+        Some("BB")
+    );
+    assert_eq!(plain, with_scratch);
+}
+
+#[test]
+fn cobol_nested_collision_preserves_deterministic_views() {
+    let copybook = r#"
+01 NESTED-COLLISION.
+   05 OUTER-GROUP.
+      10 ORIGINAL PIC X(2).
+      10 GROUP-REDEFINE REDEFINES ORIGINAL.
+         15 INNER PIC X(2).
+      10 INNER PIC X(2).
+"#;
+
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = create_test_decode_options(false);
+    let record_len = record_len_from_schema(&schema).max(4);
+    schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABB", &options);
+    let outer = plain
+        .get("fields")
+        .and_then(Value::as_object)
+        .and_then(|fields| fields.get("OUTER-GROUP"))
+        .and_then(Value::as_object)
+        .unwrap();
+
+    assert_eq!(outer.get("INNER").and_then(Value::as_str), Some("AA"));
+    assert_eq!(outer.get("INNER__dup2").and_then(Value::as_str), Some("BB"));
+    assert_eq!(plain, with_scratch);
+}
+
+#[test]
+fn cobol_later_enclosing_collision_preserves_flattened_view() {
+    let copybook = r#"
+01 REVERSE-COLLISION.
+   05 ORIGINAL PIC X(2).
+   05 GROUP-REDEFINE REDEFINES ORIGINAL.
+      10 LATER PIC X(2).
+   05 LATER PIC X(2).
+"#;
+
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = create_test_decode_options(false);
+    let record_len = record_len_from_schema(&schema).max(4);
+    schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABB", &options);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+
+    assert_eq!(fields.get("LATER").and_then(Value::as_str), Some("AA"));
+    assert_eq!(
+        fields.get("LATER__dup2").and_then(Value::as_str),
+        Some("BB")
+    );
+    assert_eq!(plain, with_scratch);
+}
+
+#[test]
+fn cobol_collision_continues_existing_duplicate_name_sequence() {
+    let copybook = r#"
+01 DUPLICATE-COLLISION.
+   05 NAME PIC X(2).
+   05 ORIGINAL PIC X(2).
+   05 GROUP-REDEFINE REDEFINES ORIGINAL.
+      10 NAME PIC X(2).
+   05 NAME PIC X(2).
+"#;
+
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = create_test_decode_options(false);
+    let record_len = record_len_from_schema(&schema).max(6);
+    schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABBCC", &options);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+
+    assert_eq!(fields.get("NAME").and_then(Value::as_str), Some("AA"));
+    assert_eq!(fields.get("NAME__dup2").and_then(Value::as_str), Some("BB"));
+    assert_eq!(fields.get("NAME__dup3").and_then(Value::as_str), Some("CC"));
+    assert!(fields.get("NAME__dup2__dup2").is_none());
+    assert_eq!(plain, with_scratch);
+}
+
+#[test]
+fn cobol_collision_raw_sidecars_follow_emitted_keys() {
+    let copybook = r#"
+01 RAW-COLLISION.
+   05 EXISTING PIC X(2).
+   05 ORIGINAL PIC X(2).
+   05 GROUP-REDEFINE REDEFINES ORIGINAL.
+      10 EXISTING PIC X(2).
+"#;
+
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = DecodeOptions {
+        emit_raw: RawMode::Field,
+        ..create_test_decode_options(false)
+    };
+    let record_len = record_len_from_schema(&schema).max(4);
+    schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABB", &options);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+
+    assert_eq!(fields.get("EXISTING").and_then(Value::as_str), Some("AA"));
+    assert_eq!(
+        fields.get("EXISTING_raw_b64").and_then(Value::as_str),
+        Some("QUE=")
+    );
+    assert_eq!(
+        fields.get("EXISTING__dup2").and_then(Value::as_str),
+        Some("BB")
+    );
+    assert_eq!(
+        fields.get("EXISTING__dup2_raw_b64").and_then(Value::as_str),
+        Some("QkI=")
+    );
+    assert!(fields.get("EXISTING_raw_b64__dup2").is_none());
+    assert_eq!(plain, with_scratch);
+}
+
+#[test]
 fn cobol_group_over_group_fixed_occurs_emits_named_array() {
     let copybook = r#"
 01 OCCURS-REDEFINES.

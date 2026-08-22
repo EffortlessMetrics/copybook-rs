@@ -196,7 +196,25 @@ PIC 9(3), input "123" → OK
 }
 ```
 
-### 5.2 FILLER Field Naming
+### 5.2 Flattened View Collisions
+
+**Rule**: Flattened REDEFINES views that collide with an existing JSON field MUST preserve both
+values using the same declaration/traversal-order `__dupN` suffix convention.
+
+**Example**:
+
+```json
+{
+  "STATUS": "AA",
+  "STATUS__dup2": "BB"
+}
+```
+
+The rule applies identically to standard and scratch decoding, including nested and reverse-order
+flattened views. It does not define encoding metadata or raw-sidecar lookup; those contracts are
+covered separately.
+
+### 5.3 FILLER Field Naming
 
 **Rule**: FILLER fields (when emitted) MUST be named `_filler_<offset>`.
 

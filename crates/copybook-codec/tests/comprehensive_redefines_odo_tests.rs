@@ -857,6 +857,113 @@ fn cobol_later_enclosing_collision_preserves_flattened_view() {
 }
 
 #[test]
+fn cobol_nested_raw_sidecars_follow_duplicate_emitted_keys() {
+    let copybook = r#"
+01 NESTED-RAW-COLLISION.
+   05 OUTER-GROUP.
+      10 ORIGINAL PIC X(2).
+      10 GROUP-REDEFINE REDEFINES ORIGINAL.
+         15 INNER PIC X(2).
+      10 INNER PIC X(2).
+"#;
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = DecodeOptions {
+        emit_raw: RawMode::Field,
+        ..create_test_decode_options(false)
+    };
+    schema.lrecl_fixed = Some(4);
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABB", &options);
+    assert_eq!(plain, with_scratch);
+    let outer = plain
+        .get("fields")
+        .and_then(Value::as_object)
+        .and_then(|fields| fields.get("OUTER-GROUP"))
+        .and_then(Value::as_object)
+        .unwrap();
+    assert_eq!(outer.get("INNER").and_then(Value::as_str), Some("AA"));
+    assert_eq!(
+        outer.get("INNER_raw_b64").and_then(Value::as_str),
+        Some("QUE=")
+    );
+    assert_eq!(outer.get("INNER__dup2").and_then(Value::as_str), Some("BB"));
+    assert_eq!(
+        outer.get("INNER__dup2_raw_b64").and_then(Value::as_str),
+        Some("QkI=")
+    );
+
+    let mut modified = plain;
+    modified
+        .get_mut("fields")
+        .and_then(Value::as_object_mut)
+        .and_then(|fields| fields.get_mut("OUTER-GROUP"))
+        .and_then(Value::as_object_mut)
+        .unwrap()
+        .insert("INNER__dup2".to_owned(), Value::String("CC".to_owned()));
+    modified
+        .get_mut("fields")
+        .and_then(Value::as_object_mut)
+        .and_then(|fields| fields.get_mut("OUTER-GROUP"))
+        .and_then(Value::as_object_mut)
+        .unwrap()
+        .remove("GROUP-REDEFINE");
+    let encoded =
+        copybook_codec::encode_record(&schema, &modified, &create_test_encode_options(false))
+            .unwrap();
+    assert_eq!(encoded, b"AACC");
+}
+
+#[test]
+fn cobol_reverse_raw_sidecars_follow_duplicate_emitted_keys() {
+    let copybook = r#"
+01 REVERSE-RAW-COLLISION.
+   05 ORIGINAL PIC X(2).
+   05 GROUP-REDEFINE REDEFINES ORIGINAL.
+      10 LATER PIC X(2).
+   05 LATER PIC X(2).
+"#;
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = DecodeOptions {
+        emit_raw: RawMode::Field,
+        ..create_test_decode_options(false)
+    };
+    schema.lrecl_fixed = Some(4);
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABB", &options);
+    assert_eq!(plain, with_scratch);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+    assert_eq!(fields.get("LATER").and_then(Value::as_str), Some("AA"));
+    assert_eq!(
+        fields.get("LATER_raw_b64").and_then(Value::as_str),
+        Some("QUE=")
+    );
+    assert_eq!(
+        fields.get("LATER__dup2").and_then(Value::as_str),
+        Some("BB")
+    );
+    assert_eq!(
+        fields.get("LATER__dup2_raw_b64").and_then(Value::as_str),
+        Some("QkI=")
+    );
+
+    let mut modified = plain;
+    modified
+        .get_mut("fields")
+        .and_then(Value::as_object_mut)
+        .unwrap()
+        .insert("LATER__dup2".to_owned(), Value::String("CC".to_owned()));
+    modified
+        .get_mut("fields")
+        .and_then(Value::as_object_mut)
+        .unwrap()
+        .remove("GROUP-REDEFINE");
+    let encoded =
+        copybook_codec::encode_record(&schema, &modified, &create_test_encode_options(false))
+            .unwrap();
+    assert_eq!(encoded, b"AACC");
+}
+
+#[test]
 fn cobol_collision_continues_existing_duplicate_name_sequence() {
     let copybook = r#"
 01 DUPLICATE-COLLISION.
@@ -880,6 +987,54 @@ fn cobol_collision_continues_existing_duplicate_name_sequence() {
     assert_eq!(fields.get("NAME__dup3").and_then(Value::as_str), Some("CC"));
     assert!(fields.get("NAME__dup2__dup2").is_none());
     assert_eq!(plain, with_scratch);
+}
+
+#[test]
+fn cobol_omitted_group_over_group_preserves_later_sibling_identity() {
+    let copybook = r#"
+01 OMITTED-GROUP-OVER-GROUP.
+   05 OUTER.
+      10 ORIGINAL PIC X(2).
+      10 GROUP-REDEFINE REDEFINES ORIGINAL.
+         15 LEAF PIC X(2).
+         15 INNER-REDEFINE REDEFINES LEAF.
+            20 VALUE-FIELD PIC X(2).
+      10 INNER-REDEFINE PIC X(2).
+"#;
+    let mut schema = parse_copybook(copybook).unwrap();
+    schema.lrecl_fixed = Some(6);
+    let options = create_test_decode_options(false);
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABBCC", &options);
+    assert_eq!(plain, with_scratch);
+    let outer = plain
+        .get("fields")
+        .and_then(Value::as_object)
+        .and_then(|fields| fields.get("OUTER"))
+        .and_then(Value::as_object)
+        .unwrap();
+    assert_eq!(
+        outer.get("INNER-REDEFINE__dup2").and_then(Value::as_str),
+        Some("BB")
+    );
+    assert!(outer.get("INNER-REDEFINE__dup3").is_none());
+
+    let mut modified = plain;
+    let outer = modified
+        .get_mut("fields")
+        .and_then(Value::as_object_mut)
+        .and_then(|fields| fields.get_mut("OUTER"))
+        .and_then(Value::as_object_mut)
+        .unwrap();
+    outer.remove("LEAF");
+    outer.insert(
+        "INNER-REDEFINE__dup2".to_owned(),
+        Value::String("DD".to_owned()),
+    );
+    outer.remove("GROUP-REDEFINE");
+    let encoded =
+        copybook_codec::encode_record(&schema, &modified, &create_test_encode_options(false))
+            .unwrap();
+    assert_eq!(encoded, b"AADD\0\0");
 }
 
 #[test]

@@ -2140,6 +2140,7 @@ fn encode_fields_to_bytes(
             &EncodeFieldsContext {
                 encoding_metadata,
                 flattened: false,
+                flattened_prior_names: None,
             },
             &mut buffer,
             0,
@@ -2196,11 +2197,16 @@ fn encode_fields_recursive(
 
     for field in fields {
         let occurrence = name_occurrences
-            .entry(field.name.as_str())
-            .and_modify(|count| *count += 1)
-            .or_insert(0);
-        let json_field_name =
-            emitted_field_name(json_obj, &field.name, *occurrence, context.flattened);
+            .get(field.name.as_str())
+            .copied()
+            .unwrap_or(0);
+        let json_field_name = emitted_field_name(
+            json_obj,
+            &field.name,
+            occurrence,
+            context.flattened,
+            context.flattened_prior_names,
+        );
         let field_path = if path_prefix.is_empty() {
             field.name.clone()
         } else {
@@ -2210,6 +2216,7 @@ fn encode_fields_recursive(
         let field_names = FieldNames {
             path: &field_path,
             json: &json_field_name,
+            prior_name_occurrences: &name_occurrences,
         };
         let field_offset = if field.redefines_of.is_some() {
             match usize::try_from(field.offset) {
@@ -2228,6 +2235,33 @@ fn encode_fields_recursive(
             field_offset,
             options,
         )?;
+
+        let emitted_group = json_obj.contains_key(&field.name);
+        if field.redefines_of.is_none() || emitted_group {
+            name_occurrences.insert(field.name.as_str(), occurrence + 1);
+        }
+
+        if matches!(field.kind, copybook_core::FieldKind::Group)
+            && field.redefines_of.is_some()
+            && !json_obj.contains_key(&field.name)
+        {
+            for child in &field.children {
+                if matches!(child.kind, copybook_core::FieldKind::Group)
+                    && child.redefines_of.is_some()
+                    && !json_obj.contains_key(&child.name)
+                {
+                    continue;
+                }
+                let has_emitted_child = json_obj.contains_key(&child.name)
+                    || json_obj.contains_key(&format!("{}__dup2", child.name));
+                if has_emitted_child {
+                    name_occurrences
+                        .entry(child.name.as_str())
+                        .and_modify(|count| *count += 1)
+                        .or_insert(1);
+                }
+            }
+        }
     }
 
     Ok(current_offset)
@@ -2295,11 +2329,13 @@ fn finalize_array_zoned_metadata(
 struct FieldNames<'a> {
     path: &'a str,
     json: &'a str,
+    prior_name_occurrences: &'a HashMap<&'a str, usize>,
 }
 
 struct EncodeFieldsContext<'a> {
     encoding_metadata: Option<&'a serde_json::Map<String, Value>>,
     flattened: bool,
+    flattened_prior_names: Option<&'a HashMap<&'a str, usize>>,
 }
 
 fn emitted_field_name(
@@ -2307,13 +2343,18 @@ fn emitted_field_name(
     field_name: &str,
     occurrence: usize,
     flattened: bool,
+    flattened_prior_names: Option<&HashMap<&str, usize>>,
 ) -> String {
     let candidate = if occurrence == 0 {
         field_name.to_owned()
     } else {
         format!("{field_name}__dup{}", occurrence + 1)
     };
-    if flattened && occurrence == 0 && json_obj.contains_key(&candidate) {
+    if flattened
+        && occurrence == 0
+        && json_obj.contains_key(&candidate)
+        && flattened_prior_names.is_some_and(|names| names.contains_key(field_name))
+    {
         let duplicate = format!("{field_name}__dup2");
         if json_obj.contains_key(&duplicate) {
             duplicate
@@ -2669,6 +2710,7 @@ fn encode_occurs_element(
             &EncodeFieldsContext {
                 encoding_metadata,
                 flattened: false,
+                flattened_prior_names: None,
             },
             buffer,
             element_offset,
@@ -2710,6 +2752,7 @@ fn encode_group_field(
             &EncodeFieldsContext {
                 encoding_metadata,
                 flattened: false,
+                flattened_prior_names: None,
             },
             buffer,
             current_offset,
@@ -2723,6 +2766,10 @@ fn encode_group_field(
             &EncodeFieldsContext {
                 encoding_metadata,
                 flattened: field.redefines_of.is_some(),
+                flattened_prior_names: field
+                    .redefines_of
+                    .is_some()
+                    .then_some(field_names.prior_name_occurrences),
             },
             buffer,
             current_offset,

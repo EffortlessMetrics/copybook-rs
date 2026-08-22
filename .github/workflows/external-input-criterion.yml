@@ -1,6 +1,4 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Manual hosted diagnostic telemetry only; this does not establish a receipt,
-# baseline, threshold, SLO, gate, or scheduled performance result.
 name: External Input Criterion Telemetry
 
 on:

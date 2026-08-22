@@ -1608,6 +1608,99 @@ fn cobol_duplicate_sign_separate_values_keep_emitted_keys() {
 }
 
 #[test]
+fn cobol_nested_and_reverse_sign_separate_raw_sidecars_follow_emitted_keys() {
+    for copybook in [
+        r#"
+01 NESTED-SIGN-RAW-COLLISION.
+   05 OUTER.
+      10 ORIGINAL PIC X(8).
+      10 GROUP-REDEFINE REDEFINES ORIGINAL.
+         15 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
+      10 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
+"#,
+        r#"
+01 REVERSE-SIGN-RAW-COLLISION.
+   05 ORIGINAL PIC X(8).
+   05 GROUP-REDEFINE REDEFINES ORIGINAL.
+      10 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
+   05 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
+"#,
+    ] {
+        let schema = parse_copybook(copybook).unwrap();
+        let decode_options = DecodeOptions {
+            emit_raw: RawMode::Field,
+            ..create_test_decode_options(false)
+        };
+        let initial = json!({
+            "SIGNED": "123",
+            "SIGNED__dup2": "456"
+        });
+        let source_schema = parse_copybook(
+            r#"
+01 SIGN-SOURCE.
+   05 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
+   05 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
+"#,
+        )
+        .unwrap();
+        let source = copybook_codec::encode_record(
+            &source_schema,
+            &initial,
+            &create_test_encode_options(false),
+        )
+        .unwrap();
+        let mut encoded = Vec::with_capacity(12);
+        encoded.extend_from_slice(&source[0..4]);
+        encoded.extend_from_slice(&[0; 4]);
+        encoded.extend_from_slice(&source[4..8]);
+        assert_eq!(encoded, vec![43, 49, 50, 51, 0, 0, 0, 0, 43, 52, 53, 54]);
+        let (plain, with_scratch) = decode_plain_and_scratch(&schema, &encoded, &decode_options);
+        assert_eq!(plain, with_scratch);
+        let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+        let fields = if copybook.contains("OUTER") {
+            fields.get("OUTER").and_then(Value::as_object).unwrap()
+        } else {
+            fields
+        };
+        let duplicate_range = &encoded[8..12];
+        for (key, bytes) in [
+            ("SIGNED_raw_b64", &encoded[0..4]),
+            ("SIGNED__dup2_raw_b64", duplicate_range),
+        ] {
+            assert_eq!(
+                fields.get(key).and_then(Value::as_str),
+                Some(
+                    base64::engine::general_purpose::STANDARD
+                        .encode(bytes)
+                        .as_str()
+                )
+            );
+        }
+
+        let mut modified = plain;
+        let fields = modified
+            .get_mut("fields")
+            .and_then(Value::as_object_mut)
+            .unwrap();
+        let fields = if copybook.contains("NESTED") {
+            fields
+                .get_mut("OUTER")
+                .and_then(Value::as_object_mut)
+                .unwrap()
+        } else {
+            fields
+        };
+        fields.remove("GROUP-REDEFINE");
+        fields.insert("SIGNED__dup2".to_owned(), Value::String("789".to_owned()));
+        let modified_encoded =
+            copybook_codec::encode_record(&schema, &modified, &create_test_encode_options(false))
+                .unwrap();
+        let expected = vec![43, 49, 50, 51, 43, 55, 56, 57, 0, 0, 0, 0];
+        assert_eq!(modified_encoded, expected);
+    }
+}
+
+#[test]
 fn cobol_duplicate_scalar_occurs_numeric_values_use_emitted_keys() {
     let copybook = r#"
 01 DUPLICATE-OCCURS-NUMERIC.

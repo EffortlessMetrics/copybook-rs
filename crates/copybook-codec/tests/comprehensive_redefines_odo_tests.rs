@@ -919,6 +919,158 @@ fn cobol_collision_raw_sidecars_follow_emitted_keys() {
 }
 
 #[test]
+fn cobol_zoned_collision_metadata_follows_emitted_keys() {
+    let copybook = r#"
+01 ZONED-COLLISION.
+   05 EXISTING PIC 9(2).
+   05 ORIGINAL PIC 9(2).
+   05 GROUP-REDEFINE REDEFINES ORIGINAL.
+      10 EXISTING PIC 9(2).
+"#;
+
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = DecodeOptions {
+        preserve_zoned_encoding: true,
+        ..create_test_decode_options(false)
+    };
+    let record_len = record_len_from_schema(&schema).max(4);
+    schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"1234", &options);
+    let metadata = plain
+        .get("_encoding_metadata")
+        .and_then(Value::as_object)
+        .unwrap();
+
+    assert_eq!(
+        metadata.get("EXISTING").and_then(Value::as_str),
+        Some("ascii")
+    );
+    assert_eq!(
+        metadata.get("EXISTING__dup2").and_then(Value::as_str),
+        Some("ascii")
+    );
+    assert_eq!(plain, with_scratch);
+}
+
+#[test]
+fn cobol_envelope_zoned_metadata_is_used_for_encode() {
+    let schema = parse_copybook("01 ZONED-FIELD PIC 9(2).").unwrap();
+    let decode_options = DecodeOptions {
+        preserve_zoned_encoding: true,
+        ..create_test_decode_options(false)
+    };
+    let decoded = copybook_codec::decode_record(&schema, b"12", &decode_options).unwrap();
+
+    let encoded = copybook_codec::encode_record(
+        &schema,
+        &decoded,
+        &EncodeOptions {
+            codepage: Codepage::CP037,
+            ..create_test_encode_options(false)
+        },
+    )
+    .unwrap();
+    assert_eq!(encoded, b"12");
+}
+
+#[test]
+fn cobol_duplicate_zoned_fields_round_trip_by_emitted_metadata_key() {
+    let copybook = r#"
+01 DUPLICATE-ZONED.
+   05 NAME PIC 9(2).
+   05 NAME PIC 9(2).
+"#;
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = DecodeOptions {
+        preserve_zoned_encoding: true,
+        ..create_test_decode_options(false)
+    };
+    schema.lrecl_fixed = Some(4);
+    let decoded = copybook_codec::decode_record(&schema, b"1234", &options).unwrap();
+    let fields = decoded.get("fields").and_then(Value::as_object).unwrap();
+    assert_eq!(fields.get("NAME").and_then(Value::as_str), Some("12"));
+    assert_eq!(fields.get("NAME__dup2").and_then(Value::as_str), Some("34"));
+    let metadata = decoded
+        .get("_encoding_metadata")
+        .and_then(Value::as_object)
+        .unwrap();
+    assert_eq!(metadata.get("NAME").and_then(Value::as_str), Some("ascii"));
+    assert_eq!(
+        metadata.get("NAME__dup2").and_then(Value::as_str),
+        Some("ascii")
+    );
+
+    let mut mixed = decoded.clone();
+    mixed
+        .get_mut("_encoding_metadata")
+        .and_then(Value::as_object_mut)
+        .unwrap()
+        .insert("NAME__dup2".to_owned(), Value::String("ebcdic".to_owned()));
+    let encoded = copybook_codec::encode_record(
+        &schema,
+        &mixed,
+        &EncodeOptions {
+            codepage: Codepage::CP037,
+            ..create_test_encode_options(false)
+        },
+    )
+    .unwrap();
+    assert_eq!(encoded, [b'1', b'2', 0xF3, 0xF4]);
+}
+
+#[test]
+fn cobol_nested_and_reverse_zoned_metadata_follow_emitted_keys() {
+    for copybook in [
+        r#"
+01 NESTED-ZONED-COLLISION.
+   05 OUTER-GROUP.
+      10 ORIGINAL PIC 9(2).
+      10 GROUP-REDEFINE REDEFINES ORIGINAL.
+         15 INNER PIC 9(2).
+      10 INNER PIC 9(2).
+"#,
+        r#"
+01 REVERSE-ZONED-COLLISION.
+   05 ORIGINAL PIC 9(2).
+   05 GROUP-REDEFINE REDEFINES ORIGINAL.
+      10 LATER PIC 9(2).
+   05 LATER PIC 9(2).
+"#,
+    ] {
+        let mut schema = parse_copybook(copybook).unwrap();
+        let options = DecodeOptions {
+            preserve_zoned_encoding: true,
+            ..create_test_decode_options(false)
+        };
+        let record_len = record_len_from_schema(&schema).max(4);
+        schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
+
+        let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"1234", &options);
+        let metadata = plain
+            .get("_encoding_metadata")
+            .and_then(Value::as_object)
+            .unwrap();
+
+        let collision_name = if copybook.contains("INNER") {
+            "INNER"
+        } else {
+            "LATER"
+        };
+        assert_eq!(
+            metadata.get(collision_name).and_then(Value::as_str),
+            Some("ascii")
+        );
+        let duplicate_name = format!("{collision_name}__dup2");
+        assert_eq!(
+            metadata.get(&duplicate_name).and_then(Value::as_str),
+            Some("ascii")
+        );
+        assert_eq!(plain, with_scratch);
+    }
+}
+
+#[test]
 fn cobol_group_over_group_fixed_occurs_emits_named_array() {
     let copybook = r#"
 01 OCCURS-REDEFINES.

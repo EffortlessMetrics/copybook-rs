@@ -52,7 +52,7 @@ The utility validates framing, records exact copybook/dataset SHA-256 values,
 and emits only relative paths. It describes input data; it does not run a
 benchmark or establish a performance claim.
 
-## Canonical performance baseline
+## Historical performance context
 
 The following legacy values are historical context from the 2025-09-30
 measurement (commit `1fa63633`), not current external-input results or SLOs:

@@ -8,10 +8,10 @@ This document describes the canonical procedure for establishing and maintaining
 Performance baselines provide a stable reference point for detecting performance regressions across code changes. The baseline measurement procedure ensures statistical reliability through multiple independent runs, variance analysis, and standardized measurement conditions.
 
 The opt-in external-input Criterion target is outside this baseline contract:
-it provides local telemetry for one selected manifest and does not establish a
-canonical receipt, baseline, threshold, SLO, gate, or scheduled result. Use the
-canonical `scripts/bench/perf.json` and governed baseline process for current
-performance claims.
+it provides manual local or hosted telemetry for selected manifests and does
+not establish a canonical receipt, baseline, threshold, SLO, gate, or scheduled
+result. Use the canonical `scripts/bench/perf.json` and governed baseline
+process for current performance claims.
 
 ## Baseline Measurement Procedure
 

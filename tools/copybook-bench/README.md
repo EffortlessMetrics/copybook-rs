@@ -31,8 +31,10 @@ cargo test -p copybook-bench --test regression_detection
 cargo test -p copybook-bench --test ci_integration
 ```
 
-The external-input target is an opt-in local measurement over one validated
-manifest. Both the `external-input` Cargo feature and the manifest environment
+The external-input target is an opt-in diagnostic measurement over one
+validated manifest. It can run locally or through the manual
+`.github/workflows/external-input-criterion.yml` workflow for the four checked-in
+manifests. Both the `external-input` Cargo feature and the manifest environment
 variable are required, so ordinary benchmark suites do not launch it. It
 reports payload-byte throughput and does not define a threshold, SLO, receipt,
 or scheduled performance claim.
@@ -64,8 +66,9 @@ Current performance claims and CI thresholds are governed by
 [`scripts/bench/perf.json`](../../scripts/bench/perf.json),
 [`scripts/bench/baseline.json`](../../scripts/bench/baseline.json), and
 [`docs/PERFORMANCE_GOVERNANCE.md`](../../docs/PERFORMANCE_GOVERNANCE.md).
-The external-input target above remains local telemetry only; it does not
-promote a baseline or establish a threshold, SLO, receipt, or scheduled claim.
+The external-input target above remains manual diagnostic telemetry only,
+whether run locally or by the hosted workflow; it does not promote a baseline
+or establish a threshold, SLO, receipt, or scheduled claim.
 See `BASELINE_METHODOLOGY.md` for the separate canonical baseline procedure.
 
 ## License

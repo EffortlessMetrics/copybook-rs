@@ -350,9 +350,9 @@ pub fn load_external_input(manifest_path: &Path) -> Result<ValidatedExternalInpu
 
 /// Prepare one validated external-input dataset for local Criterion decoding.
 ///
-/// The returned benchmark is an opt-in local telemetry instrument for one
-/// selected manifest. It does not establish a canonical receipt, baseline,
-/// gate, threshold, SLO, or scheduled performance claim.
+/// The returned benchmark is an opt-in manual local or hosted telemetry
+/// instrument for one selected manifest. It does not establish a canonical
+/// receipt, baseline, gate, threshold, SLO, or scheduled performance claim.
 ///
 /// # Errors
 ///

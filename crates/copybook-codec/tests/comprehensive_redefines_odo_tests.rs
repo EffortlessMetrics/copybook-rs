@@ -1698,6 +1698,69 @@ fn cobol_nested_and_reverse_sign_separate_raw_sidecars_follow_emitted_keys() {
 }
 
 #[test]
+fn cobol_x8_redefine_cluster_preserves_later_sibling_offset() {
+    for copybook in [
+        r#"
+01 X8-NESTED-CURSOR.
+   05 OUTER.
+      10 ORIGINAL PIC X(8).
+      10 GROUP-REDEFINE REDEFINES ORIGINAL.
+         15 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
+      10 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
+"#,
+        r#"
+01 X8-REVERSE-CURSOR.
+   05 ORIGINAL PIC X(8).
+   05 GROUP-REDEFINE REDEFINES ORIGINAL.
+      10 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
+   05 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
+"#,
+    ] {
+        let schema = parse_copybook(copybook).unwrap();
+        let fields = &schema.fields[0].children;
+        let fields = if copybook.contains("NESTED") {
+            &fields[0].children
+        } else {
+            fields
+        };
+        assert_eq!(fields[0].offset, 0);
+        assert_eq!(fields[1].offset, 0);
+        assert_eq!(fields[1].len, 4);
+        assert_eq!(fields[2].offset, 8);
+
+        let encoded = vec![43, 49, 50, 51, 0, 0, 0, 0, 43, 52, 53, 54];
+        let options = DecodeOptions {
+            emit_raw: RawMode::Field,
+            ..create_test_decode_options(false)
+        };
+        let (plain, with_scratch) = decode_plain_and_scratch(&schema, &encoded, &options);
+        assert_eq!(plain, with_scratch);
+        let mut modified = plain;
+        let fields = modified
+            .get_mut("fields")
+            .and_then(Value::as_object_mut)
+            .unwrap();
+        let fields = if copybook.contains("NESTED") {
+            fields
+                .get_mut("OUTER")
+                .and_then(Value::as_object_mut)
+                .unwrap()
+        } else {
+            fields
+        };
+        fields.remove("GROUP-REDEFINE");
+        fields.insert("SIGNED__dup2".to_owned(), Value::String("789".to_owned()));
+        let modified_encoded =
+            copybook_codec::encode_record(&schema, &modified, &create_test_encode_options(false))
+                .unwrap();
+        assert_eq!(
+            modified_encoded,
+            vec![43, 49, 50, 51, 0, 0, 0, 0, 43, 55, 56, 57]
+        );
+    }
+}
+
+#[test]
 fn cobol_duplicate_scalar_occurs_numeric_values_use_emitted_keys() {
     let copybook = r#"
 01 DUPLICATE-OCCURS-NUMERIC.

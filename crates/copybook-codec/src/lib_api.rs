@@ -2226,7 +2226,7 @@ fn encode_fields_recursive(
         } else {
             current_offset
         };
-        current_offset = encode_single_field(
+        let encoded_offset = encode_single_field(
             field,
             &field_names,
             json_obj,
@@ -2235,6 +2235,11 @@ fn encode_fields_recursive(
             field_offset,
             options,
         )?;
+        current_offset = if field.redefines_of.is_some() {
+            current_offset.max(encoded_offset)
+        } else {
+            encoded_offset
+        };
 
         let emitted_group = json_obj.contains_key(&field.name);
         if field.redefines_of.is_none() || emitted_group {

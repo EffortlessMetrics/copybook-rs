@@ -555,15 +555,13 @@ fn process_scalar_field_standard(
         collect_zoned_encoding_info(field, field_data, options, encoding_acc);
     }
 
-    // Keep ordinary decoding free of collision-key bookkeeping. Raw sidecars
-    // need the selected key, so use the keyed helper only when requested.
+    let decoded_key = insert_decoded_field(json_obj, &field.name, value);
+
+    // Emit field-level raw bytes when RawMode::Field is active
     if matches!(options.emit_raw, crate::options::RawMode::Field) {
-        let decoded_key = insert_decoded_field_with_key(json_obj, &field.name, value);
         let raw_key = format!("{decoded_key}_raw_b64");
         let raw_b64 = base64::engine::general_purpose::STANDARD.encode(field_data);
         json_obj.insert(raw_key, Value::String(raw_b64));
-    } else {
-        insert_decoded_field(json_obj, &field.name, value);
     }
 
     Ok(())
@@ -663,15 +661,13 @@ fn process_scalar_field_with_scratch(
         collect_zoned_encoding_info(field, field_data, options, encoding_acc);
     }
 
-    // Keep ordinary decoding free of collision-key bookkeeping. Raw sidecars
-    // need the selected key, so use the keyed helper only when requested.
+    let decoded_key = insert_decoded_field(json_obj, &field.name, value);
+
+    // Emit field-level raw bytes when RawMode::Field is active
     if matches!(options.emit_raw, crate::options::RawMode::Field) {
-        let decoded_key = insert_decoded_field_with_key(json_obj, &field.name, value);
         let raw_key = format!("{decoded_key}_raw_b64");
         let raw_b64 = base64::engine::general_purpose::STANDARD.encode(field_data);
         json_obj.insert(raw_key, Value::String(raw_b64));
-    } else {
-        insert_decoded_field(json_obj, &field.name, value);
     }
 
     Ok(())
@@ -1400,46 +1396,19 @@ fn is_scalar_target_group_redefine(
 /// The parser disambiguates true siblings, but flattened children can collide
 /// with fields in their enclosing map. Preserve both values with the same
 /// deterministic `__dupN` suffix convention used by schema names.
-fn insert_decoded_field(json_obj: &mut serde_json::Map<String, Value>, name: &str, value: Value) {
-    if let serde_json::map::Entry::Vacant(entry) = json_obj.entry(name.to_owned()) {
-        entry.insert(value);
-        return;
-    }
-
-    let mut suffix = 2;
-    loop {
-        let candidate = format!("{name}__dup{suffix}");
-        if let serde_json::map::Entry::Vacant(entry) = json_obj.entry(candidate) {
-            entry.insert(value);
-            return;
-        }
-        suffix += 1;
-    }
-}
-
-/// Insert a decoded field and return the collision-safe key selected for it.
-///
-/// This slower form is used only when a field-level raw sidecar or a flattened
-/// group copy needs to attach metadata to the selected field key.
-fn insert_decoded_field_with_key(
+fn insert_decoded_field(
     json_obj: &mut serde_json::Map<String, Value>,
     name: &str,
     value: Value,
 ) -> String {
-    if let serde_json::map::Entry::Vacant(entry) = json_obj.entry(name.to_owned()) {
-        entry.insert(value);
-        return name.to_owned();
-    }
-
+    let mut candidate = name.to_owned();
     let mut suffix = 2;
-    loop {
-        let candidate = format!("{name}__dup{suffix}");
-        if let serde_json::map::Entry::Vacant(entry) = json_obj.entry(candidate.clone()) {
-            entry.insert(value);
-            return candidate;
-        }
+    while json_obj.contains_key(&candidate) {
+        candidate = format!("{name}__dup{suffix}");
         suffix += 1;
     }
+    json_obj.insert(candidate.clone(), value);
+    candidate
 }
 
 /// Copy a flattened group view while keeping field-level raw sidecars tied to
@@ -1459,7 +1428,7 @@ fn insert_decoded_map_fields(
             continue;
         }
 
-        let decoded_key = insert_decoded_field_with_key(target, name, value.clone());
+        let decoded_key = insert_decoded_field(target, name, value.clone());
         if let Some(raw) = source.get(&sidecar_name) {
             target.insert(format!("{decoded_key}_raw_b64"), raw.clone());
         }

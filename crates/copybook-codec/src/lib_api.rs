@@ -428,6 +428,30 @@ fn insert_decoded_field_with_key(
     name: &str,
     value: Value,
 ) -> Option<String> {
+    insert_decoded_field_with_key_mode(json_obj, name, value, false)
+}
+
+fn insert_decoded_field_with_key_emitting_filler(
+    json_obj: &mut serde_json::Map<String, Value>,
+    name: &str,
+    value: Value,
+) -> Option<String> {
+    insert_decoded_field_with_key_mode(json_obj, name, value, true)
+}
+
+fn insert_decoded_field_with_key_mode(
+    json_obj: &mut serde_json::Map<String, Value>,
+    name: &str,
+    value: Value,
+    allow_filler_collision: bool,
+) -> Option<String> {
+    if !allow_filler_collision
+        && (name.eq_ignore_ascii_case("FILLER") || name.starts_with("_filler_"))
+    {
+        json_obj.insert(name.to_owned(), value);
+        return None;
+    }
+
     match json_obj.entry(name.to_owned()) {
         serde_json::map::Entry::Vacant(entry) => {
             entry.insert(value);
@@ -648,7 +672,11 @@ fn process_scalar_field_standard(
     let value = decode_scalar_field_value_standard(field, field_data, options, scratch_buffers)
         .map_err(|error| add_zoned_overflow_context(error, field, record_index))?;
 
-    let emitted_key = insert_decoded_field_with_key(json_obj, &field.name, value);
+    let emitted_key = if options.emit_filler {
+        insert_decoded_field_with_key_emitting_filler(json_obj, &field.name, value)
+    } else {
+        insert_decoded_field_with_key(json_obj, &field.name, value)
+    };
 
     // Metadata must follow the key emitted by collision-aware insertion.
     if options.preserve_zoned_encoding {
@@ -758,7 +786,11 @@ fn process_scalar_field_with_scratch(
     let value = decode_scalar_field_value_with_scratch(field, field_data, options, scratch)
         .map_err(|error| add_zoned_overflow_context(error, field, record_index))?;
 
-    let emitted_key = insert_decoded_field_with_key(json_obj, &field.name, value);
+    let emitted_key = if options.emit_filler {
+        insert_decoded_field_with_key_emitting_filler(json_obj, &field.name, value)
+    } else {
+        insert_decoded_field_with_key(json_obj, &field.name, value)
+    };
 
     // Metadata must follow the key emitted by collision-aware insertion.
     if options.preserve_zoned_encoding {

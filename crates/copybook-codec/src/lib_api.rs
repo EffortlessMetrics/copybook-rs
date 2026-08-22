@@ -411,7 +411,7 @@ fn insert_decoded_group_fields(
             .iter_mut()
             .find(|(metadata_name, _)| metadata_name == name)
         {
-            *metadata_name = emitted_key.clone();
+            metadata_name.clone_from(&emitted_key);
         }
         if !name.ends_with("_raw_b64") {
             emitted_keys.push((name.clone(), emitted_key));
@@ -914,13 +914,7 @@ fn process_array_field(
                 )
                 .map_err(|error| add_zoned_overflow_context(error, field, record_index))?;
                 if options.preserve_zoned_encoding {
-                    collect_zoned_encoding_info(
-                        field,
-                        &field.name,
-                        element_data,
-                        options,
-                        encoding_acc,
-                    );
+                    collect_array_zoned_encoding_info(field, element_data, options, encoding_acc);
                 }
                 val
             }
@@ -1049,13 +1043,7 @@ fn process_array_field_with_scratch(
                     decode_scalar_field_value_with_scratch(field, element_data, options, scratch)
                         .map_err(|error| add_zoned_overflow_context(error, field, record_index))?;
                 if options.preserve_zoned_encoding {
-                    collect_zoned_encoding_info(
-                        field,
-                        &field.name,
-                        element_data,
-                        options,
-                        encoding_acc,
-                    );
+                    collect_array_zoned_encoding_info(field, element_data, options, encoding_acc);
                 }
                 val
             }
@@ -2165,6 +2153,16 @@ fn encode_fields_recursive(
     }
 
     Ok(current_offset)
+}
+
+#[inline]
+fn collect_array_zoned_encoding_info(
+    field: &copybook_core::Field,
+    field_data: &[u8],
+    options: &DecodeOptions,
+    encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
+) {
+    collect_zoned_encoding_info(field, &field.name, field_data, options, encoding_acc);
 }
 
 struct FieldNames<'a> {

@@ -62,6 +62,8 @@ jobs:
         run: cargo nextest run --workspace --exclude copybook-bench --exclude copybook-bdd --profile ci
       - name: Sync docs test status
         run: cargo run -p xtask -- docs sync-tests
+      - name: Verify docs test status sync is clean
+        run: git diff --exit-code -- README.md docs/REPORT.md
       - name: Verify docs truth gate
         run: cargo run -p xtask -- docs verify-all
       - name: Forbid unlinked perf marketing

@@ -202,6 +202,7 @@ PIC 9(3), input "123" → OK
 values using the same declaration/traversal-order `__dupN` suffix convention.
 
 **Example**:
+
 ```json
 {
   "STATUS": "AA",

@@ -1520,3 +1520,68 @@ fn cobol_group_array_preserves_child_offsets_across_elements() {
     assert!(fields.get("PAIR_raw_b64").is_none());
     assert_eq!(plain, with_scratch);
 }
+
+#[test]
+fn cobol_group_array_child_raw_sidecars_are_element_aligned_and_round_trip() {
+    let copybook = r#"
+01 GROUP-RAW-OCCURS.
+   05 PAIR OCCURS 2 TIMES.
+      10 ITEM PIC X(2).
+      10 ITEM PIC X(2).
+"#;
+
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = DecodeOptions {
+        emit_raw: RawMode::Field,
+        ..create_test_decode_options(false)
+    };
+    let record_len = record_len_from_schema(&schema).max(8);
+    schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABBCCDD", &options);
+    assert_eq!(plain, with_scratch);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+    let pairs = fields
+        .get("PAIR")
+        .and_then(Value::as_array)
+        .expect("group OCCURS should decode as an array");
+    assert_eq!(pairs.len(), 2);
+    assert_eq!(pairs[0].get("ITEM").and_then(Value::as_str), Some("AA"));
+    assert_eq!(
+        pairs[0].get("ITEM__dup2").and_then(Value::as_str),
+        Some("BB")
+    );
+    assert_eq!(
+        pairs[0].get("ITEM_raw_b64"),
+        Some(&serde_json::json!("QUE="))
+    );
+    assert_eq!(
+        pairs[0].get("ITEM__dup2_raw_b64"),
+        Some(&serde_json::json!("QkI="))
+    );
+    assert_eq!(
+        pairs[1].get("ITEM_raw_b64"),
+        Some(&serde_json::json!("Q0M="))
+    );
+    assert_eq!(
+        pairs[1].get("ITEM__dup2_raw_b64"),
+        Some(&serde_json::json!("REQ="))
+    );
+    assert!(fields.get("PAIR_raw_b64").is_none());
+
+    let mut modified = plain;
+    let modified_pairs = modified
+        .get_mut("fields")
+        .and_then(Value::as_object_mut)
+        .and_then(|fields| fields.get_mut("PAIR"))
+        .and_then(Value::as_array_mut)
+        .unwrap();
+    modified_pairs[1]
+        .as_object_mut()
+        .unwrap()
+        .insert("ITEM__dup2".to_owned(), Value::String("ZZ".to_owned()));
+    let encoded =
+        copybook_codec::encode_record(&schema, &modified, &create_test_encode_options(false))
+            .unwrap();
+    assert_eq!(encoded, b"AABBCCZZ");
+}

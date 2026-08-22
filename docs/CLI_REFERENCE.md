@@ -674,7 +674,7 @@ Binary field sizes are determined by PIC digits: ≤4→16b, 5–9→32b, 10–1
 **Raw Bytes (--emit-raw):**
 - `raw_b64` - Canonical base64-encoded raw record bytes (record/record+rdw modes); legacy `__raw_b64` is also emitted for backward compatibility
 - `raw_capture` - Whole-record raw provenance: `record` for payload bytes or `record+rdw` for an RDW header plus payload
-- `<FIELD>__raw_b64` - Base64 payload for individual fields (field mode); scalar `OCCURS` fields use an element-aligned array, and duplicate emitted names retain separate sidecar arrays
+- `<FIELD>__raw_b64` - Base64 payload for individual fields (field mode); scalar `OCCURS` fields use an element-aligned array, group `OCCURS` child sidecars remain inside each element, and duplicate emitted names retain separate sidecar values
 - Enables byte-perfect round trips when re-encoding
 
 **FILLER Fields (--emit-filler):**

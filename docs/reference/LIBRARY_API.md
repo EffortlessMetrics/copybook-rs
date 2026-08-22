@@ -368,8 +368,9 @@ let opts = DecodeOptions::new().with_emit_raw(RawMode::Field);
 
 For scalar `OCCURS` fields, the `<FIELD>_raw_b64` value is an array aligned with
 the decoded field array. Duplicate emitted field names retain separate sidecar
-arrays, such as `AMOUNT_raw_b64` and `AMOUNT__dup2_raw_b64`. Group-array
-sidecar topology is not part of this contract.
+arrays, such as `AMOUNT_raw_b64` and `AMOUNT__dup2_raw_b64`. For group `OCCURS`,
+scalar child sidecars are nested inside their corresponding element object and
+remain paired with duplicate child keys; no outer group sidecar is emitted.
 
 **Roundtrip Encoding**:
 When `use_raw` is enabled in `EncodeOptions`, the encoder consumes `raw_b64` (or the legacy

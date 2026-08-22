@@ -82,7 +82,7 @@
               }
             }
           ],
-          "description": "Field-level base64 payload when `emit_raw=Field`; scalar OCCURS fields use an element-aligned array"
+          "description": "Field-level base64 payload when `emit_raw=Field`; scalar OCCURS fields use an element-aligned array, while group OCCURS child sidecars are nested inside each element"
         },
         "^_encoding_metadata$": {
           "type": "object",

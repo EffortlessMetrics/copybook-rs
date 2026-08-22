@@ -344,8 +344,17 @@ the redefining group as a named array (without scalar-target flattening). Group-
 `decode_record` and `decode_record_with_scratch`.
 When a flattened, nested, or reverse-order view collides with an existing field in the enclosing
 JSON map, the later decoded value receives the deterministic `__dupN` suffix instead of replacing
-the earlier value. This collision naming is identical for standard and scratch decoding; encoding
-metadata and raw-sidecar identity are separate contracts.
+the earlier value. This collision naming is identical for standard and scratch decoding, and uses
+the final emitted key for nested and reverse-order flattened views. Encoding metadata follows that
+same identity: `_encoding_metadata` for `NAME__dup2` is keyed by `NAME__dup2`, not the original
+schema name, so the captured zoned format cannot be applied to a different colliding value.
+
+```json
+{
+  "fields": { "AMOUNT": "123", "AMOUNT__dup2": "456" },
+  "_encoding_metadata": { "AMOUNT": "ascii", "AMOUNT__dup2": "ebcdic" }
+}
+```
 
 When `emit_raw` is enabled, record-level payloads are emitted as **`raw_b64`** (with the legacy
 `__raw_b64` key also present). The `raw_capture` marker records whether those bytes are payload-only

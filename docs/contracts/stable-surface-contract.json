@@ -193,7 +193,7 @@
       "RecordRDW"
     ],
     "emitted_keys": [
-      "<FIELD>__raw_b64",
+      "<FIELD>_raw_b64",
       "__raw_b64"
     ]
   }

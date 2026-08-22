@@ -17,7 +17,7 @@ copybook-rs emits a versioned JSON envelope for each decoded record. Each line i
 | `length` | integer | Optional decoded record length in bytes (present when `--emit-meta`). |
 | `raw_b64` | string | Optional base64-encoded record bytes when `--emit-raw` is `record` or `record+rdw`. |
 | `raw_capture` | string | Present with whole-record `raw_b64`; `record` means payload only and `record+rdw` means a four-byte RDW header plus payload. |
-| `<field>_raw_b64` | string or array of strings | Optional field-level payloads when `--emit-raw` is `field`; scalar `OCCURS` fields use an element-aligned array. |
+| `<field>_raw_b64` | string or array of strings | Optional field-level payloads when `--emit-raw` is `field`; scalar `OCCURS` fields use an element-aligned array, while group `OCCURS` child sidecars are nested inside each element. |
 | `_encoding_metadata` | object | Optional zoned encoding metadata (present when `--preserve-zoned-encoding`). |
 | `errors` | array | Optional structured error diagnostics for lenient decoding. |
 
@@ -269,6 +269,11 @@ Group-level OCCURS produce arrays of objects:
   ]
 }
 ```
+
+With field-level raw capture enabled, scalar child sidecars remain inside their
+group-array element. Duplicate child names retain their emitted-key pairing,
+for example `VALUE__dup2_raw_b64`. No outer `<GROUP>_raw_b64` sidecar is emitted
+for a group array.
 
 ## Level-88 Exclusion
 

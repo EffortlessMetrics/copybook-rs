@@ -252,7 +252,7 @@ pub enum JsonNumberMode {
 pub enum RawMode {
     Off,         // No raw capture
     Record,      // Capture entire record (payload only) as `__raw_b64` on the envelope
-    Field,       // Capture individual fields as `<FIELD>__raw_b64`
+    Field,       // Capture individual fields as `<FIELD>_raw_b64`
     RecordRDW,   // Capture record + RDW header as `__raw_b64`
 }
 
@@ -350,7 +350,8 @@ metadata and raw-sidecar identity are separate contracts.
 When `emit_raw` is enabled, record-level payloads are emitted as **`raw_b64`** (with the legacy
 `__raw_b64` key also present). The `raw_capture` marker records whether those bytes are payload-only
 (`record`) or an RDW header plus payload (`record+rdw`). Field-level capture uses the
-`<FIELD>__raw_b64` naming pattern:
+`<FIELD>_raw_b64` naming pattern (duplicate emitted fields use
+`<FIELD>__dupN_raw_b64`):
 
 ```rust
 // RawMode::Record - capture record payload only
@@ -363,13 +364,14 @@ let opts = DecodeOptions::new().with_emit_raw(RawMode::RecordRDW);
 
 // RawMode::Field - capture individual field payloads
 let opts = DecodeOptions::new().with_emit_raw(RawMode::Field);
-// JSON excerpt: { "fields": { "FIELD1": "decoded", "FIELD1__raw_b64": "AAA..." } }
+// JSON excerpt: { "fields": { "FIELD1": "decoded", "FIELD1_raw_b64": "AAA..." } }
 ```
 
 For scalar `OCCURS` fields, the `<FIELD>_raw_b64` value is an array aligned with
 the decoded field array. Duplicate emitted field names retain separate sidecar
-arrays, such as `AMOUNT_raw_b64` and `AMOUNT__dup2_raw_b64`. Group-array
-sidecar topology is not part of this contract.
+arrays, such as `AMOUNT_raw_b64` and `AMOUNT__dup2_raw_b64`. For group `OCCURS`,
+scalar child sidecars are nested inside their corresponding element object and
+remain paired with duplicate child keys; no outer group sidecar is emitted.
 
 **Roundtrip Encoding**:
 When `use_raw` is enabled in `EncodeOptions`, the encoder consumes `raw_b64` (or the legacy

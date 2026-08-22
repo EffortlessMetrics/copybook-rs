@@ -394,6 +394,7 @@ fn insert_decoded_group_fields(
     encoding_metadata: &mut [(String, ZonedEncodingFormat)],
 ) {
     let mut emitted_keys = Vec::new();
+    let mut metadata_used = vec![false; encoding_metadata.len()];
     for (name, value) in group_fields {
         if let Some(field_name) = name.strip_suffix("_raw_b64")
             && let Some((_, emitted_key)) = emitted_keys
@@ -407,10 +408,12 @@ fn insert_decoded_group_fields(
 
         let emitted_key = insert_decoded_field_with_key(json_obj, name, value.clone())
             .unwrap_or_else(|| name.clone());
-        if let Some((metadata_name, _)) = encoding_metadata
+        if let Some((metadata_index, (metadata_name, _))) = encoding_metadata
             .iter_mut()
-            .find(|(metadata_name, _)| metadata_name == name)
+            .enumerate()
+            .find(|(index, (metadata_name, _))| !metadata_used[*index] && metadata_name == name)
         {
+            metadata_used[metadata_index] = true;
             metadata_name.clone_from(&emitted_key);
         }
         if !name.ends_with("_raw_b64") {
@@ -2629,7 +2632,7 @@ fn resolve_preserved_zoned_format(
     field_path: &str,
     field_name: &str,
 ) -> Option<ZonedEncodingFormat> {
-    let candidates = [field_path, field_name];
+    let candidates = [field_name, field_path];
     for key in candidates {
         if let Some(format) = metadata
             .get(key)

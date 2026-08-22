@@ -1001,16 +1001,22 @@ fn cobol_duplicate_zoned_fields_round_trip_by_emitted_metadata_key() {
         Some("ascii")
     );
 
+    let mut mixed = decoded.clone();
+    mixed
+        .get_mut("_encoding_metadata")
+        .and_then(Value::as_object_mut)
+        .unwrap()
+        .insert("NAME__dup2".to_owned(), Value::String("ebcdic".to_owned()));
     let encoded = copybook_codec::encode_record(
         &schema,
-        &decoded,
+        &mixed,
         &EncodeOptions {
             codepage: Codepage::CP037,
             ..create_test_encode_options(false)
         },
     )
     .unwrap();
-    assert_eq!(encoded, b"1234");
+    assert_eq!(encoded, [b'1', b'2', 0xF3, 0xF4]);
 }
 
 #[test]

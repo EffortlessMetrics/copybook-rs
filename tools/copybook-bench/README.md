@@ -37,6 +37,19 @@ variable are required, so ordinary benchmark suites do not launch it. It
 reports payload-byte throughput and does not define a threshold, SLO, receipt,
 or scheduled performance claim.
 
+To pair an existing generated dataset with its copybook, create a deterministic
+schema-valid manifest beside both inputs:
+
+```bash
+cargo run -p copybook-bench --bin gen-external-input-manifest -- \
+  --copybook record.cpy --dataset records.bin --format fixed --codepage ascii \
+  --workload mixed --record-length 256 --output records.json
+```
+
+The utility validates framing, records exact copybook/dataset SHA-256 values,
+and emits only relative paths. It describes input data; it does not run a
+benchmark or establish a performance claim.
+
 ## Performance baseline
 
 Baseline established 2025-09-30 (commit 1fa63633):

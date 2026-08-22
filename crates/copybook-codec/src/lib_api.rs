@@ -1988,15 +1988,18 @@ fn encode_fields_to_bytes(
         let encoding_metadata = obj
             .get("_encoding_metadata")
             .and_then(|value| value.as_object());
+        let mut context = EncodeContext {
+            encoding_metadata,
+            buffer: &mut buffer,
+            options,
+        };
         let mut field_occurrences = HashMap::new();
         encode_fields_recursive(
             &schema.fields,
             obj,
-            encoding_metadata,
             "",
-            &mut buffer,
+            &mut context,
             0,
-            options,
             &mut field_occurrences,
         )?;
     }
@@ -2035,15 +2038,19 @@ fn rdw_record_length_for_json(schema: &Schema, json: &Value) -> Option<usize> {
         .checked_add(trailing_length)
 }
 
+struct EncodeContext<'a> {
+    encoding_metadata: Option<&'a serde_json::Map<String, Value>>,
+    buffer: &'a mut [u8],
+    options: &'a EncodeOptions,
+}
+
 /// Recursively encode fields into the buffer
 fn encode_fields_recursive(
     fields: &[copybook_core::Field],
     json_obj: &serde_json::Map<String, Value>,
-    encoding_metadata: Option<&serde_json::Map<String, Value>>,
     path_prefix: &str,
-    buffer: &mut [u8],
+    context: &mut EncodeContext<'_>,
     offset: usize,
-    options: &EncodeOptions,
     field_occurrences: &mut HashMap<String, usize>,
 ) -> Result<usize> {
     let mut current_offset = offset;
@@ -2070,10 +2077,8 @@ fn encode_fields_recursive(
             &field_path,
             &field_key,
             json_obj,
-            encoding_metadata,
-            buffer,
+            context,
             current_offset,
-            options,
             field_occurrences,
         )?;
     }
@@ -2092,10 +2097,8 @@ fn encode_single_field(
     field_path: &str,
     field_key: &str,
     json_obj: &serde_json::Map<String, Value>,
-    encoding_metadata: Option<&serde_json::Map<String, Value>>,
-    buffer: &mut [u8],
+    context: &mut EncodeContext<'_>,
     current_offset: usize,
-    options: &EncodeOptions,
     field_occurrences: &mut HashMap<String, usize>,
 ) -> Result<usize> {
     use copybook_core::FieldKind;
@@ -2106,10 +2109,10 @@ fn encode_single_field(
             occurs,
             field_path,
             json_obj,
-            encoding_metadata,
-            buffer,
+            context.encoding_metadata,
+            context.buffer,
             current_offset,
-            options,
+            context.options,
         );
     }
 
@@ -2118,15 +2121,18 @@ fn encode_single_field(
             field,
             field_path,
             json_obj,
-            encoding_metadata,
-            buffer,
+            context,
             current_offset,
-            options,
             field_occurrences,
         ),
-        FieldKind::Alphanum { .. } => {
-            encode_alphanum_field(field, field_key, json_obj, buffer, current_offset, options)
-        }
+        FieldKind::Alphanum { .. } => encode_alphanum_field(
+            field,
+            field_key,
+            json_obj,
+            context.buffer,
+            current_offset,
+            context.options,
+        ),
         FieldKind::ZonedDecimal {
             digits,
             scale,
@@ -2141,8 +2147,8 @@ fn encode_single_field(
                         *digits,
                         *scale,
                         sign_sep,
-                        options.codepage,
-                        &mut buffer[current_offset..current_offset + field_len],
+                        context.options.codepage,
+                        &mut context.buffer[current_offset..current_offset + field_len],
                     )?;
                 }
                 Ok(current_offset + field_len)
@@ -2151,10 +2157,10 @@ fn encode_single_field(
                     field,
                     field_path,
                     json_obj,
-                    encoding_metadata,
-                    buffer,
+                    context.encoding_metadata,
+                    context.buffer,
                     current_offset,
-                    options,
+                    context.options,
                     DecimalSpec {
                         digits: *digits,
                         scale: *scale,
@@ -2171,9 +2177,9 @@ fn encode_single_field(
             field,
             field_path,
             json_obj,
-            buffer,
+            context.buffer,
             current_offset,
-            options,
+            context.options,
             DecimalSpec {
                 digits: *digits,
                 scale: *scale,
@@ -2184,9 +2190,9 @@ fn encode_single_field(
             field,
             field_path,
             json_obj,
-            buffer,
+            context.buffer,
             current_offset,
-            options,
+            context.options,
             BinarySpec {
                 bits: *bits,
                 signed: *signed,
@@ -2207,7 +2213,7 @@ fn encode_single_field(
                 json_obj,
                 field,
                 "an edited numeric string",
-                options.coerce_numbers,
+                context.options.coerce_numbers,
             )? {
                 // Tokenize the PIC pattern
                 let pattern = crate::edited_pic::tokenize_edited_pic(pic_string)?;
@@ -2221,16 +2227,17 @@ fn encode_single_field(
                 )?;
 
                 // Convert to EBCDIC and write to buffer
-                let bytes = crate::charset::utf8_to_ebcdic(&encoded, options.codepage)?;
+                let bytes = crate::charset::utf8_to_ebcdic(&encoded, context.options.codepage)?;
                 let field_len = field.len as usize;
                 let copy_len = bytes.len().min(field_len);
 
-                if current_offset + field_len <= buffer.len() {
-                    buffer[current_offset..current_offset + copy_len]
+                if current_offset + field_len <= context.buffer.len() {
+                    context.buffer[current_offset..current_offset + copy_len]
                         .copy_from_slice(&bytes[..copy_len]);
                     // Pad with codepage-aware space (0x40 for EBCDIC, 0x20 for ASCII)
-                    let space = crate::charset::space_byte(options.codepage);
-                    buffer[current_offset + copy_len..current_offset + field_len].fill(space);
+                    let space = crate::charset::space_byte(context.options.codepage);
+                    context.buffer[current_offset + copy_len..current_offset + field_len]
+                        .fill(space);
                 }
             }
             Ok(current_offset + field.len as usize)
@@ -2273,11 +2280,11 @@ fn encode_single_field(
                         ));
                     }
                 };
-                if current_offset + field_len <= buffer.len() {
+                if current_offset + field_len <= context.buffer.len() {
                     crate::numeric::encode_float_single_with_format(
                         f,
-                        &mut buffer[current_offset..current_offset + field_len],
-                        options.float_format,
+                        &mut context.buffer[current_offset..current_offset + field_len],
+                        context.options.float_format,
                     )?;
                 }
             }
@@ -2305,11 +2312,11 @@ fn encode_single_field(
                         ));
                     }
                 };
-                if current_offset + field_len <= buffer.len() {
+                if current_offset + field_len <= context.buffer.len() {
                     crate::numeric::encode_float_double_with_format(
                         f,
-                        &mut buffer[current_offset..current_offset + field_len],
-                        options.float_format,
+                        &mut context.buffer[current_offset..current_offset + field_len],
+                        context.options.float_format,
                     )?;
                 }
             }
@@ -2403,6 +2410,11 @@ fn encode_occurs_element(
 
     let mut element_field = field.clone();
     element_field.occurs = None;
+    let mut context = EncodeContext {
+        encoding_metadata,
+        buffer,
+        options,
+    };
 
     if let FieldKind::Group = &field.kind {
         let element_obj = element.as_object().ok_or_else(|| {
@@ -2415,11 +2427,9 @@ fn encode_occurs_element(
         encode_fields_recursive(
             &element_field.children,
             element_obj,
-            encoding_metadata,
             field_path,
-            buffer,
+            &mut context,
             element_offset,
-            options,
             &mut HashMap::new(),
         )?;
     } else {
@@ -2430,10 +2440,8 @@ fn encode_occurs_element(
             field_path,
             &element_field.name,
             &element_obj,
-            encoding_metadata,
-            buffer,
+            &mut context,
             element_offset,
-            options,
             &mut HashMap::new(),
         )?;
     }
@@ -2447,10 +2455,8 @@ fn encode_group_field(
     field: &copybook_core::Field,
     field_path: &str,
     json_obj: &serde_json::Map<String, Value>,
-    encoding_metadata: Option<&serde_json::Map<String, Value>>,
-    buffer: &mut [u8],
+    context: &mut EncodeContext<'_>,
     current_offset: usize,
-    options: &EncodeOptions,
     field_occurrences: &mut HashMap<String, usize>,
 ) -> Result<usize> {
     if let Some(sub_obj) = json_obj.get(&field.name).and_then(|v| v.as_object()) {
@@ -2458,22 +2464,18 @@ fn encode_group_field(
         encode_fields_recursive(
             &field.children,
             sub_obj,
-            encoding_metadata,
             field_path,
-            buffer,
+            context,
             current_offset,
-            options,
             &mut nested_occurrences,
         )
     } else {
         encode_fields_recursive(
             &field.children,
             json_obj,
-            encoding_metadata,
             field_path,
-            buffer,
+            context,
             current_offset,
-            options,
             field_occurrences,
         )
     }

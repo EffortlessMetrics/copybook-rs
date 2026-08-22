@@ -186,7 +186,7 @@ jobs:
         } >> "${GITHUB_STEP_SUMMARY}"
 
     - name: Upload publish plan
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: publish-plan-${{ env.RELEASE_TAG }}
         path: ${{ steps.publish-plan.outputs.plan_json }}
@@ -345,7 +345,7 @@ jobs:
         fetch-depth: 0
         ref: ${{ env.RELEASE_TAG }}
     - name: Download publish plan
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: publish-plan-${{ env.RELEASE_TAG }}
         path: ${{ runner.temp }}

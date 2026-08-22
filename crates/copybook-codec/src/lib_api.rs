@@ -783,7 +783,8 @@ fn process_array_field(
                         format!("Array element offset {element_start} exceeds supported range"),
                     )
                 })?;
-                let adjusted_children = adjust_field_offsets(&field.children, element_base_offset);
+                let adjusted_children =
+                    adjust_field_offsets(&field.children, element_base_offset, field.offset);
                 process_fields_recursive(
                     &adjusted_children,
                     data,
@@ -906,20 +907,20 @@ fn process_array_field_with_scratch(
                 // For group arrays, each element should be an object with child fields
                 let mut group_obj = serde_json::Map::new();
 
-                // Create a temporary field for processing group element
+                // Rebase every child to this element, matching the standard
+                // traversal so scratch and non-scratch decoding see the same
+                // bytes for each repeated group element.
                 let element_offset_u32 = u32::try_from(element_offset).map_err(|_| {
                     Error::new(
                         ErrorCode::CBKD301_RECORD_TOO_SHORT,
                         format!("Array element offset {element_offset} exceeds supported range"),
                     )
                 })?;
-
-                let mut element_field = field.clone();
-                element_field.offset = element_offset_u32;
-                element_field.occurs = None; // Remove OCCURS for individual element
+                let adjusted_children =
+                    adjust_field_offsets(&field.children, element_offset_u32, field.offset);
 
                 process_fields_recursive_with_scratch(
-                    &element_field.children,
+                    &adjusted_children,
                     data,
                     &mut group_obj,
                     options,
@@ -1078,15 +1079,17 @@ fn find_field_by_path<'a>(
 fn adjust_field_offsets(
     fields: &[copybook_core::Field],
     base_offset: u32,
+    source_base_offset: u32,
 ) -> Vec<copybook_core::Field> {
     fields
         .iter()
         .map(|field| {
             let mut adjusted_field = field.clone();
-            adjusted_field.offset = base_offset;
+            let relative_offset = field.offset.saturating_sub(source_base_offset);
+            adjusted_field.offset = base_offset.saturating_add(relative_offset);
             if !adjusted_field.children.is_empty() {
                 adjusted_field.children =
-                    adjust_field_offsets(&adjusted_field.children, base_offset);
+                    adjust_field_offsets(&adjusted_field.children, base_offset, source_base_offset);
             }
             adjusted_field
         })

@@ -125,9 +125,14 @@ See [NORMATIVE_SPEC.md](NORMATIVE_SPEC.md) section 1.1 for the fixed-scale rende
 
 ## REDEFINES Handling
 
-When a COBOL copybook uses REDEFINES, all alternative views of the same storage are
-emitted in declaration order. Each view is decoded independently from the underlying
-bytes.
+When a COBOL copybook uses REDEFINES, supported scalar alternative views of the same storage
+are emitted in declaration order. A scalar-target group nested under a level-01 record without
+`OCCURS` emits its children as flattened views in the immediate enclosing JSON map at the group's
+declaration position and retains a named group view after the enclosing sibling scan. A level-01
+redefining group emits its children through root traversal without a named group wrapper. Any
+group `REDEFINES` with fixed `OCCURS` takes the array traversal and is emitted as a named array,
+without scalar-target flattening. Group-over-group REDEFINES without `OCCURS` are intentionally
+omitted. Each emitted/supported view is decoded independently from the underlying bytes.
 
 ```cobol
 01 RECORD.
@@ -144,8 +149,9 @@ Produces:
 }
 ```
 
-Both the primary field and all redefining fields appear as siblings in the `fields`
-object. The decoder does not choose between alternatives -- all are emitted.
+Both the primary field and the supported redefining scalar view appear as siblings in the
+`fields` object. The decoder does not choose between these emitted alternatives; unsupported or
+intentionally omitted group views follow the rules above.
 
 For **encoding** (JSON to binary), REDEFINES follows precedence rules defined in
 [NORMATIVE_SPEC.md](NORMATIVE_SPEC.md) section 2:

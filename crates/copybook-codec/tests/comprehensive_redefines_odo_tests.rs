@@ -12,6 +12,7 @@
 //! This test suite validates REDEFINES and ODO handling according to the normative
 //! behavior specified in the design document.
 
+use base64::Engine;
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
     UnmappablePolicy, ZonedEncodingFormat,
@@ -1504,6 +1505,83 @@ fn cobol_nested_duplicate_packed_and_binary_values_use_emitted_keys() {
         fields.get("COUNT__dup2").and_then(Value::as_str),
         Some("43")
     );
+}
+
+#[test]
+fn cobol_nested_and_reverse_packed_binary_raw_sidecars_follow_emitted_keys() {
+    for copybook in [
+        r#"
+01 NESTED-NUMERIC-RAW-COLLISION.
+   05 OUTER.
+      10 ORIGINAL PIC X(4).
+      10 GROUP-REDEFINE REDEFINES ORIGINAL.
+         15 AMOUNT PIC 9(3) COMP-3.
+         15 COUNT PIC 9(4) COMP.
+      10 AMOUNT PIC 9(3) COMP-3.
+      10 COUNT PIC 9(4) COMP.
+"#,
+        r#"
+01 REVERSE-NUMERIC-RAW-COLLISION.
+   05 ORIGINAL PIC X(4).
+   05 GROUP-REDEFINE REDEFINES ORIGINAL.
+      10 AMOUNT PIC 9(3) COMP-3.
+      10 COUNT PIC 9(4) COMP.
+   05 AMOUNT PIC 9(3) COMP-3.
+   05 COUNT PIC 9(4) COMP.
+"#,
+    ] {
+        let schema = parse_copybook(copybook).unwrap();
+        let decode_options = DecodeOptions {
+            emit_raw: RawMode::Field,
+            ..create_test_decode_options(false)
+        };
+        let encoded = [0x12, 0x3f, 0x00, 0x2a, 0x45, 0x6f, 0x00, 0x2b];
+        let (plain, with_scratch) = decode_plain_and_scratch(&schema, &encoded, &decode_options);
+        assert_eq!(plain, with_scratch);
+
+        let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+        let fields = if copybook.contains("OUTER") {
+            fields.get("OUTER").and_then(Value::as_object).unwrap()
+        } else {
+            fields
+        };
+        for (key, bytes) in [
+            ("AMOUNT_raw_b64", &encoded[0..2]),
+            ("COUNT_raw_b64", &encoded[2..4]),
+            ("AMOUNT__dup2_raw_b64", &encoded[4..6]),
+            ("COUNT__dup2_raw_b64", &encoded[6..8]),
+        ] {
+            assert_eq!(
+                fields.get(key).and_then(Value::as_str),
+                Some(
+                    base64::engine::general_purpose::STANDARD
+                        .encode(bytes)
+                        .as_str()
+                )
+            );
+        }
+
+        let mut modified = plain;
+        let fields = modified
+            .get_mut("fields")
+            .and_then(Value::as_object_mut)
+            .unwrap();
+        let fields = if copybook.contains("OUTER") {
+            fields
+                .get_mut("OUTER")
+                .and_then(Value::as_object_mut)
+                .unwrap()
+        } else {
+            fields
+        };
+        fields.remove("GROUP-REDEFINE");
+        fields.insert("AMOUNT__dup2".to_owned(), Value::String("789".to_owned()));
+        fields.insert("COUNT__dup2".to_owned(), Value::String("44".to_owned()));
+        let encoded =
+            copybook_codec::encode_record(&schema, &modified, &create_test_encode_options(false))
+                .unwrap();
+        assert_eq!(encoded, [0x12, 0x3f, 0x00, 0x2a, 0x78, 0x9f, 0x00, 0x2c]);
+    }
 }
 
 #[test]

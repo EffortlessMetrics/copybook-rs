@@ -336,6 +336,7 @@ fn process_fields_recursive(
                             json_obj,
                             group_fields,
                             &mut encoding_acc[metadata_start..],
+                            options.emit_filler,
                         );
                     }
                     deferred_group_views.push((field.name.clone(), group_value));
@@ -392,6 +393,7 @@ fn insert_decoded_group_fields(
     json_obj: &mut serde_json::Map<String, Value>,
     group_fields: &serde_json::Map<String, Value>,
     encoding_metadata: &mut [(String, ZonedEncodingFormat)],
+    allow_filler_collision: bool,
 ) {
     let mut emitted_keys = Vec::new();
     let mut metadata_used = vec![false; encoding_metadata.len()];
@@ -406,8 +408,12 @@ fn insert_decoded_group_fields(
             continue;
         }
 
-        let emitted_key = insert_decoded_field_with_key(json_obj, name, value.clone())
-            .unwrap_or_else(|| name.clone());
+        let emitted_key = if allow_filler_collision {
+            insert_decoded_field_with_key_emitting_filler(json_obj, name, value.clone())
+        } else {
+            insert_decoded_field_with_key(json_obj, name, value.clone())
+        }
+        .unwrap_or_else(|| name.clone());
         if let Some((metadata_index, (metadata_name, _))) = encoding_metadata
             .iter_mut()
             .enumerate()
@@ -542,6 +548,7 @@ fn process_fields_recursive_with_scratch(
                             json_obj,
                             group_fields,
                             &mut encoding_acc[metadata_start..],
+                            options.emit_filler,
                         );
                     }
                     deferred_group_views.push((field.name.clone(), group_value));
@@ -2111,8 +2118,11 @@ fn encode_fields_to_bytes(
         encode_fields_recursive(
             &schema.fields,
             obj,
-            encoding_metadata,
             "",
+            &EncodeFieldsContext {
+                encoding_metadata,
+                flattened: false,
+            },
             &mut buffer,
             0,
             options,
@@ -2157,8 +2167,8 @@ fn rdw_record_length_for_json(schema: &Schema, json: &Value) -> Option<usize> {
 fn encode_fields_recursive(
     fields: &[copybook_core::Field],
     json_obj: &serde_json::Map<String, Value>,
-    encoding_metadata: Option<&serde_json::Map<String, Value>>,
     path_prefix: &str,
+    context: &EncodeFieldsContext<'_>,
     buffer: &mut [u8],
     offset: usize,
     options: &EncodeOptions,
@@ -2171,7 +2181,8 @@ fn encode_fields_recursive(
             .entry(field.name.as_str())
             .and_modify(|count| *count += 1)
             .or_insert(0);
-        let json_field_name = emitted_field_name(json_obj, &field.name, *occurrence);
+        let json_field_name =
+            emitted_field_name(json_obj, &field.name, *occurrence, context.flattened);
         let field_path = if path_prefix.is_empty() {
             field.name.clone()
         } else {
@@ -2182,13 +2193,21 @@ fn encode_fields_recursive(
             path: &field_path,
             json: &json_field_name,
         };
+        let field_offset = if field.redefines_of.is_some() {
+            match usize::try_from(field.offset) {
+                Ok(offset) => offset,
+                Err(_) => current_offset,
+            }
+        } else {
+            current_offset
+        };
         current_offset = encode_single_field(
             field,
             &field_names,
             json_obj,
-            encoding_metadata,
+            context.encoding_metadata,
             buffer,
-            current_offset,
+            field_offset,
             options,
         )?;
     }
@@ -2243,17 +2262,30 @@ struct FieldNames<'a> {
     json: &'a str,
 }
 
+struct EncodeFieldsContext<'a> {
+    encoding_metadata: Option<&'a serde_json::Map<String, Value>>,
+    flattened: bool,
+}
+
 fn emitted_field_name(
     json_obj: &serde_json::Map<String, Value>,
     field_name: &str,
     occurrence: usize,
+    flattened: bool,
 ) -> String {
     let candidate = if occurrence == 0 {
         field_name.to_owned()
     } else {
         format!("{field_name}__dup{}", occurrence + 1)
     };
-    if json_obj.contains_key(&candidate) {
+    if flattened && occurrence == 0 && json_obj.contains_key(&candidate) {
+        let duplicate = format!("{field_name}__dup2");
+        if json_obj.contains_key(&duplicate) {
+            duplicate
+        } else {
+            candidate
+        }
+    } else if json_obj.contains_key(&candidate) {
         candidate
     } else {
         field_name.to_owned()
@@ -2300,9 +2332,14 @@ fn encode_single_field(
             current_offset,
             options,
         ),
-        FieldKind::Alphanum { .. } => {
-            encode_alphanum_field(field, json_obj, buffer, current_offset, options)
-        }
+        FieldKind::Alphanum { .. } => encode_alphanum_field(
+            field,
+            field_names.json,
+            json_obj,
+            buffer,
+            current_offset,
+            options,
+        ),
         FieldKind::ZonedDecimal {
             digits,
             scale,
@@ -2593,8 +2630,11 @@ fn encode_occurs_element(
         encode_fields_recursive(
             &element_field.children,
             element_obj,
-            encoding_metadata,
             field_names.path,
+            &EncodeFieldsContext {
+                encoding_metadata,
+                flattened: false,
+            },
             buffer,
             element_offset,
             options,
@@ -2631,8 +2671,11 @@ fn encode_group_field(
         encode_fields_recursive(
             &field.children,
             sub_obj,
-            encoding_metadata,
             field_names.path,
+            &EncodeFieldsContext {
+                encoding_metadata,
+                flattened: false,
+            },
             buffer,
             current_offset,
             options,
@@ -2641,8 +2684,11 @@ fn encode_group_field(
         encode_fields_recursive(
             &field.children,
             json_obj,
-            encoding_metadata,
             field_names.path,
+            &EncodeFieldsContext {
+                encoding_metadata,
+                flattened: field.redefines_of.is_some(),
+            },
             buffer,
             current_offset,
             options,
@@ -2654,6 +2700,7 @@ fn encode_group_field(
 #[inline]
 fn encode_alphanum_field(
     field: &copybook_core::Field,
+    json_field_name: &str,
     json_obj: &serde_json::Map<String, Value>,
     buffer: &mut [u8],
     current_offset: usize,
@@ -2661,7 +2708,10 @@ fn encode_alphanum_field(
 ) -> Result<usize> {
     let field_len = field.len as usize;
 
-    if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
+    if let Some(text) = json_obj
+        .get(json_field_name)
+        .and_then(|value| value.as_str())
+    {
         // Validate encoded byte length doesn't exceed field capacity.
         let bytes = crate::charset::utf8_to_ebcdic(text, options.codepage)?;
         if bytes.len() > field_len {

@@ -291,6 +291,11 @@ pub struct ExternalInputPayloadRange {
 }
 
 /// Deterministic decode telemetry for one external-input manifest.
+///
+/// This report proves validation, decode, byte accounting, and input identity;
+/// it intentionally does not contain timing or throughput measurements and is
+/// not a performance receipt, baseline, gate, threshold, SLO, or scheduled
+/// result.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct ExternalInputPreflightReport {
     /// Closed report schema version.
@@ -344,6 +349,10 @@ pub fn load_external_input(manifest_path: &Path) -> Result<ValidatedExternalInpu
 }
 
 /// Prepare one validated external-input dataset for local Criterion decoding.
+///
+/// The returned benchmark is an opt-in local telemetry instrument for one
+/// selected manifest. It does not establish a canonical receipt, baseline,
+/// gate, threshold, SLO, or scheduled performance claim.
 ///
 /// # Errors
 ///

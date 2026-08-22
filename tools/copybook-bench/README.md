@@ -50,16 +50,23 @@ The utility validates framing, records exact copybook/dataset SHA-256 values,
 and emits only relative paths. It describes input data; it does not run a
 benchmark or establish a performance claim.
 
-## Performance baseline
+## Canonical performance baseline
 
-Baseline established 2025-09-30 (commit 1fa63633):
+The following legacy values are historical context from the 2025-09-30
+measurement (commit `1fa63633`), not current external-input results or SLOs:
 
 | Workload | Baseline | CI Floor |
 |----------|----------|----------|
 | DISPLAY-heavy | 205 MiB/s | 80 MiB/s |
 | COMP-3-heavy | 58 MiB/s | 40 MiB/s |
 
-CI enforces throughput floors; baseline comparisons remain advisory. See `BASELINE_METHODOLOGY.md` for measurement procedures.
+Current performance claims and CI thresholds are governed by
+[`scripts/bench/perf.json`](../../scripts/bench/perf.json),
+[`scripts/bench/baseline.json`](../../scripts/bench/baseline.json), and
+[`docs/PERFORMANCE_GOVERNANCE.md`](../../docs/PERFORMANCE_GOVERNANCE.md).
+The external-input target above remains local telemetry only; it does not
+promote a baseline or establish a threshold, SLO, receipt, or scheduled claim.
+See `BASELINE_METHODOLOGY.md` for the separate canonical baseline procedure.
 
 ## License
 

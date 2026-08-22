@@ -1020,6 +1020,61 @@ fn cobol_duplicate_zoned_fields_round_trip_by_emitted_metadata_key() {
 }
 
 #[test]
+fn cobol_duplicate_zoned_occurs_metadata_follows_emitted_keys() {
+    let copybook = r#"
+01 DUPLICATE-ZONED-OCCURS.
+   05 AMOUNT OCCURS 2 TIMES PIC 9(2).
+   05 AMOUNT OCCURS 2 TIMES PIC 9(2).
+"#;
+    let mut schema = parse_copybook(copybook).unwrap();
+    schema.lrecl_fixed = Some(8);
+    let options = DecodeOptions {
+        preserve_zoned_encoding: true,
+        ..create_test_decode_options(false)
+    };
+    let (decoded, scratch_decoded) = decode_plain_and_scratch(&schema, b"12345678", &options);
+    assert_eq!(decoded, scratch_decoded);
+    let fields = decoded.get("fields").and_then(Value::as_object).unwrap();
+    assert_eq!(fields.get("AMOUNT"), Some(&serde_json::json!(["12", "34"])));
+    assert_eq!(
+        fields.get("AMOUNT__dup2"),
+        Some(&serde_json::json!(["56", "78"]))
+    );
+    let metadata = decoded
+        .get("_encoding_metadata")
+        .and_then(Value::as_object)
+        .unwrap();
+    assert_eq!(
+        metadata.get("AMOUNT").and_then(Value::as_str),
+        Some("ascii")
+    );
+    assert_eq!(
+        metadata.get("AMOUNT__dup2").and_then(Value::as_str),
+        Some("ascii")
+    );
+
+    let mut mixed = decoded;
+    mixed
+        .get_mut("_encoding_metadata")
+        .and_then(Value::as_object_mut)
+        .unwrap()
+        .insert(
+            "AMOUNT__dup2".to_owned(),
+            Value::String("ebcdic".to_owned()),
+        );
+    let encoded = copybook_codec::encode_record(
+        &schema,
+        &mixed,
+        &EncodeOptions {
+            codepage: Codepage::CP037,
+            ..create_test_encode_options(false)
+        },
+    )
+    .unwrap();
+    assert_eq!(encoded, [b'1', b'2', b'3', b'4', 0xF5, 0xF6, 0xF7, 0xF8]);
+}
+
+#[test]
 fn cobol_nested_and_reverse_zoned_metadata_follow_emitted_keys() {
     for copybook in [
         r#"

@@ -815,49 +815,17 @@ fn process_array_field(
     record_index: u64,
     encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
-    use copybook_core::{FieldKind, Occurs};
+    use copybook_core::FieldKind;
 
-    let count = match occurs {
-        Occurs::Fixed { count } => *count,
-        Occurs::ODO {
-            min,
-            max,
-            counter_path,
-        } => {
-            // Find the counter field and get its value
-            let scratch = scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
-            let counter_value = find_and_read_counter_field(
-                counter_path,
-                all_fields,
-                data,
-                options,
-                scratch,
-                record_index,
-            )?;
-
-            let counter_field = find_field_by_path(all_fields, counter_path)?;
-            let validation_context = crate::odo_redefines::OdoValidationContext {
-                field_path: field.path.clone(),
-                counter_path: counter_path.clone(),
-                record_index,
-                byte_offset: u64::from(counter_field.offset),
-            };
-            let validation = crate::odo_redefines::validate_odo_decode(
-                counter_value,
-                *min,
-                *max,
-                &validation_context,
-                options,
-            )?;
-
-            if let Some(warning) = validation.warning {
-                tracing::warn!("{}", warning);
-                increment_warning_counter();
-            }
-
-            validation.actual_count
-        }
-    };
+    let count = resolve_array_count(
+        field,
+        occurs,
+        data,
+        options,
+        all_fields,
+        &mut ArrayScratch::Optional(scratch_buffers),
+        record_index,
+    )?;
 
     let element_size = field.len as usize;
     let array_start = field.offset as usize;
@@ -876,6 +844,10 @@ fn process_array_field(
             ),
         ));
     }
+
+    // Collect this array's metadata separately so its final collision-aware
+    // JSON key can be applied after the array value is inserted.
+    let array_metadata_start = encoding_acc.len();
 
     // Process array elements
     let mut array_values = Vec::new();
@@ -926,7 +898,13 @@ fn process_array_field(
         array_values.push(element_value);
     }
 
-    insert_decoded_field(json_obj, &field.name, Value::Array(array_values));
+    insert_decoded_array_field(
+        json_obj,
+        field,
+        array_values,
+        encoding_acc,
+        array_metadata_start,
+    );
     Ok(())
 }
 
@@ -943,49 +921,18 @@ fn process_array_field_with_scratch(
     record_index: u64,
     encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
-    use copybook_core::{FieldKind, Occurs};
+    use copybook_core::FieldKind;
     use serde_json::Value;
 
-    let count = match occurs {
-        Occurs::Fixed { count } => *count,
-        Occurs::ODO {
-            min,
-            max,
-            counter_path,
-        } => {
-            // Find the counter field and get its value
-            let counter_value = find_and_read_counter_field(
-                counter_path,
-                all_fields,
-                data,
-                options,
-                scratch,
-                record_index,
-            )?;
-
-            let counter_field = find_field_by_path(all_fields, counter_path)?;
-            let validation_context = crate::odo_redefines::OdoValidationContext {
-                field_path: field.path.clone(),
-                counter_path: counter_path.clone(),
-                record_index,
-                byte_offset: u64::from(counter_field.offset),
-            };
-            let validation = crate::odo_redefines::validate_odo_decode(
-                counter_value,
-                *min,
-                *max,
-                &validation_context,
-                options,
-            )?;
-
-            if let Some(warning) = validation.warning {
-                tracing::warn!("{}", warning);
-                increment_warning_counter();
-            }
-
-            validation.actual_count
-        }
-    };
+    let count = resolve_array_count(
+        field,
+        occurs,
+        data,
+        options,
+        all_fields,
+        &mut ArrayScratch::Direct(scratch),
+        record_index,
+    )?;
 
     let element_size = field.len as usize;
     let array_start = field.offset as usize;
@@ -1006,6 +953,7 @@ fn process_array_field_with_scratch(
         ));
     }
 
+    let array_metadata_start = encoding_acc.len();
     let mut array_values = Vec::new();
 
     for i in 0..count {
@@ -1055,8 +1003,73 @@ fn process_array_field_with_scratch(
         array_values.push(element_value);
     }
 
-    insert_decoded_field(json_obj, &field.name, Value::Array(array_values));
+    insert_decoded_array_field(
+        json_obj,
+        field,
+        array_values,
+        encoding_acc,
+        array_metadata_start,
+    );
     Ok(())
+}
+
+/// Find and read the value of a counter field for ODO arrays
+enum ArrayScratch<'a> {
+    Optional(&'a mut Option<crate::memory::ScratchBuffers>),
+    Direct(&'a mut crate::memory::ScratchBuffers),
+}
+
+fn resolve_array_count(
+    field: &copybook_core::Field,
+    occurs: &copybook_core::Occurs,
+    data: &[u8],
+    options: &DecodeOptions,
+    all_fields: &[copybook_core::Field],
+    scratch: &mut ArrayScratch<'_>,
+    record_index: u64,
+) -> Result<u32> {
+    match occurs {
+        copybook_core::Occurs::Fixed { count } => Ok(*count),
+        copybook_core::Occurs::ODO {
+            min,
+            max,
+            counter_path,
+        } => {
+            let scratch = match scratch {
+                ArrayScratch::Optional(slot) => {
+                    slot.get_or_insert_with(crate::memory::ScratchBuffers::new)
+                }
+                ArrayScratch::Direct(value) => value,
+            };
+            let counter_value = find_and_read_counter_field(
+                counter_path,
+                all_fields,
+                data,
+                options,
+                scratch,
+                record_index,
+            )?;
+            let counter_field = find_field_by_path(all_fields, counter_path)?;
+            let validation_context = crate::odo_redefines::OdoValidationContext {
+                field_path: field.path.clone(),
+                counter_path: counter_path.clone(),
+                record_index,
+                byte_offset: u64::from(counter_field.offset),
+            };
+            let validation = crate::odo_redefines::validate_odo_decode(
+                counter_value,
+                *min,
+                *max,
+                &validation_context,
+                options,
+            )?;
+            if let Some(warning) = validation.warning {
+                tracing::warn!("{}", warning);
+                increment_warning_counter();
+            }
+            Ok(validation.actual_count)
+        }
+    }
 }
 
 /// Find and read the value of a counter field for ODO arrays
@@ -2166,6 +2179,38 @@ fn collect_array_zoned_encoding_info(
     encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) {
     collect_zoned_encoding_info(field, &field.name, field_data, options, encoding_acc);
+}
+
+fn insert_decoded_array_field(
+    json_obj: &mut serde_json::Map<String, Value>,
+    field: &copybook_core::Field,
+    array_values: Vec<Value>,
+    encoding_acc: &mut [(String, ZonedEncodingFormat)],
+    metadata_start: usize,
+) {
+    let emitted_key =
+        insert_decoded_field_with_key(json_obj, &field.name, Value::Array(array_values));
+    finalize_array_zoned_metadata(
+        &field.kind,
+        encoding_acc,
+        metadata_start,
+        emitted_key.as_deref().unwrap_or(&field.name),
+    );
+}
+
+fn finalize_array_zoned_metadata(
+    field_kind: &copybook_core::FieldKind,
+    encoding_acc: &mut [(String, ZonedEncodingFormat)],
+    metadata_start: usize,
+    emitted_key: &str,
+) {
+    if !matches!(field_kind, copybook_core::FieldKind::ZonedDecimal { .. }) {
+        return;
+    }
+    let metadata_key = emitted_key.to_owned();
+    for (key, _) in &mut encoding_acc[metadata_start..] {
+        key.clone_from(&metadata_key);
+    }
 }
 
 struct FieldNames<'a> {

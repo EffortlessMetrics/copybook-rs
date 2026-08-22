@@ -896,3 +896,37 @@ fn cobol_scalar_target_group_collision_preserves_both_views() {
     );
     assert_eq!(plain, with_scratch);
 }
+
+#[test]
+fn cobol_later_enclosing_collision_preserves_flattened_view() {
+    let copybook = r#"
+01 REVERSE-COLLISION.
+   05 ORIGINAL PIC X(2).
+   05 GROUP-REDEFINE REDEFINES ORIGINAL.
+      10 LATER PIC X(2).
+   05 LATER PIC X(2).
+"#;
+
+    let mut schema = parse_copybook(copybook).unwrap();
+    let options = create_test_decode_options(false);
+    let record_len = record_len_from_schema(&schema).max(4);
+    schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
+
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABB", &options);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+
+    assert_eq!(fields.get("LATER").and_then(Value::as_str), Some("AA"));
+    assert_eq!(
+        fields.get("LATER__dup2").and_then(Value::as_str),
+        Some("BB")
+    );
+    assert_eq!(
+        fields
+            .get("GROUP-REDEFINE")
+            .and_then(Value::as_object)
+            .and_then(|group| group.get("LATER"))
+            .and_then(Value::as_str),
+        Some("AA")
+    );
+    assert_eq!(plain, with_scratch);
+}

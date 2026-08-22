@@ -883,7 +883,8 @@ fn process_array_field(
 
     // Process array elements
     let mut array_values = Vec::new();
-    let mut raw_values = Vec::new();
+    let capture_raw = matches!(options.emit_raw, crate::options::RawMode::Field);
+    let mut raw_values = capture_raw.then(|| Vec::with_capacity(count as usize));
     for i in 0..count {
         let element_start = array_start + (i as usize * element_size);
         let element_end = element_start + element_size;
@@ -914,9 +915,11 @@ fn process_array_field(
             FieldKind::Condition { values } => condition_value(values, "CONDITION_ARRAY"),
             _ => {
                 let element_data = &data[element_start..element_end];
-                raw_values.push(Value::String(
-                    base64::engine::general_purpose::STANDARD.encode(element_data),
-                ));
+                if let Some(raw_values) = raw_values.as_mut() {
+                    raw_values.push(Value::String(
+                        base64::engine::general_purpose::STANDARD.encode(element_data),
+                    ));
+                }
                 let val = decode_scalar_field_value_standard(
                     field,
                     element_data,
@@ -941,7 +944,7 @@ fn process_array_field(
         encoding_acc,
         array_metadata_start,
     );
-    insert_decoded_array_raw_sidecar(json_obj, field, emitted_key, raw_values, options);
+    insert_decoded_array_raw_sidecar(json_obj, field, emitted_key, raw_values);
     Ok(())
 }
 
@@ -992,7 +995,8 @@ fn process_array_field_with_scratch(
 
     let array_metadata_start = encoding_acc.len();
     let mut array_values = Vec::new();
-    let mut raw_values = Vec::new();
+    let capture_raw = matches!(options.emit_raw, crate::options::RawMode::Field);
+    let mut raw_values = capture_raw.then(|| Vec::with_capacity(count as usize));
 
     for i in 0..count {
         let element_offset = array_start + (i as usize * element_size);
@@ -1028,9 +1032,11 @@ fn process_array_field_with_scratch(
             }
             FieldKind::Condition { values } => condition_value(values, "CONDITION_ARRAY"),
             _ => {
-                raw_values.push(Value::String(
-                    base64::engine::general_purpose::STANDARD.encode(element_data),
-                ));
+                if let Some(raw_values) = raw_values.as_mut() {
+                    raw_values.push(Value::String(
+                        base64::engine::general_purpose::STANDARD.encode(element_data),
+                    ));
+                }
                 let val =
                     decode_scalar_field_value_with_scratch(field, element_data, options, scratch)
                         .map_err(|error| add_zoned_overflow_context(error, field, record_index))?;
@@ -1051,7 +1057,7 @@ fn process_array_field_with_scratch(
         encoding_acc,
         array_metadata_start,
     );
-    insert_decoded_array_raw_sidecar(json_obj, field, emitted_key, raw_values, options);
+    insert_decoded_array_raw_sidecar(json_obj, field, emitted_key, raw_values);
     Ok(())
 }
 
@@ -2257,12 +2263,11 @@ fn insert_decoded_array_raw_sidecar(
     json_obj: &mut serde_json::Map<String, Value>,
     field: &copybook_core::Field,
     emitted_key: Option<String>,
-    raw_values: Vec<Value>,
-    options: &DecodeOptions,
+    raw_values: Option<Vec<Value>>,
 ) {
-    if !matches!(options.emit_raw, crate::options::RawMode::Field) || raw_values.is_empty() {
+    let Some(raw_values) = raw_values else {
         return;
-    }
+    };
     let raw_key = emitted_key.map_or_else(
         || format!("{}_raw_b64", field.name),
         |key| format!("{key}_raw_b64"),

@@ -1071,6 +1071,160 @@ fn cobol_nested_and_reverse_zoned_metadata_follow_emitted_keys() {
 }
 
 #[test]
+fn cobol_duplicate_packed_and_binary_values_use_emitted_keys() {
+    let copybook = r#"
+01 DUPLICATE-NUMERIC.
+   05 AMOUNT PIC 9(3) COMP-3.
+   05 AMOUNT PIC 9(3) COMP-3.
+   05 COUNT PIC 9(4) COMP.
+   05 COUNT PIC 9(4) COMP.
+"#;
+    let schema = parse_copybook(copybook).unwrap();
+    let decode_options = create_test_decode_options(false);
+    let encode_options = create_test_encode_options(false);
+    let input = json!({
+        "AMOUNT": "123",
+        "AMOUNT__dup2": "456",
+        "COUNT": "42",
+        "COUNT__dup2": "43"
+    });
+
+    let encoded = copybook_codec::encode_record(&schema, &input, &encode_options).unwrap();
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, &encoded, &decode_options);
+    assert_eq!(plain, with_scratch);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+    assert_eq!(fields.get("AMOUNT").and_then(Value::as_str), Some("123"));
+    assert_eq!(
+        fields.get("AMOUNT__dup2").and_then(Value::as_str),
+        Some("456")
+    );
+    assert_eq!(fields.get("COUNT").and_then(Value::as_str), Some("42"));
+    assert_eq!(
+        fields.get("COUNT__dup2").and_then(Value::as_str),
+        Some("43")
+    );
+}
+
+#[test]
+fn cobol_nested_duplicate_packed_and_binary_values_use_emitted_keys() {
+    let copybook = r#"
+01 NESTED-DUPLICATE-NUMERIC.
+   05 OUTER.
+      10 AMOUNT PIC 9(3) COMP-3.
+      10 AMOUNT PIC 9(3) COMP-3.
+      10 COUNT PIC 9(4) COMP.
+      10 COUNT PIC 9(4) COMP.
+"#;
+    let schema = parse_copybook(copybook).unwrap();
+    let decode_options = create_test_decode_options(false);
+    let encode_options = create_test_encode_options(false);
+    let input = json!({
+        "OUTER": {
+            "AMOUNT": "123",
+            "AMOUNT__dup2": "456",
+            "COUNT": "42",
+            "COUNT__dup2": "43"
+        }
+    });
+
+    let encoded = copybook_codec::encode_record(&schema, &input, &encode_options).unwrap();
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, &encoded, &decode_options);
+    assert_eq!(plain, with_scratch);
+    let fields = plain
+        .get("fields")
+        .and_then(Value::as_object)
+        .and_then(|fields| fields.get("OUTER"))
+        .and_then(Value::as_object)
+        .unwrap();
+    assert_eq!(fields.get("AMOUNT").and_then(Value::as_str), Some("123"));
+    assert_eq!(
+        fields.get("AMOUNT__dup2").and_then(Value::as_str),
+        Some("456")
+    );
+    assert_eq!(fields.get("COUNT").and_then(Value::as_str), Some("42"));
+    assert_eq!(
+        fields.get("COUNT__dup2").and_then(Value::as_str),
+        Some("43")
+    );
+}
+
+#[test]
+fn cobol_duplicate_sign_separate_values_keep_emitted_keys() {
+    let copybook = r#"
+01 DUPLICATE-SIGN-SEPARATE.
+   05 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
+   05 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
+"#;
+    let schema = parse_copybook(copybook).unwrap();
+    let decode_options = create_test_decode_options(false);
+    let encode_options = create_test_encode_options(false);
+    let input = json!({"SIGNED": "123", "SIGNED__dup2": "456"});
+
+    let encoded = copybook_codec::encode_record(&schema, &input, &encode_options).unwrap();
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, &encoded, &decode_options);
+    assert_eq!(plain, with_scratch);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+    assert_eq!(fields.get("SIGNED").and_then(Value::as_str), Some("123"));
+    assert_eq!(
+        fields.get("SIGNED__dup2").and_then(Value::as_str),
+        Some("456")
+    );
+}
+
+#[test]
+fn cobol_duplicate_scalar_occurs_numeric_values_use_emitted_keys() {
+    let copybook = r#"
+01 DUPLICATE-OCCURS-NUMERIC.
+   05 AMOUNT OCCURS 2 TIMES PIC 9(3) COMP-3.
+   05 AMOUNT OCCURS 2 TIMES PIC 9(3) COMP-3.
+   05 COUNT OCCURS 2 TIMES PIC 9(4) COMP.
+   05 COUNT OCCURS 2 TIMES PIC 9(4) COMP.
+"#;
+    let schema = parse_copybook(copybook).unwrap();
+    let decode_options = create_test_decode_options(false);
+    let encode_options = create_test_encode_options(false);
+    let input = json!({
+        "AMOUNT": ["123", "124"],
+        "AMOUNT__dup2": ["456", "457"],
+        "COUNT": ["42", "43"],
+        "COUNT__dup2": ["52", "53"]
+    });
+
+    let encoded = copybook_codec::encode_record(&schema, &input, &encode_options).unwrap();
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, &encoded, &decode_options);
+    assert_eq!(plain, with_scratch);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+    assert_eq!(
+        fields
+            .get("AMOUNT")
+            .and_then(Value::as_array)
+            .unwrap()
+            .len(),
+        2
+    );
+    assert_eq!(
+        fields
+            .get("AMOUNT__dup2")
+            .and_then(Value::as_array)
+            .unwrap()
+            .iter()
+            .map(Value::as_str)
+            .collect::<Vec<_>>(),
+        vec![Some("456"), Some("457")]
+    );
+    assert_eq!(
+        fields
+            .get("COUNT__dup2")
+            .and_then(Value::as_array)
+            .unwrap()
+            .iter()
+            .map(Value::as_str)
+            .collect::<Vec<_>>(),
+        vec![Some("52"), Some("53")]
+    );
+}
+
+#[test]
 fn cobol_group_over_group_fixed_occurs_emits_named_array() {
     let copybook = r#"
 01 OCCURS-REDEFINES.

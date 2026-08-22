@@ -2276,7 +2276,7 @@ fn encode_single_field(
             signed,
         } => encode_packed_decimal_field(
             field,
-            field_names.path,
+            field_names.json,
             json_obj,
             buffer,
             current_offset,
@@ -2289,7 +2289,7 @@ fn encode_single_field(
         ),
         FieldKind::BinaryInt { bits, signed } => encode_binary_int_field(
             field,
-            field_names.path,
+            field_names.json,
             json_obj,
             buffer,
             current_offset,
@@ -2531,7 +2531,7 @@ fn encode_occurs_element(
         )?;
     } else {
         let mut element_obj = serde_json::Map::new();
-        element_obj.insert(field.name.clone(), element.clone());
+        element_obj.insert(field_names.json.to_owned(), element.clone());
         encode_single_field(
             &element_field,
             field_names,
@@ -2806,7 +2806,7 @@ fn encode_zoned_decimal_field(
 #[inline]
 fn encode_packed_decimal_field(
     field: &copybook_core::Field,
-    _field_path: &str,
+    json_field_name: &str,
     json_obj: &serde_json::Map<String, Value>,
     buffer: &mut [u8],
     current_offset: usize,
@@ -2818,7 +2818,7 @@ fn encode_packed_decimal_field(
     if let Some(text) = encodable_numeric_text(
         json_obj,
         field,
-        &field.name,
+        json_field_name,
         "a packed decimal string",
         options.coerce_numbers,
     )? {
@@ -2841,7 +2841,7 @@ struct BinarySpec {
 #[inline]
 fn encode_binary_int_field(
     field: &copybook_core::Field,
-    _field_path: &str,
+    json_field_name: &str,
     json_obj: &serde_json::Map<String, Value>,
     buffer: &mut [u8],
     current_offset: usize,
@@ -2850,7 +2850,7 @@ fn encode_binary_int_field(
 ) -> Result<usize> {
     let field_len = field.len as usize;
 
-    let value = match json_obj.get(&field.name) {
+    let value = match json_obj.get(json_field_name) {
         None => None,
         Some(v) if v.is_null() => None,
         Some(v) => Some(v),

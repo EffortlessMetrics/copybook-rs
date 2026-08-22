@@ -14,7 +14,6 @@ use crate::zoned_overpunch::ZeroSignPolicy;
 use base64::Engine;
 use copybook_core::{Error, ErrorCode, Result, Schema};
 use serde_json::Value;
-use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::sync::Arc;
@@ -331,7 +330,9 @@ fn process_fields_recursive(
                 if is_scalar_target_group_redefine(field, fields) {
                     let group_value = Value::Object(group_obj);
                     if let Value::Object(group_fields) = &group_value {
-                        insert_decoded_map_fields(json_obj, group_fields);
+                        for (name, value) in group_fields {
+                            insert_decoded_field(json_obj, name, value.clone());
+                        }
                     }
                     deferred_group_views.push((field.name.clone(), group_value));
                 } else if field.redefines_of.is_none() {
@@ -420,7 +421,9 @@ fn process_fields_recursive_with_scratch(
                 if is_scalar_target_group_redefine(field, fields) {
                     let group_value = Value::Object(group_obj);
                     if let Value::Object(group_fields) = &group_value {
-                        insert_decoded_map_fields(json_obj, group_fields);
+                        for (name, value) in group_fields {
+                            insert_decoded_field(json_obj, name, value.clone());
+                        }
                     }
                     deferred_group_views.push((field.name.clone(), group_value));
                 } else if field.redefines_of.is_none() {
@@ -555,11 +558,11 @@ fn process_scalar_field_standard(
         collect_zoned_encoding_info(field, field_data, options, encoding_acc);
     }
 
-    let decoded_key = insert_decoded_field(json_obj, &field.name, value);
+    insert_decoded_field(json_obj, &field.name, value);
 
     // Emit field-level raw bytes when RawMode::Field is active
     if matches!(options.emit_raw, crate::options::RawMode::Field) {
-        let raw_key = format!("{decoded_key}_raw_b64");
+        let raw_key = format!("{}_raw_b64", field.name);
         let raw_b64 = base64::engine::general_purpose::STANDARD.encode(field_data);
         json_obj.insert(raw_key, Value::String(raw_b64));
     }
@@ -661,11 +664,11 @@ fn process_scalar_field_with_scratch(
         collect_zoned_encoding_info(field, field_data, options, encoding_acc);
     }
 
-    let decoded_key = insert_decoded_field(json_obj, &field.name, value);
+    insert_decoded_field(json_obj, &field.name, value);
 
     // Emit field-level raw bytes when RawMode::Field is active
     if matches!(options.emit_raw, crate::options::RawMode::Field) {
-        let raw_key = format!("{decoded_key}_raw_b64");
+        let raw_key = format!("{}_raw_b64", field.name);
         let raw_b64 = base64::engine::general_purpose::STANDARD.encode(field_data);
         json_obj.insert(raw_key, Value::String(raw_b64));
     }
@@ -1396,43 +1399,14 @@ fn is_scalar_target_group_redefine(
 /// The parser disambiguates true siblings, but flattened children can collide
 /// with fields in their enclosing map. Preserve both values with the same
 /// deterministic `__dupN` suffix convention used by schema names.
-fn insert_decoded_field(
-    json_obj: &mut serde_json::Map<String, Value>,
-    name: &str,
-    value: Value,
-) -> String {
+fn insert_decoded_field(json_obj: &mut serde_json::Map<String, Value>, name: &str, value: Value) {
     let mut candidate = name.to_owned();
     let mut suffix = 2;
     while json_obj.contains_key(&candidate) {
         candidate = format!("{name}__dup{suffix}");
         suffix += 1;
     }
-    json_obj.insert(candidate.clone(), value);
-    candidate
-}
-
-/// Copy a flattened group view while keeping field-level raw sidecars tied to
-/// the collision key selected for the field itself.
-///
-/// A redefining group can expose a child alongside a scalar in the enclosing
-/// map.  Copying the child and its `{name}_raw_b64` sidecar independently would
-/// produce `name__dup2_raw_b64__dup2` (or overwrite the first sidecar).  Treat
-/// each field and its sidecar as one logical decoded view instead.
-fn insert_decoded_map_fields(
-    target: &mut serde_json::Map<String, Value>,
-    source: &serde_json::Map<String, Value>,
-) {
-    for (name, value) in source {
-        let sidecar_name = format!("{name}_raw_b64");
-        if name.ends_with("_raw_b64") && source.contains_key(name.trim_end_matches("_raw_b64")) {
-            continue;
-        }
-
-        let decoded_key = insert_decoded_field(target, name, value.clone());
-        if let Some(raw) = source.get(&sidecar_name) {
-            target.insert(format!("{decoded_key}_raw_b64"), raw.clone());
-        }
-    }
+    json_obj.insert(candidate, value);
 }
 
 /// Decode a scalar field value using shared scratch buffers
@@ -1988,7 +1962,6 @@ fn encode_fields_to_bytes(
         let encoding_metadata = obj
             .get("_encoding_metadata")
             .and_then(|value| value.as_object());
-        let mut field_occurrences = HashMap::new();
         encode_fields_recursive(
             &schema.fields,
             obj,
@@ -1997,7 +1970,6 @@ fn encode_fields_to_bytes(
             &mut buffer,
             0,
             options,
-            &mut field_occurrences,
         )?;
     }
 
@@ -2044,7 +2016,6 @@ fn encode_fields_recursive(
     buffer: &mut [u8],
     offset: usize,
     options: &EncodeOptions,
-    field_occurrences: &mut HashMap<String, usize>,
 ) -> Result<usize> {
     let mut current_offset = offset;
 
@@ -2055,26 +2026,14 @@ fn encode_fields_recursive(
             format!("{path_prefix}.{}", field.name)
         };
 
-        let occurrence = field_occurrences
-            .entry(field.name.clone())
-            .and_modify(|count| *count += 1)
-            .or_insert(1);
-        let field_key = if is_filler_field(field) && *occurrence > 1 {
-            format!("{}__dup{occurrence}", field.name)
-        } else {
-            field.name.clone()
-        };
-
         current_offset = encode_single_field(
             field,
             &field_path,
-            &field_key,
             json_obj,
             encoding_metadata,
             buffer,
             current_offset,
             options,
-            field_occurrences,
         )?;
     }
 
@@ -2090,13 +2049,11 @@ fn encode_fields_recursive(
 fn encode_single_field(
     field: &copybook_core::Field,
     field_path: &str,
-    field_key: &str,
     json_obj: &serde_json::Map<String, Value>,
     encoding_metadata: Option<&serde_json::Map<String, Value>>,
     buffer: &mut [u8],
     current_offset: usize,
     options: &EncodeOptions,
-    field_occurrences: &mut HashMap<String, usize>,
 ) -> Result<usize> {
     use copybook_core::FieldKind;
 
@@ -2122,10 +2079,9 @@ fn encode_single_field(
             buffer,
             current_offset,
             options,
-            field_occurrences,
         ),
         FieldKind::Alphanum { .. } => {
-            encode_alphanum_field(field, field_key, json_obj, buffer, current_offset, options)
+            encode_alphanum_field(field, json_obj, buffer, current_offset, options)
         }
         FieldKind::ZonedDecimal {
             digits,
@@ -2420,7 +2376,6 @@ fn encode_occurs_element(
             buffer,
             element_offset,
             options,
-            &mut HashMap::new(),
         )?;
     } else {
         let mut element_obj = serde_json::Map::new();
@@ -2428,13 +2383,11 @@ fn encode_occurs_element(
         encode_single_field(
             &element_field,
             field_path,
-            &element_field.name,
             &element_obj,
             encoding_metadata,
             buffer,
             element_offset,
             options,
-            &mut HashMap::new(),
         )?;
     }
 
@@ -2451,10 +2404,8 @@ fn encode_group_field(
     buffer: &mut [u8],
     current_offset: usize,
     options: &EncodeOptions,
-    field_occurrences: &mut HashMap<String, usize>,
 ) -> Result<usize> {
     if let Some(sub_obj) = json_obj.get(&field.name).and_then(|v| v.as_object()) {
-        let mut nested_occurrences = HashMap::new();
         encode_fields_recursive(
             &field.children,
             sub_obj,
@@ -2463,7 +2414,6 @@ fn encode_group_field(
             buffer,
             current_offset,
             options,
-            &mut nested_occurrences,
         )
     } else {
         encode_fields_recursive(
@@ -2474,7 +2424,6 @@ fn encode_group_field(
             buffer,
             current_offset,
             options,
-            field_occurrences,
         )
     }
 }
@@ -2483,7 +2432,6 @@ fn encode_group_field(
 #[inline]
 fn encode_alphanum_field(
     field: &copybook_core::Field,
-    field_key: &str,
     json_obj: &serde_json::Map<String, Value>,
     buffer: &mut [u8],
     current_offset: usize,
@@ -2491,7 +2439,7 @@ fn encode_alphanum_field(
 ) -> Result<usize> {
     let field_len = field.len as usize;
 
-    if let Some(text) = resolve_alphanum_text(field, field_key, json_obj, options)? {
+    if let Some(text) = resolve_alphanum_text(field, json_obj, options)? {
         // Validate encoded byte length doesn't exceed field capacity.
         let bytes = crate::charset::utf8_to_ebcdic(&text, options.codepage)?;
         if bytes.len() > field_len {
@@ -2528,11 +2476,10 @@ fn encode_alphanum_field(
 /// filler bytes without weakening collision handling for user fields.
 fn resolve_alphanum_text(
     field: &copybook_core::Field,
-    field_key: &str,
     json_obj: &serde_json::Map<String, Value>,
     options: &EncodeOptions,
 ) -> Result<Option<String>> {
-    let Some(value) = json_obj.get(field_key) else {
+    let Some(value) = json_obj.get(&field.name) else {
         return Ok(None);
     };
     let Some(text) = value.as_str() else {
@@ -2545,7 +2492,7 @@ fn resolve_alphanum_text(
     }
 
     for suffix in 2..=json_obj.len().saturating_add(1) {
-        let candidate = format!("{field_key}__dup{suffix}");
+        let candidate = format!("{}__dup{suffix}", field.name);
         let Some(candidate_text) = json_obj.get(&candidate).and_then(Value::as_str) else {
             continue;
         };

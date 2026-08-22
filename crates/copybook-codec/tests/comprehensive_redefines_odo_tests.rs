@@ -1194,7 +1194,14 @@ fn cobol_duplicate_scalar_occurs_numeric_values_use_emitted_keys() {
     let (plain, with_scratch) = decode_plain_and_scratch(&schema, &encoded, &decode_options);
     assert_eq!(plain, with_scratch);
     let fields = plain.get("fields").and_then(Value::as_object).unwrap();
-    assert_eq!(fields.get("AMOUNT").and_then(Value::as_array).unwrap().len(), 2);
+    assert_eq!(
+        fields
+            .get("AMOUNT")
+            .and_then(Value::as_array)
+            .unwrap()
+            .len(),
+        2
+    );
     assert_eq!(
         fields
             .get("AMOUNT__dup2")

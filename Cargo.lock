@@ -768,7 +768,7 @@ name = "copybook-bdd"
 version = "0.5.0"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "copybook-codec",
  "copybook-core",
  "copybook-corruption",
@@ -860,7 +860,7 @@ version = "0.5.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
- "base64 0.22.1",
+ "base64 0.23.1",
  "blake3",
  "copybook-charset",
  "copybook-core",
@@ -991,7 +991,7 @@ name = "copybook-e2e"
 version = "0.5.0"
 dependencies = [
  "assert_cmd",
- "base64 0.22.1",
+ "base64 0.23.1",
  "copybook-codec",
  "copybook-core",
  "copybook-error",

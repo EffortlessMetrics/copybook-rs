@@ -990,6 +990,54 @@ fn cobol_collision_continues_existing_duplicate_name_sequence() {
 }
 
 #[test]
+fn cobol_omitted_group_over_group_preserves_later_sibling_identity() {
+    let copybook = r#"
+01 OMITTED-GROUP-OVER-GROUP.
+   05 OUTER.
+      10 ORIGINAL PIC X(2).
+      10 GROUP-REDEFINE REDEFINES ORIGINAL.
+         15 LEAF PIC X(2).
+         15 INNER-REDEFINE REDEFINES LEAF.
+            20 VALUE-FIELD PIC X(2).
+      10 INNER-REDEFINE PIC X(2).
+"#;
+    let mut schema = parse_copybook(copybook).unwrap();
+    schema.lrecl_fixed = Some(6);
+    let options = create_test_decode_options(false);
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABBCC", &options);
+    assert_eq!(plain, with_scratch);
+    let outer = plain
+        .get("fields")
+        .and_then(Value::as_object)
+        .and_then(|fields| fields.get("OUTER"))
+        .and_then(Value::as_object)
+        .unwrap();
+    assert_eq!(
+        outer.get("INNER-REDEFINE__dup2").and_then(Value::as_str),
+        Some("BB")
+    );
+    assert!(outer.get("INNER-REDEFINE__dup3").is_none());
+
+    let mut modified = plain;
+    let outer = modified
+        .get_mut("fields")
+        .and_then(Value::as_object_mut)
+        .and_then(|fields| fields.get_mut("OUTER"))
+        .and_then(Value::as_object_mut)
+        .unwrap();
+    outer.remove("LEAF");
+    outer.insert(
+        "INNER-REDEFINE__dup2".to_owned(),
+        Value::String("DD".to_owned()),
+    );
+    outer.remove("GROUP-REDEFINE");
+    let encoded =
+        copybook_codec::encode_record(&schema, &modified, &create_test_encode_options(false))
+            .unwrap();
+    assert_eq!(encoded, b"AADD\0\0");
+}
+
+#[test]
 fn cobol_collision_raw_sidecars_follow_emitted_keys() {
     let copybook = r#"
 01 RAW-COLLISION.

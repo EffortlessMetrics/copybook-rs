@@ -331,7 +331,7 @@ fn process_fields_recursive(
                     let group_value = Value::Object(group_obj);
                     if let Value::Object(group_fields) = &group_value {
                         for (name, value) in group_fields {
-                            insert_flattened_group_field(json_obj, name, value.clone());
+                            json_obj.insert(name.clone(), value.clone());
                         }
                     }
                     deferred_group_views.push((field.name.clone(), group_value));
@@ -422,7 +422,7 @@ fn process_fields_recursive_with_scratch(
                     let group_value = Value::Object(group_obj);
                     if let Value::Object(group_fields) = &group_value {
                         for (name, value) in group_fields {
-                            insert_flattened_group_field(json_obj, name, value.clone());
+                            json_obj.insert(name.clone(), value.clone());
                         }
                     }
                     deferred_group_views.push((field.name.clone(), group_value));
@@ -1392,25 +1392,6 @@ fn is_scalar_target_group_redefine(
     matches!(field.kind, copybook_core::FieldKind::Group)
         && find_field_by_path(sibling_fields, target_path)
             .is_ok_and(|target| !matches!(target.kind, copybook_core::FieldKind::Group))
-}
-
-/// Insert a flattened group child without overwriting an enclosing field.
-///
-/// The parser disambiguates true siblings, but flattened children can collide
-/// with fields in their enclosing map. Preserve both values with the same
-/// deterministic `__dupN` suffix convention used by schema names.
-fn insert_flattened_group_field(
-    json_obj: &mut serde_json::Map<String, Value>,
-    name: &str,
-    value: Value,
-) {
-    let mut candidate = name.to_owned();
-    let mut suffix = 2;
-    while json_obj.contains_key(&candidate) {
-        candidate = format!("{name}__dup{suffix}");
-        suffix += 1;
-    }
-    json_obj.insert(candidate, value);
 }
 
 /// Decode a scalar field value using shared scratch buffers

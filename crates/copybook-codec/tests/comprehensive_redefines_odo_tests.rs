@@ -862,37 +862,3 @@ fn cobol_group_array_preserves_child_offsets_across_elements() {
     assert_eq!(pairs[1].get("RIGHT").and_then(Value::as_str), Some("DD"));
     assert_eq!(plain, with_scratch);
 }
-
-#[test]
-fn cobol_scalar_target_group_collision_preserves_both_views() {
-    let copybook = r#"
-01 COLLIDING-REDEFINES.
-   05 EXISTING PIC X(2).
-   05 ORIGINAL PIC X(2).
-   05 GROUP-REDEFINE REDEFINES ORIGINAL.
-      10 EXISTING PIC X(2).
-"#;
-
-    let mut schema = parse_copybook(copybook).unwrap();
-    let options = create_test_decode_options(false);
-    let record_len = record_len_from_schema(&schema).max(4);
-    schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
-
-    let (plain, with_scratch) = decode_plain_and_scratch(&schema, b"AABB", &options);
-    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
-
-    assert_eq!(fields.get("EXISTING").and_then(Value::as_str), Some("AA"));
-    assert_eq!(
-        fields.get("EXISTING__dup2").and_then(Value::as_str),
-        Some("BB")
-    );
-    assert_eq!(
-        fields
-            .get("GROUP-REDEFINE")
-            .and_then(Value::as_object)
-            .and_then(|group| group.get("EXISTING"))
-            .and_then(Value::as_str),
-        Some("BB")
-    );
-    assert_eq!(plain, with_scratch);
-}

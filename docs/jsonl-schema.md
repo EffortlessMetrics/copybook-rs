@@ -133,8 +133,6 @@ redefining group emits its children through root traversal without a named group
 group `REDEFINES` with fixed `OCCURS` takes the array traversal and is emitted as a named array,
 without scalar-target flattening. Group-over-group REDEFINES without `OCCURS` are intentionally
 omitted. Each emitted/supported view is decoded independently from the underlying bytes.
-When a flattened child collides with an existing field in the enclosing map, the flattened key
-uses the deterministic `__dupN` suffix convention rather than overwriting the existing value.
 
 ```cobol
 01 RECORD.

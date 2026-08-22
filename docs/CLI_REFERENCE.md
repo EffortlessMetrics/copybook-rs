@@ -644,8 +644,7 @@ Binary field sizes are determined by PIC digits: ≤4→16b, 5–9→32b, 10–1
   flatten children in the immediate enclosing map at the group's declaration position and retain
   a named view after the enclosing sibling scan. A level-01 redefining group is flattened without
   a named wrapper. Any fixed-`OCCURS` group view is emitted through the array path as a named array;
-  group-over-group views without `OCCURS` are omitted. Flattened child names that collide with an
-  existing enclosing field receive the deterministic `__dupN` suffix instead of overwriting it.
+  group-over-group views without `OCCURS` are omitted.
 
 ### Numeric Representation
 

@@ -398,7 +398,8 @@ fn insert_decoded_group_fields(
             continue;
         }
 
-        let emitted_key = insert_decoded_field_with_key(json_obj, name, value.clone());
+        let emitted_key = insert_decoded_field_with_key(json_obj, name, value.clone())
+            .unwrap_or_else(|| name.clone());
         if !name.ends_with("_raw_b64") {
             emitted_keys.push((name.clone(), emitted_key));
         }
@@ -410,17 +411,20 @@ fn insert_decoded_field_with_key(
     json_obj: &mut serde_json::Map<String, Value>,
     name: &str,
     value: Value,
-) -> String {
+) -> Option<String> {
     // FILLER output and encode handling retain their existing overwrite
     // contract until the dedicated raw-sidecar/filler follow-up.
     if name.eq_ignore_ascii_case("FILLER") || name.starts_with("_filler_") {
         json_obj.insert(name.to_owned(), value);
-        return name.to_owned();
+        return None;
     }
 
-    if !json_obj.contains_key(name) {
-        json_obj.insert(name.to_owned(), value);
-        return name.to_owned();
+    match json_obj.entry(name.to_owned()) {
+        serde_json::map::Entry::Vacant(entry) => {
+            entry.insert(value);
+            return None;
+        }
+        serde_json::map::Entry::Occupied(_) => {}
     }
 
     let (base_name, has_duplicate_suffix) = duplicate_name_base(name);
@@ -435,7 +439,7 @@ fn insert_decoded_field_with_key(
         suffix += 1;
     }
     json_obj.insert(candidate.clone(), value);
-    candidate
+    Some(candidate)
 }
 
 /// Return the unsuffixed schema name for a conventional `__dupN` key.
@@ -639,7 +643,10 @@ fn process_scalar_field_standard(
 
     // Emit field-level raw bytes when RawMode::Field is active
     if matches!(options.emit_raw, crate::options::RawMode::Field) {
-        let raw_key = format!("{emitted_key}_raw_b64");
+        let raw_key = emitted_key.map_or_else(
+            || format!("{}_raw_b64", field.name),
+            |key| format!("{key}_raw_b64"),
+        );
         let raw_b64 = base64::engine::general_purpose::STANDARD.encode(field_data);
         json_obj.insert(raw_key, Value::String(raw_b64));
     }
@@ -745,7 +752,10 @@ fn process_scalar_field_with_scratch(
 
     // Emit field-level raw bytes when RawMode::Field is active
     if matches!(options.emit_raw, crate::options::RawMode::Field) {
-        let raw_key = format!("{emitted_key}_raw_b64");
+        let raw_key = emitted_key.map_or_else(
+            || format!("{}_raw_b64", field.name),
+            |key| format!("{key}_raw_b64"),
+        );
         let raw_b64 = base64::engine::general_purpose::STANDARD.encode(field_data);
         json_obj.insert(raw_key, Value::String(raw_b64));
     }

@@ -297,14 +297,13 @@ fn malformed_dataset_and_unsafe_input_are_rejected() -> Result<()> {
         ],
     )?;
     ensure!(!output_alias.status.success());
-    let outside_copybook = root
-        .path()
-        .parent()
-        .context("temporary directory has no parent")?
-        .join("outside-record.cpy");
+    let outside_copybook = root.path().join("outside-record.cpy");
     fs::write(&outside_copybook, "01 OUTSIDE.\n")?;
+    let nested = root.path().join("nested");
+    fs::create_dir(&nested)?;
+    fs::write(nested.join("good.bin"), b"ABCD")?;
     let unsafe_input = run_generator(
-        root.path(),
+        &nested,
         &[
             "--copybook",
             "../outside-record.cpy",
@@ -323,6 +322,42 @@ fn malformed_dataset_and_unsafe_input_are_rejected() -> Result<()> {
         ],
     )?;
     ensure!(!unsafe_input.status.success());
-    fs::remove_file(outside_copybook)?;
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn encoding_symlinked_output_is_rejected() -> Result<()> {
+    use std::os::unix::fs::symlink;
+
+    let root = tempdir()?;
+    write_copybook(root.path())?;
+    fs::write(root.path().join("dataset.bin"), b"ABCD")?;
+    fs::write(root.path().join("target.json"), b"sentinel")?;
+    symlink(
+        root.path().join("target.json"),
+        root.path().join("manifest.json"),
+    )?;
+    let result = run_generator(
+        root.path(),
+        &[
+            "--copybook",
+            "record.cpy",
+            "--dataset",
+            "dataset.bin",
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            "--workload",
+            "mixed",
+            "--record-length",
+            "4",
+            "--output",
+            "manifest.json",
+        ],
+    )?;
+    ensure!(!result.status.success());
+    ensure!(fs::read(root.path().join("target.json"))? == b"sentinel");
     Ok(())
 }

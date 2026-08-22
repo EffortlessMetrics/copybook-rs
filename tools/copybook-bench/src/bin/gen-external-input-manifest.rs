@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 use std::env;
-use std::fmt::Write as _;
+use std::ffi::OsString;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
@@ -16,7 +16,7 @@ const USAGE: &str = "Usage: gen-external-input-manifest --copybook PATH --datase
   --workload display-heavy|comp3-heavy|mixed --record-length BYTES --output PATH";
 
 fn main() -> Result<()> {
-    let arguments = Arguments::parse(env::args().skip(1))?;
+    let arguments = Arguments::parse(env::args_os().skip(1))?;
     let output = arguments.output;
     let manifest_dir = output
         .parent()
@@ -29,16 +29,26 @@ fn main() -> Result<()> {
                 output.display()
             )
         })?;
+    let output_name = output
+        .file_name()
+        .filter(|name| !name.is_empty())
+        .context("output path must name a file")?;
+    ensure!(
+        !matches!(output_name.to_str(), Some("." | "..")),
+        "output path must name a file"
+    );
+    let output_path = manifest_dir.join(output_name);
     let copybook = read_input(&arguments.copybook, &manifest_dir, "copybook")?;
     let dataset = read_input(&arguments.dataset, &manifest_dir, "dataset")?;
     ensure!(!copybook.bytes.is_empty(), "copybook must not be empty");
     ensure!(!dataset.bytes.is_empty(), "dataset must not be empty");
-    let output_path = if output.is_absolute() {
-        output.clone()
-    } else {
-        env::current_dir()?.join(&output)
-    };
     if output_path.exists() {
+        let metadata = fs::symlink_metadata(&output_path)
+            .with_context(|| format!("failed to inspect output {}", output_path.display()))?;
+        ensure!(
+            !metadata.file_type().is_symlink(),
+            "output must not be a symlink"
+        );
         let existing_output = output_path
             .canonicalize()
             .with_context(|| format!("failed to resolve output {}", output_path.display()))?;
@@ -96,17 +106,21 @@ struct Arguments {
 impl Arguments {
     fn parse<I>(mut values: I) -> Result<Self>
     where
-        I: Iterator<Item = String>,
+        I: Iterator<Item = OsString>,
     {
         let mut parsed = BTreeMap::new();
-        while let Some(flag) = values.next() {
+        while let Some(raw_flag) = values.next() {
+            let flag = argument_text(raw_flag, "flag")?;
             ensure!(
                 flag.starts_with("--"),
                 "unexpected argument '{flag}'\n\n{USAGE}"
             );
-            let value = values
-                .next()
-                .with_context(|| format!("missing value for {flag}\n\n{USAGE}"))?;
+            let value = argument_text(
+                values
+                    .next()
+                    .with_context(|| format!("missing value for {flag}\n\n{USAGE}"))?,
+                "argument value",
+            )?;
             ensure!(
                 !value.starts_with("--"),
                 "missing value for {flag}\n\n{USAGE}"
@@ -142,7 +156,7 @@ impl Arguments {
             .parse::<usize>()
             .context("record length must be a positive integer")?;
         ensure!(
-            (1..=u16::MAX as usize).contains(&record_length),
+            (1..=usize::from(u16::MAX)).contains(&record_length),
             "record length must be between 1 and 65535"
         );
         let output = PathBuf::from(take("--output")?);
@@ -157,6 +171,12 @@ impl Arguments {
             output,
         })
     }
+}
+
+fn argument_text(value: OsString, label: &str) -> Result<String> {
+    value
+        .into_string()
+        .map_err(|_| anyhow::anyhow!("{label} must be valid UTF-8"))
 }
 
 struct InputFile {
@@ -198,7 +218,17 @@ fn relative_name(path: &Path, manifest_dir: &Path, label: &str) -> Result<String
             .all(|component| matches!(component, Component::Normal(_))),
         "{label} path must not contain traversal components"
     );
-    Ok(relative.to_string_lossy().replace('\\', "/"))
+    let mut parts = Vec::new();
+    for component in relative.components() {
+        let Component::Normal(part) = component else {
+            bail!("{label} path must not contain traversal components");
+        };
+        parts.push(
+            part.to_str()
+                .with_context(|| format!("{label} path is not valid UTF-8"))?,
+        );
+    }
+    Ok(parts.join("/"))
 }
 
 fn validate_fixed(dataset: &[u8], record_length: usize) -> Result<usize> {
@@ -242,11 +272,23 @@ fn validate_rdw(dataset: &[u8], record_length: usize) -> Result<usize> {
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
-    let mut digest = Sha256::new();
-    digest.update(bytes);
-    let mut output = String::with_capacity(64);
-    for byte in digest.finalize() {
-        let _ = write!(output, "{byte:02x}");
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(unix)]
+    use super::argument_text;
+    #[cfg(unix)]
+    use std::ffi::OsString;
+
+    #[cfg(unix)]
+    #[test]
+    fn encoding_non_utf8_argument_is_rejected() -> anyhow::Result<()> {
+        use std::os::unix::ffi::OsStringExt;
+
+        let value = OsString::from_vec(vec![0xff]);
+        anyhow::ensure!(argument_text(value, "path").is_err());
+        Ok(())
     }
-    output
 }

@@ -211,7 +211,9 @@ Produces:
 
 The first occurrence keeps the original name; the second gets `__dup2`, the third
 `__dup3`, and so on. The pattern `^[A-Z][A-Z0-9_-]*(__dup[0-9]+)?$` is reserved in
-the [JSON schema](../schemas/record-format.json).
+the [JSON schema](../schemas/record-format.json). This identity is based on final
+emission order, so flattened children from nested or reverse-order REDEFINES use
+the same `NAME`, `NAME__dup2`, `NAME__dup3`, ... sequence as ordinary siblings.
 
 ## ODO Array Representation
 
@@ -356,10 +358,23 @@ uses a non-default encoding (e.g., ASCII zoned decimals in an EBCDIC file).
 }
 ```
 
-The metadata object maps field names (or field paths) to encoding format strings.
+The metadata object maps each field's final emitted JSON key (or field path) to an
+encoding format string. For a collision, the key is the emitted `__dupN` name,
+not the original schema name: metadata for `NAME__dup2` remains attached to
+`NAME__dup2` and cannot overwrite `NAME`. This rule is identical for standard and
+scratch decoding, including nested and reverse-order flattened REDEFINES.
 Supported values include `"ascii"` and `"ebcdic"`. During encoding, this metadata
 is read from the JSON input to select the correct zoned decimal encoding format,
 ensuring byte-identical round-trips.
+
+For example, two emitted views retain independent metadata entries:
+
+```json
+{
+  "fields": { "AMOUNT": "123", "AMOUNT__dup2": "456" },
+  "_encoding_metadata": { "AMOUNT": "ascii", "AMOUNT__dup2": "ebcdic" }
+}
+```
 
 The `_encoding_metadata` key is reserved in the [JSON schema](../schemas/record-format.json)
 and is only present when the option is enabled and at least one field has non-default encoding.

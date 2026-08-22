@@ -509,7 +509,7 @@ fn record_filler_roundtrip() {
 
 /// Duplicate FILLER names retain occurrence order when widths differ.
 #[test]
-fn record_reverse_width_filler_roundtrip() {
+fn cobol_reverse_width_filler_roundtrip() {
     let cpy = r"
         01 REV-FILL-REC.
            05 FILLER     PIC X(4).
@@ -555,7 +555,7 @@ fn record_reverse_width_filler_roundtrip() {
 
 /// Flattened duplicate filler keys remain globally ordered across nested groups.
 #[test]
-fn record_nested_filler_flattened_roundtrip() {
+fn cobol_nested_filler_flattened_roundtrip() {
     let cpy = r"
         01 NESTED-FILL-REC.
            05 FIRST-GROUP.

@@ -922,6 +922,76 @@ fn cobol_scalar_target_group_collision_preserves_both_views() {
 }
 
 #[test]
+fn cobol_numeric_collision_keys_roundtrip_across_encode_branches() {
+    let copybook = r#"
+01 NUMERIC-COLLISIONS.
+   05 FIRST-ZONED.
+      10 AMOUNT PIC 9(2).
+   05 SECOND-ZONED.
+      10 AMOUNT PIC 9(2).
+   05 FIRST-PACKED.
+      10 TOTAL PIC 9(3) COMP-3.
+   05 SECOND-PACKED.
+      10 TOTAL PIC 9(3) COMP-3.
+   05 FIRST-BINARY.
+      10 COUNT PIC 9(2) COMP.
+   05 SECOND-BINARY.
+      10 COUNT PIC 9(2) COMP.
+   05 FIRST-SIGNED.
+      10 BALANCE PIC S9(2) SIGN TRAILING SEPARATE.
+   05 SECOND-SIGNED.
+      10 BALANCE PIC S9(2) SIGN TRAILING SEPARATE.
+"#;
+
+    let schema = parse_copybook(copybook).unwrap();
+    let options = create_test_encode_options(false);
+    let json = json!({
+        "AMOUNT": "12",
+        "AMOUNT__dup2": "34",
+        "TOTAL": "111",
+        "TOTAL__dup2": "123",
+        "COUNT": "41",
+        "COUNT__dup2": "42",
+        "BALANCE": "12",
+        "BALANCE__dup2": "34",
+    });
+
+    let encoded = copybook_codec::encode_record(&schema, &json, &options).unwrap();
+    assert_eq!(
+        encoded,
+        [
+            b'1', b'2', b'3', b'4', 0x11, 0x1f, 0x12, 0x3f, 0, 41, 0, 42, b'1', b'2', b'+', b'3',
+            b'4', b'+',
+        ]
+    );
+
+    let decoded =
+        copybook_codec::decode_record(&schema, &encoded, &create_test_decode_options(false))
+            .unwrap();
+    let fields = decoded.as_object().unwrap();
+    assert_eq!(fields.get("AMOUNT").and_then(Value::as_str), Some("12"));
+    assert_eq!(
+        fields.get("AMOUNT__dup2").and_then(Value::as_str),
+        Some("34")
+    );
+    assert_eq!(fields.get("TOTAL").and_then(Value::as_str), Some("111"));
+    assert_eq!(
+        fields.get("TOTAL__dup2").and_then(Value::as_str),
+        Some("123")
+    );
+    assert_eq!(fields.get("COUNT").and_then(Value::as_str), Some("41"));
+    assert_eq!(
+        fields.get("COUNT__dup2").and_then(Value::as_str),
+        Some("42")
+    );
+    assert_eq!(fields.get("BALANCE").and_then(Value::as_str), Some("12"));
+    assert_eq!(
+        fields.get("BALANCE__dup2").and_then(Value::as_str),
+        Some("34")
+    );
+}
+
+#[test]
 fn cobol_later_enclosing_collision_preserves_flattened_view() {
     let copybook = r#"
 01 REVERSE-COLLISION.

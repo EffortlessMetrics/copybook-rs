@@ -2066,7 +2066,7 @@ fn encode_fields_recursive(
             .entry(field.name.clone())
             .and_modify(|count| *count += 1)
             .or_insert(1);
-        let field_key = if is_filler_field(field) && *occurrence > 1 {
+        let field_key = if *occurrence > 1 {
             format!("{}__dup{occurrence}", field.name)
         } else {
             field.name.clone()
@@ -2141,7 +2141,7 @@ fn encode_single_field(
         } => {
             if let Some(sign_sep) = sign_separate {
                 let field_len = field.len as usize;
-                if let Some(text) = json_obj.get(&field.name).and_then(|v| v.as_str()) {
+                if let Some(text) = json_obj.get(field_key).and_then(|v| v.as_str()) {
                     crate::numeric::encode_zoned_decimal_sign_separate(
                         text,
                         *digits,
@@ -2156,6 +2156,7 @@ fn encode_single_field(
                 encode_zoned_decimal_field(
                     field,
                     field_path,
+                    field_key,
                     json_obj,
                     context.encoding_metadata,
                     context.buffer,
@@ -2175,7 +2176,7 @@ fn encode_single_field(
             signed,
         } => encode_packed_decimal_field(
             field,
-            field_path,
+            field_key,
             json_obj,
             context.buffer,
             current_offset,
@@ -2188,7 +2189,7 @@ fn encode_single_field(
         ),
         FieldKind::BinaryInt { bits, signed } => encode_binary_int_field(
             field,
-            field_path,
+            field_key,
             json_obj,
             context.buffer,
             current_offset,
@@ -2212,6 +2213,7 @@ fn encode_single_field(
             if let Some(text) = encodable_numeric_text(
                 json_obj,
                 field,
+                field_key,
                 "an edited numeric string",
                 context.options.coerce_numbers,
             )? {
@@ -2244,7 +2246,7 @@ fn encode_single_field(
         }
         FieldKind::FloatSingle => {
             let field_len = field.len as usize;
-            if let Some(val) = json_obj.get(&field.name) {
+            if let Some(val) = json_obj.get(field_key) {
                 let f = match val {
                     Value::Number(n) => {
                         let f64_val = n.as_f64().unwrap_or(0.0);
@@ -2292,7 +2294,7 @@ fn encode_single_field(
         }
         FieldKind::FloatDouble => {
             let field_len = field.len as usize;
-            if let Some(val) = json_obj.get(&field.name) {
+            if let Some(val) = json_obj.get(field_key) {
                 let f = match val {
                     Value::Number(n) => n.as_f64().unwrap_or(0.0),
                     Value::String(s) => s.parse::<f64>().map_err(|e| {
@@ -2638,10 +2640,11 @@ fn json_type_name(value: &Value) -> &'static str {
 fn encodable_numeric_text(
     json_obj: &serde_json::Map<String, Value>,
     field: &copybook_core::Field,
+    field_key: &str,
     expected: &str,
     coerce_numbers: bool,
 ) -> Result<Option<String>> {
-    let Some(value) = json_obj.get(&field.name) else {
+    let Some(value) = json_obj.get(field_key) else {
         return Ok(None);
     };
     if value.is_null() {
@@ -2671,6 +2674,7 @@ fn encodable_numeric_text(
 fn encode_zoned_decimal_field(
     field: &copybook_core::Field,
     field_path: &str,
+    field_key: &str,
     json_obj: &serde_json::Map<String, Value>,
     encoding_metadata: Option<&serde_json::Map<String, Value>>,
     buffer: &mut [u8],
@@ -2683,6 +2687,7 @@ fn encode_zoned_decimal_field(
     if let Some(text) = encodable_numeric_text(
         json_obj,
         field,
+        field_key,
         "a zoned decimal string",
         options.coerce_numbers,
     )? {
@@ -2704,7 +2709,7 @@ fn encode_zoned_decimal_field(
         }
 
         let preserved_format = encoding_metadata
-            .and_then(|meta| resolve_preserved_zoned_format(meta, field_path, &field.name));
+            .and_then(|meta| resolve_preserved_zoned_format(meta, field_path, field_key));
         let resolved_format = options
             .zoned_encoding_override
             .or(preserved_format)
@@ -2743,7 +2748,7 @@ fn encode_zoned_decimal_field(
 #[inline]
 fn encode_packed_decimal_field(
     field: &copybook_core::Field,
-    _field_path: &str,
+    field_key: &str,
     json_obj: &serde_json::Map<String, Value>,
     buffer: &mut [u8],
     current_offset: usize,
@@ -2755,6 +2760,7 @@ fn encode_packed_decimal_field(
     if let Some(text) = encodable_numeric_text(
         json_obj,
         field,
+        field_key,
         "a packed decimal string",
         options.coerce_numbers,
     )? {
@@ -2777,7 +2783,7 @@ struct BinarySpec {
 #[inline]
 fn encode_binary_int_field(
     field: &copybook_core::Field,
-    _field_path: &str,
+    field_key: &str,
     json_obj: &serde_json::Map<String, Value>,
     buffer: &mut [u8],
     current_offset: usize,
@@ -2786,7 +2792,7 @@ fn encode_binary_int_field(
 ) -> Result<usize> {
     let field_len = field.len as usize;
 
-    let value = match json_obj.get(&field.name) {
+    let value = match json_obj.get(field_key) {
         None => None,
         Some(v) if v.is_null() => None,
         Some(v) => Some(v),

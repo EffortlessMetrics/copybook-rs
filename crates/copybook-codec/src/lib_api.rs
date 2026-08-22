@@ -877,6 +877,10 @@ fn process_array_field(
         ));
     }
 
+    // Collect this array's metadata separately so its final collision-aware
+    // JSON key can be applied after the array value is inserted.
+    let array_metadata_start = encoding_acc.len();
+
     // Process array elements
     let mut array_values = Vec::new();
     for i in 0..count {
@@ -926,7 +930,14 @@ fn process_array_field(
         array_values.push(element_value);
     }
 
-    insert_decoded_field(json_obj, &field.name, Value::Array(array_values));
+    let emitted_key =
+        insert_decoded_field_with_key(json_obj, &field.name, Value::Array(array_values));
+    if matches!(field.kind, FieldKind::ZonedDecimal { .. }) {
+        let metadata_key = emitted_key.as_deref().unwrap_or(&field.name).to_owned();
+        for (key, _) in &mut encoding_acc[array_metadata_start..] {
+            key.clone_from(&metadata_key);
+        }
+    }
     Ok(())
 }
 
@@ -1006,6 +1017,7 @@ fn process_array_field_with_scratch(
         ));
     }
 
+    let array_metadata_start = encoding_acc.len();
     let mut array_values = Vec::new();
 
     for i in 0..count {
@@ -1055,7 +1067,14 @@ fn process_array_field_with_scratch(
         array_values.push(element_value);
     }
 
-    insert_decoded_field(json_obj, &field.name, Value::Array(array_values));
+    let emitted_key =
+        insert_decoded_field_with_key(json_obj, &field.name, Value::Array(array_values));
+    if matches!(field.kind, FieldKind::ZonedDecimal { .. }) {
+        let metadata_key = emitted_key.as_deref().unwrap_or(&field.name).to_owned();
+        for (key, _) in &mut encoding_acc[array_metadata_start..] {
+            key.clone_from(&metadata_key);
+        }
+    }
     Ok(())
 }
 

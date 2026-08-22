@@ -15,6 +15,7 @@ use copybook_codec::{
     encode_record,
 };
 use copybook_core::parse_copybook;
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 // ---------------------------------------------------------------------------
@@ -486,6 +487,16 @@ fn record_filler_roundtrip() {
     assert!(
         !obj.keys().any(|k| k.starts_with("_filler")),
         "FILLER fields should not appear in JSON by default"
+    );
+    assert_eq!(
+        obj.get("FILLER").and_then(Value::as_str).map(str::len),
+        Some(8)
+    );
+    assert_eq!(
+        obj.get("FILLER__dup2")
+            .and_then(Value::as_str)
+            .map(str::len),
+        Some(4)
     );
 
     // Encode back → FILLER positions filled with EBCDIC spaces → binary-identical

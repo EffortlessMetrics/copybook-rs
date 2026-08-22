@@ -2439,9 +2439,9 @@ fn encode_alphanum_field(
 ) -> Result<usize> {
     let field_len = field.len as usize;
 
-    if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
+    if let Some(text) = resolve_alphanum_text(field, json_obj, options)? {
         // Validate encoded byte length doesn't exceed field capacity.
-        let bytes = crate::charset::utf8_to_ebcdic(text, options.codepage)?;
+        let bytes = crate::charset::utf8_to_ebcdic(&text, options.codepage)?;
         if bytes.len() > field_len {
             return Err(Error::new(
                 ErrorCode::CBKE515_STRING_LENGTH_VIOLATION,
@@ -2466,6 +2466,43 @@ fn encode_alphanum_field(
     }
 
     Ok(current_offset + field_len)
+}
+
+/// Resolve a decoded alphanumeric value for encoding.
+///
+/// Duplicate FILLER names are exposed as `FILLER`, `FILLER__dup2`, and so on
+/// when decoding. Select a suffixed value when the unsuffixed value belongs to
+/// a wider earlier filler and cannot fit the current field. This preserves
+/// filler bytes without weakening collision handling for user fields.
+fn resolve_alphanum_text(
+    field: &copybook_core::Field,
+    json_obj: &serde_json::Map<String, Value>,
+    options: &EncodeOptions,
+) -> Result<Option<String>> {
+    let Some(value) = json_obj.get(&field.name) else {
+        return Ok(None);
+    };
+    let Some(text) = value.as_str() else {
+        return Ok(None);
+    };
+    let field_len = field.len as usize;
+    let encoded_len = crate::charset::utf8_to_ebcdic(text, options.codepage)?.len();
+    if !is_filler_field(field) || encoded_len <= field_len {
+        return Ok(Some(text.to_owned()));
+    }
+
+    for suffix in 2..=json_obj.len().saturating_add(1) {
+        let candidate = format!("{}__dup{suffix}", field.name);
+        let Some(candidate_text) = json_obj.get(&candidate).and_then(Value::as_str) else {
+            continue;
+        };
+        let candidate_len = crate::charset::utf8_to_ebcdic(candidate_text, options.codepage)?.len();
+        if candidate_len <= field_len {
+            return Ok(Some(candidate_text.to_owned()));
+        }
+    }
+
+    Ok(Some(text.to_owned()))
 }
 
 #[derive(Copy, Clone)]

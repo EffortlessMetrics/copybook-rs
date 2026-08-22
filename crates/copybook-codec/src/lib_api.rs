@@ -418,6 +418,11 @@ fn insert_decoded_field_with_key(
         return name.to_owned();
     }
 
+    if !json_obj.contains_key(name) {
+        json_obj.insert(name.to_owned(), value);
+        return name.to_owned();
+    }
+
     let (base_name, has_duplicate_suffix) = duplicate_name_base(name);
     let mut candidate = if has_duplicate_suffix && json_obj.contains_key(base_name) {
         base_name.to_owned()

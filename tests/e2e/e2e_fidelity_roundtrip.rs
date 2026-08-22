@@ -12,7 +12,7 @@
 
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat, decode_record,
-    encode_record,
+    decode_record_with_scratch, encode_record, memory::ScratchBuffers,
 };
 use copybook_core::parse_copybook;
 use serde_json::Value;
@@ -504,6 +504,84 @@ fn record_filler_roundtrip() {
     assert_eq!(
         data, re_encoded,
         "FILLER round-trip must preserve space bytes"
+    );
+}
+
+/// Duplicate FILLER names retain occurrence order when widths differ.
+#[test]
+fn record_reverse_width_filler_roundtrip() {
+    let cpy = r"
+        01 REV-FILL-REC.
+           05 FILLER     PIC X(4).
+           05 FILLER     PIC X(8).
+           05 STATUS     PIC X(1).
+    ";
+    let mut data = vec![0xC1, 0xC2, 0xC3, 0xC4]; // ABCD (four-byte filler)
+    data.extend_from_slice(&[0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xD1, 0xD2, 0xD3]); // EFGHIJKL
+    data.push(0xE7); // X
+
+    let schema = parse_copybook(cpy).expect("parse");
+    let dopts = decode_opts(Codepage::CP037).with_emit_filler(true);
+    let eopts = encode_opts(Codepage::CP037);
+    let json = decode_record(&schema, &data, &dopts).expect("decode");
+    let obj = json.as_object().expect("object");
+
+    assert_eq!(
+        obj.get("FILLER").and_then(Value::as_str).map(str::len),
+        Some(4)
+    );
+    assert_eq!(obj.get("FILLER").and_then(Value::as_str), Some("ABCD"));
+    assert_eq!(
+        obj.get("FILLER__dup2")
+            .and_then(Value::as_str)
+            .map(str::len),
+        Some(8)
+    );
+    assert_eq!(
+        obj.get("FILLER__dup2").and_then(Value::as_str),
+        Some("EFGHIJKL")
+    );
+    let re_encoded = encode_record(&schema, &json, &eopts).expect("encode");
+    assert_eq!(data, re_encoded);
+
+    let mut scratch = ScratchBuffers::new();
+    let scratch_json =
+        decode_record_with_scratch(&schema, &data, &dopts, &mut scratch).expect("scratch decode");
+    assert_eq!(
+        json, scratch_json,
+        "filler decode paths must remain identical"
+    );
+}
+
+/// Flattened duplicate filler keys remain globally ordered across nested groups.
+#[test]
+fn record_nested_filler_flattened_roundtrip() {
+    let cpy = r"
+        01 NESTED-FILL-REC.
+           05 FIRST-GROUP.
+              10 FILLER PIC X(2).
+           05 SECOND-GROUP.
+              10 FILLER PIC X(2).
+           05 STATUS PIC X(1).
+    ";
+    let data = vec![0xC1, 0xC2, 0xC3, 0xC4, 0xE7]; // ABCDX in CP037
+
+    let schema = parse_copybook(cpy).expect("parse");
+    let dopts = decode_opts(Codepage::CP037).with_emit_filler(true);
+    let eopts = encode_opts(Codepage::CP037);
+    let json = decode_record(&schema, &data, &dopts).expect("decode");
+    assert_eq!(json.get("FILLER").and_then(Value::as_str), Some("AB"));
+    assert_eq!(json.get("FILLER__dup2").and_then(Value::as_str), Some("CD"));
+
+    let mut scratch = ScratchBuffers::new();
+    let scratch_json =
+        decode_record_with_scratch(&schema, &data, &dopts, &mut scratch).expect("scratch decode");
+    assert_eq!(json, scratch_json, "nested filler decode paths must match");
+
+    let re_encoded = encode_record(&schema, &json, &eopts).expect("encode");
+    assert_eq!(
+        data, re_encoded,
+        "nested flattened filler values must round-trip"
     );
 }
 

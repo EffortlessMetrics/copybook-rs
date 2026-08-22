@@ -20,11 +20,25 @@ fn flatten_fields_into(
     target: &mut serde_json::Map<String, Value>,
 ) {
     for (key, value) in source {
+        let sidecar_key = format!("{key}_raw_b64");
+        if key.ends_with("_raw_b64") && source.contains_key(key.trim_end_matches("_raw_b64")) {
+            continue;
+        }
+
         if let Value::Object(nested) = value {
             // Recurse into group objects to flatten their children
             flatten_fields_into(nested, target);
         } else {
-            target.insert(key.clone(), value.clone());
+            let mut candidate = key.clone();
+            let mut suffix = 2;
+            while target.contains_key(&candidate) {
+                candidate = format!("{key}__dup{suffix}");
+                suffix += 1;
+            }
+            target.insert(candidate.clone(), value.clone());
+            if let Some(raw) = source.get(&sidecar_key) {
+                target.insert(format!("{candidate}_raw_b64"), raw.clone());
+            }
         }
     }
 }

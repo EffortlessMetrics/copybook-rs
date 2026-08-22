@@ -868,13 +868,16 @@ fn cobol_scalar_target_group_collision_preserves_both_views() {
     let copybook = r#"
 01 COLLIDING-REDEFINES.
    05 EXISTING PIC X(2).
-   05 ORIGINAL PIC X(2).
+05 ORIGINAL PIC X(2).
    05 GROUP-REDEFINE REDEFINES ORIGINAL.
       10 EXISTING PIC X(2).
 "#;
 
     let mut schema = parse_copybook(copybook).unwrap();
-    let options = create_test_decode_options(false);
+    let options = DecodeOptions {
+        emit_raw: RawMode::Field,
+        ..create_test_decode_options(false)
+    };
     let record_len = record_len_from_schema(&schema).max(4);
     schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
 
@@ -893,6 +896,27 @@ fn cobol_scalar_target_group_collision_preserves_both_views() {
             .and_then(|group| group.get("EXISTING"))
             .and_then(Value::as_str),
         Some("BB")
+    );
+    assert_eq!(
+        fields.get("EXISTING_raw_b64").and_then(Value::as_str),
+        Some("QUE="),
+    );
+    assert_eq!(
+        fields.get("EXISTING__dup2_raw_b64").and_then(Value::as_str),
+        Some("QkI="),
+    );
+    assert_eq!(plain.get("EXISTING").and_then(Value::as_str), Some("AA"));
+    assert_eq!(
+        plain.get("EXISTING__dup2").and_then(Value::as_str),
+        Some("BB")
+    );
+    assert_eq!(
+        plain.get("EXISTING_raw_b64").and_then(Value::as_str),
+        Some("QUE="),
+    );
+    assert_eq!(
+        plain.get("EXISTING__dup2_raw_b64").and_then(Value::as_str),
+        Some("QkI="),
     );
     assert_eq!(plain, with_scratch);
 }

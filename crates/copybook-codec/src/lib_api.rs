@@ -883,7 +883,8 @@ fn process_array_field(
 
     // Process array elements
     let mut array_values = Vec::new();
-    let capture_raw = matches!(options.emit_raw, crate::options::RawMode::Field);
+    let capture_raw = matches!(options.emit_raw, crate::options::RawMode::Field)
+        && !matches!(field.kind, FieldKind::Group | FieldKind::Condition { .. });
     let mut raw_values = capture_raw.then(|| Vec::with_capacity(count as usize));
     for i in 0..count {
         let element_start = array_start + (i as usize * element_size);
@@ -995,7 +996,8 @@ fn process_array_field_with_scratch(
 
     let array_metadata_start = encoding_acc.len();
     let mut array_values = Vec::new();
-    let capture_raw = matches!(options.emit_raw, crate::options::RawMode::Field);
+    let capture_raw = matches!(options.emit_raw, crate::options::RawMode::Field)
+        && !matches!(field.kind, FieldKind::Group | FieldKind::Condition { .. });
     let mut raw_values = capture_raw.then(|| Vec::with_capacity(count as usize));
 
     for i in 0..count {

@@ -1499,7 +1499,10 @@ fn cobol_group_array_preserves_child_offsets_across_elements() {
 "#;
 
     let mut schema = parse_copybook(copybook).unwrap();
-    let options = create_test_decode_options(false);
+    let options = DecodeOptions {
+        emit_raw: RawMode::Field,
+        ..create_test_decode_options(false)
+    };
     let record_len = record_len_from_schema(&schema).max(8);
     schema.lrecl_fixed = Some(u32::try_from(record_len).unwrap());
 
@@ -1514,5 +1517,6 @@ fn cobol_group_array_preserves_child_offsets_across_elements() {
     assert_eq!(pairs[0].get("RIGHT").and_then(Value::as_str), Some("BB"));
     assert_eq!(pairs[1].get("LEFT").and_then(Value::as_str), Some("CC"));
     assert_eq!(pairs[1].get("RIGHT").and_then(Value::as_str), Some("DD"));
+    assert!(fields.get("PAIR_raw_b64").is_none());
     assert_eq!(plain, with_scratch);
 }

@@ -1172,6 +1172,52 @@ fn cobol_duplicate_sign_separate_values_keep_emitted_keys() {
 }
 
 #[test]
+fn cobol_duplicate_scalar_occurs_numeric_values_use_emitted_keys() {
+    let copybook = r#"
+01 DUPLICATE-OCCURS-NUMERIC.
+   05 AMOUNT OCCURS 2 TIMES PIC 9(3) COMP-3.
+   05 AMOUNT OCCURS 2 TIMES PIC 9(3) COMP-3.
+   05 COUNT OCCURS 2 TIMES PIC 9(4) COMP.
+   05 COUNT OCCURS 2 TIMES PIC 9(4) COMP.
+"#;
+    let schema = parse_copybook(copybook).unwrap();
+    let decode_options = create_test_decode_options(false);
+    let encode_options = create_test_encode_options(false);
+    let input = json!({
+        "AMOUNT": ["123", "124"],
+        "AMOUNT__dup2": ["456", "457"],
+        "COUNT": ["42", "43"],
+        "COUNT__dup2": ["52", "53"]
+    });
+
+    let encoded = copybook_codec::encode_record(&schema, &input, &encode_options).unwrap();
+    let (plain, with_scratch) = decode_plain_and_scratch(&schema, &encoded, &decode_options);
+    assert_eq!(plain, with_scratch);
+    let fields = plain.get("fields").and_then(Value::as_object).unwrap();
+    assert_eq!(fields.get("AMOUNT").and_then(Value::as_array).unwrap().len(), 2);
+    assert_eq!(
+        fields
+            .get("AMOUNT__dup2")
+            .and_then(Value::as_array)
+            .unwrap()
+            .iter()
+            .map(Value::as_str)
+            .collect::<Vec<_>>(),
+        vec![Some("456"), Some("457")]
+    );
+    assert_eq!(
+        fields
+            .get("COUNT__dup2")
+            .and_then(Value::as_array)
+            .unwrap()
+            .iter()
+            .map(Value::as_str)
+            .collect::<Vec<_>>(),
+        vec![Some("52"), Some("53")]
+    );
+}
+
+#[test]
 fn cobol_group_over_group_fixed_occurs_emits_named_array() {
     let copybook = r#"
 01 OCCURS-REDEFINES.

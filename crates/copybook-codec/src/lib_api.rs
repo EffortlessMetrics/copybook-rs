@@ -2531,7 +2531,7 @@ fn encode_occurs_element(
         )?;
     } else {
         let mut element_obj = serde_json::Map::new();
-        element_obj.insert(field.name.clone(), element.clone());
+        element_obj.insert(field_names.json.to_owned(), element.clone());
         encode_single_field(
             &element_field,
             field_names,

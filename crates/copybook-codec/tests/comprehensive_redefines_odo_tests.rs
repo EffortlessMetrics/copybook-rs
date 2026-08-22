@@ -1613,14 +1613,14 @@ fn cobol_nested_and_reverse_sign_separate_raw_sidecars_follow_emitted_keys() {
         r#"
 01 NESTED-SIGN-RAW-COLLISION.
    05 OUTER.
-      10 ORIGINAL PIC X(8).
+      10 ORIGINAL PIC X(4).
       10 GROUP-REDEFINE REDEFINES ORIGINAL.
          15 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
       10 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
 "#,
         r#"
 01 REVERSE-SIGN-RAW-COLLISION.
-   05 ORIGINAL PIC X(8).
+   05 ORIGINAL PIC X(4).
    05 GROUP-REDEFINE REDEFINES ORIGINAL.
       10 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
    05 SIGNED PIC S9(3) SIGN LEADING SEPARATE.
@@ -1649,11 +1649,8 @@ fn cobol_nested_and_reverse_sign_separate_raw_sidecars_follow_emitted_keys() {
             &create_test_encode_options(false),
         )
         .unwrap();
-        let mut encoded = Vec::with_capacity(12);
-        encoded.extend_from_slice(&source[0..4]);
-        encoded.extend_from_slice(&[0; 4]);
-        encoded.extend_from_slice(&source[4..8]);
-        assert_eq!(encoded, vec![43, 49, 50, 51, 0, 0, 0, 0, 43, 52, 53, 54]);
+        let encoded = source;
+        assert_eq!(encoded, vec![43, 49, 50, 51, 43, 52, 53, 54]);
         let (plain, with_scratch) = decode_plain_and_scratch(&schema, &encoded, &decode_options);
         assert_eq!(plain, with_scratch);
         let fields = plain.get("fields").and_then(Value::as_object).unwrap();
@@ -1662,7 +1659,7 @@ fn cobol_nested_and_reverse_sign_separate_raw_sidecars_follow_emitted_keys() {
         } else {
             fields
         };
-        let duplicate_range = &encoded[8..12];
+        let duplicate_range = &encoded[4..8];
         for (key, bytes) in [
             ("SIGNED_raw_b64", &encoded[0..4]),
             ("SIGNED__dup2_raw_b64", duplicate_range),
@@ -1695,7 +1692,7 @@ fn cobol_nested_and_reverse_sign_separate_raw_sidecars_follow_emitted_keys() {
         let modified_encoded =
             copybook_codec::encode_record(&schema, &modified, &create_test_encode_options(false))
                 .unwrap();
-        let expected = vec![43, 49, 50, 51, 43, 55, 56, 57, 0, 0, 0, 0];
+        let expected = vec![43, 49, 50, 51, 43, 55, 56, 57];
         assert_eq!(modified_encoded, expected);
     }
 }

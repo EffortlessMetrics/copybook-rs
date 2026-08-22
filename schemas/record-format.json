@@ -54,9 +54,17 @@
             { "type": "null" },
             {
               "type": "array",
-              "items": { "type": "object" }
+              "items": {
+                "oneOf": [
+                  { "type": "string" },
+                  { "type": "number" },
+                  { "type": "boolean" },
+                  { "type": "null" },
+                  { "$ref": "#/definitions/field-object" }
+                ]
+              }
             },
-            { "type": "object" }
+            { "$ref": "#/definitions/field-object" }
           ]
         },
         "^_filler_[0-9]+$": {
@@ -103,5 +111,49 @@
   "dependencies": {
     "raw_capture": ["raw_b64"]
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "definitions": {
+    "field-object": {
+      "type": "object",
+      "patternProperties": {
+        "^[A-Z][A-Z0-9_-]*(__dup[0-9]+)?$": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "number" },
+            { "type": "boolean" },
+            { "type": "null" },
+            {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  { "type": "string" },
+                  { "type": "number" },
+                  { "type": "boolean" },
+                  { "type": "null" },
+                  { "$ref": "#/definitions/field-object" }
+                ]
+              }
+            },
+            { "$ref": "#/definitions/field-object" }
+          ]
+        },
+        ".*_raw_b64$": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  }
 }

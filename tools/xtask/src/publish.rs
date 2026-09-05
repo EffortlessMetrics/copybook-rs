@@ -5,8 +5,13 @@ use serde_json::Value;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fs,
+    path::PathBuf,
     process::Command,
 };
+
+mod dependencies;
+
+use dependencies::build_dependency_graph;
 
 const REGISTRY_PATH: &str = "docs/stability/surface-registry.json";
 const TARGET_RELEASE_LINE: &str = "0.6";
@@ -27,6 +32,8 @@ struct Package {
     publish: Option<Value>,
     #[serde(default)]
     dependencies: Vec<Dependency>,
+    #[serde(default)]
+    manifest_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -61,19 +68,21 @@ type RoleRegistryIndex = (
     HashMap<String, String>,
     HashMap<String, PlanPackage>,
     HashMap<String, String>,
+    HashMap<String, PathBuf>,
 );
-type DependencyGraph = (HashMap<String, usize>, HashMap<String, Vec<String>>);
 
 #[derive(Debug, Deserialize)]
 struct Dependency {
     #[serde(default)]
     kind: Option<String>,
     #[serde(default)]
-    optional: bool,
-    #[serde(default)]
     name: Option<String>,
     #[serde(default)]
     package: Option<String>,
+    #[serde(default)]
+    source: Option<String>,
+    #[serde(default)]
+    path: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -151,7 +160,7 @@ fn ordered_publish_plan(
         .iter()
         .cloned()
         .collect::<HashSet<_>>();
-    let (package_roles, package_plans, all_id_to_name) =
+    let (package_roles, package_plans, all_id_to_name, workspace_paths) =
         index_role_registry(metadata, registry, &workspace_members)?;
     let all_name_to_id = all_id_to_name
         .iter()
@@ -168,10 +177,8 @@ fn ordered_publish_plan(
     }
 
     let mut publishable_ids = HashSet::new();
-    let mut id_to_name = HashMap::new();
     for package in &publishable_packages {
         publishable_ids.insert(package.id.clone());
-        id_to_name.insert(package.id.clone(), package.name.clone());
     }
 
     let (in_degree, dependents) = build_dependency_graph(
@@ -179,8 +186,8 @@ fn ordered_publish_plan(
         &package_roles,
         &all_id_to_name,
         &all_name_to_id,
+        &workspace_paths,
         &publishable_ids,
-        &id_to_name,
         true,
     )?;
     topological_order(package_plans, in_degree, &dependents)
@@ -256,7 +263,17 @@ fn ordered_legacy_publish_plan(
     let all_id_to_name = metadata
         .packages
         .iter()
+        .filter(|package| workspace_members.contains(&package.id))
         .map(|package| (package.id.clone(), package.name.clone()))
+        .collect::<HashMap<_, _>>();
+    let workspace_paths = metadata
+        .packages
+        .iter()
+        .filter(|package| workspace_members.contains(&package.id))
+        .filter_map(|package| {
+            let directory = package.manifest_path.as_ref()?.parent()?;
+            Some((package.id.clone(), directory.to_path_buf()))
+        })
         .collect::<HashMap<_, _>>();
     let all_name_to_id = all_id_to_name
         .iter()
@@ -266,17 +283,13 @@ fn ordered_legacy_publish_plan(
         .iter()
         .map(|package| package.id.clone())
         .collect::<HashSet<_>>();
-    let id_to_name = publishable_packages
-        .iter()
-        .map(|package| (package.id.clone(), package.name.clone()))
-        .collect::<HashMap<_, _>>();
     let (in_degree, dependents) = build_dependency_graph(
         &publishable_packages,
         &package_roles,
         &all_id_to_name,
         &all_name_to_id,
+        &workspace_paths,
         &publishable_ids,
-        &id_to_name,
         false,
     )?;
     topological_order(package_plans, in_degree, &dependents)
@@ -312,7 +325,17 @@ fn index_role_registry(
     let all_id_to_name = metadata
         .packages
         .iter()
+        .filter(|package| workspace_members.contains(&package.id))
         .map(|package| (package.id.clone(), package.name.clone()))
+        .collect::<HashMap<_, _>>();
+    let workspace_paths = metadata
+        .packages
+        .iter()
+        .filter(|package| workspace_members.contains(&package.id))
+        .filter_map(|package| {
+            let directory = package.manifest_path.as_ref()?.parent()?;
+            Some((package.id.clone(), directory.to_path_buf()))
+        })
         .collect::<HashMap<_, _>>();
     let mut package_roles = HashMap::new();
     let mut package_plans = HashMap::new();
@@ -340,108 +363,12 @@ fn index_role_registry(
             package_plans.insert(package.name.clone(), plan);
         }
     }
-    Ok((package_roles, package_plans, all_id_to_name))
-}
-
-fn build_dependency_graph(
-    packages: &[&Package],
-    package_roles: &HashMap<String, String>,
-    all_id_to_name: &HashMap<String, String>,
-    all_name_to_id: &HashMap<String, String>,
-    publishable_ids: &HashSet<String>,
-    id_to_name: &HashMap<String, String>,
-    enforce_role_policy: bool,
-) -> Result<DependencyGraph> {
-    let mut in_degree: HashMap<String, usize> = HashMap::new();
-    let mut dependents: HashMap<String, Vec<String>> = HashMap::new();
-    let mut seen_edges = HashSet::new();
-
-    for package in packages {
-        in_degree.entry(package.name.clone()).or_insert(0);
-    }
-
-    for package in packages {
-        for dependency in package
-            .dependencies
-            .iter()
-            .filter(|dep| matches!(dep.kind.as_deref(), None | Some("normal")))
-        {
-            let workspace_dependency_name = dependency
-                .name
-                .as_ref()
-                .filter(|name| package_roles.contains_key(name.as_str()))
-                .cloned()
-                .or_else(|| {
-                    dependency
-                        .package
-                        .as_ref()
-                        .and_then(|id| all_id_to_name.get(id))
-                        .filter(|name| package_roles.contains_key(name.as_str()))
-                        .cloned()
-                });
-            if let Some(dep_name) = workspace_dependency_name.as_ref() {
-                let package_role = package_roles
-                    .get(&package.name)
-                    .map(String::as_str)
-                    .unwrap_or_default();
-                let dependency_role = package_roles
-                    .get(dep_name)
-                    .map(String::as_str)
-                    .unwrap_or_default();
-                if enforce_role_policy
-                    && package_role == "primary"
-                    && matches!(dependency_role, "compat" | "retiring")
-                {
-                    bail!(
-                        "primary package {} depends on {dependency_role} package {dep_name}; converge the owner before publishing",
-                        package.name
-                    );
-                }
-            }
-
-            let Some(dep_id) = dependency.package.as_ref().or_else(|| {
-                dependency
-                    .name
-                    .as_ref()
-                    .and_then(|dep_name| all_name_to_id.get(dep_name))
-            }) else {
-                continue;
-            };
-
-            if enforce_role_policy
-                && workspace_dependency_name.is_some()
-                && !publishable_ids.contains(dep_id)
-                && !dependency.optional
-            {
-                let dep_name = workspace_dependency_name
-                    .as_deref()
-                    .unwrap_or("unknown workspace package");
-                bail!(
-                    "selected package {} depends on omitted workspace package {dep_name}; include it in the publish plan or make the dependency optional",
-                    package.name
-                );
-            }
-
-            if !publishable_ids.contains(dep_id) {
-                continue;
-            }
-
-            let Some(dep_name) = id_to_name.get(dep_id) else {
-                continue;
-            };
-            let edge = (dep_name.clone(), package.name.clone());
-            if !seen_edges.insert(edge.clone()) {
-                continue;
-            }
-            dependents
-                .entry(dep_name.clone())
-                .or_default()
-                .push(package.name.clone());
-            *in_degree.entry(package.name.clone()).or_default() += 1;
-        }
-    }
-
-    Ok((in_degree, dependents))
+    Ok((
+        package_roles,
+        package_plans,
+        all_id_to_name,
+        workspace_paths,
+    ))
 }
 
 fn topological_order(
@@ -699,6 +626,7 @@ mod tests {
             version: "0.5.0".to_string(),
             publish: Some(Value::Array(vec![Value::String("crates-io".to_string())])),
             dependencies: Vec::new(),
+            manifest_path: None,
         }
     }
 
@@ -943,12 +871,12 @@ mod tests {
             r#"{
                 "workspace_members":["id-core", "id-facade", "id-rs"],
                 "packages":[
-                    {"id":"id-facade","name":"copybook","publish":["crates-io"],"dependencies":[
-                        {"name":"copybook-core"}
+                    {"id":"id-facade","name":"copybook","manifest_path":"/workspace/copybook/Cargo.toml","publish":["crates-io"],"dependencies":[
+                        {"name":"copybook-core","source":null,"path":"/workspace/copybook-core"}
                     ]},
-                    {"id":"id-core","name":"copybook-core","publish":["crates-io"],"dependencies":[]},
-                    {"id":"id-rs","name":"copybook-rs","publish":["crates-io"],"dependencies":[
-                        {"name":"copybook"}
+                    {"id":"id-core","name":"copybook-core","manifest_path":"/workspace/copybook-core/Cargo.toml","publish":["crates-io"],"dependencies":[]},
+                    {"id":"id-rs","name":"copybook-rs","manifest_path":"/workspace/copybook-rs/Cargo.toml","publish":["crates-io"],"dependencies":[
+                        {"name":"copybook","source":null,"path":"/workspace/copybook"}
                     ]}
                 ]
             }"#,

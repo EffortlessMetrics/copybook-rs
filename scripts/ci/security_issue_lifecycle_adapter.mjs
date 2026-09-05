@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /** Live GitHub adapter for the pure weekly security lifecycle planner. */
 
-import { planSecurityIssueLifecycle } from "./security_issue_lifecycle.mjs";
+import {
+  planSecurityIssueLifecycle,
+  ROLLUP_MARKER_NAMESPACE,
+  ROLLUP_TITLE,
+} from "./security_issue_lifecycle.mjs";
 import { pathToFileURL } from "node:url";
 
 const SECURITY_LABEL = "security";
@@ -42,6 +46,10 @@ function issueSnapshot(issue, commentPages) {
   return { number, title: issue.title, body, state: issue.state, commentPages: normalizedComments };
 }
 
+function mayBeRollup(issue) {
+  return issue.title === ROLLUP_TITLE || issue.body.includes(ROLLUP_MARKER_NAMESPACE);
+}
+
 async function allPages(fetchPage, label) {
   const pages = [];
   for (let page = 1; ; page += 1) {
@@ -68,12 +76,17 @@ export async function discoverSnapshot(client) {
       issueIdentifiers.add(number);
       if (issue.pull_request !== undefined) continue;
       if (!hasSecurityLabel(issue)) continue;
+      const baseSnapshot = issueSnapshot(issue, []);
+      if (!mayBeRollup(baseSnapshot)) {
+        selected.push(baseSnapshot);
+        continue;
+      }
       const commentPages = await allPages(
         (commentPage) => client.listComments(number, commentPage, PAGE_SIZE),
         `comment page for issue ${number}`,
       );
-      for (const page of commentPages) {
-        for (const comment of page) {
+      for (const commentPage of commentPages) {
+        for (const comment of commentPage) {
           const identifier = requirePositiveInteger(comment?.id, "comment.id");
           if (commentIdentifiers.has(identifier)) throw new TypeError(`snapshot contains duplicate comment id ${identifier}`);
           commentIdentifiers.add(identifier);

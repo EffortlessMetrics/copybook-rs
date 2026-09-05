@@ -18,7 +18,10 @@ from pathlib import Path
 
 def _is_valid_git_checkout(path: Path) -> bool:
     """Return whether *path* is a usable, committed Git checkout."""
-    if not path.is_dir():
+    # Git discovers repositories in parent directories. An incomplete cache
+    # below a project checkout must not borrow that project's HEAD. A .git
+    # file is valid here too: linked worktrees do not have a .git directory.
+    if not path.is_dir() or not (path / ".git").exists():
         return False
 
     inside_worktree = subprocess.run(

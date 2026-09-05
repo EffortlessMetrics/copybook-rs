@@ -7,13 +7,32 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, NoReturn, TextIO
+
+
+def _reject_json_constant(value: str) -> NoReturn:
+    """Reject Python's NaN/Infinity extensions to the JSON number grammar."""
+    raise ValueError(f"cargo-audit output is not valid JSON: {value} is not a JSON number")
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject ambiguous objects instead of silently replacing earlier values."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"cargo-audit output contains duplicate JSON object key: {key!r}")
+        result[key] = value
+    return result
 
 
 def parse_audit_report(raw_json: bytes) -> tuple[dict[str, Any], list[Any]]:
     """Parse cargo-audit JSON bytes and return the validated finding list."""
     try:
-        document = json.loads(raw_json.decode("utf-8"))
+        document = json.loads(
+            raw_json.decode("utf-8"),
+            parse_constant=_reject_json_constant,
+            object_pairs_hook=_unique_json_object,
+        )
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError(f"cargo-audit output is not valid JSON: {error}") from error
 

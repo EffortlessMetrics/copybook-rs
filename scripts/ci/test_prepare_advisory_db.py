@@ -40,6 +40,75 @@ class PrepareAdvisoryDbTests(unittest.TestCase):
         self.assertLess(deny_step, second_prepare)
         self.assertLess(second_prepare, audit_command_index)
 
+    def _committed_checkout(self, path: Path) -> None:
+        path.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["git", "-C", str(path), "init"], check=True, capture_output=True)
+        subprocess.run(
+            [
+                "git", "-C", str(path),
+                "-c", "user.name=copybook-test",
+                "-c", "user.email=copybook-test@example.invalid",
+                "commit", "--allow-empty", "-m", "seed",
+            ],
+            check=True,
+            capture_output=True,
+        )
+
+    def test_non_git_database_inside_checkout_is_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary) / "project"
+            self._committed_checkout(parent)
+            sentinel = parent / "sentinel"
+            sentinel.write_text("keep", encoding="utf-8")
+            path = parent / ".cargo" / "advisory-db"
+            path.mkdir(parents=True)
+            (path / "partial-pack").write_text("incomplete", encoding="utf-8")
+
+            self.assertTrue(remove_if_unusable(path))
+            self.assertFalse(path.exists())
+            self.assertTrue((parent / ".git").is_dir())
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "keep")
+
+    def test_uncommitted_database_inside_checkout_is_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary) / "project"
+            self._committed_checkout(parent)
+            path = parent / ".cargo" / "advisory-db"
+            path.mkdir(parents=True)
+            subprocess.run(["git", "-C", str(path), "init"], check=True, capture_output=True)
+
+            self.assertTrue(remove_if_unusable(path))
+            self.assertFalse(path.exists())
+            self.assertTrue((parent / ".git").is_dir())
+
+    def test_valid_database_inside_checkout_is_reused(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary) / "project"
+            self._committed_checkout(parent)
+            path = parent / ".cargo" / "advisory-db"
+            self._committed_checkout(path)
+
+            self.assertFalse(remove_if_unusable(path))
+            self.assertTrue((path / ".git").is_dir())
+            self.assertTrue((parent / ".git").is_dir())
+
+    def test_linked_worktree_database_is_reused(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            owner = root / "source"
+            self._committed_checkout(owner)
+            path = root / "advisory-db"
+            subprocess.run(
+                ["git", "-C", str(owner), "worktree", "add", "--detach", str(path)],
+                check=True,
+                capture_output=True,
+            )
+            self.assertTrue((path / ".git").is_file())
+
+            self.assertFalse(remove_if_unusable(path))
+            self.assertTrue((path / ".git").is_file())
+            self.assertTrue((owner / ".git").is_dir())
+
     def test_absent_database_is_left_absent(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "advisory-db"

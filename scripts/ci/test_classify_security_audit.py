@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from itertools import product
@@ -96,6 +98,113 @@ class ClassifySecurityAuditTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "count does not match"):
                 classify(path)
+
+    def test_non_json_numbers_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "audit.json"
+            for constant in ("NaN", "Infinity", "-Infinity"):
+                with self.subTest(constant=constant):
+                    path.write_text(
+                        '{"vulnerabilities":{"count":0,"list":[]},'
+                        '"metadata":{"nested":[' + constant + ']}}',
+                        encoding="utf-8",
+                    )
+                    with self.assertRaisesRegex(ValueError, "not valid JSON"):
+                        classify_lifecycle(path, "0")
+
+    def test_duplicate_json_keys_fail_closed(self) -> None:
+        finding = (
+            '{"advisory":{"id":"RUSTSEC-1"},'
+            '"package":{"name":"a","version":"1"}}'
+        )
+        documents = {
+            "overwritten report": (
+                '{"vulnerabilities":{"count":1,"list":[' + finding + ']},'
+                '"vulnerabilities":{"count":0,"list":[]}}'
+            ),
+            "overwritten findings": (
+                '{"vulnerabilities":{"count":0,"list":[' + finding + '],"list":[]}}'
+            ),
+            "identical counts": '{"vulnerabilities":{"count":0,"count":0,"list":[]}}',
+            "escaped key": r'{"vulnerabilities":{"count":0,"\u0063ount":0,"list":[]}}',
+            "nested metadata": (
+                '{"vulnerabilities":{"count":0,"list":[]},'
+                '"metadata":{"value":0,"value":1}}'
+            ),
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "audit.json"
+            for name, document in documents.items():
+                with self.subTest(case=name):
+                    path.write_text(document, encoding="utf-8")
+                    with self.assertRaisesRegex(ValueError, "duplicate JSON object key"):
+                        classify_lifecycle(path, "0")
+
+    def test_repeated_keys_in_separate_objects_are_valid(self) -> None:
+        findings = [
+            {"advisory": {"id": "RUSTSEC-1"}, "package": {"name": "a", "version": "1"}},
+            {"advisory": {"id": "RUSTSEC-2"}, "package": {"name": "b", "version": "2"}},
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            path = self.write_document(
+                Path(temporary), {"vulnerabilities": {"count": 2, "list": findings}}
+            )
+            result = classify_lifecycle(path, "1")
+            self.assertEqual(result["finding_count"], 2)
+            self.assertTrue(result["eligible"])
+            self.assertTrue(result["findings_fingerprint"].startswith("sha256:"))
+
+    def test_constant_names_in_strings_are_valid(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = self.write_document(
+                Path(temporary),
+                {
+                    "vulnerabilities": {"count": 0, "list": []},
+                    "metadata": {"values": ["NaN", "Infinity", "-Infinity"]},
+                },
+            )
+            self.assertEqual(classify(path), ("no_action", 0))
+            self.assertTrue(classify_lifecycle(path, "0")["eligible"])
+
+    def test_cli_rejects_invalid_json_before_writing_outputs(self) -> None:
+        documents = (
+            '{"vulnerabilities":{"count":0,"list":[]},"metadata":NaN}',
+            '{"vulnerabilities":{"count":0,"list":[],"list":[]}}',
+        )
+        script = Path(__file__).with_name("classify_security_audit.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            path = root / "audit.json"
+            output = root / "github-output"
+            for document, existing in product(documents, (False, True)):
+                with self.subTest(document=document, existing=existing):
+                    path.write_text(document, encoding="utf-8")
+                    output.unlink(missing_ok=True)
+                    if existing:
+                        output.write_bytes(b"sentinel=keep\n")
+                    result = subprocess.run(
+                        [
+                            sys.executable, str(script), "classify", str(path),
+                            "--audit-exit-status", "0", "--github-output", str(output),
+                        ],
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                    )
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertEqual(result.stdout, "")
+                    self.assertIn("error:", result.stderr)
+                    if existing:
+                        self.assertEqual(output.read_bytes(), b"sentinel=keep\n")
+                    else:
+                        self.assertFalse(output.exists())
+
+    def test_invalid_utf8_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "audit.json"
+            path.write_bytes(b'{"vulnerabilities":{"count":0,"list":[]},"metadata":"\xff"}')
+            with self.assertRaisesRegex(ValueError, "not valid JSON"):
+                classify_lifecycle(path, "0")
 
     def test_gate_outcome_cross_product_has_exactly_one_pass_state(self) -> None:
         deny_statuses = ("0", "1", "2", "")

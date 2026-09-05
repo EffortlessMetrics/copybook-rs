@@ -10,7 +10,7 @@
 # content-addressed, so squash merges cannot invalidate it.
 schema_version = 1
 scope = "fixed-rdw-pipeline"
-content_digest = "11e2b95302f2c1aad91e199d44802052201fea82514cd301f707c44956c58fdc"
+content_digest = "2e588c7c40a49248cc6c3f7ab7b53ce9e69aea6949a972532b42fe0411229b5b"
 
 [[scenarios]]
 id = "format.fixed.basic"
@@ -120,10 +120,16 @@ api_tests = []
 cli_tests = [
   "tests/e2e/e2e_cli_decode_flags.rs::decode_emit_meta_includes_metadata_fields",
   "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkf102_rdw_truncated_payload_exits_format",
+  "tests/e2e/e2e_verify_comprehensive.rs::verify_samples_are_limited_and_use_codec_record_bytes",
 ]
-error_codes = ["CBKF102_RECORD_LENGTH_INVALID"]
-cli_commands = ["decode --format fixed", "decode --format rdw"]
-known_limitation = "Verify, encode, projection, and determinism command rows remain separate CLI evidence planes."
+error_codes = ["CBKD401_COMP3_INVALID_NIBBLE", "CBKF102_RECORD_LENGTH_INVALID"]
+cli_commands = [
+  "decode --format fixed",
+  "decode --format rdw",
+  "verify --format fixed --report",
+  "verify --format rdw --report",
+]
+known_limitation = "The CLI row directly anchors decode framing and verify diagnostic sampling; encode, projection, and determinism remain separate evidence planes."
 
 [[scenarios]]
 id = "format.fixed_rdw.raw_mode.legacy_alias"

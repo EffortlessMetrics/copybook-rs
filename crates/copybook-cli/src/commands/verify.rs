@@ -11,14 +11,15 @@ use crate::utils::{
 };
 use crate::write_stdout_all;
 use copybook_codec::file::fixed as fixed_file;
+use copybook_codec::lib_api::decode_record_with_raw_data;
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, RecordIterator,
     UnmappablePolicy,
 };
-use copybook_core::parse_copybook_with_options;
+use copybook_core::{Error, parse_copybook_with_options};
 use std::fmt::Write as _;
 use std::fs::{File, metadata};
-use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};
 
@@ -47,6 +48,50 @@ fn hex_window(bytes: &[u8], offset: usize, ctx: usize) -> String {
         .iter()
         .map(|b| format!("{b:02X}"))
         .collect::<String>()
+}
+
+/// Add one verification failure using bytes returned by the codec framing boundary.
+fn record_verification_error(
+    report: &mut VerifyReport,
+    record_index: u64,
+    error: &Error,
+    record_bytes: Option<&[u8]>,
+) {
+    let error_offset = error.context.as_ref().and_then(|ctx| ctx.byte_offset);
+    let hex_data = record_bytes.map(|bytes| {
+        if let Some(off) = error_offset {
+            match usize::try_from(off) {
+                Ok(offset) => hex_window(bytes, offset, HEX_CTX),
+                Err(_) => hex_bytes(bytes, HEX_FALLBACK),
+            }
+        } else {
+            hex_bytes(bytes, HEX_FALLBACK)
+        }
+    });
+
+    report.add_error(VerifyError {
+        index: record_index,
+        code: format!("{:?}", error.code),
+        field: error
+            .context
+            .as_ref()
+            .and_then(|ctx| ctx.field_path.clone()),
+        offset: error_offset,
+        msg: error.message.clone(),
+        hex: hex_data,
+    });
+
+    if let Some(bytes) = record_bytes {
+        report.add_sample(VerifySample {
+            index: record_index,
+            hex: hex_bytes(bytes, 256),
+        });
+    }
+
+    error!(
+        "Record {}: {} - {}",
+        record_index, error.code, error.message
+    );
 }
 
 /// Configuration options for the verify command
@@ -154,86 +199,38 @@ pub fn run(
     let file = File::open(input)?;
     let reader = BufReader::new(file);
 
-    // Open a separate file handle for efficient hex sampling
-    let mut file_raw = File::open(input)?;
-
     // Create record iterator based on format
-    let record_iter = RecordIterator::new(reader, &working_schema, &decode_options)?;
+    let mut record_iter = RecordIterator::new(reader, &working_schema, &decode_options)?;
 
-    // Process each record
-    for record_result in record_iter {
-        records_total += 1;
-
-        match record_result {
-            Ok(_json_value) => {
-                // Record decoded successfully - no action needed
-            }
-            Err(error) => {
-                // Record failed to decode - efficiently read the raw record data
-                let record_bytes = if let Some(lrecl) = working_schema.lrecl_fixed {
-                    // For fixed format, use seek + read_exact for efficiency
-                    let record_offset = (records_total - 1) * u64::from(lrecl);
-
-                    match file_raw.seek(SeekFrom::Start(record_offset)) {
-                        Ok(_) => {
-                            let mut rec = vec![0u8; lrecl as usize];
-                            match file_raw.read_exact(&mut rec) {
-                                Ok(()) => Some(rec),
-                                Err(_) => None, // Fall back to no hex if partial read
-                            }
-                        }
-                        Err(_) => None,
-                    }
-                } else {
-                    // For RDW format, we'd need to track record boundaries differently
-                    // For now, skip hex sampling for RDW records with errors
-                    None
-                };
-
-                // Extract error details with hex capability
-                let error_offset = error.context.as_ref().and_then(|ctx| ctx.byte_offset);
-                let hex_data = record_bytes.as_ref().map(|bytes| {
-                    if let Some(off) = error_offset {
-                        match usize::try_from(off) {
-                            Ok(offset) => hex_window(bytes, offset, HEX_CTX),
-                            Err(_) => hex_bytes(bytes, HEX_FALLBACK),
-                        }
-                    } else {
-                        hex_bytes(bytes, HEX_FALLBACK)
-                    }
-                });
-
-                let error_entry = VerifyError {
-                    index: records_total - 1, // 0-based index
-                    code: format!("{:?}", error.code),
-                    field: error
-                        .context
-                        .as_ref()
-                        .and_then(|ctx| ctx.field_path.clone()),
-                    offset: error_offset,
-                    msg: error.message.clone(),
-                    hex: hex_data,
-                };
-
-                // Add error to report
-                verify_report.add_error(error_entry);
-
-                // Add sample record with actual hex data if available
-                if let Some(ref bytes) = record_bytes {
-                    let sample = VerifySample {
-                        index: records_total - 1,
-                        hex: hex_bytes(bytes, 256), // First 256 bytes for samples
-                    };
-                    verify_report.add_sample(sample);
+    // Let the codec own fixed/RDW framing so diagnostics use the exact
+    // payload that failed decoding rather than a second schema-based read.
+    loop {
+        match record_iter.read_raw_record() {
+            Ok(Some(record_bytes)) => {
+                records_total += 1;
+                let codec_record_index = record_iter.current_record_index();
+                if let Err(error) = decode_record_with_raw_data(
+                    &working_schema,
+                    &record_bytes,
+                    &decode_options,
+                    None,
+                    codec_record_index,
+                ) {
+                    record_verification_error(
+                        &mut verify_report,
+                        records_total - 1,
+                        &error,
+                        Some(&record_bytes),
+                    );
                 }
-
-                // Log error for immediate feedback
-                error!(
-                    "Record {}: {} - {}",
-                    records_total - 1,
-                    error.code,
-                    error.message
-                );
+            }
+            Ok(None) => break,
+            Err(error) => {
+                records_total += 1;
+                record_verification_error(&mut verify_report, records_total - 1, &error, None);
+                if record_iter.is_eof() {
+                    break;
+                }
             }
         }
     }

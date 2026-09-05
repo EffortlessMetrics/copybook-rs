@@ -100,8 +100,12 @@ pub enum PlanFormat {
 #[inline]
 pub fn run_plan(format: PlanFormat, check_only: bool) -> Result<()> {
     let plan = build_publish_plan()?;
+    emit_publish_plan(&plan, format, check_only)
+}
+
+fn emit_publish_plan(plan: &[PlanPackage], format: PlanFormat, check_only: bool) -> Result<()> {
+    validate_publish_plan(plan)?;
     if check_only {
-        validate_publish_plan(&plan)?;
         println!(
             "publish plan validated: {} publishable crate(s)",
             plan.len()
@@ -116,7 +120,7 @@ pub fn run_plan(format: PlanFormat, check_only: bool) -> Result<()> {
             }
         }
         PlanFormat::Json => {
-            let json = serde_json::to_string_pretty(&plan)?;
+            let json = serde_json::to_string_pretty(plan)?;
             println!("{json}");
         }
     }
@@ -950,5 +954,8 @@ mod tests {
     fn validate_publish_plan_requires_facades() {
         let plan = vec![test_entry("copybook-core"), test_entry("copybook-codec")];
         assert!(validate_publish_plan(&plan).is_err());
+        assert!(emit_publish_plan(&plan, PlanFormat::Plain, false).is_err());
+        assert!(emit_publish_plan(&plan, PlanFormat::Json, false).is_err());
+        assert!(emit_publish_plan(&plan, PlanFormat::Plain, true).is_err());
     }
 }

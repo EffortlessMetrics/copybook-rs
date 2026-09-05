@@ -8,7 +8,7 @@ use std::{
 
 use anyhow::{Result, bail};
 
-use super::Package;
+use super::{Package, REGISTRY_PATH, is_publishable_package};
 
 type DependencyGraph = (HashMap<String, usize>, HashMap<String, Vec<String>>);
 
@@ -21,6 +21,20 @@ pub(super) fn build_dependency_graph(
     publishable_ids: &HashSet<String>,
     enforce_role_policy: bool,
 ) -> Result<DependencyGraph> {
+    if enforce_role_policy {
+        for package in packages {
+            if !is_publishable_package(package.publish.as_ref()) {
+                let role = package_roles
+                    .get(&package.name)
+                    .map_or("unknown", String::as_str);
+                bail!(
+                    "selected {role} package {} is not publishable; role-aware plans require matching publishable Cargo and {REGISTRY_PATH} entries",
+                    package.name
+                );
+            }
+        }
+    }
+
     let mut in_degree: HashMap<String, usize> = HashMap::new();
     let mut dependents: HashMap<String, Vec<String>> = HashMap::new();
     let mut seen_edges = HashSet::new();
@@ -210,7 +224,8 @@ mod tests {
     }
 
     #[test]
-    fn omitted_optional_and_build_dependencies_are_rejected() -> Result<()> {
+    fn role_aware_plan_rejects_omitted_dependencies_and_selected_non_publishable_packages()
+    -> Result<()> {
         for kind in [Value::Null, json!("build")] {
             for optional in [false, true] {
                 let (metadata, mut registry) = fixture(
@@ -226,6 +241,34 @@ mod tests {
                 assert!(error.contains("omitted workspace package z-helper"));
                 assert!(error.contains("include it in the publish plan or remove"));
             }
+        }
+
+        for (role, disposition, compatibility_plan) in [
+            ("primary", "keep", "retained-primary-package"),
+            ("alias", "keep", "permanent-alias"),
+            ("adapter", "keep", "retained-primary-package"),
+            ("contract", "keep", "retained-primary-package"),
+            ("compat", "collapse", "deprecated-through-0.6"),
+        ] {
+            let (mut metadata, mut registry) = fixture("0.6.0", json!([]))?;
+            for package in &mut metadata.packages {
+                if package.name == "z-helper" {
+                    package.publish = Some(json!([]));
+                }
+            }
+            for package in &mut registry.packages {
+                if package.name == "z-helper" {
+                    package.publish = false;
+                    package.boundary.role = role.to_string();
+                    package.boundary.target_disposition = disposition.to_string();
+                    package.boundary.compatibility_plan = compatibility_plan.to_string();
+                }
+            }
+
+            let error = rejection(&metadata, registry)?;
+            assert!(error.contains(&format!(
+                "selected {role} package z-helper is not publishable"
+            )));
         }
         Ok(())
     }
@@ -320,7 +363,7 @@ mod tests {
     }
 
     #[test]
-    fn external_build_and_omitted_dev_dependencies_do_not_enter_the_graph() -> Result<()> {
+    fn external_dependencies_and_omitted_roles_do_not_enter_the_graph() -> Result<()> {
         let (metadata, mut registry) = fixture(
             "0.6.0",
             json!([
@@ -335,6 +378,37 @@ mod tests {
         }
         let plan = ordered_publish_plan(&metadata, registry)?;
         assert_eq!(names(&plan), ["copybook", "copybook-rs"]);
+
+        for (role, disposition, compatibility_plan) in [
+            ("primary", "conditional", "conditional"),
+            ("adapter", "conditional", "conditional"),
+            ("contract", "conditional", "conditional"),
+            ("compat", "collapse", "removed-in-0.6"),
+            (
+                "retiring",
+                "collapse",
+                "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
+            ),
+            ("internal-tool", "keep-internal", "not-published"),
+        ] {
+            let (mut metadata, mut registry) = fixture("0.6.0", json!([]))?;
+            for package in &mut metadata.packages {
+                if package.name == "z-helper" {
+                    package.publish = Some(json!([]));
+                }
+            }
+            for package in &mut registry.packages {
+                if package.name == "z-helper" {
+                    package.publish = false;
+                    package.boundary.role = role.to_string();
+                    package.boundary.target_disposition = disposition.to_string();
+                    package.boundary.compatibility_plan = compatibility_plan.to_string();
+                }
+            }
+
+            let plan = ordered_publish_plan(&metadata, registry)?;
+            assert_eq!(names(&plan), ["copybook", "copybook-rs"]);
+        }
         Ok(())
     }
 

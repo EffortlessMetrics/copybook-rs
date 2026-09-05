@@ -18,16 +18,24 @@ from pathlib import Path
 
 def _is_valid_git_checkout(path: Path) -> bool:
     """Return whether *path* is a usable, committed Git checkout."""
-    if not path.is_dir():
+    # Git discovers repositories in parent directories. An incomplete cache
+    # below a project checkout must not borrow that project's HEAD. A .git
+    # file is valid here too: linked worktrees do not have a .git directory.
+    if not path.is_dir() or not (path / ".git").exists():
         return False
 
-    inside_worktree = subprocess.run(
-        ["git", "-C", str(path), "rev-parse", "--is-inside-work-tree"],
+    top_level = subprocess.run(
+        ["git", "-C", str(path), "rev-parse", "--show-toplevel"],
         capture_output=True,
         check=False,
         text=True,
     )
-    if inside_worktree.returncode != 0 or inside_worktree.stdout.strip() != "true":
+    if top_level.returncode != 0 or not top_level.stdout.strip():
+        return False
+    try:
+        if not path.samefile(top_level.stdout.strip()):
+            return False
+    except OSError:
         return False
 
     head = subprocess.run(

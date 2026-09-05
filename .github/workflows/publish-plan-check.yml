@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Publish Plan Check
+
+on:
+  pull_request:
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '**/Cargo.toml'
+      - 'tools/xtask/**'
+      - 'docs/stability/surface-registry.json'
+      - '.github/workflows/publish-plan-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '**/Cargo.toml'
+      - 'tools/xtask/**'
+      - 'docs/stability/surface-registry.json'
+      - '.github/workflows/publish-plan-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-plan-check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish-plan:
+    name: Publish Plan Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.95.0'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: publish-plan-check
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Record tested source and toolchain
+        run: |
+          git rev-parse HEAD
+          rustc --version
+          cargo --version
+      - name: Test publish planner
+        run: 'cargo test --locked -p xtask publish::'
+      - name: Validate and emit current workspace plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo run --locked -p xtask -- publish plan --check
+          cargo run --locked -p xtask -- publish plan
+          cargo run --locked -p xtask -- publish plan --format json

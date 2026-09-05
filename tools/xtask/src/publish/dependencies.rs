@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Publication dependencies, independent of runtime feature selection.
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
 
 use anyhow::{Result, bail};
 
@@ -14,6 +17,7 @@ pub(super) fn build_dependency_graph(
     package_roles: &HashMap<String, String>,
     workspace_id_to_name: &HashMap<String, String>,
     workspace_name_to_id: &HashMap<String, String>,
+    workspace_paths: &HashMap<String, PathBuf>,
     publishable_ids: &HashSet<String>,
     enforce_role_policy: bool,
 ) -> Result<DependencyGraph> {
@@ -34,19 +38,34 @@ pub(super) fn build_dependency_graph(
             .iter()
             .filter(|dep| matches!(dep.kind.as_deref(), None | Some("normal" | "build")))
         {
-            let Some(dep_id) = dependency
+            // Names alone are not identities: another version/source can use
+            // the same name as a workspace member without joining this release.
+            if dependency.source.is_some() {
+                continue;
+            }
+            let explicit_id = dependency
                 .package
                 .as_ref()
-                .filter(|id| workspace_id_to_name.contains_key(*id))
-                .or_else(|| {
-                    dependency
-                        .name
-                        .as_ref()
-                        .and_then(|name| workspace_name_to_id.get(name))
-                })
-            else {
-                // Registry dependencies outside the workspace are not owned by
-                // this release plan.
+                .filter(|id| workspace_id_to_name.contains_key(*id));
+            let named_id = dependency
+                .name
+                .as_ref()
+                .and_then(|name| workspace_name_to_id.get(name));
+            let dep_id = if let Some(id) = explicit_id {
+                Some(id)
+            } else if let Some(id) = named_id {
+                let Some(path) = dependency.path.as_ref() else {
+                    bail!("workspace-named dependency {id} has no source or path identity");
+                };
+                let Some(workspace_path) = workspace_paths.get(id) else {
+                    bail!("workspace manifest path missing for dependency {id}");
+                };
+                (workspace_path == path).then_some(id)
+            } else {
+                None
+            };
+            let Some(dep_id) = dep_id else {
+                // Dependencies outside the workspace are not owned by this plan.
                 continue;
             };
             let Some(dep_name) = workspace_id_to_name.get(dep_id) else {
@@ -102,17 +121,33 @@ mod tests {
 
     use super::super::{Metadata, PlanPackage, SurfaceRegistry, ordered_publish_plan};
 
-    fn fixture(version: &str, dependencies: Value) -> Result<(Metadata, SurfaceRegistry)> {
+    fn fixture(version: &str, mut dependencies: Value) -> Result<(Metadata, SurfaceRegistry)> {
         // Match cargo metadata --no-deps: dependency names are the real package
         // names, including renamed dependencies; there is no resolved package ID.
+        // Default helper references to the local workspace path. Tests may
+        // supply an explicit source/path to exercise other package identities.
+        if let Some(entries) = dependencies.as_array_mut() {
+            for dependency in entries {
+                if dependency.get("name").and_then(Value::as_str) == Some("z-helper")
+                    && dependency.get("source").is_none()
+                    && dependency.get("path").is_none()
+                {
+                    dependency["path"] = json!("/workspace/z-helper");
+                }
+            }
+        }
         let metadata = serde_json::from_value(json!({
             "workspace_members": ["facade", "alias", "helper"],
             "packages": [
                 {"id": "facade", "name": "copybook", "version": version,
+                 "manifest_path": "/workspace/copybook/Cargo.toml",
                  "dependencies": dependencies},
                 {"id": "alias", "name": "copybook-rs", "version": version,
-                 "dependencies": [{"name": "copybook", "kind": null}]},
+                 "manifest_path": "/workspace/copybook-rs/Cargo.toml",
+                 "dependencies": [{"name": "copybook", "kind": null,
+                                   "source": null, "path": "/workspace/copybook"}]},
                 {"id": "helper", "name": "z-helper", "version": version,
+                 "manifest_path": "/workspace/z-helper/Cargo.toml",
                  "dependencies": []}
             ]
         }))?;
@@ -244,7 +279,8 @@ mod tests {
                 for package in &mut metadata.packages {
                     if package.name == "z-helper" {
                         package.dependencies = serde_json::from_value(json!([
-                            {"name": "copybook", "kind": kind}
+                            {"name": "copybook", "kind": kind, "source": null,
+                             "path": "/workspace/copybook"}
                         ]))?;
                     }
                 }
@@ -299,6 +335,82 @@ mod tests {
         }
         let plan = ordered_publish_plan(&metadata, registry)?;
         assert_eq!(names(&plan), ["copybook", "copybook-rs"]);
+        Ok(())
+    }
+
+    #[test]
+    fn same_named_external_dependencies_do_not_create_edges_or_omission_errors() -> Result<()> {
+        for version in ["0.5.1", "0.6.0"] {
+            for kind in [Value::Null, json!("build")] {
+                for identity in [
+                    json!({"source": "registry+https://github.com/rust-lang/crates.io-index"}),
+                    json!({"source": "git+https://example.invalid/helper#abc"}),
+                    json!({"source": null, "path": "/external/z-helper"}),
+                ] {
+                    let mut dependency = identity;
+                    dependency["name"] = json!("z-helper");
+                    dependency["kind"] = kind.clone();
+                    let (mut metadata, mut registry) = fixture(version, json!([dependency]))?;
+                    for package in &mut metadata.packages {
+                        if package.name == "z-helper" {
+                            package.publish = Some(json!([]));
+                        }
+                    }
+                    for package in &mut registry.packages {
+                        if package.name == "z-helper" {
+                            package.publish = false;
+                            package.boundary.role = "internal-tool".to_string();
+                        }
+                    }
+                    let plan = ordered_publish_plan(&metadata, registry)?;
+                    assert_eq!(names(&plan), ["copybook", "copybook-rs"]);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn same_named_registry_dependency_does_not_create_a_false_cycle() -> Result<()> {
+        let (mut metadata, registry) = fixture(
+            "0.6.0",
+            json!([{"name": "z-helper", "kind": "build",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index"}]),
+        )?;
+        for package in &mut metadata.packages {
+            if package.name == "z-helper" {
+                package.dependencies = serde_json::from_value(json!([
+                    {"name": "copybook", "kind": null, "source": null,
+                     "path": "/workspace/copybook"}
+                ]))?;
+            }
+        }
+        let plan = ordered_publish_plan(&metadata, registry)?;
+        assert_eq!(names(&plan), ["copybook", "copybook-rs", "z-helper"]);
+        Ok(())
+    }
+
+    #[test]
+    fn missing_dependency_identity_fails_closed() -> Result<()> {
+        let (mut metadata, registry) = fixture(
+            "0.6.0",
+            json!([{"name": "z-helper", "kind": "build", "source": null}]),
+        )?;
+        let error = rejection(&metadata, registry)?;
+        assert!(error.contains("no source or path identity"));
+
+        let (_, registry) = fixture("0.6.0", json!([]))?;
+        for package in &mut metadata.packages {
+            if package.name == "copybook" {
+                for dependency in &mut package.dependencies {
+                    dependency.path = Some("/workspace/z-helper".into());
+                }
+            } else if package.name == "z-helper" {
+                package.manifest_path = None;
+            }
+        }
+        let error = rejection(&metadata, registry)?;
+        assert!(error.contains("workspace manifest path missing"));
         Ok(())
     }
 }

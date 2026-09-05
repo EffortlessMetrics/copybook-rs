@@ -5,6 +5,7 @@ use serde_json::Value;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fs,
+    path::PathBuf,
     process::Command,
 };
 
@@ -31,6 +32,8 @@ struct Package {
     publish: Option<Value>,
     #[serde(default)]
     dependencies: Vec<Dependency>,
+    #[serde(default)]
+    manifest_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -65,6 +68,7 @@ type RoleRegistryIndex = (
     HashMap<String, String>,
     HashMap<String, PlanPackage>,
     HashMap<String, String>,
+    HashMap<String, PathBuf>,
 );
 
 #[derive(Debug, Deserialize)]
@@ -75,6 +79,10 @@ struct Dependency {
     name: Option<String>,
     #[serde(default)]
     package: Option<String>,
+    #[serde(default)]
+    source: Option<String>,
+    #[serde(default)]
+    path: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -152,7 +160,7 @@ fn ordered_publish_plan(
         .iter()
         .cloned()
         .collect::<HashSet<_>>();
-    let (package_roles, package_plans, all_id_to_name) =
+    let (package_roles, package_plans, all_id_to_name, workspace_paths) =
         index_role_registry(metadata, registry, &workspace_members)?;
     let all_name_to_id = all_id_to_name
         .iter()
@@ -178,6 +186,7 @@ fn ordered_publish_plan(
         &package_roles,
         &all_id_to_name,
         &all_name_to_id,
+        &workspace_paths,
         &publishable_ids,
         true,
     )?;
@@ -257,6 +266,15 @@ fn ordered_legacy_publish_plan(
         .filter(|package| workspace_members.contains(&package.id))
         .map(|package| (package.id.clone(), package.name.clone()))
         .collect::<HashMap<_, _>>();
+    let workspace_paths = metadata
+        .packages
+        .iter()
+        .filter(|package| workspace_members.contains(&package.id))
+        .filter_map(|package| {
+            let directory = package.manifest_path.as_ref()?.parent()?;
+            Some((package.id.clone(), directory.to_path_buf()))
+        })
+        .collect::<HashMap<_, _>>();
     let all_name_to_id = all_id_to_name
         .iter()
         .map(|(id, name)| (name.clone(), id.clone()))
@@ -270,6 +288,7 @@ fn ordered_legacy_publish_plan(
         &package_roles,
         &all_id_to_name,
         &all_name_to_id,
+        &workspace_paths,
         &publishable_ids,
         false,
     )?;
@@ -309,6 +328,15 @@ fn index_role_registry(
         .filter(|package| workspace_members.contains(&package.id))
         .map(|package| (package.id.clone(), package.name.clone()))
         .collect::<HashMap<_, _>>();
+    let workspace_paths = metadata
+        .packages
+        .iter()
+        .filter(|package| workspace_members.contains(&package.id))
+        .filter_map(|package| {
+            let directory = package.manifest_path.as_ref()?.parent()?;
+            Some((package.id.clone(), directory.to_path_buf()))
+        })
+        .collect::<HashMap<_, _>>();
     let mut package_roles = HashMap::new();
     let mut package_plans = HashMap::new();
     for package in &metadata.packages {
@@ -335,7 +363,7 @@ fn index_role_registry(
             package_plans.insert(package.name.clone(), plan);
         }
     }
-    Ok((package_roles, package_plans, all_id_to_name))
+    Ok((package_roles, package_plans, all_id_to_name, workspace_paths))
 }
 
 fn topological_order(
@@ -593,6 +621,7 @@ mod tests {
             version: "0.5.0".to_string(),
             publish: Some(Value::Array(vec![Value::String("crates-io".to_string())])),
             dependencies: Vec::new(),
+            manifest_path: None,
         }
     }
 
@@ -837,12 +866,12 @@ mod tests {
             r#"{
                 "workspace_members":["id-core", "id-facade", "id-rs"],
                 "packages":[
-                    {"id":"id-facade","name":"copybook","publish":["crates-io"],"dependencies":[
-                        {"name":"copybook-core"}
+                    {"id":"id-facade","name":"copybook","manifest_path":"/workspace/copybook/Cargo.toml","publish":["crates-io"],"dependencies":[
+                        {"name":"copybook-core","source":null,"path":"/workspace/copybook-core"}
                     ]},
-                    {"id":"id-core","name":"copybook-core","publish":["crates-io"],"dependencies":[]},
-                    {"id":"id-rs","name":"copybook-rs","publish":["crates-io"],"dependencies":[
-                        {"name":"copybook"}
+                    {"id":"id-core","name":"copybook-core","manifest_path":"/workspace/copybook-core/Cargo.toml","publish":["crates-io"],"dependencies":[]},
+                    {"id":"id-rs","name":"copybook-rs","manifest_path":"/workspace/copybook-rs/Cargo.toml","publish":["crates-io"],"dependencies":[
+                        {"name":"copybook","source":null,"path":"/workspace/copybook"}
                     ]}
                 ]
             }"#,

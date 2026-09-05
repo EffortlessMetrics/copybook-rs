@@ -133,7 +133,9 @@ mod tests {
     }
 
     fn names(plan: &[PlanPackage]) -> Vec<&str> {
-        plan.iter().map(|package| package.package.as_str()).collect()
+        plan.iter()
+            .map(|package| package.package.as_str())
+            .collect()
     }
 
     fn rejection(metadata: &Metadata, registry: SurfaceRegistry) -> Result<String> {
@@ -219,10 +221,8 @@ mod tests {
 
     #[test]
     fn primary_build_dependency_cannot_bypass_compatibility_policy() -> Result<()> {
-        let (metadata, mut registry) = fixture(
-            "0.6.0",
-            json!([{"name": "z-helper", "kind": "build"}]),
-        )?;
+        let (metadata, mut registry) =
+            fixture("0.6.0", json!([{"name": "z-helper", "kind": "build"}]))?;
         for package in &mut registry.packages {
             if package.name == "z-helper" {
                 package.boundary.role = "compat".to_string();
@@ -231,9 +231,7 @@ mod tests {
             }
         }
         let error = rejection(&metadata, registry)?;
-        assert!(
-            error.contains("primary package copybook depends on compat package z-helper")
-        );
+        assert!(error.contains("primary package copybook depends on compat package z-helper"));
         Ok(())
     }
 
@@ -241,10 +239,8 @@ mod tests {
     fn build_cycles_are_rejected_but_dev_back_edges_are_ignored() -> Result<()> {
         for version in ["0.5.1", "0.6.0"] {
             for kind in ["build", "dev"] {
-                let (mut metadata, registry) = fixture(
-                    version,
-                    json!([{"name": "z-helper", "kind": "build"}]),
-                )?;
+                let (mut metadata, registry) =
+                    fixture(version, json!([{"name": "z-helper", "kind": "build"}]))?;
                 for package in &mut metadata.packages {
                     if package.name == "z-helper" {
                         package.dependencies = serde_json::from_value(json!([

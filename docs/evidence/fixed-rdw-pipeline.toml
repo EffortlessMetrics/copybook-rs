@@ -10,7 +10,7 @@
 # content-addressed, so squash merges cannot invalidate it.
 schema_version = 1
 scope = "fixed-rdw-pipeline"
-content_digest = "f868a58628c6c7144adf45021602e1c45c699ef7568eef7fa3060afe16cf65e7"
+content_digest = "11e2b95302f2c1aad91e199d44802052201fea82514cd301f707c44956c58fdc"
 
 [[scenarios]]
 id = "format.fixed.basic"
@@ -25,10 +25,13 @@ known_limitation = "The registry anchor proves the normal streaming decode path;
 id = "format.fixed.framing.rejection"
 record_formats = ["fixed"]
 api_tests = ["crates/copybook-codec/tests/streaming_file_tests.rs::cobol_record_iterator_truncated_record_returns_typed_error"]
-cli_tests = ["tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkr101_fixed_record_error_for_truncated_fixed_record"]
-error_codes = ["CBKR101_FIXED_RECORD_ERROR"]
-cli_commands = ["decode --format fixed --fail-fast"]
-known_limitation = "The direct trigger covers a truncated fixed input; oversized and IO variants remain linked to their focused crate tests."
+cli_tests = [
+  "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkr101_fixed_record_error_for_truncated_fixed_record",
+  "tests/e2e/e2e_cli_error_code_coverage.rs::cli_errors_propagate_to_verify",
+]
+error_codes = ["CBKI001_INVALID_STATE", "CBKR101_FIXED_RECORD_ERROR"]
+cli_commands = ["decode --format fixed --fail-fast", "verify --format fixed"]
+known_limitation = "Direct CLI triggers cover truncated fixed input and zero-length fixed-schema rejection; oversized and IO variants remain linked to focused crate tests."
 
 [[scenarios]]
 id = "format.rdw.basic"

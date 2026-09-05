@@ -10,7 +10,7 @@ use crate::utils::{
     read_input_or_stdin,
 };
 use crate::write_stdout_all;
-use anyhow::bail;
+use copybook_codec::file::fixed as fixed_file;
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, RecordIterator,
     UnmappablePolicy,
@@ -112,16 +112,13 @@ pub fn run(
     // Validate record format constraints
     match opts.format {
         RecordFormat::Fixed => {
-            if let Some(lrecl) = working_schema.lrecl_fixed {
-                // Check file size is multiple of LRECL
-                if file_size % u64::from(lrecl) != 0 {
-                    warn!(
-                        "File size {} is not a multiple of LRECL {}",
-                        file_size, lrecl
-                    );
-                }
-            } else {
-                bail!("Fixed format requires LRECL from schema, but schema has no fixed length");
+            let lrecl = fixed_file::lrecl(&working_schema)?;
+            // Check file size is multiple of LRECL
+            if file_size % u64::from(lrecl) != 0 {
+                warn!(
+                    "File size {} is not a multiple of LRECL {}",
+                    file_size, lrecl
+                );
             }
         }
         RecordFormat::RDW => {

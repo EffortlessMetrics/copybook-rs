@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Refresh yanked chacha20 lock entry
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/refresh-chacha20-lock.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the PR branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Install Rust 1.95
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+
+      - name: Refresh the yanked dependency
+        run: cargo update -p chacha20@0.10.0 --precise 0.10.2
+
+      - name: Refresh generated notice version
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("THIRD_PARTY_NOTICES.md")
+          text = path.read_text(encoding="utf-8")
+          old = "## chacha20 v0.10.0"
+          new = "## chacha20 v0.10.2"
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one {old!r} notice, found {text.count(old)}")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+
+      - name: Verify the generated delta
+        shell: python
+        run: |
+          import re
+          import subprocess
+          from pathlib import Path
+
+          changed = set(
+              subprocess.check_output(
+                  ["git", "diff", "--name-only"], text=True
+              ).splitlines()
+          )
+          expected = {"Cargo.lock", "THIRD_PARTY_NOTICES.md"}
+          if changed != expected:
+              raise SystemExit(f"unexpected generated files: {sorted(changed)}")
+
+          lock = Path("Cargo.lock").read_text(encoding="utf-8")
+          match = re.search(
+              r'\[\[package\]\]\nname = "chacha20"\nversion = "([^"]+)"'
+              r'\nsource = "registry\+https://github.com/rust-lang/crates.io-index"'
+              r'\nchecksum = "([0-9a-f]+)"',
+              lock,
+          )
+          expected_pair = (
+              "0.10.2",
+              "65c35e4b699c7e15ccbe7ee35c005e4fc0a278d22238a2857e6ce2dadeda1b06",
+          )
+          if match is None or match.groups() != expected_pair:
+              raise SystemExit(
+                  f"unexpected chacha20 lock entry: {None if match is None else match.groups()}"
+              )
+
+          notices = Path("THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
+          if "## chacha20 v0.10.2" not in notices or "## chacha20 v0.10.0" in notices:
+              raise SystemExit("third-party notice did not move exactly to chacha20 0.10.2")
+
+      - name: Verify locked dependency resolution
+        run: cargo metadata --locked --format-version 1 > /dev/null
+
+      - name: Commit the generated lock and notice files
+        run: |
+          git config user.name "EffortlessSteven"
+          git config user.email "git@effortlesssteven.com"
+          git add Cargo.lock THIRD_PARTY_NOTICES.md
+          git diff --cached --check
+          git commit -m "fix(deps): update yanked chacha20 lock entry"
+          git push origin "HEAD:${{ github.head_ref }}"

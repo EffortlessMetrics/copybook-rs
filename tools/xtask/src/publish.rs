@@ -155,7 +155,8 @@ fn ordered_publish_plan(
     metadata: &Metadata,
     registry: SurfaceRegistry,
 ) -> Result<Vec<PlanPackage>> {
-    if workspace_release_line(metadata).as_deref() == Some("0.5") {
+    let release_line = workspace_release_line(metadata);
+    if release_line.as_deref() == Some("0.5") {
         return ordered_legacy_publish_plan(metadata, registry);
     }
 
@@ -164,8 +165,12 @@ fn ordered_publish_plan(
         .iter()
         .cloned()
         .collect::<HashSet<_>>();
-    let (package_roles, package_plans, all_id_to_name, workspace_paths) =
-        index_role_registry(metadata, registry, &workspace_members)?;
+    let (package_roles, package_plans, all_id_to_name, workspace_paths) = index_role_registry(
+        metadata,
+        registry,
+        &workspace_members,
+        release_line.as_deref(),
+    )?;
     let all_name_to_id = all_id_to_name
         .iter()
         .map(|(id, name)| (name.clone(), id.clone()))
@@ -209,6 +214,10 @@ fn workspace_release_line(metadata: &Metadata) -> Option<String> {
         .find(|package| package.name == "copybook" && workspace_members.contains(&package.id))?
         .version
         .as_str();
+    version_release_line(version)
+}
+
+fn version_release_line(version: &str) -> Option<String> {
     let mut components = version.split('.');
     let major = components.next()?;
     let minor = components.next()?;
@@ -303,6 +312,7 @@ fn index_role_registry(
     metadata: &Metadata,
     registry: SurfaceRegistry,
     workspace_members: &HashSet<String>,
+    release_line: Option<&str>,
 ) -> Result<RoleRegistryIndex> {
     let registry_package_count = registry.packages.len();
     let registry_by_name = registry
@@ -363,7 +373,7 @@ fn index_role_registry(
         }
         validate_role(&package.name, &registry_package.boundary.role)?;
         package_roles.insert(package.name.clone(), registry_package.boundary.role.clone());
-        if let Some(plan) = plan_package(package, registry_package)? {
+        if let Some(plan) = plan_package(package, registry_package, release_line)? {
             package_plans.insert(package.name.clone(), plan);
         }
     }
@@ -473,6 +483,7 @@ fn validate_role(name: &str, role: &str) -> Result<()> {
 fn plan_package(
     package: &Package,
     registry_package: &RegistryPackage,
+    release_line: Option<&str>,
 ) -> Result<Option<PlanPackage>> {
     let role = registry_package.boundary.role.as_str();
     let (selected, compatibility_status, dependency_reason): (bool, String, &str) = match role {
@@ -529,7 +540,11 @@ fn plan_package(
             )
         }
         "compat" => {
-            let selected = compatibility_window_active(&registry_package.boundary);
+            let selected = compatibility_window_active(
+                &registry_package.boundary,
+                release_line,
+                &package.version,
+            );
             (
                 selected,
                 if selected {
@@ -556,8 +571,14 @@ fn plan_package(
     }))
 }
 
-fn compatibility_window_active(boundary: &RegistryBoundary) -> bool {
-    boundary.target_disposition == "collapse"
+fn compatibility_window_active(
+    boundary: &RegistryBoundary,
+    release_line: Option<&str>,
+    package_version: &str,
+) -> bool {
+    release_line == Some(TARGET_RELEASE_LINE)
+        && version_release_line(package_version).as_deref() == Some(TARGET_RELEASE_LINE)
+        && boundary.target_disposition == "collapse"
         && matches!(
             boundary.compatibility_plan.as_str(),
             "implementation-free-forwarder-through-0.6-with-finite-window"
@@ -651,6 +672,13 @@ mod tests {
         }
     }
 
+    fn plan_test_package(
+        package: &Package,
+        registry_package: &RegistryPackage,
+    ) -> Result<Option<PlanPackage>> {
+        plan_package(package, registry_package, Some(TARGET_RELEASE_LINE))
+    }
+
     #[test]
     fn compatibility_window_requires_active_exact_registry_token() {
         let mut boundary = RegistryBoundary {
@@ -659,19 +687,82 @@ mod tests {
             compatibility_plan: "implementation-free-forwarder-through-0.6-with-finite-window"
                 .to_string(),
         };
-        assert!(compatibility_window_active(&boundary));
+        assert!(compatibility_window_active(
+            &boundary,
+            Some(TARGET_RELEASE_LINE),
+            "0.6.0",
+        ));
+        assert!(!compatibility_window_active(
+            &boundary,
+            Some("0.7"),
+            "0.6.0",
+        ));
+        assert!(!compatibility_window_active(
+            &boundary,
+            Some(TARGET_RELEASE_LINE),
+            "0.7.0",
+        ));
+        assert!(!compatibility_window_active(&boundary, None, "0.6.0"));
 
         boundary.compatibility_plan = "deprecated-through-0.6".to_string();
-        assert!(compatibility_window_active(&boundary));
+        assert!(compatibility_window_active(
+            &boundary,
+            Some(TARGET_RELEASE_LINE),
+            "0.6.0"
+        ));
 
         boundary.compatibility_plan = "removed-in-0.6".to_string();
-        assert!(!compatibility_window_active(&boundary));
+        assert!(!compatibility_window_active(
+            &boundary,
+            Some(TARGET_RELEASE_LINE),
+            "0.6.0"
+        ));
         boundary.compatibility_plan = "forwarder-through-10.6".to_string();
-        assert!(!compatibility_window_active(&boundary));
+        assert!(!compatibility_window_active(
+            &boundary,
+            Some(TARGET_RELEASE_LINE),
+            "0.6.0"
+        ));
         boundary.target_disposition = "conditional".to_string();
         boundary.compatibility_plan =
             "implementation-free-forwarder-through-0.6-with-finite-window".to_string();
-        assert!(!compatibility_window_active(&boundary));
+        assert!(!compatibility_window_active(
+            &boundary,
+            Some(TARGET_RELEASE_LINE),
+            "0.6.0"
+        ));
+
+        let metadata: Metadata = serde_json::from_str(
+            r#"{
+            "workspace_members":["id-facade", "id-compat", "id-rs"],
+            "packages":[
+                {"id":"id-facade","name":"copybook","version":"0.7.0","dependencies":[]},
+                {"id":"id-compat","name":"copybook-dialect","version":"0.7.0","dependencies":[]},
+                {"id":"id-rs","name":"copybook-rs","version":"0.7.0","dependencies":[
+                    {"name":"copybook","package":"id-facade"}
+                ]}
+            ]
+        }"#,
+        )
+        .unwrap();
+        let mut registry = test_registry(&metadata);
+        let compat = registry
+            .packages
+            .iter_mut()
+            .find(|package| package.name == "copybook-dialect")
+            .unwrap();
+        compat.boundary.role = "compat".to_string();
+        compat.boundary.target_disposition = "collapse".to_string();
+        compat.boundary.compatibility_plan =
+            "implementation-free-forwarder-through-0.6-with-finite-window".to_string();
+
+        let plan = ordered_publish_plan(&metadata, registry).unwrap();
+        assert_eq!(
+            plan.iter()
+                .map(|package| package.package.as_str())
+                .collect::<Vec<_>>(),
+            ["copybook", "copybook-rs"]
+        );
     }
 
     #[test]
@@ -747,12 +838,13 @@ mod tests {
     #[test]
     fn role_policy_selects_active_compat_and_omits_conditional_or_retiring_packages() {
         let primary = test_package("copybook-core");
-        let compat = test_package("copybook-dialect");
+        let mut compat = test_package("copybook-dialect");
+        compat.version = "0.6.0".to_string();
         let conditional = test_package("copybook-fixed");
         let retiring = test_package("copybook-utils");
 
         assert!(
-            plan_package(
+            plan_test_package(
                 &primary,
                 &test_registry_package(
                     "copybook-core",
@@ -764,7 +856,7 @@ mod tests {
             .unwrap()
             .is_some()
         );
-        let compat_plan = plan_package(
+        let compat_plan = plan_test_package(
             &compat,
             &test_registry_package(
                 "copybook-dialect",
@@ -777,7 +869,7 @@ mod tests {
         .unwrap();
         assert_eq!(compat_plan.compatibility_status, "active-through-0.6");
         assert!(
-            plan_package(
+            plan_test_package(
                 &conditional,
                 &test_registry_package("copybook-fixed", "primary", "conditional", "conditional")
             )
@@ -785,7 +877,7 @@ mod tests {
             .is_none()
         );
         assert!(
-            plan_package(
+            plan_test_package(
                 &retiring,
                 &test_registry_package(
                     "copybook-utils",
@@ -804,7 +896,7 @@ mod tests {
         let package = test_package("copybook-core");
         assert!(validate_role("copybook-core", "unknown").is_err());
         assert!(
-            plan_package(
+            plan_test_package(
                 &package,
                 &test_registry_package("copybook-core", "unknown", "keep", "")
             )

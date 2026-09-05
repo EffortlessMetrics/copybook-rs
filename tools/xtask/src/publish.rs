@@ -363,7 +363,12 @@ fn index_role_registry(
             package_plans.insert(package.name.clone(), plan);
         }
     }
-    Ok((package_roles, package_plans, all_id_to_name, workspace_paths))
+    Ok((
+        package_roles,
+        package_plans,
+        all_id_to_name,
+        workspace_paths,
+    ))
 }
 
 fn topological_order(

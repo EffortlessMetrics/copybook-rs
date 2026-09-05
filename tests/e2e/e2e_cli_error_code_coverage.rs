@@ -39,8 +39,11 @@ fn combined_output(output: &Output) -> String {
 }
 
 fn assert_no_panic(stderr: &str) {
+    let caught_panic = stderr
+        .lines()
+        .any(|line| line.trim_start().starts_with("panic:"));
     assert!(
-        !stderr.contains("panicked at"),
+        !stderr.contains("panicked at") && !caught_panic,
         "CLI panicked! stderr:\n{stderr}"
     );
 }
@@ -1027,9 +1030,9 @@ fn cli_parse_error_propagates_to_encode() {
     );
 }
 
-/// Parse error propagates through `verify` command.
+/// Parse and zero-length fixed-framing errors propagate through `verify`.
 #[test]
-fn cli_parse_error_propagates_to_verify() {
+fn cli_errors_propagate_to_verify() {
     let dir = setup_decode("GARBAGE NOT COBOL", &[0x00; 10]);
 
     let output = Command::cargo_bin("copybook")
@@ -1047,6 +1050,37 @@ fn cli_parse_error_propagates_to_verify() {
     assert!(
         se.contains("CBKP001_SYNTAX"),
         "Expected CBKP001 in verify stderr: {se}"
+    );
+
+    let dir = setup_decode(
+        "       01  REC.
+",
+        &[],
+    );
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args(["verify"])
+        .arg(temp_path(&dir, "schema.cpy"))
+        .arg(temp_path(&dir, "data.bin"))
+        .args(["--format", "fixed", "--codepage", "cp037"])
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let se = stderr_str(&output);
+    assert_no_panic(&se);
+    assert!(
+        se.contains("CBKI001_INVALID_STATE"),
+        "Expected typed zero-LRECL error in verify stderr: {se}"
+    );
+    assert!(
+        se.contains("LRECL must be greater than zero"),
+        "Expected zero-LRECL reason in verify stderr: {se}"
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(5),
+        "CBKI invalid-state failures must exit with status 5"
     );
 }
 

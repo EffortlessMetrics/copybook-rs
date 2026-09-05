@@ -44,7 +44,7 @@ function fakeClient(issuePages, commentsByIssue = new Map()) {
   };
 }
 
-test("discovers all issue/comment pages, filters security labels, and excludes pull requests", async () => {
+test("discovers all issue pages, scopes comment pagination to roll-up candidates, and excludes pull requests", async () => {
   const source = fixture.markedAcrossPages.issuePages[0][0];
   const filler = Array.from({ length: 99 }, (_, index) => rawIssue({ number: 1000 + index, title: `other-${index}`, body: "", state: "open", commentPages: [] }));
   const firstPage = [...filler, rawIssue(source)];
@@ -56,8 +56,40 @@ test("discovers all issue/comment pages, filters security labels, and excludes p
   assert.equal(snapshot.issuePages.length, 2);
   assert.equal(snapshot.issuePages.flat().filter((issue) => issue.number === source.number).length, 1);
   assert.equal(snapshot.issuePages.flat().some((issue) => issue.number === 4000), false);
+  assert.equal(snapshot.issuePages[0][0].commentPages.length, 0);
   assert.equal(snapshot.trustedAuthors[0], "github-actions[bot]");
-  assert.ok(client.calls.some((call) => call[0] === "listComments" && call[2] === 2));
+  const commentCalls = client.calls.filter((call) => call[0] === "listComments");
+  assert.deepEqual([...new Set(commentCalls.map((call) => call[1]))], [source.number]);
+  assert.ok(commentCalls.some((call) => call[2] === 2));
+});
+
+test("unrelated security issue comments are neither fetched nor allowed to poison planning", async () => {
+  const unrelated = rawIssue({ number: 44, title: "Unrelated security work", body: "", state: "open", commentPages: [] });
+  const comments = new Map([[44, [[{ id: 0, body: 7, user: { login: null } }]]]]);
+  const client = fakeClient([[unrelated]], comments);
+  const result = await runLifecycle({ client, scan: { state: "clean", eligible: true }, dryRun: true });
+  assert.equal(result.plan.action, "no-op");
+  assert.equal(result.plan.reason, "clean-without-rollup");
+  assert.equal(client.calls.some((call) => call[0] === "listComments"), false);
+});
+
+test("malformed roll-up marker namespaces remain candidates and fail closed", async () => {
+  const malformed = rawIssue({
+    number: 45,
+    title: "Unrelated title",
+    body: "<!-- copybook-security-rollup:v2 -->",
+    state: "open",
+    commentPages: [],
+  });
+  const client = fakeClient([[malformed]], new Map([[45, [[]]]]));
+  await assert.rejects(
+    () => runLifecycle({ client, scan: { state: "clean", eligible: true }, dryRun: true }),
+    /malformed or duplicate roll-up marker/u,
+  );
+  assert.deepEqual(
+    client.calls.filter((call) => call[0] === "listComments"),
+    [["listComments", 45, 1]],
+  );
 });
 
 test("executes every planner action with canonical target and no-op writes nothing", async () => {

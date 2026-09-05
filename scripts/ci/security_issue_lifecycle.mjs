@@ -3,8 +3,8 @@
 
 export const ROLLUP_TITLE = "Weekly Security Audit Findings";
 export const ROLLUP_MARKER = "<!-- copybook-security-rollup:v1 -->";
+export const ROLLUP_MARKER_NAMESPACE = "copybook-security-rollup:";
 
-const ROLLUP_MARKER_NAMESPACE = "copybook-security-rollup:";
 const FINDINGS_MARKER_NAMESPACE = "copybook-security-findings:";
 const FINGERPRINT_PATTERN = /^sha256:[0-9a-f]{64}$/;
 const ARTIFACT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;

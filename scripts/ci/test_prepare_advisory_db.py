@@ -69,6 +69,22 @@ class PrepareAdvisoryDbTests(unittest.TestCase):
             self.assertTrue((parent / ".git").is_dir())
             self.assertEqual(sentinel.read_text(encoding="utf-8"), "keep")
 
+    def test_malformed_git_metadata_inside_checkout_is_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary) / "project"
+            self._committed_checkout(parent)
+            sentinel = parent / "sentinel"
+            sentinel.write_text("keep", encoding="utf-8")
+            path = parent / ".cargo" / "advisory-db"
+            metadata = path / ".git"
+            metadata.mkdir(parents=True)
+            (metadata / "partial-config").write_text("incomplete", encoding="utf-8")
+
+            self.assertTrue(remove_if_unusable(path))
+            self.assertFalse(path.exists())
+            self.assertTrue((parent / ".git").is_dir())
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "keep")
+
     def test_uncommitted_database_inside_checkout_is_removed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             parent = Path(temporary) / "project"

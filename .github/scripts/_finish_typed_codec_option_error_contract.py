@@ -147,11 +147,8 @@ fn encoding_compatibility_package_forwards_typed_parse_contract(
     requires_typed_error::<JsonNumberMode>();
     requires_typed_error::<RawMode>();
 
-    let error = match RecordFormat::from_str("stream") {
-        Err(error) => error,
-        Ok(_) => {
-            return Err(io::Error::other("expected unsupported record format").into());
-        }
+    let Err(error) = RecordFormat::from_str("stream") else {
+        return Err(io::Error::other("expected unsupported record format").into());
     };
 
     assert_eq!(error.kind(), CodecOptionKind::RecordFormat);

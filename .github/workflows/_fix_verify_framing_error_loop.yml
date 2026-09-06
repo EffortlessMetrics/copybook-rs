@@ -32,32 +32,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "$SOURCE_HEAD"
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("crates/copybook-cli/src/commands/verify.rs")
-          text = path.read_text(encoding="utf-8")
-          old = '''            Err(error) => {
-              records_total += 1;
-              record_verification_error(&mut verify_report, records_total - 1, &error, None);
-              if record_iter.is_eof() {
-                  break;
-              }
-          }
-'''
-          new = '''            Err(error) => {
-              records_total += 1;
-              record_verification_error(&mut verify_report, records_total - 1, &error, None);
-              // A framing error leaves no reliable record boundary from which
-              // verification can resume.
-              break;
-          }
-'''
-          if text.count(old) != 1:
-              raise SystemExit("expected verify framing-error loop was not found exactly once")
-          path.write_text(text.replace(old, new, 1), encoding="utf-8")
-          PY
+          test "$(git merge-base HEAD "$SOURCE_HEAD")" = "$SOURCE_HEAD"
+          python3 .github/scripts/_fix_verify_framing_error_loop.py
 
       - name: Format and refresh content-addressed evidence
         shell: bash
@@ -82,7 +58,7 @@ jobs:
             docs/evidence/fixed-rdw-pipeline.toml | sort)"
           test "$actual" = "$expected"
 
-      - name: Replace bootstrap commit with reviewed source commit
+      - name: Replace bootstrap history with reviewed source commit
         env:
           BRANCH: fix/verify-codec-framed-error-samples-20260905
           SOURCE_HEAD: 891353519da03a331f028184eb4b5854bb4647fb
@@ -92,6 +68,7 @@ jobs:
           git config user.name "EffortlessSteven"
           git config user.email "git@effortlesssteven.com"
           rm .github/workflows/_fix_verify_framing_error_loop.yml
+          rm .github/scripts/_fix_verify_framing_error_loop.py
           git add -A
           tree="$(git write-tree)"
           commit="$(printf '%s\n' 'fix(cli): stop verify after framing read errors' | git commit-tree "$tree" -p "$SOURCE_HEAD")"

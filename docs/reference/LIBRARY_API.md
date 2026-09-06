@@ -274,6 +274,38 @@ pub enum FloatFormat {
 }
 ```
 
+
+### Parsing codec option values
+
+`FloatFormat`, `RecordFormat`, `JsonNumberMode`, and `RawMode` share
+`ParseCodecOptionError` as their public `FromStr::Err` type. The error preserves
+the original input and exposes both the rejected option family and every
+accepted spelling:
+
+```rust
+use copybook::codec::{CodecOptionKind, ParseCodecOptionError, RecordFormat};
+use std::str::FromStr;
+
+fn parse_format(value: &str) -> Result<RecordFormat, ParseCodecOptionError> {
+    RecordFormat::from_str(value)
+}
+
+let error = parse_format("blocked").expect_err("unsupported value");
+assert_eq!(error.kind(), CodecOptionKind::RecordFormat);
+assert_eq!(error.input(), "blocked");
+assert_eq!(error.accepted_spellings(), &["fixed", "rdw"]);
+```
+
+The canonical types are available from `copybook::codec`,
+`copybook_codec::options`, and the `copybook_codec` root. The compatibility
+`copybook_options` package forwards the same contract. Display text remains
+compatible with the former `String` errors.
+
+These failures intentionally have no `CBK*` code. They represent textual
+configuration-token conversion before a decode, encode, record-framing, or
+infrastructure operation begins. Serde deserialization is a separate rejection
+path and is not converted to `ParseCodecOptionError`.
+
 ## Codepage Notes
 
 copybook-rs ships with an explicit allowlist of production codepages. The encoder/decoder

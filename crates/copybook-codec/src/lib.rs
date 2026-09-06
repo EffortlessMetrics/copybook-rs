@@ -54,8 +54,8 @@ pub use lib_api::{
 pub use numeric::{SmallDecimal, ZonedEncodingInfo};
 
 pub use options::{
-    Codepage, DecodeOptions, EncodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat,
-    UnmappablePolicy, ZonedEncodingFormat,
+    CodecOptionKind, Codepage, DecodeOptions, EncodeOptions, FloatFormat, JsonNumberMode,
+    ParseCodecOptionError, RawMode, RecordFormat, UnmappablePolicy, ZonedEncodingFormat,
 };
 
 pub use determinism::{

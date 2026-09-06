@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **codec**: `FloatFormat`, `RecordFormat`, `JsonNumberMode`, and `RawMode` now
+  return the inspectable `ParseCodecOptionError` from `FromStr` rather than an
+  unstructured `String`. The error retains the original input and exposes the
+  option family and accepted spellings; accepted values and display text are
+  unchanged. This conversion-layer contract is separate from runtime `CBK*`
+  errors and from Serde deserialization failures.
+
 ### Added
 - **error**: `CBKF001_FILE_READ_ERROR` for a file named on the command line that
   cannot be opened or read. Severity Fatal; maps to exit code 4 like the rest of

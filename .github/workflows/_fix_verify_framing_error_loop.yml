@@ -47,8 +47,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo +1.95.0 test -p copybook-cli --test e2e_verify_comprehensive verify_samples_are_limited_and_use_codec_record_bytes
-          cargo +1.95.0 test -p copybook-cli --test e2e_verify_comprehensive verify_truncated_record_detected
+          cargo +1.95.0 test -p copybook-e2e --test e2e_verify_comprehensive verify_samples_are_limited_and_use_codec_record_bytes
+          cargo +1.95.0 test -p copybook-e2e --test e2e_verify_comprehensive verify_truncated_record_detected
           cargo +1.95.0 clippy -p copybook-cli --bin copybook -- -D warnings -W clippy::pedantic
           cargo +1.95.0 run -p xtask -- docs verify-record-pipeline
           git diff --check

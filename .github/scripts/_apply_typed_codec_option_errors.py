@@ -348,8 +348,9 @@ error type. The forwarding `copybook-options` package exports the same contract.
 changelog = Path("CHANGELOG.md")
 replace_once(
     changelog,
-    "\n### Fixed\n",
-    """
+    "## [Unreleased]\n\n### Added\n",
+    """## [Unreleased]
+
 ### Changed
 - **codec**: `FloatFormat`, `RecordFormat`, `JsonNumberMode`, and `RawMode` now
   return the inspectable `ParseCodecOptionError` from `FromStr` rather than an
@@ -358,6 +359,6 @@ replace_once(
   unchanged. This conversion-layer contract is separate from runtime `CBK*`
   errors and from Serde deserialization failures.
 
-### Fixed
+### Added
 """,
 )

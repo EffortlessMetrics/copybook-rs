@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Apply verify framing-error termination fix
+
+on:
+  push:
+    branches:
+      - fix/verify-codec-framed-error-samples-20260905
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          ref: fix/verify-codec-framed-error-samples-20260905
+          fetch-depth: 0
+
+      - name: Install Rust 1.95
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+          components: rustfmt, clippy
+
+      - name: Stop after any framing read error
+        env:
+          SOURCE_HEAD: 891353519da03a331f028184eb4b5854bb4647fb
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$SOURCE_HEAD"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("crates/copybook-cli/src/commands/verify.rs")
+          text = path.read_text(encoding="utf-8")
+          old = '''            Err(error) => {
+              records_total += 1;
+              record_verification_error(&mut verify_report, records_total - 1, &error, None);
+              if record_iter.is_eof() {
+                  break;
+              }
+          }
+'''
+          new = '''            Err(error) => {
+              records_total += 1;
+              record_verification_error(&mut verify_report, records_total - 1, &error, None);
+              // A framing error leaves no reliable record boundary from which
+              // verification can resume.
+              break;
+          }
+'''
+          if text.count(old) != 1:
+              raise SystemExit("expected verify framing-error loop was not found exactly once")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
+      - name: Format and refresh content-addressed evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.95.0 fmt --all
+          git add crates/copybook-cli/src/commands/verify.rs
+          cargo +1.95.0 run -p xtask -- docs sync-record-pipeline
+
+      - name: Verify focused behavior and policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.95.0 test -p copybook-cli --test e2e_verify_comprehensive verify_samples_are_limited_and_use_codec_record_bytes
+          cargo +1.95.0 test -p copybook-cli --test e2e_verify_comprehensive verify_truncated_record_detected
+          cargo +1.95.0 clippy -p copybook-cli --bin copybook -- -D warnings -W clippy::pedantic
+          cargo +1.95.0 run -p xtask -- docs verify-record-pipeline
+          git diff --check
+          actual="$(git status --short | awk '{print $2}' | sort)"
+          expected="$(printf '%s\n' \
+            crates/copybook-cli/src/commands/verify.rs \
+            docs/evidence/fixed-rdw-pipeline.toml | sort)"
+          test "$actual" = "$expected"
+
+      - name: Replace bootstrap commit with reviewed source commit
+        env:
+          BRANCH: fix/verify-codec-framed-error-samples-20260905
+          SOURCE_HEAD: 891353519da03a331f028184eb4b5854bb4647fb
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "EffortlessSteven"
+          git config user.email "git@effortlesssteven.com"
+          rm .github/workflows/_fix_verify_framing_error_loop.yml
+          git add -A
+          tree="$(git write-tree)"
+          commit="$(printf '%s\n' 'fix(cli): stop verify after framing read errors' | git commit-tree "$tree" -p "$SOURCE_HEAD")"
+          git push --force-with-lease="refs/heads/$BRANCH:$GITHUB_SHA" origin "$commit:refs/heads/$BRANCH"
+          echo "Final commit: $commit"

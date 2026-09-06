@@ -1,0 +1,176 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Apply typed codec option error contract
+
+on:
+  push:
+    branches:
+      - api/typed-codec-option-error-contract-20260906
+
+permissions:
+  contents: write
+
+concurrency:
+  group: typed-codec-option-error-contract-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_BASE: 526126014f3caf5d7f9a723a2738866f2ea9cb90
+  TARGET_BRANCH: api/typed-codec-option-error-contract-20260906
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v7
+        with:
+          ref: api/typed-codec-option-error-contract-20260906
+          fetch-depth: 0
+
+      - name: Install Rust 1.95
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+          components: rustfmt, clippy
+
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Verify current-main base
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          test "$(git merge-base HEAD origin/main)" = "$EXPECTED_BASE"
+          test "$(git rev-parse origin/main)" = "$EXPECTED_BASE"
+
+      - name: Apply typed option parse contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/_apply_typed_codec_option_errors.py
+          python3 .github/scripts/_finish_typed_codec_option_error_contract.py
+          cargo +1.95.0 fmt --all
+
+      - name: Run focused contract proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.95.0 test --locked -p copybook-codec --test option_parse_errors
+          cargo +1.95.0 test --locked -p copybook-options --test parse_error_compat
+          cargo +1.95.0 test --locked -p copybook-codec --lib options
+          cargo +1.95.0 test --locked -p copybook-codec --doc
+          cargo +1.95.0 clippy --locked -p copybook-codec --lib --test option_parse_errors -- -D warnings -W clippy::pedantic
+          cargo +1.95.0 clippy --locked -p copybook-options --test parse_error_compat -- -D warnings -W clippy::pedantic
+
+      - name: Generate current test receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.95.0 nextest run --locked --workspace \
+            --exclude copybook-bench --exclude copybook-bdd --profile ci
+          cargo +1.95.0 run --locked -p xtask -- docs sync-tests
+
+      - name: Stage digest inputs and refresh evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            CHANGELOG.md \
+            crates/copybook-codec/src/lib.rs \
+            crates/copybook-codec/src/options.rs \
+            crates/copybook-codec/src/options/parse_error.rs \
+            crates/copybook-codec/tests/option_parse_errors.rs \
+            crates/copybook-options/tests/parse_error_compat.rs \
+            docs/MIGRATION_GUIDE.md \
+            docs/reference/LIBRARY_API.md
+          if ! git diff --quiet -- README.md; then git add README.md; fi
+          if ! git diff --quiet -- docs/REPORT.md; then git add docs/REPORT.md; fi
+          cargo +1.95.0 run --locked -p xtask -- docs sync-record-pipeline
+          git add docs/evidence/fixed-rdw-pipeline.toml
+
+      - name: Verify complete repository contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.95.0 run --locked -p xtask -- docs verify-all
+          cargo +1.95.0 fmt --all -- --check
+          git diff --check
+          git diff --cached --check
+          git diff --exit-code
+
+          actual="$(git diff --cached --name-only | sort)"
+          required="$(printf '%s\n' \
+            CHANGELOG.md \
+            crates/copybook-codec/src/lib.rs \
+            crates/copybook-codec/src/options.rs \
+            crates/copybook-codec/src/options/parse_error.rs \
+            crates/copybook-codec/tests/option_parse_errors.rs \
+            crates/copybook-options/tests/parse_error_compat.rs \
+            docs/MIGRATION_GUIDE.md \
+            docs/evidence/fixed-rdw-pipeline.toml \
+            docs/reference/LIBRARY_API.md | sort)"
+          allowed="$(printf '%s\n' \
+            CHANGELOG.md \
+            README.md \
+            crates/copybook-codec/src/lib.rs \
+            crates/copybook-codec/src/options.rs \
+            crates/copybook-codec/src/options/parse_error.rs \
+            crates/copybook-codec/tests/option_parse_errors.rs \
+            crates/copybook-options/tests/parse_error_compat.rs \
+            docs/MIGRATION_GUIDE.md \
+            docs/REPORT.md \
+            docs/evidence/fixed-rdw-pipeline.toml \
+            docs/reference/LIBRARY_API.md | sort)"
+          test -z "$(comm -23 <(printf '%s\n' "$required") <(printf '%s\n' "$actual"))"
+          test -z "$(comm -23 <(printf '%s\n' "$actual") <(printf '%s\n' "$allowed"))"
+
+      - name: Commit product changes and remove executor
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "EffortlessSteven"
+          git config user.email "git@effortlesssteven.com"
+          rm .github/scripts/_apply_typed_codec_option_errors.py
+          rm .github/scripts/_finish_typed_codec_option_error_contract.py
+          rm .github/workflows/_apply_typed_codec_option_error_contract.yml
+          git add -A
+
+          actual="$(git diff --cached --name-only | sort)"
+          required="$(printf '%s\n' \
+            .github/scripts/_apply_typed_codec_option_errors.py \
+            .github/scripts/_finish_typed_codec_option_error_contract.py \
+            .github/workflows/_apply_typed_codec_option_error_contract.yml \
+            CHANGELOG.md \
+            crates/copybook-codec/src/lib.rs \
+            crates/copybook-codec/src/options.rs \
+            crates/copybook-codec/src/options/parse_error.rs \
+            crates/copybook-codec/tests/option_parse_errors.rs \
+            crates/copybook-options/tests/parse_error_compat.rs \
+            docs/MIGRATION_GUIDE.md \
+            docs/evidence/fixed-rdw-pipeline.toml \
+            docs/reference/LIBRARY_API.md | sort)"
+          allowed="$(printf '%s\n' \
+            .github/scripts/_apply_typed_codec_option_errors.py \
+            .github/scripts/_finish_typed_codec_option_error_contract.py \
+            .github/workflows/_apply_typed_codec_option_error_contract.yml \
+            CHANGELOG.md \
+            README.md \
+            crates/copybook-codec/src/lib.rs \
+            crates/copybook-codec/src/options.rs \
+            crates/copybook-codec/src/options/parse_error.rs \
+            crates/copybook-codec/tests/option_parse_errors.rs \
+            crates/copybook-options/tests/parse_error_compat.rs \
+            docs/MIGRATION_GUIDE.md \
+            docs/REPORT.md \
+            docs/evidence/fixed-rdw-pipeline.toml \
+            docs/reference/LIBRARY_API.md | sort)"
+          test -z "$(comm -23 <(printf '%s\n' "$required") <(printf '%s\n' "$actual"))"
+          test -z "$(comm -23 <(printf '%s\n' "$actual") <(printf '%s\n' "$allowed"))"
+
+          git commit -m "feat(codec): add typed option parse errors"
+          git push origin "HEAD:$TARGET_BRANCH"

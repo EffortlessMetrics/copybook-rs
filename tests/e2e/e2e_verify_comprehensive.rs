@@ -480,7 +480,7 @@ fn verify_max_errors_one() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn verify_samples_are_limited_and_use_codec_record_bytes() {
+fn encoding_verify_samples_use_codec_framed_payloads() {
     let bad_comp3_record: Vec<u8> = vec![
         0xF0, 0xF0, 0xF0, 0xF1, 0xFF, 0xFF, 0xFF, 0xFF, 0xC1, 0xC2, 0xC3,
     ];

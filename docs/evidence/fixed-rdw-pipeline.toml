@@ -10,7 +10,7 @@
 # content-addressed, so squash merges cannot invalidate it.
 schema_version = 1
 scope = "fixed-rdw-pipeline"
-content_digest = "2e588c7c40a49248cc6c3f7ab7b53ce9e69aea6949a972532b42fe0411229b5b"
+content_digest = "ee994579287b3166be8303c8997086b2497bd325751d4e7af239e95396a588c7"
 
 [[scenarios]]
 id = "format.fixed.basic"
@@ -120,7 +120,7 @@ api_tests = []
 cli_tests = [
   "tests/e2e/e2e_cli_decode_flags.rs::decode_emit_meta_includes_metadata_fields",
   "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkf102_rdw_truncated_payload_exits_format",
-  "tests/e2e/e2e_verify_comprehensive.rs::verify_samples_are_limited_and_use_codec_record_bytes",
+  "tests/e2e/e2e_verify_comprehensive.rs::encoding_verify_samples_use_codec_framed_payloads",
 ]
 error_codes = ["CBKD401_COMP3_INVALID_NIBBLE", "CBKF102_RECORD_LENGTH_INVALID"]
 cli_commands = [

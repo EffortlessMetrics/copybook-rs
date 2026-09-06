@@ -228,9 +228,9 @@ pub fn run(
             Err(error) => {
                 records_total += 1;
                 record_verification_error(&mut verify_report, records_total - 1, &error, None);
-                if record_iter.is_eof() {
-                    break;
-                }
+                // A framing error leaves no reliable record boundary from which
+                // verification can resume.
+                break;
             }
         }
     }

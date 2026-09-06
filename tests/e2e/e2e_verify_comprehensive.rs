@@ -480,13 +480,14 @@ fn verify_max_errors_one() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn verify_sample_limits_sample_records() {
+fn encoding_verify_samples_use_codec_framed_payloads() {
     let bad_comp3_record: Vec<u8> = vec![
         0xF0, 0xF0, 0xF0, 0xF1, 0xFF, 0xFF, 0xFF, 0xFF, 0xC1, 0xC2, 0xC3,
     ];
+    let expected_payload_hex = "F0F0F0F1FFFFFFFFC1C2C3";
+
     let data = repeat_record(&bad_comp3_record, 10);
     let dir = setup(COMP3_CPY, &data);
-
     cmd()
         .args([
             "verify",
@@ -514,6 +515,40 @@ fn verify_sample_limits_sample_records() {
         "sample array should be limited to --sample=2, got {}",
         samples.len()
     );
+    assert_eq!(samples[0]["hex"], expected_payload_hex);
+    assert_eq!(report["errors"][0]["hex"], expected_payload_hex);
+    assert_eq!(report["errors"][0]["code"], "CBKD401_COMP3_INVALID_NIBBLE");
+
+    let mut rdw_record = vec![0x00, 0x0B, 0x00, 0x00];
+    rdw_record.extend_from_slice(&bad_comp3_record);
+    let dir = setup(COMP3_CPY, &rdw_record);
+    cmd()
+        .args([
+            "verify",
+            "--format",
+            "rdw",
+            "--codepage",
+            "cp037",
+            "--sample",
+            "1",
+            "--max-errors",
+            "100",
+            "--report",
+        ])
+        .arg(report_path(&dir))
+        .arg(cpy_path(&dir))
+        .arg(data_path(&dir))
+        .assert()
+        .code(3);
+
+    let report: Value =
+        serde_json::from_str(&std::fs::read_to_string(report_path(&dir)).unwrap()).unwrap();
+    let samples = report["sample"].as_array().unwrap();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0]["hex"], expected_payload_hex);
+    assert_eq!(report["errors"][0]["hex"], expected_payload_hex);
+    assert_eq!(report["errors"][0]["code"], "CBKD401_COMP3_INVALID_NIBBLE");
+    assert_ne!(samples[0]["hex"], "000B0000F0F0F0F1FFFFFF");
 }
 
 // ---------------------------------------------------------------------------

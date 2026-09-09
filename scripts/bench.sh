@@ -17,7 +17,8 @@ fi
 # heterogeneous runner CPUs, and native-compiled cached proc macros/binaries
 # SIGILL when executed on a different CPU generation. v3 (AVX2) is supported
 # by all GitHub-hosted runners and keeps receipts cache-safe and comparable.
-RUSTFLAGS="-C target-cpu=x86-64-v3" PERF=1 \
+BENCH_RUSTFLAGS="-C target-cpu=x86-64-v3"
+RUSTFLAGS="${BENCH_RUSTFLAGS}" PERF=1 \
   cargo bench -p copybook-bench -- "${bench_filter_args[@]}" --quiet
 
 python3 <<'PY'
@@ -147,3 +148,61 @@ if [[ -x "scripts/soak-aggregate.sh" ]]; then
 else
   echo "⚠️ scripts/soak-aggregate.sh missing or not executable; skipping percentile aggregate."
 fi
+
+# Stamp the governed receipt envelope so the output of this script passes
+# scripts/validate-perf-receipt.sh (schemas/perf-receipt-schema.json) without
+# hand assembly. All values describe the run that just completed.
+RUSTFLAGS_FOR_RECEIPT="${BENCH_RUSTFLAGS:-}" TMP_JSON_FOR_RECEIPT="${TMP_JSON}" python3 <<'PY'
+import json
+import os
+import pathlib
+import platform
+import re
+import subprocess
+
+path = pathlib.Path(os.environ["TMP_JSON_FOR_RECEIPT"])
+receipt = json.loads(path.read_text())
+
+rustflags = os.environ.get("RUSTFLAGS_FOR_RECEIPT", "")
+match = re.search(r"target-cpu=([^\s]+)", rustflags)
+target_cpu = match.group(1) if match else "unknown"
+
+def capture(args, fallback="unknown"):
+    try:
+        out = subprocess.check_output(args, text=True).strip()
+        return out if out else fallback
+    except Exception:
+        return fallback
+
+cpu_model = capture(["sh", "-c", "lscpu 2>/dev/null | awk -F: '/Model name/{sub(/^ +/,\"\",$2); print $2; exit}'"])
+if cpu_model == "unknown":
+    cpu_model = capture(["sh", "-c", "awk -F: '/model name/{sub(/^ +/,\"\",$2); print $2; exit}' /proc/cpuinfo"])
+try:
+    cpu_cores = os.cpu_count() or 0
+except Exception:
+    cpu_cores = 0
+kernel = platform.release()
+wsl2 = False
+try:
+    wsl2 = "microsoft" in pathlib.Path("/proc/version").read_text().lower()
+except OSError:
+    wsl2 = bool(os.environ.get("WSL_DISTRO_NAME"))
+
+receipt["format_version"] = "1.0.0"
+receipt["build_profile"] = "release"
+receipt["target_cpu"] = target_cpu
+receipt["environment"] = {
+    "os": platform.system(),
+    "kernel": kernel,
+    "cpu_model": cpu_model,
+    "cpu_cores": cpu_cores,
+    "wsl2_detected": wsl2,
+}
+path.write_text(json.dumps(receipt, indent=2) + "\n")
+print(f"✅ stamped governed envelope on {path}")
+PY
+
+# Seal with the validator's own canonical hash so the receipt passes
+# scripts/validate-perf-receipt.sh without hand assembly.
+cargo run --quiet --manifest-path tools/copybook-scripts/Cargo.toml -- \
+  seal-perf-receipt "${TMP_JSON}"

@@ -60,7 +60,7 @@ proptest! {
     }
 
     #[test]
-    fn prop_codec_record_facade_matches_microcrate(payload in vec(any::<u8>(), 0..=512)) {
+    fn prop_codec_record_rdw_roundtrip(payload in vec(any::<u8>(), 0..=512)) {
         let mut encoded = Vec::new();
         write_record(&mut encoded, &payload, RecordFormat::RDW)
             .expect("rdw write should succeed");

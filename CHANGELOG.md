@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+
 - **codec**: `FloatFormat`, `RecordFormat`, `JsonNumberMode`, and `RawMode` now
   return the inspectable `ParseCodecOptionError` from `FromStr` rather than an
   unstructured `String`. The error retains the original input and exposes the

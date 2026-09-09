@@ -1,12 +1,12 @@
 #![allow(unused_doc_comments, unused_imports, dead_code)]
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Property tests for record I/O dispatch microcrate invariants.
+//! Property tests for codec-owned record I/O dispatch invariants.
 
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
 use copybook_codec::RecordFormat;
-use copybook_record_io::{read_record, write_record};
+use copybook_codec::record::{read_record, write_record};
 use proptest::collection::vec;
 use proptest::prelude::*;
 use std::io::Cursor;
@@ -60,7 +60,7 @@ proptest! {
     }
 
     #[test]
-    fn prop_codec_record_facade_matches_microcrate(payload in vec(any::<u8>(), 0..=512)) {
+    fn prop_codec_record_rdw_roundtrip(payload in vec(any::<u8>(), 0..=512)) {
         let mut encoded = Vec::new();
         write_record(&mut encoded, &payload, RecordFormat::RDW)
             .expect("rdw write should succeed");

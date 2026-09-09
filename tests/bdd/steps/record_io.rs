@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_codec::RecordFormat;
-use copybook_record_io::{read_record, write_record};
+use copybook_codec::record::{read_record, write_record};
 use cucumber::then;
 use std::io::Cursor;
 

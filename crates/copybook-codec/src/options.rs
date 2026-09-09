@@ -8,6 +8,9 @@
 //! package forwards to this module for compatibility.
 #![allow(clippy::missing_inline_in_public_items)]
 
+mod parse_error;
+pub use parse_error::{CodecOptionKind, ParseCodecOptionError};
+
 // Re-export from copybook-charset for public API
 /// Zoned decimal encoding format (ASCII, EBCDIC, or auto-detect).
 pub use crate::numeric::ZonedEncodingFormat;
@@ -121,13 +124,16 @@ pub enum FloatFormat {
 }
 
 impl FromStr for FloatFormat {
-    type Err = String;
+    type Err = ParseCodecOptionError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input.to_ascii_lowercase().as_str() {
             "ieee-be" | "ieee" | "ieee-big-endian" => Ok(Self::IeeeBigEndian),
             "ibm-hex" | "ibm" => Ok(Self::IbmHex),
-            _ => Err(format!("unsupported float format `{input}`")),
+            _ => Err(ParseCodecOptionError::new(
+                CodecOptionKind::FloatFormat,
+                input,
+            )),
         }
     }
 }
@@ -236,13 +242,16 @@ pub enum RecordFormat {
 }
 
 impl FromStr for RecordFormat {
-    type Err = String;
+    type Err = ParseCodecOptionError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input.to_ascii_lowercase().as_str() {
             "fixed" => Ok(Self::Fixed),
             "rdw" => Ok(Self::RDW),
-            _ => Err(format!("unsupported record format `{input}`")),
+            _ => Err(ParseCodecOptionError::new(
+                CodecOptionKind::RecordFormat,
+                input,
+            )),
         }
     }
 }
@@ -294,13 +303,16 @@ pub enum JsonNumberMode {
 }
 
 impl FromStr for JsonNumberMode {
-    type Err = String;
+    type Err = ParseCodecOptionError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input.to_ascii_lowercase().as_str() {
             "lossless" => Ok(Self::Lossless),
             "native" => Ok(Self::Native),
-            _ => Err(format!("unsupported JSON number mode `{input}`")),
+            _ => Err(ParseCodecOptionError::new(
+                CodecOptionKind::JsonNumberMode,
+                input,
+            )),
         }
     }
 }
@@ -366,7 +378,7 @@ pub enum RawMode {
 }
 
 impl FromStr for RawMode {
-    type Err = String;
+    type Err = ParseCodecOptionError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input.to_ascii_lowercase().as_str() {
@@ -374,7 +386,7 @@ impl FromStr for RawMode {
             "record" => Ok(Self::Record),
             "field" => Ok(Self::Field),
             "record+rdw" => Ok(Self::RecordRDW),
-            _ => Err(format!("unsupported raw mode `{input}`")),
+            _ => Err(ParseCodecOptionError::new(CodecOptionKind::RawMode, input)),
         }
     }
 }

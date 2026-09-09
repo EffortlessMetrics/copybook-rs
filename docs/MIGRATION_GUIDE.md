@@ -3,6 +3,21 @@
 
 Guide for migrating from other COBOL data processing tools to copybook-rs.
 
+## Upcoming 0.6 library API changes
+
+### Typed codec-option parse errors
+
+`FloatFormat`, `RecordFormat`, `JsonNumberMode`, and `RawMode` now implement
+`FromStr<Err = ParseCodecOptionError>` instead of returning an unstructured
+`String`. Existing accepted spellings and human-readable messages are unchanged.
+Code that only displays the error can continue to call `to_string()`; code that
+annotated or matched the old `String` type must accept the typed error instead.
+
+The error exposes `kind()`, `input()`, and `accepted_spellings()` for recovery.
+It deliberately has no `CBK*` code because textual option conversion happens
+before a codec operation; Serde deserialization continues to report Serde's own
+error type. The forwarding `copybook-options` package exports the same contract.
+
 ## Overview
 
 This guide helps users migrate from existing COBOL data processing tools to copybook-rs. We cover common migration scenarios, feature mappings, and provide practical examples for smooth transitions.

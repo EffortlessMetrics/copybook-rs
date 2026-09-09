@@ -10,7 +10,7 @@
 # content-addressed, so squash merges cannot invalidate it.
 schema_version = 1
 scope = "fixed-rdw-pipeline"
-content_digest = "ee994579287b3166be8303c8997086b2497bd325751d4e7af239e95396a588c7"
+content_digest = "1d4ebe6c23f65a63651bdc65d3d4347f191c72ab24b2e8599ad70d77b627c5fe"
 
 [[scenarios]]
 id = "format.fixed.basic"

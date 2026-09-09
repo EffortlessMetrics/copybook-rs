@@ -507,7 +507,12 @@ fn perf_annotate_host() -> Result<()> {
         bail!("perf receipt root must be a JSON object");
     }
 
-    let serialized = serde_json::to_string(&receipt).context("failed to serialize perf receipt")?;
+    // Annotating mutates the sealed surface, so re-seal with the canonical
+    // hash; otherwise downstream integrity validation fails closed.
+    seal_receipt_integrity(&mut receipt)?;
+
+    let serialized =
+        serde_json::to_string_pretty(&receipt).context("failed to serialize perf receipt")?;
     let tmp_path = perf_path.with_extension("json.tmp");
     fs::write(&tmp_path, format!("{serialized}\n"))
         .context("unable to write temporary perf receipt")?;

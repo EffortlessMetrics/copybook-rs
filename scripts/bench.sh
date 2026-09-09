@@ -198,7 +198,9 @@ receipt["environment"] = {
     "cpu_cores": cpu_cores,
     "wsl2_detected": wsl2,
 }
-path.write_text(json.dumps(receipt, indent=2) + "\n")
+tmp_path = path.with_suffix(".json.tmp")
+tmp_path.write_text(json.dumps(receipt, indent=2) + "\n")
+os.replace(tmp_path, path)
 print(f"✅ stamped governed envelope on {path}")
 PY
 

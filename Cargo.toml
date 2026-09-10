@@ -33,9 +33,6 @@ members = [
     "crates/copybook-cli",
     "crates/copybook-cli-determinism",
     "crates/copybook-governance",
-    "crates/copybook-governance-grid",
-    "crates/copybook-governance-runtime",
-    "crates/copybook-governance-contracts",
     "crates/copybook-arrow",
     "crates/copybook-audit",
     "crates/copybook-contracts",
@@ -100,9 +97,6 @@ copybook-sequence-ring = { version = "=0.5.0", path = "crates/copybook-sequence-
 copybook-arrow = { version = "=0.5.0", path = "crates/copybook-arrow" }
 copybook-audit = { version = "=0.5.0", path = "crates/copybook-audit" }
 copybook-governance = { version = "=0.5.0", path = "crates/copybook-governance" }
-copybook-governance-grid = { version = "=0.5.0", path = "crates/copybook-governance-grid" }
-copybook-governance-runtime = { version = "=0.5.0", path = "crates/copybook-governance-runtime" }
-copybook-governance-contracts = { version = "=0.5.0", path = "crates/copybook-governance-contracts" }
 copybook-bench = { version = "=0.5.0", path = "tools/copybook-bench" }
 copybook-contracts = { version = "=0.5.0", path = "crates/copybook-contracts" }
 copybook-support-matrix = { version = "=0.5.0", path = "crates/copybook-support-matrix" }

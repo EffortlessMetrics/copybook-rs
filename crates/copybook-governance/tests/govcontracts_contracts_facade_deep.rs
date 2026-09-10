@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Deep tests for the governance-contracts façade.
+//! Deep tests for the collapsed governance facade.
 //!
 //! Covers Feature trait impls, `FeatureFlags` edge cases, category exhaustiveness,
 //! Handle concurrency patterns, and serde completeness.
@@ -11,7 +11,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::thread;
 
-use copybook_governance_contracts::{
+use copybook_governance::{
     Feature, FeatureCategory, FeatureFlags, FeatureFlagsHandle, FeatureId, SupportStatus,
     find_feature, find_feature_by_id,
 };
@@ -22,7 +22,7 @@ use copybook_governance_contracts::{
 
 #[test]
 fn feature_display_from_str_roundtrip_all_variants() {
-    for feature in copybook_governance_contracts::feature_flags::all_features() {
+    for feature in copybook_governance::feature_flags::all_features() {
         let display = feature.to_string();
         let back = Feature::from_str(&display)
             .unwrap_or_else(|e| panic!("from_str failed for '{display}': {e}"));
@@ -53,7 +53,7 @@ fn feature_from_str_rejects_invalid_input() {
 
 #[test]
 fn feature_env_var_name_has_correct_prefix_for_all_variants() {
-    for feature in copybook_governance_contracts::feature_flags::all_features() {
+    for feature in copybook_governance::feature_flags::all_features() {
         let env_var = feature.env_var_name();
         assert!(
             env_var.starts_with("COPYBOOK_FF_"),
@@ -70,7 +70,7 @@ fn feature_env_var_name_has_correct_prefix_for_all_variants() {
 
 #[test]
 fn feature_env_var_names_are_all_unique() {
-    let names: HashSet<String> = copybook_governance_contracts::feature_flags::all_features()
+    let names: HashSet<String> = copybook_governance::feature_flags::all_features()
         .into_iter()
         .map(Feature::env_var_name)
         .collect();
@@ -84,7 +84,7 @@ fn feature_env_var_names_are_all_unique() {
 
 #[test]
 fn feature_description_is_substantive_for_all_variants() {
-    for feature in copybook_governance_contracts::feature_flags::all_features() {
+    for feature in copybook_governance::feature_flags::all_features() {
         let desc = feature.description();
         assert!(
             desc.len() >= 10,
@@ -95,7 +95,7 @@ fn feature_description_is_substantive_for_all_variants() {
 
 #[test]
 fn feature_descriptions_are_all_unique() {
-    let descs: HashSet<&str> = copybook_governance_contracts::feature_flags::all_features()
+    let descs: HashSet<&str> = copybook_governance::feature_flags::all_features()
         .into_iter()
         .map(Feature::description)
         .collect();
@@ -110,16 +110,16 @@ fn feature_descriptions_are_all_unique() {
 #[test]
 fn feature_flags_all_disabled_then_all_enabled_roundtrip() {
     let mut flags = FeatureFlags::default();
-    for f in copybook_governance_contracts::feature_flags::all_features() {
+    for f in copybook_governance::feature_flags::all_features() {
         flags.disable(f);
     }
-    for f in copybook_governance_contracts::feature_flags::all_features() {
+    for f in copybook_governance::feature_flags::all_features() {
         assert!(!flags.is_enabled(f), "{f} should be disabled");
     }
-    for f in copybook_governance_contracts::feature_flags::all_features() {
+    for f in copybook_governance::feature_flags::all_features() {
         flags.enable(f);
     }
-    for f in copybook_governance_contracts::feature_flags::all_features() {
+    for f in copybook_governance::feature_flags::all_features() {
         assert!(flags.is_enabled(f), "{f} should be enabled");
     }
 }
@@ -128,13 +128,13 @@ fn feature_flags_all_disabled_then_all_enabled_roundtrip() {
 fn feature_flags_toggle_all_features_twice_returns_to_original() {
     let original = FeatureFlags::default();
     let mut flags = original.clone();
-    for f in copybook_governance_contracts::feature_flags::all_features() {
+    for f in copybook_governance::feature_flags::all_features() {
         flags.toggle(f);
     }
-    for f in copybook_governance_contracts::feature_flags::all_features() {
+    for f in copybook_governance::feature_flags::all_features() {
         flags.toggle(f);
     }
-    for f in copybook_governance_contracts::feature_flags::all_features() {
+    for f in copybook_governance::feature_flags::all_features() {
         assert_eq!(
             flags.is_enabled(f),
             original.is_enabled(f),
@@ -172,7 +172,7 @@ fn every_feature_has_a_known_category() {
     .into_iter()
     .collect();
 
-    for feature in copybook_governance_contracts::feature_flags::all_features() {
+    for feature in copybook_governance::feature_flags::all_features() {
         assert!(
             known_categories.contains(&feature.category()),
             "{feature} has unknown category {:?}",
@@ -364,7 +364,7 @@ fn builder_individual_override_after_category() {
 #[test]
 fn default_enabled_features_match_feature_default_enabled_method() {
     let flags = FeatureFlags::default();
-    for feature in copybook_governance_contracts::feature_flags::all_features() {
+    for feature in copybook_governance::feature_flags::all_features() {
         assert_eq!(
             flags.is_enabled(feature),
             feature.default_enabled(),
@@ -376,7 +376,7 @@ fn default_enabled_features_match_feature_default_enabled_method() {
 #[test]
 fn exactly_one_feature_is_default_enabled() {
     // #656 Phase C: LruCache is the only default-enabled flag.
-    let enabled: Vec<_> = copybook_governance_contracts::feature_flags::all_features()
+    let enabled: Vec<_> = copybook_governance::feature_flags::all_features()
         .into_iter()
         .filter(|f| f.default_enabled())
         .collect();

@@ -51,9 +51,9 @@ pub mod fixed {
     pub use copybook_fixed::*;
 }
 
-/// Governance interoperability contracts.
-pub mod governance_contracts {
-    pub use copybook_governance_contracts::*;
+/// Governance interoperability contracts (single-crate surface since #656 Phase F).
+pub mod governance {
+    pub use copybook_governance::*;
 }
 
 /// Configuration option contracts shared across codec workflows.

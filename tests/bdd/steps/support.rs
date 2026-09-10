@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_governance as governance;
-use copybook_governance_runtime as governance_runtime;
 use cucumber::{then, when};
 
 use crate::world::CopybookWorld;
@@ -52,7 +51,7 @@ async fn then_feature_has_status(world: &mut CopybookWorld, expected_status: Str
 #[when(expr = "the governance grid summary is checked")]
 async fn when_governance_grid_summary_checked(world: &mut CopybookWorld) {
     // #656 Phase D: per-scenario explicit flags; no global state.
-    let summary = governance_runtime::runtime_summary(&world.feature_flags);
+    let summary = governance::runtime_summary(&world.feature_flags);
     world.record_count = Some(summary.total_support_features);
     world.verify_report = Some(format!(
         "mapped:{},linked:{},runtime_enabled:{},runtime_disabled:{}",
@@ -140,7 +139,7 @@ async fn then_governance_mapping_includes_flag(world: &mut CopybookWorld, expect
 #[when(expr = "the support matrix runtime availability is checked")]
 async fn when_support_matrix_runtime_available_checked(world: &mut CopybookWorld) {
     // #656 Phase D: per-scenario explicit flags; no global state.
-    let summary = governance_runtime::runtime_summary(&world.feature_flags);
+    let summary = governance::runtime_summary(&world.feature_flags);
     world.verify_report = Some(format!(
         "runtime_enabled:{},runtime_disabled:{}",
         summary.runtime_enabled_features, summary.runtime_disabled_features,
@@ -153,7 +152,7 @@ async fn when_support_matrix_runtime_available_renames_disabled(world: &mut Copy
     let flags = governance::FeatureFlags::builder()
         .disable(governance::Feature::RenamesR4R6)
         .build();
-    let summary = governance_runtime::runtime_summary(&flags);
+    let summary = governance::runtime_summary(&flags);
     world.verify_report = Some(format!(
         "runtime_enabled:{},runtime_disabled:{}",
         summary.runtime_enabled_features, summary.runtime_disabled_features,

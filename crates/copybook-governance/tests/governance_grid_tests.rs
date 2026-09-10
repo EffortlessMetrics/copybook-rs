@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Integration tests for copybook-governance-grid static mappings.
+//! Integration tests for governance static mappings.static mappings.
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use copybook_governance_grid::{
+use copybook_governance::{
     Feature, FeatureId, feature_flags_for_support_id, governance_bindings, summarize_governance,
 };
 

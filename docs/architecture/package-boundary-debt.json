@@ -2,10 +2,6 @@
   "schema_version": 1,
   "entries": [
     {
-      "id": "core-upward:copybook-core->copybook-governance-contracts",
-      "owner_issue": 656
-    },
-    {
       "id": "library-cli-framework:copybook-scripts->clap",
       "owner_issue": 640
     },
@@ -18,10 +14,6 @@
       "owner_issue": 655
     },
     {
-      "id": "primary-dep:copybook->copybook-governance-contracts",
-      "owner_issue": 656
-    },
-    {
       "id": "primary-dep:copybook->copybook-overflow",
       "owner_issue": 655
     },
@@ -32,10 +24,6 @@
     {
       "id": "primary-dep:copybook-core->copybook-error-reporter",
       "owner_issue": 655
-    },
-    {
-      "id": "primary-dep:copybook-core->copybook-governance-contracts",
-      "owner_issue": 656
     },
     {
       "id": "primary-dep:copybook-core->copybook-overflow",

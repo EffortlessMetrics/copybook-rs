@@ -5,10 +5,12 @@ the COBOL support matrix.
 
 ## Purpose
 
-- Keep runtime feature flag contracts and support-matrix status definitions
-  interoperable via the `copybook-governance-contracts` façade.
-- Re-export static support-to-flag bindings from `copybook-governance-grid`.
-- Re-export runtime state evaluation from `copybook-governance-runtime`.
+- Keep runtime feature flag contracts (`copybook-contracts`) and support-matrix
+  status definitions (`copybook-support-matrix`) interoperable.
+- Own static support-to-flag bindings (`bindings` module, collapsed here per
+  #656 Phase F).
+- Own runtime state evaluation (`runtime` module, collapsed here per #656
+  Phase F).
 - Act as the stable import surface for downstream crates (CLI, BDD, adapters).
 
 ## API Surface

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Integration tests for copybook-governance-contracts façade.
+//! Integration tests for the collapsed governance facade.
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use copybook_governance_contracts::{
+use copybook_governance::{
     Feature, FeatureCategory, FeatureFlags, FeatureFlagsHandle, FeatureId, FeatureLifecycle,
     SupportStatus, all_features, find_feature, find_feature_by_id,
 };
@@ -125,7 +125,7 @@ fn feature_id_all_variants_accessible() {
 
 #[test]
 fn feature_flags_module_path_works() {
-    use copybook_governance_contracts::feature_flags;
+    use copybook_governance::feature_flags;
     let features = feature_flags::all_features();
     // #656 Phase C: 18 -> 15 flags.
     assert_eq!(features.len(), 15);
@@ -133,7 +133,7 @@ fn feature_flags_module_path_works() {
 
 #[test]
 fn support_matrix_module_path_works() {
-    use copybook_governance_contracts::support_matrix;
+    use copybook_governance::support_matrix;
     let features = support_matrix::all_features();
     assert_eq!(features.len(), 7);
 }

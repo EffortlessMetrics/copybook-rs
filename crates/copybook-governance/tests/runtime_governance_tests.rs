@@ -3,7 +3,7 @@
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use copybook_governance_runtime::{
+use copybook_governance::{
     Feature, FeatureFlags, FeatureGovernanceState, FeatureId, SupportStatus,
     governance_state_for_support_id, governance_states, is_support_runtime_available,
     runtime_summary, support_states,
@@ -74,7 +74,7 @@ fn governance_states_default_renames_disabled() {
 #[test]
 fn governance_states_all_enabled_means_all_runtime_enabled() {
     let mut flags = FeatureFlags::default();
-    for feature in copybook_governance_runtime::feature_flags::all_features() {
+    for feature in copybook_governance::feature_flags::all_features() {
         flags.enable(feature);
     }
     for state in governance_states(&flags) {
@@ -90,7 +90,7 @@ fn governance_states_all_enabled_means_all_runtime_enabled() {
 #[test]
 fn governance_states_all_disabled_disables_governed_features() {
     let mut flags = FeatureFlags::default();
-    for feature in copybook_governance_runtime::feature_flags::all_features() {
+    for feature in copybook_governance::feature_flags::all_features() {
         flags.disable(feature);
     }
     let states = governance_states(&flags);
@@ -207,8 +207,7 @@ fn is_available_becomes_false_when_flag_disabled() {
 #[test]
 fn from_support_creates_ungoverned_state() {
     let feature =
-        copybook_governance_runtime::support_matrix::find_feature_by_id(FeatureId::EditedPic)
-            .unwrap();
+        copybook_governance::support_matrix::find_feature_by_id(FeatureId::EditedPic).unwrap();
     let state = FeatureGovernanceState::from_support(feature);
     assert_eq!(state.support_id, FeatureId::EditedPic);
     assert!(state.runtime_enabled);
@@ -235,7 +234,7 @@ fn runtime_summary_with_defaults() {
 #[test]
 fn runtime_summary_all_enabled_has_zero_disabled() {
     let mut flags = FeatureFlags::default();
-    for f in copybook_governance_runtime::feature_flags::all_features() {
+    for f in copybook_governance::feature_flags::all_features() {
         flags.enable(f);
     }
     let summary = runtime_summary(&flags);

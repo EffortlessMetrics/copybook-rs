@@ -8,11 +8,9 @@
 
 use copybook_contracts::feature_flags::all_features;
 use copybook_contracts::{Feature, FeatureCategory, FeatureFlags};
-use copybook_governance_grid::{
-    feature_flags_for_support_id, governance_bindings, summarize_governance,
-};
-use copybook_governance_runtime::{
-    governance_states, is_support_runtime_available, runtime_summary,
+use copybook_governance::{
+    feature_flags_for_support_id, governance_bindings, governance_states,
+    is_support_runtime_available, runtime_summary, summarize_governance,
 };
 use copybook_support_matrix::{
     FeatureId, all_features as all_support_features, find_feature_by_id,

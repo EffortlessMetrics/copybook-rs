@@ -2,33 +2,44 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Governance contracts and runtime interoperability for copybook-rs feature controls.
 //!
-//! This crate is the canonical compatibility façade for:
-//! - Runtime feature flags and support-matrix rows (`copybook-governance-contracts`).
-//! - Static governance bindings between support rows and feature flags (`copybook-governance-grid`).
-//! - Runtime evaluation of those bindings (`copybook-governance-runtime`).
+//! Single-crate home for governance since #656 Phase F (the former
+//! `copybook-governance-contracts`, `copybook-governance-grid`, and
+//! `copybook-governance-runtime` packages collapsed here):
+//! - Runtime feature flags and support-matrix rows (`copybook-contracts`,
+//!   `copybook-support-matrix`).
+//! - Static governance bindings between support rows and feature flags
+//!   ([`bindings`]).
+//! - Runtime evaluation of those bindings ([`runtime`]).
 
-/// Re-exported feature flag types from the governance grid.
+/// Static governance bindings between support rows and feature flags.
+pub mod bindings;
+/// Runtime evaluation of the static governance bindings.
+pub mod runtime;
+
+/// Re-exported feature flag types from the flag contracts.
 pub mod feature_flags {
-    pub use copybook_governance_grid::feature_flags::*;
+    pub use copybook_contracts::feature_flags::*;
 }
 
-/// Re-exported support matrix types from the governance grid.
+/// Re-exported support matrix types from the support-matrix contracts.
 pub mod support_matrix {
-    pub use copybook_governance_grid::support_matrix::*;
+    pub use copybook_support_matrix::*;
 }
 
 pub use feature_flags::{
     Feature, FeatureCategory, FeatureFlags, FeatureFlagsBuilder, FeatureFlagsHandle,
     FeatureLifecycle,
 };
-pub use support_matrix::{FeatureId, FeatureSupport, SupportStatus};
-
-pub use copybook_governance_grid::{
-    GovernanceSummary, GovernedFeatureBinding, feature_flags_for_support_id, governance_bindings,
-    summarize_governance,
+pub use support_matrix::{
+    FeatureId, FeatureSupport, SupportStatus, all_features, find_feature, find_feature_by_id,
 };
 
-pub use copybook_governance_runtime::{
+pub use bindings::{
+    GovernanceAudit, GovernanceSummary, GovernedFeatureBinding, audit_governance,
+    feature_flags_for_support_id, governance_bindings, summarize_governance,
+};
+
+pub use runtime::{
     FeatureGovernanceState, FeatureGovernanceSummary, governance_state_for_support_id,
     governance_states, is_support_runtime_available, runtime_summary, support_states,
 };

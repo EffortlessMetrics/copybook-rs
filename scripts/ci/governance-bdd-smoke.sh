@@ -12,9 +12,6 @@ fi
 governance_packages=(
   copybook-contracts
   copybook-support-matrix
-  copybook-governance-contracts
-  copybook-governance-grid
-  copybook-governance-runtime
   copybook-governance
 )
 

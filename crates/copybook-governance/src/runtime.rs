@@ -5,19 +5,19 @@
 //! This crate turns static governance mappings into runtime state by evaluating
 //! active feature flags against support-matrix rows.
 
-/// Re-exported feature flag types from the governance grid.
+/// Re-exported feature flag types from the collapsed governance surface.
 pub mod feature_flags {
-    pub use copybook_governance_grid::feature_flags::*;
+    pub use super::super::feature_flags::*;
 }
 
-/// Re-exported support matrix types from the governance grid.
+/// Re-exported support matrix types from the collapsed governance surface.
 pub mod support_matrix {
-    pub use copybook_governance_grid::support_matrix::*;
+    pub use super::super::support_matrix::*;
 }
 
 use serde::Serialize;
 
-pub use copybook_governance_grid::{
+pub use super::bindings::{
     GovernanceSummary, GovernedFeatureBinding, feature_flags_for_support_id, governance_bindings,
     summarize_governance,
 };

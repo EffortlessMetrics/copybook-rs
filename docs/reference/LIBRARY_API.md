@@ -536,17 +536,18 @@ use copybook_core::{
 };
 
 let mut feature_flags = FeatureFlags::default();
-feature_flags.disable(Feature::Comp1);
+feature_flags.disable(Feature::RenamesR4R6);
 
 let result = parse_copybook_with_feature_flags(
     "01 VALUE-FIELD PIC S9(4) COMP-1.",
     &ParseOptions::default(),
     &feature_flags,
 );
-assert!(result.is_err());
+// COMP-1 is stable behavior and parses regardless of flag state (#656 Phase C).
+assert!(result.is_ok());
 ```
 
-This entry point returns the same structured parse errors as `parse_copybook` and `parse_copybook_with_options`, including stable unsupported-clause errors for disabled features. It does not mutate the global feature configuration.
+This entry point returns the same structured parse errors as `parse_copybook` and `parse_copybook_with_options`. Stable language behavior (SIGN SEPARATE, COMP-1, COMP-2) parses unconditionally; only the remaining gated behaviors (e.g. RENAMES R4-R6) consult the supplied flags. It does not mutate the global feature configuration.
 
 ### Enhanced Safe Operations Module
 

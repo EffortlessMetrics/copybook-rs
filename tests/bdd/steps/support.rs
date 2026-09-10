@@ -107,6 +107,18 @@ async fn when_governance_mapping_checked(world: &mut CopybookWorld, feature_id: 
     );
 }
 
+#[then(expr = "the governance mapping should include no feature flags")]
+async fn then_governance_mapping_has_no_flags(world: &mut CopybookWorld) {
+    let report = world.verify_report.as_ref().expect(
+        "Governance mapping not set - call 'the governance mapping is checked for feature' first",
+    );
+
+    assert!(
+        report.trim().is_empty(),
+        "Expected governance mapping to be empty, got '{report}'",
+    );
+}
+
 #[then(expr = "the governance mapping should include feature flag {string}")]
 async fn then_governance_mapping_includes_flag(world: &mut CopybookWorld, expected_flag: String) {
     let report = world.verify_report.as_ref().expect(
@@ -133,11 +145,11 @@ async fn when_support_matrix_runtime_available_checked(world: &mut CopybookWorld
     ));
 }
 
-#[when(expr = "the support matrix runtime availability is checked with sign-separate disabled")]
-async fn when_support_matrix_runtime_available_sign_separate_disabled(world: &mut CopybookWorld) {
+#[when(expr = "the support matrix runtime availability is checked with renames-r4-r6 disabled")]
+async fn when_support_matrix_runtime_available_renames_disabled(world: &mut CopybookWorld) {
+    // #656 Phase C: Level66Renames is the remaining flag-gated binding.
     let flags = governance::FeatureFlags::builder()
-        .enable(governance::Feature::RenamesR4R6)
-        .disable(governance::Feature::SignSeparate)
+        .disable(governance::Feature::RenamesR4R6)
         .build();
     let summary = governance_runtime::runtime_summary(&flags);
     world.verify_report = Some(format!(

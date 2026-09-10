@@ -169,12 +169,8 @@ fn roundtrip_comp_8byte() {
 #[test]
 fn roundtrip_comp1_float() {
     use copybook_codec::FloatFormat;
-    use copybook_core::feature_flags::{Feature, FeatureFlags};
 
-    let mut flags = FeatureFlags::default();
-    flags.enable(Feature::Comp1);
-    FeatureFlags::set_global(flags);
-
+    // #656 Phase C: COMP-1 parses unconditionally; no flag setup needed.
     let schema = parse_copybook("01 REC.\n 05 RATE COMP-1.").unwrap();
     // IEEE 754 for 3.14 ≈ 0x4048F5C3
     let data: &[u8] = &[0x40, 0x48, 0xF5, 0xC3];
@@ -211,12 +207,8 @@ fn roundtrip_comp1_float() {
 #[test]
 fn roundtrip_comp2_double() {
     use copybook_codec::FloatFormat;
-    use copybook_core::feature_flags::{Feature, FeatureFlags};
 
-    let mut flags = FeatureFlags::default();
-    flags.enable(Feature::Comp2);
-    FeatureFlags::set_global(flags);
-
+    // #656 Phase C: COMP-2 parses unconditionally; no flag setup needed.
     let schema = parse_copybook("01 REC.\n 05 AMOUNT COMP-2.").unwrap();
     // IEEE 754 double for 1.0 = 0x3FF0000000000000
     let data: &[u8] = &[0x3F, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];

@@ -16,7 +16,7 @@ direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkp001_syntax_garb
 code = "CBKP011_UNSUPPORTED_CLAUSE"
 stability_class = "stable"
 evidence_status = "direct"
-direct_test = "tests/e2e/e2e_cli_feature_flags.rs::disable_comp1_rejects_comp1_copybook"
+direct_test = "crates/copybook-error-reporter/tests/error_reporter_tests.rs::cbkp_parse_errors_classified_as_fatal"
 [[errors]]
 code = "CBKP021_ODO_NOT_TAIL"
 stability_class = "stable"
@@ -36,7 +36,7 @@ direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbkp023_odo_redefin
 code = "CBKP051_UNSUPPORTED_EDITED_PIC"
 stability_class = "stable"
 evidence_status = "direct"
-direct_test = "tests/e2e/e2e_cli_feature_flags.rs::disable_sign_separate_rejects_sign_separate_copybook"
+direct_test = "crates/copybook-core/src/pic.rs::test_sign_clause_rejected"
 [[errors]]
 code = "CBKP101_INVALID_PIC"
 stability_class = "stable"

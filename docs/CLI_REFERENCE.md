@@ -414,14 +414,14 @@ Feature flags can be loaded from a configuration file with `--feature-flags-conf
 ```toml
 # feature-flags.toml
 [feature_flags]
-enabled = ["sign_separate", "verbose_logging"]
+enabled = ["renames_r4_r6", "verbose_logging"]
 disabled = ["lru_cache"]
 ```
 
 ```json
 {
   "feature_flags": {
-    "enabled": ["sign_separate", "verbose_logging"],
+    "enabled": ["renames_r4_r6", "verbose_logging"],
     "disabled": ["lru_cache"]
   }
 }
@@ -527,7 +527,7 @@ The `--dialect` flag is supported on all copybook-processing commands:
 
 - `COPYBOOK_DIALECT` - Set default dialect mode (n, 0, or 1); overridden by the `--dialect` flag
 - `COPYBOOK_STRICT_POLICY` - Enforce policy checks (`1`, `true`, `yes`, or `on`); overridden by `--strict-policy`/`--no-strict-policy`
-- `COPYBOOK_FF_<FEATURE>` - Enable a feature flag by name, e.g. `COPYBOOK_FF_SIGN_SEPARATE=1`
+- `COPYBOOK_FF_<FEATURE>` - Enable a feature flag by name, e.g. `COPYBOOK_FF_SIGN_SEPARATE=1` (historical example: the `sign_separate` flag was removed in v0.6.0 and the variable is now ignored; see `FEATURE_FLAGS.md` for the current flag list)
 - `RUST_LOG` - Tracing filter for log output (overrides the default `warn`, or `debug` with `-v/--verbose`)
 
 ## Validation Modes

@@ -11,10 +11,8 @@ use copybook_governance_contracts::{
 
 #[test]
 fn builder_produces_expected_defaults() {
+    // #656 Phase C: LruCache is the only default-enabled flag.
     let flags = FeatureFlags::builder().build();
-    assert!(flags.is_enabled(Feature::SignSeparate));
-    assert!(flags.is_enabled(Feature::Comp1));
-    assert!(flags.is_enabled(Feature::Comp2));
     assert!(flags.is_enabled(Feature::LruCache));
     assert!(!flags.is_enabled(Feature::AuditSystem));
     assert!(!flags.is_enabled(Feature::RenamesR4R6));
@@ -34,10 +32,10 @@ fn builder_enable_overrides_default_off() {
 fn builder_disable_overrides_default_on() {
     let flags = FeatureFlags::builder()
         .disable(Feature::LruCache)
-        .disable(Feature::Comp1)
+        .disable(Feature::RenamesR4R6)
         .build();
     assert!(!flags.is_enabled(Feature::LruCache));
-    assert!(!flags.is_enabled(Feature::Comp1));
+    assert!(!flags.is_enabled(Feature::RenamesR4R6));
 }
 
 #[test]
@@ -107,8 +105,8 @@ fn toggle_flips_state() {
 fn enabled_features_iterator_matches_count() {
     let flags = FeatureFlags::default();
     let count = flags.enabled_features().count();
-    // Default: SignSeparate, Comp1, Comp2, LruCache
-    assert_eq!(count, 4);
+    // Default: LruCache only (#656 Phase C).
+    assert_eq!(count, 1);
 }
 
 #[test]
@@ -125,8 +123,9 @@ fn enabled_in_category_returns_only_that_category() {
 
 #[test]
 fn features_in_category_counts_match() {
+    // #656 Phase C: Experimental holds only RenamesR4R6.
     let exp = FeatureFlags::features_in_category(FeatureCategory::Experimental);
-    assert_eq!(exp.len(), 4);
+    assert_eq!(exp, vec![Feature::RenamesR4R6]);
     let ent = FeatureFlags::features_in_category(FeatureCategory::Enterprise);
     assert_eq!(ent.len(), 6);
     let perf = FeatureFlags::features_in_category(FeatureCategory::Performance);
@@ -253,7 +252,10 @@ fn feature_lifecycle_variants_constructible() {
 
 #[test]
 fn feature_category_round_trip_via_facade() {
-    assert_eq!(Feature::Comp1.category(), FeatureCategory::Experimental);
+    assert_eq!(
+        Feature::RenamesR4R6.category(),
+        FeatureCategory::Experimental
+    );
     assert_eq!(Feature::AuditSystem.category(), FeatureCategory::Enterprise);
     assert_eq!(Feature::LruCache.category(), FeatureCategory::Performance);
     assert_eq!(Feature::VerboseLogging.category(), FeatureCategory::Debug);
@@ -315,7 +317,8 @@ fn cross_module_id_equality() {
 fn feature_flags_module_path_works() {
     use copybook_governance_contracts::feature_flags;
     let features = feature_flags::all_features();
-    assert_eq!(features.len(), 18);
+    // #656 Phase C: 18 -> 15 flags.
+    assert_eq!(features.len(), 15);
 }
 
 #[test]

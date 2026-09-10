@@ -104,74 +104,57 @@ fn default_flags_specific_availability_matches_expectations() {
 // =========================================================================
 
 #[test]
-fn comp1comp2_requires_both_flags_all_four_combinations() {
-    let combos = [
-        (true, true, true),
-        (true, false, false),
-        (false, true, false),
-        (false, false, false),
+fn comp1comp2_stable_binding_available_in_all_combinations() {
+    // #656 Phase C: COMP-1/COMP-2 carry no flag linkage; availability and
+    // missing-flag state are identical in every flag configuration.
+    let configs: Vec<FeatureFlags> = vec![
+        FeatureFlags::default(),
+        FeatureFlags::builder().enable(Feature::RenamesR4R6).build(),
+        FeatureFlags::builder()
+            .disable(Feature::RenamesR4R6)
+            .build(),
+        {
+            let mut all_off = FeatureFlags::default();
+            for feat in copybook_governance_runtime::feature_flags::all_features() {
+                all_off.disable(feat);
+            }
+            all_off
+        },
     ];
-    for (comp1, comp2, expected) in combos {
-        let mut flags = FeatureFlags::default();
-        if comp1 {
-            flags.enable(Feature::Comp1);
-        } else {
-            flags.disable(Feature::Comp1);
-        }
-        if comp2 {
-            flags.enable(Feature::Comp2);
-        } else {
-            flags.disable(Feature::Comp2);
-        }
-
-        let available = is_support_runtime_available(FeatureId::Comp1Comp2, &flags);
-        assert_eq!(
-            available, expected,
-            "Comp1={comp1}, Comp2={comp2}: expected {expected}, got {available}"
-        );
+    for flags in &configs {
+        let available = is_support_runtime_available(FeatureId::Comp1Comp2, flags);
+        assert!(available, "Comp1Comp2 should always be available");
+        let state = governance_state_for_support_id(FeatureId::Comp1Comp2, flags).unwrap();
+        assert!(state.missing_feature_flags.is_empty());
     }
 }
 
 #[test]
-fn comp1comp2_missing_flags_count_matches_disabled_count() {
-    // Only Comp1 disabled
-    let flags = FeatureFlags::builder().disable(Feature::Comp1).build();
-    let state = governance_state_for_support_id(FeatureId::Comp1Comp2, &flags).unwrap();
-    assert_eq!(state.missing_feature_flags.len(), 1);
-    assert!(state.missing_feature_flags.contains(&Feature::Comp1));
-
-    // Only Comp2 disabled
-    let flags = FeatureFlags::builder().disable(Feature::Comp2).build();
-    let state = governance_state_for_support_id(FeatureId::Comp1Comp2, &flags).unwrap();
-    assert_eq!(state.missing_feature_flags.len(), 1);
-    assert!(state.missing_feature_flags.contains(&Feature::Comp2));
-
-    // Both disabled
+fn renames_missing_flags_count_matches_disabled_state() {
+    // The single-flag binding reports exactly one missing flag when off.
     let flags = FeatureFlags::builder()
-        .disable(Feature::Comp1)
-        .disable(Feature::Comp2)
+        .disable(Feature::RenamesR4R6)
         .build();
-    let state = governance_state_for_support_id(FeatureId::Comp1Comp2, &flags).unwrap();
-    assert_eq!(state.missing_feature_flags.len(), 2);
+    let state = governance_state_for_support_id(FeatureId::Level66Renames, &flags).unwrap();
+    assert_eq!(state.missing_feature_flags.len(), 1);
+    assert!(state.missing_feature_flags.contains(&Feature::RenamesR4R6));
 }
 
 #[test]
 fn single_flag_bindings_toggle_correctly() {
-    // SignSeparate
-    let flags_on = FeatureFlags::builder()
-        .enable(Feature::SignSeparate)
-        .build();
-    let flags_off = FeatureFlags::builder()
-        .disable(Feature::SignSeparate)
-        .build();
-    assert!(is_support_runtime_available(
-        FeatureId::SignSeparate,
-        &flags_on
-    ));
-    assert!(!is_support_runtime_available(
-        FeatureId::SignSeparate,
-        &flags_off
-    ));
+    // #656 Phase C: SIGN SEPARATE carries no flag linkage and is always
+    // available, regardless of other flags.
+    for flags in [
+        FeatureFlags::default(),
+        FeatureFlags::builder()
+            .disable(Feature::RenamesR4R6)
+            .build(),
+    ] {
+        assert!(is_support_runtime_available(
+            FeatureId::SignSeparate,
+            &flags
+        ));
+    }
 
     // RenamesR4R6
     let flags_on = FeatureFlags::builder().enable(Feature::RenamesR4R6).build();
@@ -232,8 +215,8 @@ fn runtime_enabled_iff_missing_flags_empty_for_all_configs() {
         FeatureFlags::default(),
         FeatureFlags::builder().enable(Feature::RenamesR4R6).build(),
         FeatureFlags::builder()
-            .disable(Feature::Comp1)
-            .disable(Feature::SignSeparate)
+            .disable(Feature::RenamesR4R6)
+            .disable(Feature::LruCache)
             .build(),
         {
             let mut f = FeatureFlags::default();
@@ -268,8 +251,8 @@ fn runtime_enabled_iff_missing_flags_empty_for_all_configs() {
 #[test]
 fn missing_flags_are_subset_of_required_flags() {
     let flags = FeatureFlags::builder()
-        .disable(Feature::Comp1)
-        .disable(Feature::SignSeparate)
+        .disable(Feature::RenamesR4R6)
+        .disable(Feature::LruCache)
         .build();
 
     for state in governance_states(&flags) {
@@ -316,10 +299,11 @@ fn governance_state_for_enabled_feature_has_expected_fields() {
 
 #[test]
 fn governance_state_for_disabled_feature_has_missing_flags() {
+    // #656 Phase C: Level66Renames is the remaining flag-gated binding.
     let flags = FeatureFlags::builder()
-        .disable(Feature::SignSeparate)
+        .disable(Feature::RenamesR4R6)
         .build();
-    let state = governance_state_for_support_id(FeatureId::SignSeparate, &flags).unwrap();
+    let state = governance_state_for_support_id(FeatureId::Level66Renames, &flags).unwrap();
 
     assert!(!state.runtime_enabled);
     assert_eq!(state.missing_feature_flags.len(), 1);
@@ -392,8 +376,8 @@ fn has_runtime_unavailable_iff_disabled_count_positive() {
         FeatureFlags::default(),
         FeatureFlags::builder().enable(Feature::RenamesR4R6).build(),
         FeatureFlags::builder()
-            .disable(Feature::SignSeparate)
-            .disable(Feature::Comp1)
+            .disable(Feature::RenamesR4R6)
+            .disable(Feature::LruCache)
             .build(),
     ];
 
@@ -412,25 +396,27 @@ fn has_runtime_unavailable_iff_disabled_count_positive() {
 
 #[test]
 fn disabling_more_flags_does_not_decrease_disabled_count() {
-    let flags_default = FeatureFlags::default();
-    let summary_default = runtime_summary(&flags_default);
+    // #656 Phase C: only the Level66Renames row is flag-gated. Disabling
+    // the gated flag moves 0 -> 1 disabled; additionally disabling an
+    // unlinked flag (LruCache) must not decrease that count.
+    let flags_none_off = FeatureFlags::builder().enable(Feature::RenamesR4R6).build();
+    let summary_none_off = runtime_summary(&flags_none_off);
+    assert_eq!(summary_none_off.runtime_disabled_features, 0);
 
-    let flags_one_more = FeatureFlags::builder()
-        .disable(Feature::SignSeparate)
-        .build();
-    let summary_one_more = runtime_summary(&flags_one_more);
+    let flags_gated_off = FeatureFlags::default();
+    let summary_gated_off = runtime_summary(&flags_gated_off);
+    assert_eq!(summary_gated_off.runtime_disabled_features, 1);
 
-    let flags_two_more = FeatureFlags::builder()
-        .disable(Feature::SignSeparate)
-        .disable(Feature::Comp1)
-        .disable(Feature::Comp2)
+    let flags_gated_plus_unlinked_off = FeatureFlags::builder()
+        .disable(Feature::RenamesR4R6)
+        .disable(Feature::LruCache)
         .build();
-    let summary_two_more = runtime_summary(&flags_two_more);
+    let summary_both_off = runtime_summary(&flags_gated_plus_unlinked_off);
 
     assert!(
-        summary_one_more.runtime_disabled_features >= summary_default.runtime_disabled_features
+        summary_gated_off.runtime_disabled_features >= summary_none_off.runtime_disabled_features
     );
     assert!(
-        summary_two_more.runtime_disabled_features >= summary_one_more.runtime_disabled_features
+        summary_both_off.runtime_disabled_features >= summary_gated_off.runtime_disabled_features
     );
 }

@@ -413,7 +413,7 @@ mod tests {
 
     #[test]
     fn test_format_flags_values() {
-        let flags = vec![governance::Feature::SignSeparate];
-        assert_eq!(format_flags(&flags), "sign_separate");
+        let flags = vec![governance::Feature::RenamesR4R6];
+        assert_eq!(format_flags(&flags), "renames_r4_r6");
     }
 }

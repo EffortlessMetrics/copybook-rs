@@ -297,16 +297,8 @@ fn test_renames_through_keyword() {
 // SIGN SEPARATE LEADING / TRAILING — requires feature flag
 // ===========================================================================
 
-fn enable_sign_separate() {
-    use copybook_core::feature_flags::{Feature, FeatureFlags};
-    let mut flags = FeatureFlags::default();
-    flags.enable(Feature::SignSeparate);
-    FeatureFlags::set_global(flags);
-}
-
 #[test]
 fn test_sign_separate_leading() {
-    enable_sign_separate();
     let cpy = r"
        01 REC.
           05 AMT PIC S9(5) SIGN IS LEADING SEPARATE.
@@ -330,7 +322,6 @@ fn test_sign_separate_leading() {
 
 #[test]
 fn test_sign_separate_trailing() {
-    enable_sign_separate();
     let cpy = r"
        01 REC.
           05 BAL PIC S9(7)V99 SIGN TRAILING SEPARATE.
@@ -749,17 +740,8 @@ fn test_usage_comp_keyword() {
 // COMP-1 / COMP-2 — feature-gated floating point
 // ===========================================================================
 
-fn enable_comp_float() {
-    use copybook_core::feature_flags::{Feature, FeatureFlags};
-    let mut flags = FeatureFlags::default();
-    flags.enable(Feature::Comp1);
-    flags.enable(Feature::Comp2);
-    FeatureFlags::set_global(flags);
-}
-
 #[test]
 fn test_comp1_single_precision() {
-    enable_comp_float();
     let cpy = r"
        01 REC.
           05 TEMP COMP-1.
@@ -772,7 +754,6 @@ fn test_comp1_single_precision() {
 
 #[test]
 fn test_comp2_double_precision() {
-    enable_comp_float();
     let cpy = r"
        01 REC.
           05 RATIO COMP-2.

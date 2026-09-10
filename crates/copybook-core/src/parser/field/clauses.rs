@@ -1,5 +1,4 @@
 use crate::error::ErrorCode;
-use crate::feature_flags::Feature;
 use crate::lexer::Token;
 use crate::schema::{Field, FieldKind};
 use crate::{Error, Result};
@@ -95,18 +94,10 @@ impl Parser {
     }
 
     fn parse_sign_field_clause(&mut self, field: &mut Field) -> Result<()> {
+        // #656 Phase C: SIGN SEPARATE is stable, documented COBOL behavior and
+        // is parsed unconditionally (no runtime flag).
         self.advance();
-        if self.feature_flags.is_enabled(Feature::SignSeparate) {
-            return self.parse_sign_clause(field);
-        }
-
-        Err(Error::new(
-            ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-            format!(
-                "SIGN clause on field '{}' is not supported (enable with --enable-features sign_separate)",
-                field.name
-            ),
-        ))
+        self.parse_sign_clause(field)
     }
 
     fn parse_comp_field_clause(&mut self, field: &mut Field) -> Result<()> {
@@ -120,15 +111,17 @@ impl Parser {
     }
 
     fn parse_comp1_field_clause(&mut self, field: &mut Field) -> Result<()> {
+        // #656 Phase C: COMP-1 is stable, documented COBOL behavior and is
+        // parsed unconditionally (no runtime flag).
         self.advance();
-        self.require_feature_enabled(Feature::Comp1, &field.name, "comp_1", "COMP-1")?;
         field.kind = FieldKind::FloatSingle;
         Ok(())
     }
 
     fn parse_comp2_field_clause(&mut self, field: &mut Field) -> Result<()> {
+        // #656 Phase C: COMP-2 is stable, documented COBOL behavior and is
+        // parsed unconditionally (no runtime flag).
         self.advance();
-        self.require_feature_enabled(Feature::Comp2, &field.name, "comp_2", "COMP-2")?;
         field.kind = FieldKind::FloatDouble;
         Ok(())
     }

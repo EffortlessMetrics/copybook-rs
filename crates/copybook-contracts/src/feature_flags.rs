@@ -14,21 +14,15 @@ use std::sync::{OnceLock, RwLock};
 #[non_exhaustive]
 pub enum Feature {
     // ========== Experimental Features ==========
-    /// Enable SIGN SEPARATE clause support (experimental)
-    #[serde(alias = "sign_separate")]
-    SignSeparate,
-
+    // NOTE (#656 Phase C, v0.6.0): `SignSeparate`, `Comp1`, and `Comp2` were
+    // removed. SIGN SEPARATE, COMP-1, and COMP-2 are stable, documented COBOL
+    // behavior and are now parsed unconditionally; they are no longer
+    // runtime-toggled. The `COPYBOOK_FF_SIGN_SEPARATE`, `COPYBOOK_FF_COMP_1`,
+    // and `COPYBOOK_FF_COMP_2` environment variables and the matching
+    // `--enable-features`/`--disable-features` names are no longer recognized.
     /// Enable RENAMES R4-R6 advanced scenarios
     #[serde(alias = "renames_r4_r6")]
     RenamesR4R6,
-
-    /// Enable COMP-1 (single precision floating point) support
-    #[serde(alias = "comp_1")]
-    Comp1,
-
-    /// Enable COMP-2 (double precision floating point) support
-    #[serde(alias = "comp_2")]
-    Comp2,
 
     // ========== Enterprise Features ==========
     /// Enable audit system for compliance tracking
@@ -95,19 +89,15 @@ impl Feature {
     ///
     /// `category()` is a **grouping mechanism** used by `enable_category` /
     /// `enabled_in_category` to toggle related flags together; it is **not** a
-    /// stability class. In particular, `FeatureCategory::Experimental` names a
-    /// toggle group, not a claim that every member is unstable — the stability
-    /// class of a feature is reported by [`Feature::lifecycle`]. For example,
-    /// `Comp1`/`Comp2` are in the `Experimental` toggle group but have
-    /// `lifecycle() == FeatureLifecycle::Stable` (they are fully supported and
-    /// enabled by default; see `docs/reference/COBOL_SUPPORT_MATRIX.md`).
+    /// stability class — the stability class of a feature is reported by
+    /// [`Feature::lifecycle`]. Stable, documented COBOL language behavior
+    /// (SIGN SEPARATE, COMP-1, COMP-2) is ordinary parser behavior, not a
+    /// runtime flag at all (see `docs/reference/COBOL_SUPPORT_MATRIX.md`).
     #[inline]
     #[must_use]
     pub const fn category(self) -> FeatureCategory {
         match self {
-            Feature::SignSeparate | Feature::RenamesR4R6 | Feature::Comp1 | Feature::Comp2 => {
-                FeatureCategory::Experimental
-            }
+            Feature::RenamesR4R6 => FeatureCategory::Experimental,
             Feature::AuditSystem
             | Feature::SoxCompliance
             | Feature::HipaaCompliance
@@ -128,17 +118,16 @@ impl Feature {
     /// Get the stability lifecycle class of this feature.
     ///
     /// This is the authoritative stability signal (distinct from the
-    /// toggle-group [`Feature::category`]). `SignSeparate`, `Comp1`, and
-    /// `Comp2` are promoted COBOL-language features that are fully supported
-    /// and enabled by default, so they report [`FeatureLifecycle::Stable`];
-    /// every other flag (advanced RENAMES R4-R6, enterprise/compliance,
-    /// performance, debug, and testing hooks) is opt-in and reports
+    /// toggle-group [`Feature::category`]). Stable, documented COBOL language
+    /// behavior (SIGN SEPARATE, COMP-1, COMP-2) is ordinary parser behavior
+    /// and is not represented by a flag at all since #656 Phase C; every
+    /// remaining flag (advanced RENAMES R4-R6, enterprise/compliance,
+    /// performance, and debug hooks) is opt-in and reports
     /// [`FeatureLifecycle::Experimental`].
     #[inline]
     #[must_use]
     pub const fn lifecycle(self) -> FeatureLifecycle {
         match self {
-            Feature::SignSeparate | Feature::Comp1 | Feature::Comp2 => FeatureLifecycle::Stable,
             Feature::RenamesR4R6
             | Feature::AuditSystem
             | Feature::SoxCompliance
@@ -162,7 +151,7 @@ impl Feature {
     #[must_use]
     pub const fn default_enabled(self) -> bool {
         match self {
-            Feature::SignSeparate | Feature::Comp1 | Feature::Comp2 | Feature::LruCache => true,
+            Feature::LruCache => true,
             Feature::RenamesR4R6
             | Feature::AuditSystem
             | Feature::SoxCompliance
@@ -192,10 +181,7 @@ impl Feature {
     #[must_use]
     pub const fn description(self) -> &'static str {
         match self {
-            Feature::SignSeparate => "Enable SIGN SEPARATE clause support",
             Feature::RenamesR4R6 => "Enable RENAMES R4-R6 advanced scenarios",
-            Feature::Comp1 => "Enable COMP-1 (single precision floating point) support",
-            Feature::Comp2 => "Enable COMP-2 (double precision floating point) support",
             Feature::AuditSystem => "Enable audit system for compliance tracking",
             Feature::SoxCompliance => "Enable SOX compliance validation",
             Feature::HipaaCompliance => "Enable HIPAA compliance validation",
@@ -220,10 +206,7 @@ impl fmt::Display for Feature {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            Feature::SignSeparate => "sign_separate",
             Feature::RenamesR4R6 => "renames_r4_r6",
-            Feature::Comp1 => "comp_1",
-            Feature::Comp2 => "comp_2",
             Feature::AuditSystem => "audit_system",
             Feature::SoxCompliance => "sox_compliance",
             Feature::HipaaCompliance => "hipaa_compliance",
@@ -249,10 +232,7 @@ impl FromStr for Feature {
     #[inline]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "sign_separate" => Ok(Self::SignSeparate),
             "renames_r4_r6" => Ok(Self::RenamesR4R6),
-            "comp_1" => Ok(Self::Comp1),
-            "comp_2" => Ok(Self::Comp2),
             "audit_system" => Ok(Self::AuditSystem),
             "sox_compliance" => Ok(Self::SoxCompliance),
             "hipaa_compliance" => Ok(Self::HipaaCompliance),
@@ -583,10 +563,7 @@ impl Clone for FeatureFlagsHandle {
 #[must_use]
 pub fn all_features() -> Vec<Feature> {
     vec![
-        Feature::SignSeparate,
         Feature::RenamesR4R6,
-        Feature::Comp1,
-        Feature::Comp2,
         Feature::AuditSystem,
         Feature::SoxCompliance,
         Feature::HipaaCompliance,
@@ -612,24 +589,45 @@ mod tests {
 
     #[test]
     fn test_feature_display() {
-        assert_eq!(Feature::SignSeparate.to_string(), "sign_separate");
+        assert_eq!(Feature::RenamesR4R6.to_string(), "renames_r4_r6");
         assert_eq!(Feature::LruCache.to_string(), "lru_cache");
     }
 
     #[test]
     fn test_feature_from_str() {
         assert_eq!(
-            Feature::from_str("sign_separate").unwrap(),
-            Feature::SignSeparate
+            Feature::from_str("renames_r4_r6").unwrap(),
+            Feature::RenamesR4R6
         );
         assert_eq!(Feature::from_str("LRU_CACHE").unwrap(), Feature::LruCache);
         assert!(Feature::from_str("unknown_feature").is_err());
     }
 
     #[test]
+    fn test_removed_phase_c_flags_are_unknown() {
+        // #656 Phase C (v0.6.0): SIGN SEPARATE, COMP-1, and COMP-2 are stable
+        // parser behavior, not runtime flags. Their old names must no longer
+        // parse so stale configs fail loudly instead of silently changing
+        // meaning.
+        for removed in [
+            "sign_separate",
+            "comp_1",
+            "comp_2",
+            "SIGN_SEPARATE",
+            "COMP_1",
+            "COMP_2",
+        ] {
+            assert!(
+                Feature::from_str(removed).is_err(),
+                "removed flag '{removed}' should not parse"
+            );
+        }
+    }
+
+    #[test]
     fn test_feature_category() {
         assert_eq!(
-            Feature::SignSeparate.category(),
+            Feature::RenamesR4R6.category(),
             FeatureCategory::Experimental
         );
         assert_eq!(Feature::AuditSystem.category(), FeatureCategory::Enterprise);
@@ -639,40 +637,30 @@ mod tests {
 
     #[test]
     fn test_default_enabled() {
-        assert!(Feature::SignSeparate.default_enabled());
-        assert!(Feature::Comp1.default_enabled());
-        assert!(Feature::Comp2.default_enabled());
         assert!(Feature::LruCache.default_enabled());
+        assert!(!Feature::RenamesR4R6.default_enabled());
         assert!(!Feature::VerboseLogging.default_enabled());
     }
 
     #[test]
-    fn lifecycle_reconciles_comp1_comp2_with_support_matrix() {
-        // Promoted COBOL-language features report a Stable lifecycle and are
-        // enabled by default, matching docs/reference/COBOL_SUPPORT_MATRIX.md
-        // ("Fully Supported"), even though category() groups them under the
-        // Experimental toggle group. lifecycle() is the authoritative class.
-        for feat in [Feature::Comp1, Feature::Comp2, Feature::SignSeparate] {
+    fn lifecycle_reports_experimental_for_all_remaining_flags() {
+        // #656 Phase C: stable COBOL language behavior (SIGN SEPARATE,
+        // COMP-1, COMP-2) is ordinary parser behavior, not a flag, so no
+        // remaining flag reports a Stable lifecycle. lifecycle() stays the
+        // authoritative stability signal, orthogonal to the toggle-group
+        // category().
+        for feat in all_features() {
             assert_eq!(
                 feat.lifecycle(),
-                FeatureLifecycle::Stable,
-                "{feat} should report a Stable lifecycle"
+                FeatureLifecycle::Experimental,
+                "{feat} should report an Experimental lifecycle"
             );
-            assert!(feat.default_enabled(), "{feat} should be default-enabled");
         }
 
         // category() stays a toggle group, orthogonal to the stability class.
-        assert_eq!(Feature::Comp1.category(), FeatureCategory::Experimental);
-        assert_eq!(Feature::Comp2.category(), FeatureCategory::Experimental);
-
-        // Opt-in / advanced flags remain Experimental in lifecycle.
         assert_eq!(
-            Feature::RenamesR4R6.lifecycle(),
-            FeatureLifecycle::Experimental
-        );
-        assert_eq!(
-            Feature::AuditSystem.lifecycle(),
-            FeatureLifecycle::Experimental
+            Feature::RenamesR4R6.category(),
+            FeatureCategory::Experimental
         );
     }
 
@@ -680,18 +668,16 @@ mod tests {
     fn test_feature_flags_default() {
         let flags = FeatureFlags::default();
         assert!(flags.is_enabled(Feature::LruCache));
-        assert!(flags.is_enabled(Feature::SignSeparate));
-        assert!(flags.is_enabled(Feature::Comp1));
-        assert!(flags.is_enabled(Feature::Comp2));
+        assert!(!flags.is_enabled(Feature::RenamesR4R6));
     }
 
     #[test]
     fn test_feature_flags_enable_disable() {
         let mut flags = FeatureFlags::default();
-        flags.enable(Feature::SignSeparate);
-        assert!(flags.is_enabled(Feature::SignSeparate));
-        flags.disable(Feature::SignSeparate);
-        assert!(!flags.is_enabled(Feature::SignSeparate));
+        flags.enable(Feature::RenamesR4R6);
+        assert!(flags.is_enabled(Feature::RenamesR4R6));
+        flags.disable(Feature::RenamesR4R6);
+        assert!(!flags.is_enabled(Feature::RenamesR4R6));
     }
 
     #[test]
@@ -706,39 +692,43 @@ mod tests {
     #[test]
     fn test_feature_flags_builder() {
         let flags = FeatureFlags::builder()
-            .enable(Feature::SignSeparate)
+            .enable(Feature::RenamesR4R6)
             .disable(Feature::LruCache)
             .build();
-        assert!(flags.is_enabled(Feature::SignSeparate));
+        assert!(flags.is_enabled(Feature::RenamesR4R6));
         assert!(!flags.is_enabled(Feature::LruCache));
     }
 
     #[test]
     fn test_feature_flags_enable_category() {
+        // #656 Phase C: RenamesR4R6 is the only remaining Experimental toggle.
         let flags = FeatureFlags::builder()
             .enable_category(FeatureCategory::Experimental)
             .build();
-        assert!(flags.is_enabled(Feature::SignSeparate));
         assert!(flags.is_enabled(Feature::RenamesR4R6));
-        assert!(flags.is_enabled(Feature::Comp1));
-        assert!(flags.is_enabled(Feature::Comp2));
+        assert_eq!(
+            flags.enabled_in_category(FeatureCategory::Experimental),
+            vec![Feature::RenamesR4R6]
+        );
     }
 
     #[test]
     fn test_feature_flags_handle() {
         let handle = FeatureFlagsHandle::new();
-        handle.enable(Feature::SignSeparate);
-        assert!(handle.is_enabled(Feature::SignSeparate));
-        handle.disable(Feature::SignSeparate);
-        assert!(!handle.is_enabled(Feature::SignSeparate));
-        handle.enable(Feature::SignSeparate);
-        assert!(handle.is_enabled(Feature::SignSeparate));
+        handle.enable(Feature::RenamesR4R6);
+        assert!(handle.is_enabled(Feature::RenamesR4R6));
+        handle.disable(Feature::RenamesR4R6);
+        assert!(!handle.is_enabled(Feature::RenamesR4R6));
+        handle.enable(Feature::RenamesR4R6);
+        assert!(handle.is_enabled(Feature::RenamesR4R6));
     }
 
     #[test]
     fn test_all_features() {
         let features = all_features();
-        assert!(features.contains(&Feature::SignSeparate));
+        // #656 Phase C: 18 -> 15 flags (SignSeparate/Comp1/Comp2 removed).
+        assert_eq!(features.len(), 15);
+        assert!(features.contains(&Feature::RenamesR4R6));
         assert!(features.contains(&Feature::LruCache));
         assert!(features.contains(&Feature::VerboseLogging));
     }
@@ -748,18 +738,14 @@ mod tests {
         let mut flags = FeatureFlags::default();
         flags.enable(Feature::RenamesR4R6);
         let experimental = flags.enabled_in_category(FeatureCategory::Experimental);
-        assert_eq!(experimental.len(), 4);
-        assert!(experimental.contains(&Feature::SignSeparate));
-        assert!(experimental.contains(&Feature::Comp1));
-        assert!(experimental.contains(&Feature::Comp2));
-        assert!(experimental.contains(&Feature::RenamesR4R6));
+        assert_eq!(experimental, vec![Feature::RenamesR4R6]);
     }
 
     #[test]
     fn test_env_var_name() {
         assert_eq!(
-            Feature::SignSeparate.env_var_name(),
-            "COPYBOOK_FF_SIGN_SEPARATE"
+            Feature::RenamesR4R6.env_var_name(),
+            "COPYBOOK_FF_RENAMES_R4_R6"
         );
         assert_eq!(Feature::LruCache.env_var_name(), "COPYBOOK_FF_LRU_CACHE");
     }
@@ -849,8 +835,9 @@ mod tests {
 
     #[test]
     fn test_features_in_category_counts() {
+        // #656 Phase C: Experimental holds only RenamesR4R6 (15 flags total).
         let experimental = FeatureFlags::features_in_category(FeatureCategory::Experimental);
-        assert_eq!(experimental.len(), 4);
+        assert_eq!(experimental, vec![Feature::RenamesR4R6]);
         let enterprise = FeatureFlags::features_in_category(FeatureCategory::Enterprise);
         assert_eq!(enterprise.len(), 6);
         let performance = FeatureFlags::features_in_category(FeatureCategory::Performance);
@@ -863,8 +850,8 @@ mod tests {
     fn test_enabled_features_iterator_count() {
         let flags = FeatureFlags::default();
         let count = flags.enabled_features().count();
-        // Default-enabled: SignSeparate, Comp1, Comp2, LruCache
-        assert_eq!(count, 4);
+        // Default-enabled: LruCache only (stable language behavior is not flagged).
+        assert_eq!(count, 1);
     }
 
     #[test]

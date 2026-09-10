@@ -18,8 +18,8 @@ use copybook_governance_contracts::{
 };
 
 // Feature flags
-let flags = FeatureFlags::builder().enable(Feature::Comp1).build();
-assert!(flags.is_enabled(Feature::Comp1));
+let flags = FeatureFlags::builder().enable(Feature::RenamesR4R6).build();
+assert!(flags.is_enabled(Feature::RenamesR4R6));
 
 // Support matrix lookup
 let entry = find_feature_by_id(FeatureId::EditedPic).unwrap();

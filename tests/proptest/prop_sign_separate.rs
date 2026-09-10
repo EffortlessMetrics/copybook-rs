@@ -13,7 +13,6 @@ use copybook_codec::Codepage;
 use copybook_codec::numeric::{
     decode_zoned_decimal_sign_separate, encode_zoned_decimal_sign_separate,
 };
-use copybook_contracts::{Feature, FeatureFlags};
 use copybook_core::{SignPlacement, SignSeparateInfo};
 use proptest::prelude::*;
 
@@ -213,25 +212,17 @@ proptest! {
             "       05  AMT PIC S9({digits}) SIGN IS SEPARATE {placement}."
         );
 
-        let flags = FeatureFlags::from_env();
+        // #656 Phase C: SIGN SEPARATE parses unconditionally; no flag gates it.
         let result = copybook_core::parse_copybook(&copybook);
+        let schema = result.expect("parse should succeed unconditionally");
+        let field = &schema.fields[0];
 
-        if flags.is_enabled(Feature::SignSeparate) {
-            let schema = result.expect("parse should succeed when SIGN_SEPARATE enabled");
-            let field = &schema.fields[0];
-
-            // SIGN SEPARATE adds 1 byte to the field length
-            prop_assert_eq!(
-                field.len,
-                u32::from(digits) + 1,
-                "SIGN SEPARATE field len should be digits ({}) + 1",
-                digits,
-            );
-        } else {
-            prop_assert!(
-                result.is_err(),
-                "parse should fail when SIGN_SEPARATE feature flag is disabled",
-            );
-        }
+        // SIGN SEPARATE adds 1 byte to the field length
+        prop_assert_eq!(
+            field.len,
+            u32::from(digits) + 1,
+            "SIGN SEPARATE field len should be digits ({}) + 1",
+            digits,
+        );
     }
 }

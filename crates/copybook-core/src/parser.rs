@@ -6,7 +6,7 @@
 
 use crate::error::ErrorCode;
 use crate::error::error;
-use crate::feature_flags::{Feature, FeatureFlags};
+use crate::feature_flags::FeatureFlags;
 use crate::lexer::{Lexer, Token, TokenPos};
 use crate::pic::PicClause;
 use crate::schema::{Field, FieldKind, Occurs, Schema, SignPlacement, SignSeparateInfo};
@@ -228,25 +228,6 @@ impl Parser {
             options,
             feature_flags,
         }
-    }
-
-    fn require_feature_enabled(
-        &self,
-        feature: Feature,
-        field_name: &str,
-        feature_name: &str,
-        syntax: &str,
-    ) -> Result<()> {
-        if self.feature_flags.is_enabled(feature) {
-            return Ok(());
-        }
-
-        Err(Error::new(
-            ErrorCode::CBKP011_UNSUPPORTED_CLAUSE,
-            format!(
-                "{syntax} is not supported for field '{field_name}' (enable with --enable-features {feature_name})"
-            ),
-        ))
     }
 
     /// Parse the complete schema
@@ -934,26 +915,16 @@ impl Parser {
                 token: Token::Comp1,
                 ..
             }) => {
+                // #656 Phase C: COMP-1 is stable behavior, parsed unconditionally.
                 self.advance();
-                self.require_feature_enabled(
-                    Feature::Comp1,
-                    &field.name,
-                    "comp_1",
-                    "USAGE COMP-1",
-                )?;
                 field.kind = FieldKind::FloatSingle;
             }
             Some(TokenPos {
                 token: Token::Comp2,
                 ..
             }) => {
+                // #656 Phase C: COMP-2 is stable behavior, parsed unconditionally.
                 self.advance();
-                self.require_feature_enabled(
-                    Feature::Comp2,
-                    &field.name,
-                    "comp_2",
-                    "USAGE COMP-2",
-                )?;
                 field.kind = FieldKind::FloatDouble;
             }
             Some(TokenPos {
@@ -1780,11 +1751,7 @@ mod tests {
     #[test]
     fn test_sign_clause_without_separate_rejected() {
         // SIGN LEADING without SEPARATE is invalid — overpunching is handled by S in PIC.
-        // Skip when sign_separate feature is disabled by env (e.g. COPYBOOK_FF_SIGN_SEPARATE=0).
-        let flags = FeatureFlags::from_env();
-        if !flags.is_enabled(Feature::SignSeparate) {
-            return;
-        }
+        // #656 Phase C: SIGN SEPARATE parses unconditionally; no flag can disable it.
         let input = "01 AMOUNT PIC S9(5) SIGN LEADING.";
         let result = parse(input);
 
@@ -1799,12 +1766,7 @@ mod tests {
 
     #[test]
     fn test_sign_leading_separate_accepted() {
-        // SIGN IS LEADING SEPARATE is always accepted (promoted to stable)
-        // Skip when sign_separate feature is disabled by env (e.g. COPYBOOK_FF_SIGN_SEPARATE=0).
-        let flags = FeatureFlags::from_env();
-        if !flags.is_enabled(Feature::SignSeparate) {
-            return;
-        }
+        // SIGN IS LEADING SEPARATE is always accepted (stable behavior, #656 Phase C).
         let input = "01 AMOUNT PIC S9(5) SIGN IS LEADING SEPARATE.";
         let result = parse(input);
         assert!(
@@ -1815,12 +1777,7 @@ mod tests {
 
     #[test]
     fn test_sign_trailing_separate_accepted() {
-        // SIGN TRAILING SEPARATE is always accepted (promoted to stable)
-        // Skip when sign_separate feature is disabled by env (e.g. COPYBOOK_FF_SIGN_SEPARATE=0).
-        let flags = FeatureFlags::from_env();
-        if !flags.is_enabled(Feature::SignSeparate) {
-            return;
-        }
+        // SIGN TRAILING SEPARATE is always accepted (stable behavior, #656 Phase C).
         let input = "01 AMOUNT PIC S9(5) SIGN TRAILING SEPARATE.";
         let result = parse(input);
         assert!(result.is_ok(), "SIGN TRAILING SEPARATE should be accepted");

@@ -32,16 +32,19 @@ mod tests {
     #[test]
     fn test_reexported_feature_flags_builder() {
         let flags = FeatureFlags::builder()
-            .enable(Feature::Comp1)
+            .enable(Feature::RenamesR4R6)
             .disable(Feature::LruCache)
             .build();
-        assert!(flags.is_enabled(Feature::Comp1));
+        assert!(flags.is_enabled(Feature::RenamesR4R6));
         assert!(!flags.is_enabled(Feature::LruCache));
     }
 
     #[test]
     fn test_reexported_feature_category() {
-        assert_eq!(Feature::Comp1.category(), FeatureCategory::Experimental);
+        assert_eq!(
+            Feature::RenamesR4R6.category(),
+            FeatureCategory::Experimental
+        );
     }
 
     #[test]
@@ -74,11 +77,10 @@ mod tests {
 
     #[test]
     fn test_feature_flags_default_has_expected_defaults() {
+        // #656 Phase C: LruCache is the only default-enabled flag.
         let flags = FeatureFlags::default();
-        assert!(flags.is_enabled(Feature::SignSeparate));
-        assert!(flags.is_enabled(Feature::Comp1));
-        assert!(flags.is_enabled(Feature::Comp2));
         assert!(flags.is_enabled(Feature::LruCache));
+        assert!(!flags.is_enabled(Feature::RenamesR4R6));
         assert!(!flags.is_enabled(Feature::AuditSystem));
     }
 

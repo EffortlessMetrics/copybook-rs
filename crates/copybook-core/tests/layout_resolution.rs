@@ -5,7 +5,6 @@
 //! Validates byte offset calculation, field sizing, LRECL computation,
 //! alignment/padding, and edge cases for the layout resolution phase.
 
-use copybook_core::feature_flags::{Feature, FeatureFlags};
 use copybook_core::{FieldKind, Occurs, ParseOptions, parse_copybook, parse_copybook_with_options};
 
 // ---------------------------------------------------------------------------
@@ -18,19 +17,6 @@ fn find_field<'a>(schema: &'a copybook_core::Schema, name: &str) -> &'a copybook
         .into_iter()
         .find(|f| f.name == name)
         .unwrap_or_else(|| panic!("field '{name}' not found in schema"))
-}
-
-fn enable_sign_separate() {
-    let mut flags = FeatureFlags::default();
-    flags.enable(Feature::SignSeparate);
-    FeatureFlags::set_global(flags);
-}
-
-fn enable_comp_float() {
-    let mut flags = FeatureFlags::default();
-    flags.enable(Feature::Comp1);
-    flags.enable(Feature::Comp2);
-    FeatureFlags::set_global(flags);
 }
 
 // ===========================================================================
@@ -212,7 +198,6 @@ fn test_size_pic_s9_overpunch() {
 
 #[test]
 fn test_size_sign_leading_separate() {
-    enable_sign_separate();
     let cpy = r"
        01 REC.
           05 F1 PIC S9(5) SIGN IS LEADING SEPARATE.
@@ -226,7 +211,6 @@ fn test_size_sign_leading_separate() {
 
 #[test]
 fn test_size_sign_trailing_separate() {
-    enable_sign_separate();
     let cpy = r"
        01 REC.
           05 F1 PIC S9(5) SIGN IS TRAILING SEPARATE.
@@ -294,7 +278,6 @@ fn test_size_comp_binary() {
 
 #[test]
 fn test_size_comp1_float_single() {
-    enable_comp_float();
     let cpy = "01 F1 COMP-1.";
     let schema = parse_copybook(cpy).unwrap();
 
@@ -304,7 +287,6 @@ fn test_size_comp1_float_single() {
 
 #[test]
 fn test_size_comp2_float_double() {
-    enable_comp_float();
     let cpy = "01 F1 COMP-2.";
     let schema = parse_copybook(cpy).unwrap();
 

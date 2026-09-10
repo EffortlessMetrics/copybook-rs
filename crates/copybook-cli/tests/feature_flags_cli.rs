@@ -17,10 +17,7 @@ fn test_list_features() {
         .success()
         .stdout(predicate::str::contains("Available Feature Flags"))
         .stdout(predicate::str::contains("EXPERIMENTAL"))
-        .stdout(predicate::str::contains("sign_separate"))
         .stdout(predicate::str::contains("renames_r4_r6"))
-        .stdout(predicate::str::contains("comp_1"))
-        .stdout(predicate::str::contains("comp_2"))
         .stdout(predicate::str::contains("ENTERPRISE"))
         .stdout(predicate::str::contains("audit_system"))
         .stdout(predicate::str::contains("sox_compliance"))
@@ -146,17 +143,32 @@ fn test_lru_cache_enabled_by_default() {
 }
 
 #[test]
-fn test_promoted_features_enabled_by_default() {
+fn test_removed_phase_c_flags_absent_from_list() {
+    // #656 Phase C (v0.6.0): sign_separate, comp_1, comp_2 are stable parser
+    // behavior, not runtime flags, so they no longer appear in --list-features.
     let copybook = fixture_path("copybooks/simple.cpy").expect("fixture should exist");
-    // sign_separate, comp_1, comp_2 are now enabled by default (promoted to stable)
     cargo_bin_cmd!("copybook")
         .args(["--list-features", "parse"])
         .arg(copybook)
         .assert()
         .success()
-        .stdout(
-            predicate::str::contains("sign_separate").and(predicate::str::contains("(enabled")),
-        );
+        .stdout(predicate::str::contains("sign_separate").not())
+        .stdout(predicate::str::contains("comp_1").not())
+        .stdout(predicate::str::contains("comp_2").not());
+}
+
+#[test]
+fn test_removed_phase_c_flags_rejected() {
+    // Stale configs naming removed flags must fail loudly.
+    let copybook = fixture_path("copybooks/simple.cpy").expect("fixture should exist");
+    for removed in ["sign_separate", "comp_1", "comp_2"] {
+        cargo_bin_cmd!("copybook")
+            .args(["--enable-features", removed, "parse"])
+            .arg(&copybook)
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("Invalid feature flag"));
+    }
 }
 
 #[test]

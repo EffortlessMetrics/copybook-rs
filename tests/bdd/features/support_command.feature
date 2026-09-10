@@ -36,12 +36,11 @@ Feature: Support Command: test
 
   Scenario: Feature-governance mapping for signed separate
     When the governance mapping is checked for feature "sign-separate"
-    Then the governance mapping should include feature flag "sign_separate"
+    Then the governance mapping should include no feature flags
 
   Scenario: Feature-governance mapping for COMP-1/COMP-2
     When the governance mapping is checked for feature "comp-1-comp-2"
-    Then the governance mapping should include feature flag "comp_1"
-    And the governance mapping should include feature flag "comp_2"
+    Then the governance mapping should include no feature flags
 
   Scenario: Governance summary is complete
     When the governance grid summary is checked
@@ -53,5 +52,5 @@ Feature: Support Command: test
     Then the command output should report 7 runtime enabled and 0 runtime disabled support entries
 
   Scenario: Governance runtime summary reflects disabled feature flags
-    When the support matrix runtime availability is checked with sign-separate disabled
+    When the support matrix runtime availability is checked with renames-r4-r6 disabled
     Then the command output should report 6 runtime enabled and 1 runtime disabled support entries

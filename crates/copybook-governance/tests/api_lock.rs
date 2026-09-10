@@ -22,9 +22,10 @@ fn facade_exposes_runtime_api_surface() {
 
 #[test]
 fn facade_runtime_summary_tracks_feature_flag_overrides() {
+    // #656 Phase C: RenamesR4R6 is the remaining flag-gated binding.
     let flags = FeatureFlags::builder()
-        .enable(Feature::RenamesR4R6)
-        .disable(Feature::SignSeparate)
+        .enable(Feature::VerboseLogging)
+        .disable(Feature::RenamesR4R6)
         .build();
 
     let summary = runtime_summary(&flags);

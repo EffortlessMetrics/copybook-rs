@@ -59,9 +59,9 @@ The standard and scratch-buffer codec paths share this contract; see
 
 | Feature | Status | Test Evidence | Notes |
 |---------|--------|---------------|-------|
-| SIGN LEADING SEPARATE clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_feature_enabled_tests.rs` | Explicit LEADING SEPARATE is supported; enabled by default |
-| SIGN TRAILING SEPARATE clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_feature_enabled_tests.rs` | Explicit TRAILING SEPARATE is supported; enabled by default |
-| SIGN SEPARATE (`sign-separate`) | ✅ **Fully Supported** | `copybook-core/tests/sign_separate_feature_enabled_tests.rs`, `copybook-core/tests/schema_validation_edge_cases.rs`, `copybook-codec/tests/numeric_sign_separate_comprehensive.rs`, `copybook-codec/tests/sign_separate_golden_tests.rs`, `copybook-codec/tests/sign_separate_tests.rs` | Enabled by default (promoted from experimental); omitted placement defaults to TRAILING; encode + decode + round-trip |
+| SIGN LEADING SEPARATE clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_parse_tests.rs` | Explicit LEADING SEPARATE is supported unconditionally (no flag since v0.6.0) |
+| SIGN TRAILING SEPARATE clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_parse_tests.rs` | Explicit TRAILING SEPARATE is supported unconditionally (no flag since v0.6.0) |
+| SIGN SEPARATE (`sign-separate`) | ✅ **Fully Supported** | `copybook-core/tests/sign_separate_parse_tests.rs`, `copybook-core/tests/stable_language_unconditional_tests.rs`, `copybook-core/tests/schema_validation_edge_cases.rs`, `copybook-codec/tests/numeric_sign_separate_comprehensive.rs`, `copybook-codec/tests/sign_separate_golden_tests.rs`, `copybook-codec/tests/sign_separate_tests.rs` | Unconditional since v0.6.0 (#656 Phase C); omitted placement defaults to TRAILING; encode + decode + round-trip |
 | Overpunch (EBCDIC/ASCII) | ✅ Fully Supported | `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage`, `decimal_edge_cases.rs::test_zoned_overpunch_comprehensive`, `comprehensive_numeric_tests.rs::test_zoned_decimal_ascii_sign_zones_comprehensive` | Comprehensive overpunch with EBCDIC zones |
 
 ## Record Formats
@@ -314,7 +314,7 @@ copybook determinism decode --output json --format fixed --codepage cp037 schema
 
 ### Parse Errors (CBKP*)
 - `CBKP001_SYNTAX`: Copybook syntax errors — `comprehensive_parser_tests.rs::test_error_context_with_line_numbers`, `comprehensive_parser_tests.rs::test_sign_clause_as_edited_pic_normative`
-- `CBKP011_UNSUPPORTED_CLAUSE`: Unsupported COBOL clause (feature-disabled path) — `feature_gating_disabled_tests.rs::test_disabled_comp_features_reject_comp1_comp2_clauses`
+- `CBKP011_UNSUPPORTED_CLAUSE`: Unsupported COBOL clause (reserved taxonomy; no current parser path emits it since #656 Phase C made stable clauses unconditional — reporting coverage via `error_reporter_tests.rs::cbkp_parse_errors_classified_as_fatal`)
 - `CBKP021_ODO_NOT_TAIL`: ODO not at tail — `golden_fixtures_ac4_sibling_after_odo_fail.rs::test_ac4_basic_storage_after_odo_fail`
 - `CBKP022_NESTED_ODO`: Nested ODO rejected — `nested_odo_negative_tests.rs::test_o5_nested_odo_basic_rejection`
 - `CBKP023_ODO_REDEFINES`: ODO over REDEFINES rejected — `nested_odo_negative_tests.rs::test_o6_odo_over_redefines_basic`

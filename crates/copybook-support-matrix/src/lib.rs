@@ -107,28 +107,32 @@ pub fn all_features() -> &'static [FeatureSupport] {
             name: "LEVEL 88 condition names",
             description: "Condition-name VALUE clauses (space- and comma-separated).",
             status: Supported,
-            doc_ref: Some("docs/reference/COBOL_SUPPORT_MATRIX.md#level-88-condition-names"),
+            doc_ref: Some(
+                "docs/reference/COBOL_SUPPORT_MATRIX.md#level-88-condition-values---support-status",
+            ),
         },
         FeatureSupport {
             id: Level66Renames,
             name: "LEVEL 66 RENAMES",
             description: "Non-storage renaming with same-scope and THRU support.",
             status: Partial,
-            doc_ref: Some("docs/reference/COBOL_SUPPORT_MATRIX.md#level-66-renames"),
+            doc_ref: Some(
+                "docs/reference/COBOL_SUPPORT_MATRIX.md#renames-level-66---support-status",
+            ),
         },
         FeatureSupport {
             id: OccursDepending,
             name: "OCCURS DEPENDING ON",
             description: "Variable-length OCCURS; tail-only, no nesting.",
             status: Partial,
-            doc_ref: Some("docs/reference/COBOL_SUPPORT_MATRIX.md#occurs-depending-on"),
+            doc_ref: Some("docs/reference/COBOL_SUPPORT_MATRIX.md#structural-features"),
         },
         FeatureSupport {
             id: EditedPic,
             name: "Edited PIC clauses",
             description: "Masks like PIC Z,ZZZ.99; full parse/decode/encode support.",
             status: Supported,
-            doc_ref: Some("docs/reference/COBOL_SUPPORT_MATRIX.md#edited-pic"),
+            doc_ref: Some("docs/reference/COBOL_SUPPORT_MATRIX.md#edited-pic-clauses"),
         },
         FeatureSupport {
             id: Comp1Comp2,

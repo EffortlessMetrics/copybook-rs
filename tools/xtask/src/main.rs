@@ -159,6 +159,7 @@ fn verify_support_matrix() -> Result<()> {
 
     let all_features = support_matrix::all_features();
     let mut missing = Vec::new();
+    let mut status_mismatches = Vec::new();
 
     for feature in all_features {
         let id =
@@ -167,7 +168,30 @@ fn verify_support_matrix() -> Result<()> {
         // Check if the feature ID appears anywhere in the doc
         // We're lenient: just check for the kebab-case ID string
         if !doc_content.contains(&id) {
-            missing.push(id);
+            missing.push(id.clone());
+            continue;
+        }
+
+        // #656 Phase G: the registry is authoritative for feature status, so the
+        // doc's table row for the feature must carry the matching status marker.
+        // SupportStatus is non_exhaustive: unknown future variants map to a
+        // marker no row carries, forcing an explicit verifier update.
+        let expected_marker = match feature.status {
+            support_matrix::SupportStatus::Supported => "✅",
+            support_matrix::SupportStatus::Partial => "⚠️",
+            support_matrix::SupportStatus::Planned => "🔄",
+            support_matrix::SupportStatus::NotPlanned => "❌",
+            _ => "❓",
+        };
+        let row_marker = format!("(`{id}`)");
+        let agrees = doc_content
+            .lines()
+            .any(|line| line.contains(row_marker.as_str()) && line.contains(expected_marker));
+        if !agrees {
+            status_mismatches.push(format!(
+                "{id}: registry says {:?} (expected marker {expected_marker})",
+                feature.status
+            ));
         }
     }
 
@@ -177,6 +201,16 @@ fn verify_support_matrix() -> Result<()> {
              The following features are in the registry but not documented in {doc_path}:\n  - {}\n\n\
              Add these features to the appropriate tables in {doc_path}.",
             missing.join("\n  - ")
+        );
+    }
+
+    if !status_mismatches.is_empty() {
+        bail!(
+            "Support matrix status drift detected!\n\
+             The registry is authoritative for feature status (#656 Phase G); \
+             these {doc_path} rows disagree:\n  - {}\n\n\
+             Align the row status markers with the registry.",
+            status_mismatches.join("\n  - ")
         );
     }
 

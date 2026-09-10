@@ -3,7 +3,11 @@
 
 **Last Updated**: 2026-07-25
 **Version**: copybook-rs v0.4.3
-**Canonical Reference**: This document is the authoritative source for COBOL feature support
+**Canonical Reference**: The machine-readable registry (`copybook-support-matrix`,
+surfaced via `copybook support --json`) is authoritative for feature status.
+This document renders the full matrix with scenario detail and test evidence;
+its governed-feature rows are verified against the registry by
+`cargo run -p xtask -- docs verify-support-matrix`.
 
 > 💡 **Tip**: You can query this matrix programmatically using the CLI:
 > ```bash
@@ -45,14 +49,14 @@ The standard and scratch-buffer codec paths share this contract; see
 
 | Feature | Status | Test Evidence | Notes |
 |---------|--------|---------------|-------|
-| ODO (`occurs-depending`) | ✅ Fully Supported | `odo_comprehensive.rs::test_valid_odo_configuration`, `odo_comprehensive.rs::test_odo_payload_length_correctness`, `odo_counter_types.rs::test_odo_zoned_counter`, `structural_evidence_matrix.rs::odo_variable_length_decodes_through_rdw` | Driver validation, tail constraints, payload length, clipping/raising; RDW variable-length records shorter than the schema maximum |
+| ODO (`occurs-depending`) | ⚠️ Partially Supported (tail-only, no nesting) | `odo_comprehensive.rs::test_valid_odo_configuration`, `odo_comprehensive.rs::test_odo_payload_length_correctness`, `odo_counter_types.rs::test_odo_zoned_counter`, `structural_evidence_matrix.rs::odo_variable_length_decodes_through_rdw` | Driver validation, tail constraints, payload length, clipping/raising; RDW variable-length records shorter than the schema maximum |
 | REDEFINES | ✅ Fully Supported | `redefines_comprehensive.rs::test_redefines_shorter_overlay`, `redefines_comprehensive.rs::test_redefines_round_trip_preservation`, `comprehensive_redefines_odo_tests.rs::test_redefines_decode_all_views`, `structural_evidence_matrix.rs::redefines_group_overlays_original` | Shorter/equal/longer overlays, group-view overlay, encode ambiguity, raw preservation |
 | Level-88 (`level-88`) | ✅ Fully Supported | `golden_fixtures_ac2_level88_after_odo.rs::test_ac2_basic_level88_after_odo_pass`, `golden_fixtures_ac5_redefines_level88_interactions.rs::test_ac5_basic_level88_with_redefines_pass`, `test_level88_comma_support.rs` (10 tests) | Parse + codec with `FieldKind::Condition`, non-storage semantic validation |
 | OCCURS (Fixed) | ✅ Fully Supported | `comprehensive_parser_tests.rs::test_occurs_fixed_arrays`, `comprehensive_redefines_odo_tests.rs::test_nested_fixed_occurs_allowed`, `redefines_comprehensive.rs::test_redefines_with_occurs` | Fixed-size array support with dedicated tests |
 | SYNCHRONIZED | ✅ Fully Supported | `comprehensive_parser_tests.rs::test_synchronized_alignment` | Field alignment with padding calculation |
 | BLANK WHEN ZERO | ✅ Fully Supported | `comprehensive_parser_tests.rs::test_blank_when_zero_parsing`, `comprehensive_numeric_tests.rs::test_blank_when_zero_comprehensive`, `decimal_edge_cases.rs::test_blank_when_zero_edge_cases` | Special value handling |
-| Nested ODO / OCCURS (`nested-odo`) | ✅ O1-O4 Supported | See [Nested ODO Support Status](#nested-odo--occurs-behavior---support-status) for scenario breakdown | O1-O4✅ supported; O5-O6🚫 rejected by design; see Issue #164 |
-| RENAMES (`level-66-renames`) | ✅ Fully Supported (R1-R3) | `renames_codec_tests.rs::test_renames_r1_simple_decode`, `renames_codec_tests.rs::test_renames_r2_group_decode`, `schema_alias_lookup_tests.rs` (8 tests) | See [RENAMES Support Status](#renames-level-66---support-status) for scenario breakdown (R1-R3✅ with alias-aware lookup, R4-R6🚫 out of scope) |
+| Nested ODO / OCCURS (`nested-odo`) | ⚠️ Partially Supported (O1-O4) | See [Nested ODO Support Status](#nested-odo--occurs-behavior---support-status) for scenario breakdown | O1-O4✅ supported; O5-O6🚫 rejected by design; see Issue #164 |
+| RENAMES (`level-66-renames`) | ⚠️ Partially Supported (R1-R3) | `renames_codec_tests.rs::test_renames_r1_simple_decode`, `renames_codec_tests.rs::test_renames_r2_group_decode`, `schema_alias_lookup_tests.rs` (8 tests) | See [RENAMES Support Status](#renames-level-66---support-status) for scenario breakdown (R1-R3✅ with alias-aware lookup, R4-R6🚫 out of scope) |
 | Dialect Lever (`dialect`) | ✅ Fully Supported (D0-D4) | `dialect_d1_tests.rs` (27 tests), `dialect_cli_d2_tests.rs` (11 tests), `dialect_fixtures_d3_tests.rs` | ODO `min_count` interpretation: Normative (n), ZeroTolerant (0), OneTolerant (1) modes with CLI `--dialect` flag and `COPYBOOK_DIALECT` env var; D0 contract complete (commit a9609af) |
 
 ## Sign Handling

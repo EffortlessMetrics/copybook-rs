@@ -3,6 +3,10 @@
 
 Guide for migrating from other COBOL data processing tools to copybook-rs.
 
+> Upgrading copybook-rs itself from 0.5.x to 0.6.0? See
+> [0.5 to 0.6 migration](migration/0.6.md) (retired crates, deprecated
+> facade paths, removed flags, CLI changes).
+
 ## Upcoming 0.6 library API changes
 
 ### Typed codec-option parse errors
@@ -249,7 +253,7 @@ Add the canonical `copybook` facade crate:
 
 ```toml
 [dependencies]
-copybook = "0.5"
+copybook = "0.6"
 ```
 
 ```rust
@@ -570,7 +574,7 @@ done
 
 ## Getting Help
 
-1. **Check Error Codes:** Refer to [ERROR_CODES.md](ERROR_CODES.md)
+1. **Check Error Codes:** Refer to [ERROR_CODES.md](reference/ERROR_CODES.md)
 2. **Review Examples:** See [README.md](../README.md) for usage examples
 3. **Test Incrementally:** Start with simple cases and build complexity
 4. **Use Verbose Mode:** Enable detailed logging for troubleshooting
@@ -592,4 +596,4 @@ done
 - [ ] Prepare rollback procedures
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

@@ -37,6 +37,7 @@ harness = false
 required-features = ["external-input"]
 
 [dependencies]
+copybook-audit = { workspace = true }
 copybook-core = { workspace = true }
 copybook-codec = { workspace = true }
 criterion.workspace = true

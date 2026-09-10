@@ -11,7 +11,7 @@ on:
     types: [labeled]
     paths:
       - "tools/copybook-bench/**"
-      - "crates/copybook-core/src/audit/**"
+      - "crates/copybook-audit/**"
       - "crates/copybook-codec/**"
       - "justfile"
 

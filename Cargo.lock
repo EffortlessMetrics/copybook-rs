@@ -764,11 +764,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "copybook-audit"
+version = "0.5.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "copybook-core",
+ "copybook-error",
+ "hex",
+ "rand 0.10.2",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "copybook-bdd"
 version = "0.5.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
+ "copybook-audit",
  "copybook-codec",
  "copybook-core",
  "copybook-corruption-detectors",
@@ -795,6 +814,7 @@ version = "0.5.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "copybook-audit",
  "copybook-codec",
  "copybook-core",
  "criterion",
@@ -825,6 +845,7 @@ dependencies = [
  "chrono",
  "clap",
  "copybook-arrow",
+ "copybook-audit",
  "copybook-charset",
  "copybook-codec",
  "copybook-core",
@@ -859,6 +880,7 @@ dependencies = [
  "assert_cmd",
  "base64 0.23.1",
  "blake3",
+ "copybook-audit",
  "copybook-charset",
  "copybook-core",
  "copybook-determinism",
@@ -912,17 +934,13 @@ name = "copybook-core"
 version = "0.5.0"
 dependencies = [
  "anyhow",
- "async-trait",
- "chrono",
  "copybook-error",
  "copybook-error-reporter",
  "copybook-governance-contracts",
  "copybook-overflow",
  "copybook-utils",
- "hex",
  "logos",
  "proptest",
- "rand 0.10.2",
  "serde",
  "serde_json",
  "serde_plain",

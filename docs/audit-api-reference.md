@@ -12,7 +12,7 @@ This document provides comprehensive API reference for the copybook-rs enterpris
 Primary context object for all audit operations.
 
 ```rust
-use copybook_core::audit::{AuditContext, EnvironmentContext, SecurityContext, ProcessingConfig};
+use copybook_audit::{AuditContext, EnvironmentContext, SecurityContext, ProcessingConfig};
 
 // Create audit context for SOX-compliant financial data processing
 let audit_context = AuditContext::new()
@@ -28,7 +28,7 @@ let audit_context = AuditContext::new()
 Core audit event structure for all audit trail entries.
 
 ```rust
-use copybook_core::audit::{AuditEvent, AuditEventType, AuditPayload};
+use copybook_audit::{AuditEvent, AuditEventType, AuditPayload};
 
 // Create parsing audit event
 let parse_event = AuditEvent::new(
@@ -50,7 +50,7 @@ let parse_event = AuditEvent::new(
 Enterprise compliance validation engine.
 
 ```rust
-use copybook_core::audit::{ComplianceEngine, ComplianceProfile, ComplianceResult};
+use copybook_audit::{ComplianceEngine, ComplianceProfile, ComplianceResult};
 
 // Initialize compliance engine with multiple profiles
 let compliance_engine = ComplianceEngine::new()
@@ -82,7 +82,7 @@ match compliance_result {
 Export audit events to enterprise SIEM systems.
 
 ```rust
-use copybook_core::audit::{SiemExporter, SiemFormat, SiemConfig};
+use copybook_audit::{SiemExporter, SiemFormat, SiemConfig};
 
 // Configure SIEM export for Splunk
 let siem_config = SiemConfig::new()
@@ -103,7 +103,7 @@ siem_exporter.export_events(&audit_events).await?;
 Integration with enterprise monitoring platforms.
 
 ```rust
-use copybook_core::audit::{PerformanceMonitor, MetricsExporter, PrometheusConfig};
+use copybook_audit::{PerformanceMonitor, MetricsExporter, PrometheusConfig};
 
 // Configure Prometheus metrics export
 let prometheus_config = PrometheusConfig::new()
@@ -132,7 +132,7 @@ performance_monitor
 Sarbanes-Oxley compliance features for financial data processing.
 
 ```rust
-use copybook_core::audit::{SoxCompliance, FinancialDataClassification, InternalControl};
+use copybook_audit::{SoxCompliance, FinancialDataClassification, InternalControl};
 
 // Configure SOX compliance validation
 let sox_compliance = SoxCompliance::new()
@@ -164,7 +164,7 @@ if sox_result.is_compliant() {
 Healthcare data processing compliance.
 
 ```rust
-use copybook_core::audit::{HipaaCompliance, PhiClassification, MinimumNecessary};
+use copybook_audit::{HipaaCompliance, PhiClassification, MinimumNecessary};
 
 // Configure HIPAA compliance for PHI processing
 let hipaa_compliance = HipaaCompliance::new()
@@ -184,7 +184,7 @@ let hipaa_result = hipaa_compliance
 European data protection compliance.
 
 ```rust
-use copybook_core::audit::{GdprCompliance, LegalBasis, ProcessingPurpose};
+use copybook_audit::{GdprCompliance, LegalBasis, ProcessingPurpose};
 
 // Configure GDPR compliance
 let gdpr_compliance = GdprCompliance::new()
@@ -211,7 +211,7 @@ gdpr_compliance
 Track data transformations at the field level.
 
 ```rust
-use copybook_core::audit::{LineageTracker, FieldLineage, TransformationType};
+use copybook_audit::{LineageTracker, FieldLineage, TransformationType};
 
 // Initialize lineage tracker
 let lineage_tracker = LineageTracker::new()
@@ -244,7 +244,7 @@ lineage_tracker
 Analyze the impact of schema or processing changes.
 
 ```rust
-use copybook_core::audit::{ImpactAnalyzer, ChangeType, ImpactAssessment};
+use copybook_audit::{ImpactAnalyzer, ChangeType, ImpactAssessment};
 
 // Analyze impact of schema changes
 let impact_analyzer = ImpactAnalyzer::new()
@@ -272,7 +272,7 @@ println!("  Recommended actions: {:?}", impact_assessment.recommended_actions);
 Manage performance baselines and regression detection.
 
 ```rust
-use copybook_core::audit::{BaselineManager, PerformanceBaseline, RegressionDetector};
+use copybook_audit::{BaselineManager, PerformanceBaseline, RegressionDetector};
 
 // Create performance baseline
 let baseline_manager = BaselineManager::new()
@@ -310,7 +310,7 @@ if let Some(regression) = regression_result {
 Monitor system resource utilization during processing.
 
 ```rust
-use copybook_core::audit::{ResourceMonitor, ResourceMetrics, AlertThreshold};
+use copybook_audit::{ResourceMonitor, ResourceMetrics, AlertThreshold};
 
 // Configure resource monitoring
 let resource_monitor = ResourceMonitor::new()
@@ -342,7 +342,7 @@ println!("  I/O operations: {}", resource_metrics.io_operations);
 Monitor and audit data access patterns.
 
 ```rust
-use copybook_core::audit::{AccessAuditor, AccessEvent, AccessResult};
+use copybook_audit::{AccessAuditor, AccessEvent, AccessResult};
 
 // Configure access auditing
 let access_auditor = AccessAuditor::new()
@@ -377,7 +377,7 @@ for anomaly in anomalies {
 Monitor data security controls and encryption status.
 
 ```rust
-use copybook_core::audit::{SecurityMonitor, EncryptionStatus, DataClassification};
+use copybook_audit::{SecurityMonitor, EncryptionStatus, DataClassification};
 
 // Monitor data security
 let security_monitor = SecurityMonitor::new()
@@ -408,7 +408,7 @@ if !security_validation.is_compliant() {
 Manage comprehensive audit configuration.
 
 ```rust
-use copybook_core::audit::{AuditConfig, RetentionPolicy, OutputFormat};
+use copybook_audit::{AuditConfig, RetentionPolicy, OutputFormat};
 
 // Load audit configuration from file
 let audit_config = AuditConfig::from_file("audit-config.yaml")?;
@@ -434,7 +434,7 @@ let audit_system = AuditSystem::with_config(audit_config)?;
 All audit APIs use structured error handling with the copybook-rs error taxonomy:
 
 ```rust
-use copybook_core::audit::{AuditError, AuditErrorCode};
+use copybook_audit::{AuditError, AuditErrorCode};
 
 match audit_operation().await {
     Ok(result) => println!("Audit operation successful"),
@@ -456,7 +456,7 @@ match audit_operation().await {
 ### Complete Enterprise Processing Workflow
 
 ```rust
-use copybook_core::audit::*;
+use copybook_audit::*;
 
 async fn enterprise_processing_workflow() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize enterprise audit system

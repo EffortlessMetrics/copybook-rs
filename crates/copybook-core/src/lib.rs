@@ -126,8 +126,6 @@
 //! }
 //! ```
 
-#[cfg(feature = "audit")]
-pub mod audit;
 /// Dialect contract for ODO `min_count` semantics (Normative, ZeroTolerant, OneTolerant).
 pub mod dialect;
 /// Re-export of all error types from [`copybook_error`].
@@ -163,105 +161,6 @@ pub use feature_flags::{Feature, FeatureCategory, FeatureFlags, FeatureFlagsHand
 pub use parser::ParseOptions;
 pub use projection::project_schema;
 pub use schema::{Field, FieldKind, Occurs, Schema, SignPlacement, SignSeparateInfo, TailODO};
-
-#[cfg(feature = "audit")]
-pub use audit::*;
-
-// Performance-optimized audit stubs when audit feature is disabled
-#[cfg(not(feature = "audit"))]
-pub mod audit {
-    //! No-op audit stubs for performance-critical builds
-
-    use serde::{Deserialize, Serialize};
-
-    /// Lightweight audit context stub (zero-cost when audit disabled)
-    #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-    pub struct AuditContext {
-        // Zero-sized for maximum performance when audit is disabled
-    }
-
-    impl AuditContext {
-        /// Create a new audit context (no-op stub).
-        #[inline]
-        pub fn new() -> Self {
-            Self::default()
-        }
-        /// Create a lightweight audit context (no-op stub).
-        #[inline]
-        pub fn new_lightweight() -> Self {
-            Self::default()
-        }
-        /// Set the operation ID (no-op stub).
-        #[inline]
-        #[must_use]
-        pub fn with_operation_id(self, _id: impl Into<String>) -> Self {
-            self // No-op for zero-cost optimization
-        }
-        /// Set the user identity (no-op stub).
-        #[inline]
-        #[must_use]
-        pub fn with_user(self, _user: impl Into<String>) -> Self {
-            self
-        }
-        /// Set the security classification (no-op stub).
-        #[inline]
-        #[must_use]
-        pub fn with_security_classification(self, _classification: SecurityClassification) -> Self {
-            self
-        }
-        /// Set the compliance profile (no-op stub).
-        #[inline]
-        #[must_use]
-        pub fn with_compliance_profile(self, _profile: ComplianceProfile) -> Self {
-            self
-        }
-        /// Add a key-value metadata pair (no-op stub).
-        #[inline]
-        #[must_use]
-        pub fn with_metadata(self, _key: impl Into<String>, _value: impl Into<String>) -> Self {
-            self
-        }
-        /// Create a child context for nested operations (no-op stub).
-        #[inline]
-        #[must_use]
-        pub fn create_lightweight_child_context(&self, _id: impl Into<String>) -> Self {
-            // Return clone for no-op performance - avoid any allocations
-            self.clone()
-        }
-    }
-
-    /// Stub compliance profile enum (no-op when audit is disabled).
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-    pub enum ComplianceProfile {
-        /// Sarbanes-Oxley Act.
-        SOX,
-        /// Health Insurance Portability and Accountability Act.
-        HIPAA,
-        /// General Data Protection Regulation.
-        GDPR,
-        /// Payment Card Industry Data Security Standard.
-        PCIQDSS,
-    }
-
-    /// Stub security classification enum (no-op when audit is disabled).
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-    pub enum SecurityClassification {
-        /// Publicly accessible data.
-        Public,
-        /// Internal-only data.
-        Internal,
-        /// Confidential business data.
-        Confidential,
-        /// Material transaction data (SOX-relevant).
-        MaterialTransaction,
-        /// Protected Health Information (HIPAA-relevant).
-        PHI,
-    }
-
-    pub mod context {
-        pub use super::*;
-    }
-}
 
 /// Parse a COBOL copybook into a structured schema
 ///

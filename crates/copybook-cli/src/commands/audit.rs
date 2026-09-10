@@ -51,24 +51,22 @@ use crate::utils::atomic_write;
 use crate::{write_stderr_line, write_stdout_line};
 use chrono::{self, DateTime, Duration as ChronoDuration};
 use clap::{Parser, Subcommand};
-use copybook_codec::{Codepage, DecodeOptions, RecordFormat, decode_file_to_jsonl};
-use copybook_core::audit::{
+use copybook_audit::{
+    self as audit_core, LineageTracker,
+    event::{
+        ComparisonResult, PerformanceMeasurementType, PerformanceMetrics, SecurityEventType,
+        UserImpactLevel,
+    },
+};
+use copybook_audit::{
     AccessAuditor, AccessEvent, AccessResult, AuditContext, AuditEvent, AuditEventType,
     AuditLogger, AuditLoggerConfig, AuditPayload, BaselineManager, ComplianceConfig,
     ComplianceEngine, ComplianceProfile, FieldLineage, ImpactAnalyzer, PerformanceAuditor,
     PerformanceBaseline, ResourceMetrics, RiskLevel, SecurityAuditor, SecurityMonitor,
     SecurityViolation, ThroughputMetrics, TransformationType,
 };
-use copybook_core::{
-    FeatureFlags, Field, FieldKind, Schema,
-    audit::{
-        self as audit_core, LineageTracker,
-        event::{
-            ComparisonResult, PerformanceMeasurementType, PerformanceMetrics, SecurityEventType,
-            UserImpactLevel,
-        },
-    },
-};
+use copybook_codec::{Codepage, DecodeOptions, RecordFormat, decode_file_to_jsonl};
+use copybook_core::{FeatureFlags, Field, FieldKind, Schema};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};

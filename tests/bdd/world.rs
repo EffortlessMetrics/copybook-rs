@@ -66,18 +66,17 @@ pub struct CopybookWorld {
     pub(crate) rdw_predicate_result: Option<bool>,
     /// Audit-related fields (for enterprise audit testing)
     #[cfg(feature = "audit")]
-    pub(crate) audit_context: Option<copybook_core::audit::AuditContext>,
+    pub(crate) audit_context: Option<copybook_audit::AuditContext>,
     #[cfg(feature = "audit")]
-    pub(crate) audit_events: Vec<copybook_core::audit::AuditEvent>,
+    pub(crate) audit_events: Vec<copybook_audit::AuditEvent>,
     #[cfg(feature = "audit")]
     pub(crate) audit_output: Option<String>,
     #[cfg(feature = "audit")]
-    pub(crate) compliance_profile: Option<copybook_core::audit::ComplianceProfile>,
+    pub(crate) compliance_profile: Option<copybook_audit::ComplianceProfile>,
     #[cfg(feature = "audit")]
-    pub(crate) security_classification:
-        Option<copybook_core::audit::context::SecurityClassification>,
+    pub(crate) security_classification: Option<copybook_audit::context::SecurityClassification>,
     #[cfg(feature = "audit")]
-    pub(crate) child_audit_context: Option<copybook_core::audit::AuditContext>,
+    pub(crate) child_audit_context: Option<copybook_audit::AuditContext>,
     #[cfg(feature = "audit")]
     pub(crate) regression_metrics: bool,
 }

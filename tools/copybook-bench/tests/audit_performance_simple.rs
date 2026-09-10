@@ -9,7 +9,8 @@
 //! This simple test scaffolding compiles and provides TDD foundation for
 //! audit system performance integration with enterprise benchmarking.
 
-use copybook_core::{audit::AuditContext, audit::ComplianceProfile, parse_copybook};
+use copybook_audit::{AuditContext, ComplianceProfile};
+use copybook_core::parse_copybook;
 use std::time::{Duration, Instant};
 
 /// Tests feature spec: enterprise-audit-system-spec.md#performance-audit
@@ -32,9 +33,7 @@ fn test_audit_performance_baseline_scaffolding() {
 
     let _audit_context = AuditContext::new()
         .with_operation_id("performance_baseline_establishment")
-        .with_security_classification(
-            copybook_core::audit::context::SecurityClassification::Internal,
-        )
+        .with_security_classification(copybook_audit::context::SecurityClassification::Internal)
         .with_metadata("benchmark_type", "performance_baseline")
         .with_metadata("target_display_gbps", "4.1")
         .with_metadata("target_comp3_mbps", "560")
@@ -77,7 +76,7 @@ fn test_audit_overhead_scaffolding() {
     let audit_context = AuditContext::new_lightweight()
         .with_operation_id("enterprise_overhead_validation")
         .with_security_classification(
-            copybook_core::audit::context::SecurityClassification::MaterialTransaction,
+            copybook_audit::context::SecurityClassification::MaterialTransaction,
         )
         .with_compliance_profile(ComplianceProfile::SOX)
         .with_metadata("overhead_test", "true")
@@ -162,9 +161,7 @@ fn test_audit_system_scalability_scaffolding() {
 
     // Create a lightweight template context
     let template_context = AuditContext::new_lightweight()
-        .with_security_classification(
-            copybook_core::audit::context::SecurityClassification::Internal,
-        )
+        .with_security_classification(copybook_audit::context::SecurityClassification::Internal)
         .with_metadata("schema_fingerprint", &schema.fingerprint);
 
     // Simulate concurrent audit context creation

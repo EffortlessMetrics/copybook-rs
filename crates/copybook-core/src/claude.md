@@ -6,7 +6,6 @@
 
 ## Navigation
 - Crate root: `../claude.md`
-- Audit submodules: `audit/`
 
 ## Build
 - `cargo build -p copybook-core`

@@ -4,7 +4,7 @@
 //! Tracks processing performance metrics, baseline management, and regression
 //! detection for copybook-rs enterprise mainframe data processing operations.
 
-use crate::{Error, ErrorCode, Result};
+use copybook_error::{Error, ErrorCode, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};

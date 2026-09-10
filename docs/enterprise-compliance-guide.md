@@ -181,7 +181,7 @@ audit:
 ### SOX-Compliant Financial Data Processing
 
 ```rust
-use copybook_core::audit::*;
+use copybook_audit::*;
 
 async fn sox_compliant_financial_processing() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize SOX compliance engine
@@ -262,7 +262,7 @@ async fn sox_compliant_financial_processing() -> Result<(), Box<dyn std::error::
 ### HIPAA-Compliant Healthcare Data Processing
 
 ```rust
-use copybook_core::audit::*;
+use copybook_audit::*;
 
 async fn hipaa_compliant_healthcare_processing() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize HIPAA compliance engine
@@ -350,7 +350,7 @@ async fn hipaa_compliant_healthcare_processing() -> Result<(), Box<dyn std::erro
 ### GDPR-Compliant Personal Data Processing
 
 ```rust
-use copybook_core::audit::*;
+use copybook_audit::*;
 
 async fn gdpr_compliant_personal_data_processing() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize GDPR compliance engine
@@ -513,7 +513,7 @@ copybook audit report \
 ### 3. Automated Compliance Monitoring
 
 ```rust
-use copybook_core::audit::*;
+use copybook_audit::*;
 
 // Set up automated compliance monitoring
 async fn setup_compliance_monitoring() -> Result<(), Box<dyn std::error::Error>> {
@@ -547,7 +547,7 @@ async fn setup_compliance_monitoring() -> Result<(), Box<dyn std::error::Error>>
 ### Automated Report Generation
 
 ```rust
-use copybook_core::audit::*;
+use copybook_audit::*;
 
 async fn generate_compliance_reports() -> Result<(), Box<dyn std::error::Error>> {
     let report_generator = ComplianceReportGenerator::new();

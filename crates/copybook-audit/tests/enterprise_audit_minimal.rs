@@ -11,13 +11,11 @@
 //! This minimal test scaffolding compiles successfully and provides TDD foundation
 //! for implementing the 18 acceptance criteria of the Enterprise Audit System.
 
-#![cfg(feature = "audit")]
-
-use copybook_core::audit::{
+use copybook_audit::compliance::ComplianceConfig;
+use copybook_audit::{
     AuditContext, AuditEvent, AuditEventType, AuditLogger, AuditLoggerConfig, ComplianceEngine,
     ComplianceProfile,
 };
-use copybook_core::compliance::ComplianceConfig;
 use copybook_core::parse_copybook;
 use std::collections::HashMap;
 use tempfile::tempdir;
@@ -32,7 +30,7 @@ fn test_enterprise_audit_context_creation() {
         .with_compliance_profile(ComplianceProfile::SOX)
         .with_compliance_profile(ComplianceProfile::GDPR)
         .with_security_classification(
-            copybook_core::audit::context::SecurityClassification::MaterialTransaction,
+            copybook_audit::context::SecurityClassification::MaterialTransaction,
         )
         .with_metadata("business_unit", "financial_services")
         .with_metadata("data_classification", "confidential");
@@ -43,7 +41,7 @@ fn test_enterprise_audit_context_creation() {
     assert!(context.requires_compliance(ComplianceProfile::GDPR));
     assert_eq!(
         context.security.classification,
-        copybook_core::audit::context::SecurityClassification::MaterialTransaction
+        copybook_audit::context::SecurityClassification::MaterialTransaction
     );
     assert_eq!(
         context.metadata.get("business_unit"),
@@ -58,7 +56,7 @@ fn test_enterprise_audit_context_creation() {
 async fn test_hipaa_compliance_validation_scaffolding() {
     let context = AuditContext::new()
         .with_operation_id("hipaa_compliance_test")
-        .with_security_classification(copybook_core::audit::context::SecurityClassification::PHI)
+        .with_security_classification(copybook_audit::context::SecurityClassification::PHI)
         .with_compliance_profile(ComplianceProfile::HIPAA)
         .with_metadata(
             "minimum_necessary_justification",
@@ -90,14 +88,14 @@ async fn test_hipaa_compliance_validation_scaffolding() {
 /// FAILING TEST - requires implementation of CEF format support
 #[tokio::test]
 async fn test_cef_structured_logging_scaffolding() {
-    use copybook_core::audit::event::{AuditPayload, ParseResult};
+    use copybook_audit::event::{AuditPayload, ParseResult};
 
     let temp_dir = tempdir().expect("Failed to create temp directory");
     let log_file = temp_dir.path().join("enterprise_audit.jsonl");
 
     let config = AuditLoggerConfig {
         log_file_path: Some(log_file.clone()),
-        format: copybook_core::audit::LogFormat::JsonLines, // CEF format not yet implemented
+        format: copybook_audit::LogFormat::JsonLines, // CEF format not yet implemented
         buffer_size: 100,
         ..Default::default()
     };
@@ -107,7 +105,7 @@ async fn test_cef_structured_logging_scaffolding() {
     let context = AuditContext::new()
         .with_operation_id("cef_test_operation")
         .with_security_classification(
-            copybook_core::audit::context::SecurityClassification::MaterialTransaction,
+            copybook_audit::context::SecurityClassification::MaterialTransaction,
         )
         .with_compliance_profile(ComplianceProfile::SOX);
 
@@ -139,15 +137,15 @@ async fn test_cef_structured_logging_scaffolding() {
 /// FAILING TEST - requires implementation of enhanced integrity validation
 #[tokio::test]
 async fn test_audit_trail_integrity_scaffolding() {
-    use copybook_core::audit::event::{AuditPayload, ParseResult};
-    use copybook_core::audit::{AuditEvent, validate_audit_chain};
+    use copybook_audit::event::{AuditPayload, ParseResult};
+    use copybook_audit::{AuditEvent, validate_audit_chain};
 
     let temp_dir = tempdir().expect("Failed to create temp directory");
     let integrity_log = temp_dir.path().join("audit_integrity.log");
 
     let config = AuditLoggerConfig {
         log_file_path: Some(integrity_log.clone()),
-        format: copybook_core::audit::LogFormat::JsonLines,
+        format: copybook_audit::LogFormat::JsonLines,
         buffer_size: 100,
         ..Default::default()
     };
@@ -158,7 +156,7 @@ async fn test_audit_trail_integrity_scaffolding() {
     let base_context = AuditContext::new()
         .with_operation_id("integrity_validation_test")
         .with_security_classification(
-            copybook_core::audit::context::SecurityClassification::MaterialTransaction,
+            copybook_audit::context::SecurityClassification::MaterialTransaction,
         )
         .with_compliance_profile(ComplianceProfile::SOX);
 
@@ -224,9 +222,7 @@ fn test_performance_overhead_scaffolding() {
 
     let audit_context = AuditContext::new()
         .with_operation_id("performance_overhead_test")
-        .with_security_classification(
-            copybook_core::audit::context::SecurityClassification::Internal,
-        )
+        .with_security_classification(copybook_audit::context::SecurityClassification::Internal)
         .with_metadata("performance_test", "true")
         .with_metadata("schema_fingerprint", &schema.fingerprint);
 
@@ -260,9 +256,7 @@ fn test_performance_overhead_scaffolding() {
 async fn test_multi_framework_compliance_scaffolding() {
     let context = AuditContext::new()
         .with_operation_id("multi_compliance_test")
-        .with_security_classification(
-            copybook_core::audit::context::SecurityClassification::Confidential,
-        )
+        .with_security_classification(copybook_audit::context::SecurityClassification::Confidential)
         .with_compliance_profile(ComplianceProfile::SOX)
         .with_compliance_profile(ComplianceProfile::GDPR)
         .with_metadata("gdpr_legal_basis", "legitimate_interest")
@@ -316,9 +310,7 @@ fn test_data_lineage_scaffolding() {
 
     let _context = AuditContext::new()
         .with_operation_id("data_lineage_test")
-        .with_security_classification(
-            copybook_core::audit::context::SecurityClassification::Internal,
-        )
+        .with_security_classification(copybook_audit::context::SecurityClassification::Internal)
         .with_metadata("schema_fingerprint", &schema.fingerprint)
         .with_metadata("lineage_tracking", "enabled");
 
@@ -353,9 +345,9 @@ fn test_enterprise_configuration_scaffolding() {
     // For now, test basic configuration structure
 
     let audit_config = AuditLoggerConfig {
-        format: copybook_core::audit::LogFormat::JsonLines,
+        format: copybook_audit::LogFormat::JsonLines,
         buffer_size: 10000,
-        retention_policy: Some(copybook_core::audit::RetentionPolicy {
+        retention_policy: Some(copybook_audit::RetentionPolicy {
             retention_days: 2555, // 7 years for SOX compliance
             max_rotated_files: 365,
             compress_rotated: true,
@@ -381,7 +373,7 @@ fn test_enterprise_configuration_scaffolding() {
 /// Test comprehensive error handling scaffolding (AC12)
 #[test]
 fn test_audit_error_handling_scaffolding() {
-    use copybook_core::audit::{AuditError, SecuritySeverity};
+    use copybook_audit::{AuditError, SecuritySeverity};
 
     // Test different audit error types
     let compliance_error = AuditError::ComplianceViolation {

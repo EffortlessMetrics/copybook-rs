@@ -37,6 +37,7 @@ members = [
     "crates/copybook-governance-runtime",
     "crates/copybook-governance-contracts",
     "crates/copybook-arrow",
+    "crates/copybook-audit",
     "crates/copybook-contracts",
     "crates/copybook-support-matrix",
     "tools/copybook-gen",
@@ -97,6 +98,7 @@ copybook-codec = { version = "=0.5.0", path = "crates/copybook-codec" }
 copybook-codec-memory = { version = "=0.5.0", path = "crates/copybook-codec-memory" }
 copybook-sequence-ring = { version = "=0.5.0", path = "crates/copybook-sequence-ring" }
 copybook-arrow = { version = "=0.5.0", path = "crates/copybook-arrow" }
+copybook-audit = { version = "=0.5.0", path = "crates/copybook-audit" }
 copybook-governance = { version = "=0.5.0", path = "crates/copybook-governance" }
 copybook-governance-grid = { version = "=0.5.0", path = "crates/copybook-governance-grid" }
 copybook-governance-runtime = { version = "=0.5.0", path = "crates/copybook-governance-runtime" }

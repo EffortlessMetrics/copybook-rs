@@ -11,8 +11,9 @@
 //! This simple test scaffolding compiles and provides TDD foundation for
 //! audit system integration with COBOL data processing workflow.
 
+use copybook_audit::{AuditContext, ComplianceProfile};
 use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, decode_record};
-use copybook_core::{audit::AuditContext, audit::ComplianceProfile, parse_copybook};
+use copybook_core::parse_copybook;
 
 /// Tests feature spec: enterprise-audit-system-spec.md#workflow-integration
 /// Test basic audit context integration scaffolding (AC16)
@@ -32,7 +33,7 @@ fn test_audit_context_integration_scaffolding() {
     let _audit_context = AuditContext::new()
         .with_operation_id("financial_decode_audit_test")
         .with_security_classification(
-            copybook_core::audit::context::SecurityClassification::MaterialTransaction,
+            copybook_audit::context::SecurityClassification::MaterialTransaction,
         )
         .with_compliance_profile(ComplianceProfile::SOX)
         .with_metadata("data_classification", "financial_transaction")
@@ -80,9 +81,7 @@ fn test_performance_overhead_scaffolding() {
 
     let _audit_context = AuditContext::new()
         .with_operation_id("performance_overhead_test")
-        .with_security_classification(
-            copybook_core::audit::context::SecurityClassification::Internal,
-        )
+        .with_security_classification(copybook_audit::context::SecurityClassification::Internal)
         .with_metadata("schema_fingerprint", &schema.fingerprint);
 
     let test_record = vec![0u8; schema.lrecl_fixed.unwrap_or(100) as usize];

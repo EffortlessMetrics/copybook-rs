@@ -466,8 +466,8 @@ pub enum ExternalEndpoint {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::audit::event::{ParseResult, SecurityEventType};
-    use crate::audit::{AuditContext, AuditEvent, AuditEventType, AuditPayload};
+    use crate::event::{ParseResult, SecurityEventType};
+    use crate::{AuditContext, AuditEvent, AuditEventType, AuditPayload};
     use tempfile::tempdir;
 
     #[tokio::test]

@@ -29,6 +29,7 @@ cucumber.workspace = true
 futures.workspace = true
 copybook-core.workspace = true
 copybook-codec.workspace = true
+copybook-audit.workspace = true
 copybook-safe-ops.workspace = true
 copybook-safe-index.workspace = true
 copybook-safe-text.workspace = true
@@ -48,4 +49,4 @@ base64.workspace = true
 
 [features]
 default = ["audit"]
-audit = ["copybook-core/audit", "copybook-codec/audit"]
+audit = ["copybook-codec/audit"]

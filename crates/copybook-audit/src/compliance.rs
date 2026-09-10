@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 use super::context::SecurityClassification;
 use super::{AuditContext, AuditResult};
-use crate::Field;
+use copybook_core::Field;
 
 /// Enterprise compliance engine for regulatory validation
 pub struct ComplianceEngine {
@@ -1542,12 +1542,12 @@ mod tests {
     }
 
     // Helper to create a minimal leaf Field for testing
-    fn make_field(name: &str) -> crate::Field {
-        crate::Field {
+    fn make_field(name: &str) -> copybook_core::Field {
+        copybook_core::Field {
             path: name.to_string(),
             name: name.to_string(),
             level: 5,
-            kind: crate::FieldKind::Alphanum { len: 10 },
+            kind: copybook_core::FieldKind::Alphanum { len: 10 },
             offset: 0,
             len: 10,
             redefines_of: None,
@@ -1560,12 +1560,12 @@ mod tests {
         }
     }
 
-    fn make_group(name: &str, children: Vec<crate::Field>) -> crate::Field {
-        crate::Field {
+    fn make_group(name: &str, children: Vec<copybook_core::Field>) -> copybook_core::Field {
+        copybook_core::Field {
             path: name.to_string(),
             name: name.to_string(),
             level: 1,
-            kind: crate::FieldKind::Group,
+            kind: copybook_core::FieldKind::Group,
             offset: 0,
             len: 0,
             redefines_of: None,

@@ -2,8 +2,8 @@
 # copybook-core Guidance
 
 This file extends [`crates/AGENTS.md`](../AGENTS.md). `copybook-core` owns COBOL
-parsing, AST/schema construction, layout resolution, and schema audit; it must
-not depend on codec or CLI behavior.
+parsing, AST/schema construction, and layout resolution; it must
+not depend on codec, CLI, audit, or governance behavior.
 
 Treat copybook text as hostile input. Preserve source locations and stable
 `CBKP*`/`CBKS*` diagnostics, use checked layout arithmetic, and keep dialect,

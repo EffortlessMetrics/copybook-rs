@@ -22,6 +22,7 @@ all-features = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
+copybook-audit = { workspace = true, optional = true }
 copybook-core = { workspace = true }
 copybook-charset.workspace = true
 copybook-fixed.workspace = true
@@ -56,7 +57,7 @@ comprehensive-tests = []
 # COMP-3 fast path optimizations
 comp3_fast = []
 metrics = ["dep:metrics"]
-audit = ["copybook-core/audit"]
+audit = ["dep:copybook-audit"]
 
 [lints]
 workspace = true

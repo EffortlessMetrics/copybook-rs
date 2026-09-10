@@ -12,7 +12,6 @@ pub(crate) mod fixed;
 pub(crate) mod golden_fixtures;
 pub(crate) mod parsing;
 pub(crate) mod rdw;
-pub(crate) mod rdw_heuristics;
 pub(crate) mod sign_separate_renames;
 
 // New feature step modules

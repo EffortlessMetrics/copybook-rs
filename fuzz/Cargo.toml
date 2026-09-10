@@ -25,13 +25,8 @@ libfuzzer-sys = "0.4.10"
 copybook-core = { path = "../crates/copybook-core" }
 copybook-codec = { path = "../crates/copybook-codec" }
 copybook-fixed = { path = "../crates/copybook-fixed" }
-copybook-corruption = { path = "../crates/copybook-corruption" }
-copybook-corruption-detectors = { path = "../crates/copybook-corruption-detectors" }
-copybook-corruption-predicates = { path = "../crates/copybook-corruption-predicates" }
 copybook-rdw = { path = "../crates/copybook-rdw" }
-copybook-corruption-rdw = { path = "../crates/copybook-corruption-rdw" }
 copybook-record-io = { path = "../crates/copybook-record-io" }
-copybook-rdw-predicates = { path = "../crates/copybook-rdw-predicates" }
 copybook-charset = { path = "../crates/copybook-charset" }
 copybook-governance = { path = "../crates/copybook-governance" }
 serde = { version = "1.0.228", features = ["derive"] }
@@ -55,10 +50,6 @@ path = "fuzz_targets/lexer.rs"
 [[bin]]
 name = "binary_decode"
 path = "fuzz_targets/binary_decode.rs"
-
-[[bin]]
-name = "corruption"
-path = "fuzz_targets/corruption.rs"
 
 [[bin]]
 name = "json_encode"
@@ -119,10 +110,6 @@ path = "fuzz_targets/fuzz_overpunch_decode.rs"
 [[bin]]
 name = "fuzz_charset_convert"
 path = "fuzz_targets/fuzz_charset_convert.rs"
-
-[[bin]]
-name = "fuzz_corruption_detect"
-path = "fuzz_targets/fuzz_corruption_detect.rs"
 
 [[bin]]
 name = "fuzz_governance_eval"

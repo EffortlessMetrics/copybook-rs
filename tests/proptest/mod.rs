@@ -26,8 +26,6 @@ pub mod prop_codec_bijection;
 pub mod prop_codec_roundtrip;
 pub mod prop_codec_roundtrip_comprehensive;
 pub mod prop_codepage;
-pub mod prop_corruption;
-pub mod prop_corruption_detect;
 pub mod prop_determinism;
 pub mod prop_determinism_ordering;
 pub mod prop_edited_pic;

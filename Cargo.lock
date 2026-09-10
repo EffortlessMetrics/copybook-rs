@@ -788,12 +788,9 @@ dependencies = [
  "copybook-audit",
  "copybook-codec",
  "copybook-core",
- "copybook-corruption-detectors",
- "copybook-corruption-predicates",
  "copybook-fixed",
  "copybook-governance",
  "copybook-rdw",
- "copybook-rdw-predicates",
  "cucumber",
  "futures",
  "serde",
@@ -941,38 +938,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "copybook-corruption"
-version = "0.5.0"
-dependencies = [
- "copybook-core",
- "copybook-corruption-detectors",
- "copybook-rdw",
-]
-
-[[package]]
-name = "copybook-corruption-detectors"
-version = "0.5.0"
-dependencies = [
- "copybook-core",
- "copybook-corruption-predicates",
- "proptest",
-]
-
-[[package]]
-name = "copybook-corruption-predicates"
-version = "0.5.0"
-
-[[package]]
-name = "copybook-corruption-rdw"
-version = "0.5.0"
-dependencies = [
- "copybook-corruption",
- "copybook-error",
- "copybook-rdw",
- "proptest",
-]
-
-[[package]]
 name = "copybook-determinism"
 version = "0.5.0"
 dependencies = [
@@ -1092,15 +1057,10 @@ dependencies = [
  "copybook-codec",
  "copybook-contracts",
  "copybook-core",
- "copybook-corruption",
- "copybook-corruption-detectors",
- "copybook-corruption-predicates",
- "copybook-corruption-rdw",
  "copybook-error",
  "copybook-fixed",
  "copybook-governance",
  "copybook-rdw",
- "copybook-rdw-predicates",
  "copybook-support-matrix",
  "crossbeam-channel",
  "proptest",
@@ -1116,15 +1076,6 @@ dependencies = [
  "copybook-error",
  "proptest",
  "tracing",
-]
-
-[[package]]
-name = "copybook-rdw-predicates"
-version = "0.5.0"
-dependencies = [
- "copybook-corruption",
- "copybook-corruption-rdw",
- "copybook-rdw",
 ]
 
 [[package]]

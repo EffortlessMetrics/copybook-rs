@@ -7,10 +7,10 @@
 use crate::error::ErrorCode;
 use crate::error::error;
 use crate::feature_flags::FeatureFlags;
+use crate::internal::collections::pop_or_error;
 use crate::lexer::{Lexer, Token, TokenPos};
 use crate::pic::PicClause;
 use crate::schema::{Field, FieldKind, Occurs, Schema, SignPlacement, SignSeparateInfo};
-use crate::utils::VecExt;
 use crate::{Error, Result};
 
 mod field;
@@ -329,7 +329,8 @@ impl Parser {
                     }
 
                     // Pop this field and attach it to its parent
-                    let mut completed_field = stack.pop_or_cbkp_error(
+                    let mut completed_field = pop_or_error(
+                        &mut stack,
                         ErrorCode::CBKP001_SYNTAX,
                         "Parser stack underflow while attaching RENAMES",
                     )?;
@@ -371,7 +372,8 @@ impl Parser {
             // Pop fields from stack that are at same or higher level (normal fields)
             while let Some(top) = stack.last() {
                 if top.level >= field.level {
-                    let mut completed_field = stack.pop_or_cbkp_error(
+                    let mut completed_field = pop_or_error(
+                        &mut stack,
                         ErrorCode::CBKP001_SYNTAX,
                         "Parser stack underflow: expected field to pop but stack was empty",
                     )?;

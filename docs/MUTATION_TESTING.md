@@ -259,7 +259,6 @@ the advisory lane lives in `.github/workflows/ripr.yml`). `just mutants`
 - Feature flag checking
 - Per-crate testing
 - Result aggregation and summary
-- Historical data upload for dashboard
 - Artifact retention (30 days)
 
 ## Dashboard
@@ -280,11 +279,9 @@ A Grafana dashboard is available for tracking mutation testing trends:
 
 ### Integrating with Prometheus
 
-To integrate mutation testing metrics with Prometheus:
-
-1. The CI workflow uploads historical data as artifacts
-2. A separate job (or external tool) can parse these artifacts
-3. Metrics are exposed in Prometheus format:
+To integrate mutation testing metrics with Prometheus, parse the local
+run outputs (`mutants.out/outcomes.json`, `mutants-summary.csv`) with an
+external tool. Metrics are exposed in Prometheus format:
    - `mutation_score{crate="..."}`: Mutation score percentage
    - `mutation_caught_total{crate="..."}`: Total caught mutants
    - `mutation_missed_total{crate="..."}`: Total missed mutants

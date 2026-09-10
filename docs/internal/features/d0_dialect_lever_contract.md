@@ -164,10 +164,10 @@ error: ODO lower bound must be 0 in IBM Enterprise dialect mode
 ### D1: Core implementation (copybook-core)
 
 - [ ] Add `occurs_fixed_with_depends_lower_bound` field to `ParseOptions`
-  - Location: [`copybook-core/src/parser.rs:40-66`](../../../crates/copybook-core/src/parser.rs:40-66)
+  - Location: [`copybook-core/src/parser.rs:40-66`](../../../crates/copybook-core/src/parser.rs#L40-L66)
 - [ ] Update `Default` implementation (default = `"n"`)
 - [ ] Modify `parse_occurs_clause()` to validate lower bound
-  - Location: [`copybook-core/src/parser.rs:956-1052`](../../../crates/copybook-core/src/parser.rs:956-1052)
+  - Location: [`copybook-core/src/parser.rs:956-1052`](../../../crates/copybook-core/src/parser.rs#L956-L1052)
 - [ ] Add error code `CBKP051_ODO_FIXED_LOWER_BOUND` to error module
   - Location: [`copybook-error/src/lib.rs`](../../../crates/copybook-error/src/lib.rs)
 
@@ -213,9 +213,9 @@ if let Occurs::ODO { min, max, counter_path } = &mut occurs {
 ### D2: CLI integration (copybook-cli)
 
 - [ ] Add CLI flag to parse/decode/encode commands
-  - Location: [`copybook-cli/src/main.rs:155-167`](../../../crates/copybook-cli/src/main.rs:155-167)
+  - Location: [`copybook-cli/src/main.rs:155-167`](../../../crates/copybook-cli/src/main.rs#L155-L167)
 - [ ] Wire through `ParseOptionsConfig`
-  - Location: [`copybook-cli/src/utils.rs:65-79`](../../../crates/copybook-cli/src/utils.rs:65-79)
+  - Location: [`copybook-cli/src/utils.rs:65-79`](../../../crates/copybook-cli/src/utils.rs#L65-L79)
 
 **Implementation Details:**
 
@@ -262,12 +262,12 @@ impl ParseOptionsConfig {
 
 ### Related Code Locations
 
-- **Parser Stage**: [`copybook-core/src/parser.rs:956-1052`](../../../crates/copybook-core/src/parser.rs:956-1052)
-- **Layout Stage**: [`copybook-core/src/layout.rs:227-260`](../../../crates/copybook-core/src/layout.rs:227-260)
-- **Runtime Validation**: [`copybook-codec/src/odo_redefines.rs:33-136`](../../../crates/copybook-codec/src/odo_redefines.rs:33-136)
-- **ParseOptions**: [`copybook-core/src/parser.rs:40-66`](../../../crates/copybook-core/src/parser.rs:40-66)
-- **CLI Options**: [`copybook-cli/src/main.rs:155-167`](../../../crates/copybook-cli/src/main.rs:155-167)
-- **ParseOptionsConfig**: [`copybook-cli/src/utils.rs:65-79`](../../../crates/copybook-cli/src/utils.rs:65-79)
+- **Parser Stage**: [`copybook-core/src/parser.rs:956-1052`](../../../crates/copybook-core/src/parser.rs#L956-L1052)
+- **Layout Stage**: [`copybook-core/src/layout.rs:227-260`](../../../crates/copybook-core/src/layout.rs#L227-L260)
+- **Runtime Validation**: [`copybook-codec/src/odo_redefines.rs:33-136`](../../../crates/copybook-codec/src/odo_redefines.rs#L33-L136)
+- **ParseOptions**: [`copybook-core/src/parser.rs:40-66`](../../../crates/copybook-core/src/parser.rs#L40-L66)
+- **CLI Options**: [`copybook-cli/src/main.rs:155-167`](../../../crates/copybook-cli/src/main.rs#L155-L167)
+- **ParseOptionsConfig**: [`copybook-cli/src/utils.rs:65-79`](../../../crates/copybook-cli/src/utils.rs#L65-L79)
 
 ### Existing ODO Error Codes
 

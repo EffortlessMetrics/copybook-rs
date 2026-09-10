@@ -46,4 +46,4 @@ copybook-rs currently serves teams that need a memory-safe COBOL parser with tru
 _Last updated: 2026-03-06_
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

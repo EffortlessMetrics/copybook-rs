@@ -11,9 +11,9 @@
 > and default-enabled. References:
 >
 > - **Current support status**: [`docs/reference/COBOL_SUPPORT_MATRIX.md`](../../reference/COBOL_SUPPORT_MATRIX.md)
-> - **Parse tests**: [`copybook-core/tests/comp_float_parse_tests.rs`](../../../copybook-core/tests/comp_float_parse_tests.rs)
-> - **Codec tests**: [`copybook-codec/tests/comp_float_codec_tests.rs`](../../../copybook-codec/tests/comp_float_codec_tests.rs)
-> - **Default-enabled flag**: [`copybook-core/src/feature_flags.rs` (line 181)](../../../copybook-core/src/feature_flags.rs)
+> - **Parse tests**: [`copybook-core/tests/comp_float_parse_tests.rs`](../../../crates/copybook-core/tests/comp_float_parse_tests.rs)
+> - **Codec tests**: [`copybook-codec/tests/comp_float_codec_tests.rs`](../../../crates/copybook-codec/tests/comp_float_codec_tests.rs)
+> - **Default-enabled flag**: [`copybook-core/src/feature_flags.rs` (line 181)](../../../crates/copybook-core/src/feature_flags.rs)
 
 ---
 
@@ -526,7 +526,7 @@ Reconsider implementing COMP-1/COMP-2 if:
 - [USER_GUIDE.md](../../USER_GUIDE.md)
 - [MIGRATION_GUIDE.md](../../MIGRATION_GUIDE.md)
 - [TROUBLESHOOTING_MATRIX.md](../../TROUBLESHOOTING_MATRIX.md)
-- [ERROR_CODES.md](../../ERROR_CODES.md)
+- [ERROR_CODES.md](../../reference/ERROR_CODES.md)
 - [FEATURE_FLAGS.md](../../FEATURE_FLAGS.md)
 - [ROADMAP.md](../../ROADMAP.md)
 
@@ -535,4 +535,4 @@ Reconsider implementing COMP-1/COMP-2 if:
 **Document End**
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../../LICENSE).

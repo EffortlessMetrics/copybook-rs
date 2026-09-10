@@ -58,4 +58,4 @@ Close the remaining automation gaps around **performance receipts** (generation,
 3. Stand up MVP tooling (runner + baseline) and verify JSON output matches the schemas.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

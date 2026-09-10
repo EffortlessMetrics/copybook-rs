@@ -326,7 +326,7 @@ If tests fail with feature flags:
 - [CLI Reference](CLI_REFERENCE.md) - Complete CLI command reference
 - [Library API](https://docs.rs/copybook-core) - Rust library documentation
 - [ROADMAP](ROADMAP.md) - Project roadmap and feature status
-- [CONTRIBUTING](CONTRIBUTING.md) - Contribution guidelines
+- [CONTRIBUTING](../CONTRIBUTING.md) - Contribution guidelines
 
 ## Support
 
@@ -337,4 +337,4 @@ For questions or issues related to feature flags:
 - Consult the library documentation for API details
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

@@ -407,4 +407,4 @@ performance-report-{sha}/
 This CI/CD integration strategy ensures that copybook-rs benchmark reporting provides enterprise-grade automation while maintaining the high performance standards and regulatory compliance required for production mainframe data processing environments.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

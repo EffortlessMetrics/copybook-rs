@@ -252,4 +252,4 @@ impl AuditEventBuilder {
 - [SOX Section 404 - Management Assessment of Internal Controls](https://www.sox-online.com/act_section_404.html)
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

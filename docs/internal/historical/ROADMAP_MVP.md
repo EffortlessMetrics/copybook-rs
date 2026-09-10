@@ -17,4 +17,4 @@ For the detailed readiness assessment, see:
 - `docs/REPORT.md`
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../../LICENSE).

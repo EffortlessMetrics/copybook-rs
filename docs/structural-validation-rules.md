@@ -403,4 +403,4 @@ mod structural_performance_tests {
 This specification establishes the comprehensive structural validation rules that ensure copybook-rs maintains enterprise-grade compatibility with mainframe COBOL semantics while providing clear error reporting and remediation guidance.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

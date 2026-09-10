@@ -1842,4 +1842,4 @@ fuzz_target!(|data: &[u8]| {
 **Approval Required**: Platform Team, Compliance Team, Security Team
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

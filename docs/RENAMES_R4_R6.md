@@ -285,4 +285,4 @@ Scope mutants to renames resolver logic in `copybook-core/src/layout.rs`.
 - [Feature Flags Documentation](FEATURE_FLAGS.md)
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

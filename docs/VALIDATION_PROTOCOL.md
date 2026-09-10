@@ -288,4 +288,4 @@ git push origin feature/your-branch
 - **Issues**: Create a GitHub issue for validation questions
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

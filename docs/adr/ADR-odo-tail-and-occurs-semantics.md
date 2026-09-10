@@ -24,4 +24,4 @@ Accepted - Implemented in v0.3.0
 - **Neutral**: Maintains strict error taxonomy consistency
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

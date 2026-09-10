@@ -321,4 +321,4 @@ The validation infrastructure you've built (xtask, support matrix, offline scrip
 **Next Action**: Adjust branch protection settings → merge #154
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

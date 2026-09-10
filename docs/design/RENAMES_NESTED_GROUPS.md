@@ -462,4 +462,4 @@ to golden fixtures during Phase R2 implementation.
 **Author**: Claude Code (automated analysis of Issue #133)
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

@@ -349,4 +349,4 @@ For questions about API freeze or to request exceptions:
 - Discuss in project meetings
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

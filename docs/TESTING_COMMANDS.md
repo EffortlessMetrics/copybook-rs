@@ -583,21 +583,10 @@ cargo mutants --package copybook-core --file mutants.toml --test-tool nextest --
 - `copybook-bench`: 60% (benchmark utilities)
 - `copybook-gen`: 60% (test infrastructure)
 
-**Trigger schedule**: Weekly on Sundays at 2 AM UTC (via `ci-mutants.yml`)
+**Trigger schedule**: none — mutation testing is local-only via
+`just mutants` (there is no `ci-mutants.yml` workflow).
 
-**Manual trigger**:
-```bash
-# Trigger with default settings
-gh workflow run ci-mutants.yml
-
-# Trigger with custom threshold (80%)
-gh workflow run ci-mutants.yml -f threshold=80
-
-# Trigger on specific workspace (core-only)
-gh workflow run ci-mutants.yml -f workspace=core-only
-```
-
-**Artifact locations**:
+**Artifact locations** (local run outputs):
 - `mutants.out/outcomes.json` - Detailed mutation results
 - `mutants-summary.csv` - Summary of mutation scores
 
@@ -1096,4 +1085,4 @@ cat target/perf.json
 - [Roadmap](ROADMAP.md) - Project roadmap and testing methodology overview
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

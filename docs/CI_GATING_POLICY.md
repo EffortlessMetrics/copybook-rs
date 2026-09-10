@@ -161,7 +161,7 @@ just mutants
 | `.github/workflows/ci.yml` | PR + Scheduled | `push`, `pull_request`, `schedule`, `workflow_dispatch` |
 | `.github/workflows/ci-proptest.yml` | PR + Scheduled | `push`, `pull_request`, `schedule`, `workflow_dispatch` |
 | `.github/workflows/ci-fuzz.yml` | Scheduled | `workflow_dispatch` |
-| `.github/workflows/ci-mutants.yml` | Scheduled | `schedule`, `workflow_dispatch` |
+| _(mutation testing has no CI workflow; local-only via `just mutants`)_ | — | — |
 | `.github/workflows/perf.yml` | Scheduled | `schedule`, `workflow_dispatch` |
 | `.github/workflows/soak.yml` | Scheduled | `schedule`, `workflow_dispatch` |
 | `.github/workflows/determinism-smoke.yml` | PR (advisory) | `push`, `pull_request`, `workflow_dispatch` |
@@ -215,4 +215,4 @@ This ensures that:
 - Resources are used efficiently
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

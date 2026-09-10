@@ -282,4 +282,4 @@ Now that you've learned the basics of panic-safe COBOL processing:
 Welcome to reliable COBOL data processing with copybook-rs! 🎉
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

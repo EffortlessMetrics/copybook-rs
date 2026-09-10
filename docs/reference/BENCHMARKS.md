@@ -179,7 +179,7 @@ Expected differences:
 
 Performance can vary based on:
 
-- **CPU**: Different processors show different throughput (see [copybook-bench/HARDWARE_SPECS.md](../../copybook-bench/HARDWARE_SPECS.md))
+- **CPU**: Different processors show different throughput (see [copybook-bench/HARDWARE_SPECS.md](../../tools/copybook-bench/HARDWARE_SPECS.md))
 - **OS**: WSL2 shows 10-30% overhead vs native Linux
 - **System load**: Background processes can impact measurements
 - **Variance**: Expect ~5% (DISPLAY) to ~8% (COMP-3) run-to-run variance
@@ -205,4 +205,4 @@ Planned improvements (see Issue #66):
 5. **Gating checks**: Promote perf workflow to required CI check when baseline is stable
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

@@ -219,4 +219,4 @@ workspace: 5/5 crates validated (core/codec/cli/gen/bench)
 **Flow successful: audit feature gating validated** → promote to Ready for Review with perf optimization tracking
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

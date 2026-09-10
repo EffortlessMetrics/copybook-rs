@@ -92,4 +92,4 @@ bash scripts/roadmap-phase6-done.sh
 _Last verified against commit: <GIT_SHORT_SHA>_
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

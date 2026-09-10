@@ -542,4 +542,4 @@ cargo run --bin enterprise-stress-test --multi-gb-validation
 This specification provides the complete technical foundation for eliminating all 236 panic-prone patterns from copybook-rs while maintaining enterprise-grade performance and reliability standards for production mainframe data processing workloads.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

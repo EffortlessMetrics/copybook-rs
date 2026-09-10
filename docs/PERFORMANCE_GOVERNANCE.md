@@ -204,4 +204,4 @@ intentional algorithmic or dependency-driven change, edit
 > **Owner**: Performance Engineering Team - Responsible for policy maintenance and enforcement.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

@@ -208,4 +208,4 @@ jq -n '
 > **Updated**: 2025-12-19 - Established as part of performance truth pipeline implementation.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

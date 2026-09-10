@@ -658,4 +658,4 @@ impl SafeBuffer {
 This architecture provides the complete technical foundation for eliminating all 243 panic-prone patterns from copybook-rs while maintaining enterprise-grade performance, reliability, and compatibility standards for production mainframe data processing workloads.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

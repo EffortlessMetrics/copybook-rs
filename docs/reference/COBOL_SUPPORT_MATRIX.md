@@ -656,4 +656,4 @@ See [REPORT.md](../REPORT.md) for complete performance analysis.
 - Performance standards with CI enforcement details
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

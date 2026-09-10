@@ -13,7 +13,7 @@
 - **Environment**: [OS_NAME], [KERNEL_VERSION], [CPU_MODEL], [WSL2_STATUS]
 - **Build Profile**: [BUILD_PROFILE], Target CPU: [TARGET_CPU]
 
-**Historical Context**: See [HISTORICAL_PERFORMANCE.md](HISTORICAL_PERFORMANCE.md) for archived targets
+**Historical Context**: See [HISTORICAL_PERFORMANCE.md](../HISTORICAL_PERFORMANCE.md) for archived targets
 
 ### Performance Methodology
 
@@ -45,8 +45,8 @@ scripts/validate-perf-receipt.sh scripts/bench/perf.json
 ### Related Documentation
 
 - [Canonical Receipts](../../scripts/bench/perf.json)
-- [Historical Performance](HISTORICAL_PERFORMANCE.md)
-- [Performance Governance](PERFORMANCE_GOVERNANCE.md)
+- [Historical Performance](../HISTORICAL_PERFORMANCE.md)
+- [Performance Governance](../PERFORMANCE_GOVERNANCE.md)
 - [Receipt Schema](../../schemas/perf-receipt-schema.json)
 
 <!-- Template Variables (replace with actual values):
@@ -65,4 +65,4 @@ scripts/validate-perf-receipt.sh scripts/bench/perf.json
 -->
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

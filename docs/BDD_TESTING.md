@@ -307,4 +307,4 @@ Check CI logs for detailed errors. The quick lane and the dedicated `bdd-tests` 
 - [copybook-rs Documentation](https://docs.rs/copybook-core)
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

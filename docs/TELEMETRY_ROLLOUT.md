@@ -86,4 +86,4 @@ bash scripts/soak-dispatch.sh
 * Use `scripts/roadmap-phase6-done.sh` when the staging rollout checks are complete—this script flips `docs/ROADMAP.md` and opens a PR scaffold.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

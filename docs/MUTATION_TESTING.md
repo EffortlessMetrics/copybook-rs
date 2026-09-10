@@ -238,46 +238,27 @@ To establish baseline scores:
 
 ## CI Integration
 
-### Scheduled Runs
+There is no mutation CI workflow: full `cargo-mutants` runs are local-only
+because of their multi-hour runtime. The advisory RIPR lane
+(`.github/workflows/ripr.yml`) produces diff-scoped seam reports in minutes
+instead. To run mutation testing:
 
-Mutation tests run **weekly** on Sundays at 2 AM UTC via GitHub Actions.
+- `just mutants` — workspace run with `mutants.toml`, nextest, in-place;
+- `just scheduled` — interactive menu that optionally includes the mutation run.
 
-### Manual Triggers
+There is no `mutation-test` PR label, no scheduled run, and no
+`COPYBOOK_MUTATION_TESTING` environment variable; any such references
+elsewhere are stale.
 
-You can manually trigger mutation testing via the GitHub Actions UI:
+### Local execution details
 
-1. Go to Actions > Mutation Testing
-2. Click "Run workflow"
-3. Select branch and configure options:
-   - **Threshold**: Minimum score percentage (default: 70)
-   - **Workspace**: Run on all crates or specific ones
-
-### Pull Request Integration
-
-Mutation tests can be triggered on pull requests by adding the `mutation-test` label:
-
-1. Open the pull request
-2. Click the gear icon next to "Labels"
-3. Add the `mutation-test` label
-4. The mutation testing workflow will run automatically
-
-### Feature Flag Control
-
-Mutation testing can be controlled via the `COPYBOOK_MUTATION_TESTING` environment variable:
-
-- **Scheduled runs**: Always enabled
-- **Manual triggers**: Always enabled
-- **Pull requests**: Disabled by default, enabled with `mutation-test` label
-
-### CI Workflow Details
-
-The CI workflow (`.github/workflows/ci-mutants.yml`) includes:
+Mutation testing runs locally only (there is no `ci-mutants.yml` workflow;
+the advisory lane lives in `.github/workflows/ripr.yml`). `just mutants`
+(cargo-mutants with `mutants.toml`, nextest, in-place) includes:
 
 - Feature flag checking
-- Per-crate testing with matrix strategy
+- Per-crate testing
 - Result aggregation and summary
-- PR comment integration
-- Historical data upload for dashboard
 - Artifact retention (30 days)
 
 ## Dashboard
@@ -298,11 +279,9 @@ A Grafana dashboard is available for tracking mutation testing trends:
 
 ### Integrating with Prometheus
 
-To integrate mutation testing metrics with Prometheus:
-
-1. The CI workflow uploads historical data as artifacts
-2. A separate job (or external tool) can parse these artifacts
-3. Metrics are exposed in Prometheus format:
+To integrate mutation testing metrics with Prometheus, parse the local
+run outputs (`mutants.out/outcomes.json`, `mutants-summary.csv`) with an
+external tool. Metrics are exposed in Prometheus format:
    - `mutation_score{crate="..."}`: Mutation score percentage
    - `mutation_caught_total{crate="..."}`: Total caught mutants
    - `mutation_missed_total{crate="..."}`: Total missed mutants
@@ -372,10 +351,9 @@ To add a new exclusion:
 To add a new crate to mutation testing:
 
 1. Add the crate to the workspace in [`Cargo.toml`](../Cargo.toml)
-2. Add the crate to the CI workflow matrix in [`.github/workflows/ci-mutants.yml`](../.github/workflows/ci-mutants.yml)
-3. Add per-crate configuration to [`mutants.toml`](../mutants.toml)
-4. Update the justfile with a new command if needed
-5. Update this documentation with the new crate's threshold
+2. Add per-crate configuration to [`mutants.toml`](../mutants.toml) (runs are local via `just mutants`; there is no CI matrix file)
+3. Update the justfile with a new command if needed
+4. Update this documentation with the new crate's threshold
 
 ### Adding a New Module
 
@@ -465,8 +443,8 @@ To enable additional mutation operators:
 - [cargo-mutants GitHub](https://github.com/sourcefrog/cargo-mutants)
 - [Mutation Testing Wikipedia](https://en.wikipedia.org/wiki/Mutation_testing)
 - [Grafana Dashboard](../grafana/dashboards/mutation-testing.json)
-- [CI Workflow](../.github/workflows/ci-mutants.yml)
+- [Advisory lane](../.github/workflows/ripr.yml)
 - [Configuration](../mutants.toml)
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

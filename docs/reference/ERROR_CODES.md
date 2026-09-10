@@ -1072,4 +1072,4 @@ The panic elimination implementation provides:
 This comprehensive panic elimination ensures copybook-rs is ready for enterprise production deployments with the highest reliability standards.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

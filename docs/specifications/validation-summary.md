@@ -235,4 +235,4 @@ The specifications ensure that the machine-readable benchmark reporting infrastr
 The specifications are ready for implementation and will provide enterprise-grade performance monitoring and automated validation for copybook-rs mainframe data processing workloads.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

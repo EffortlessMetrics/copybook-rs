@@ -267,4 +267,4 @@ fn test_golden_fixtures_mutation_robustness() {
 **Route Decision**: Enhanced test coverage required for production deployment readiness
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

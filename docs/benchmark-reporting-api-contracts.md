@@ -1040,4 +1040,4 @@ pub async fn generate_enterprise_audit(
 This comprehensive API contract specification provides enterprise-grade integration interfaces while maintaining clean abstractions and comprehensive error handling for seamless copybook-bench integration.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

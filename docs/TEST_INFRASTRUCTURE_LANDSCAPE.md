@@ -639,4 +639,4 @@ Key strengths for PR-B and PR-D:
 5. Extend proptest case counts for statistical significance
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

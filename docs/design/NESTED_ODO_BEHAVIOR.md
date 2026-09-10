@@ -544,4 +544,4 @@ For future phases:
 - **Maintain JSON stability**: No breaking changes to supported scenarios (O1-O4)
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

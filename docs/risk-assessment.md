@@ -359,4 +359,4 @@ The binary round-trip encoding enhancement presents manageable risks with substa
 The risk profile is acceptable for an enterprise-grade system, with most risks being LOW severity and well-mitigated through established copybook-rs development practices.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

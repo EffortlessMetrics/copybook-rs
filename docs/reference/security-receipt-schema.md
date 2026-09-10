@@ -816,4 +816,4 @@ if (validate(receipt)) {
 **Authors**: copybook-rs spec-creator agent (generative flow)
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

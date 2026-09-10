@@ -735,4 +735,4 @@ audit_performance:
 - [Lock-Free Programming in Rust](https://doc.rust-lang.org/nomicon/)
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

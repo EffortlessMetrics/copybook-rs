@@ -354,4 +354,4 @@ Reuse existing golden fixtures for validation:
 - **Phase 3**: CI smoke test template (ready for activation)
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

@@ -385,4 +385,4 @@ mod golden_fixture_tests {
 This specification establishes the foundation for production-ready golden fixture enhancement while maintaining copybook-rs enterprise performance standards and zero-compromise production stability.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

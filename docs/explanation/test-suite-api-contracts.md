@@ -202,4 +202,4 @@ pub trait CiCdIntegration {
 This comprehensive API contract specification provides the foundation for implementing the enhanced test suite while maintaining strict compatibility with copybook-rs production standards and enterprise requirements.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

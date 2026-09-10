@@ -220,4 +220,4 @@
 *This issue tracks the canonical roadmap. For detailed technical status, see [docs/ROADMAP.md](https://github.com/EffortlessMetrics/copybook-rs/blob/main/docs/ROADMAP.md) and [docs/REPORT.md](https://github.com/EffortlessMetrics/copybook-rs/blob/main/docs/REPORT.md).*
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

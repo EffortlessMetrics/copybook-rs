@@ -492,4 +492,4 @@ impl FidelityPerformanceMonitor {
 This binary fidelity validation framework ensures absolute data integrity preservation while providing comprehensive diagnostic capabilities for enterprise deployment confidence.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

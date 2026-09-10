@@ -780,4 +780,4 @@ The modular design ensures seamless integration with existing copybook processin
 **Next Steps**: Proceed with Phase 1 implementation to resolve critical gaps and achieve 100% test pass rate, followed by systematic completion of remaining phases according to the implementation blueprint.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

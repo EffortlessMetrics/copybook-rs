@@ -447,4 +447,4 @@ mod cli_tests {
 This CLI interface specification ensures enterprise-grade usability while maintaining copybook-rs's commitment to backward compatibility and performance excellence.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

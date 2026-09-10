@@ -325,4 +325,4 @@ Golden fixtures provide enterprise deployment confidence through:
 The Golden Fixtures framework ensures copybook-rs maintains enterprise-grade reliability and performance while providing comprehensive validation of all structural COBOL elements.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

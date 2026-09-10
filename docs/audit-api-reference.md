@@ -522,4 +522,4 @@ async fn enterprise_processing_workflow() -> Result<(), Box<dyn std::error::Erro
 This comprehensive API reference provides enterprise-grade audit capabilities for regulatory compliance, security monitoring, performance tracking, and complete data lineage in copybook-rs operations.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

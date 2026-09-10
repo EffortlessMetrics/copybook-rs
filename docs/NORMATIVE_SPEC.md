@@ -490,4 +490,4 @@ These normative specifications ensure that copybook-rs provides deterministic, r
 For questions about normative behaviors or requests for clarification, please refer to the project documentation or file an issue with the development team.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

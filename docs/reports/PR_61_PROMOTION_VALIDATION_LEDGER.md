@@ -472,4 +472,4 @@ summary: "Enterprise Audit System ready for production deployment with comprehen
 **NEXT ACTION**: Final production promotion validation and deployment preparation
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

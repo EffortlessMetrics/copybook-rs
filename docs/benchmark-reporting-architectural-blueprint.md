@@ -722,4 +722,4 @@ The implementation maintains copybook-rs's core principles of zero unsafe code, 
 - ✅ Detailed implementation roadmap with validation criteria
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

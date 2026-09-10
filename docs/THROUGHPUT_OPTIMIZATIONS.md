@@ -241,4 +241,4 @@ The optimizations focus on the most impactful areas:
 These improvements enable copybook-rs to meet the demanding performance requirements of production ETL pipelines while preserving the precision and reliability required for financial and business-critical applications.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

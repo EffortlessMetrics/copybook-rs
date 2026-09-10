@@ -922,4 +922,4 @@ mod compliance_tests {
 - [PCI DSS Requirements](https://www.pcisecuritystandards.org/pci_security/)
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

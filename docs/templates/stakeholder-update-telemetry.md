@@ -21,4 +21,4 @@ Links:
 - Release: https://github.com/effortlessmetrics/copybook-rs/releases
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

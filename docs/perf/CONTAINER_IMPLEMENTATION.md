@@ -322,4 +322,4 @@ Pre-merge checklist:
 - Notify users 30 days before breaking changes
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

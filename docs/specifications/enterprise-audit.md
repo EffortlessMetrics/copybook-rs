@@ -415,4 +415,4 @@ incident_response:
 This enterprise audit specification ensures that copybook-rs performance validation meets the highest standards of regulatory compliance while providing comprehensive audit capabilities for enterprise mainframe data processing environments.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

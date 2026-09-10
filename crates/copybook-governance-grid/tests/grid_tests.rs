@@ -54,17 +54,16 @@ fn bindings_slice_is_stable_across_calls() {
 
 #[test]
 fn feature_flags_for_sign_separate() {
+    // #656 Phase C: SIGN SEPARATE parses unconditionally; no runtime toggle.
     let flags = feature_flags_for_support_id(FeatureId::SignSeparate).unwrap();
-    assert_eq!(flags.len(), 1);
-    assert!(flags.contains(&Feature::SignSeparate));
+    assert!(flags.is_empty());
 }
 
 #[test]
 fn feature_flags_for_comp12() {
+    // #656 Phase C: COMP-1/COMP-2 parse unconditionally; no runtime toggle.
     let flags = feature_flags_for_support_id(FeatureId::Comp1Comp2).unwrap();
-    assert_eq!(flags.len(), 2);
-    assert!(flags.contains(&Feature::Comp1));
-    assert!(flags.contains(&Feature::Comp2));
+    assert!(flags.is_empty());
 }
 
 #[test]
@@ -149,17 +148,16 @@ fn grid_binding_flags_are_valid_feature_variants() {
 
 #[test]
 fn governed_features_have_at_least_one_flag() {
-    let governed = [
-        FeatureId::SignSeparate,
-        FeatureId::Comp1Comp2,
-        FeatureId::Level66Renames,
-    ];
-    for id in governed {
+    // #656 Phase C: only Level66Renames carries flag linkage; the stable
+    // language entries are bound with empty flag slices.
+    let flags = feature_flags_for_support_id(FeatureId::Level66Renames).unwrap();
+    assert!(
+        !flags.is_empty(),
+        "Level66Renames should have at least one feature flag"
+    );
+    for id in [FeatureId::SignSeparate, FeatureId::Comp1Comp2] {
         let flags = feature_flags_for_support_id(id).unwrap();
-        assert!(
-            !flags.is_empty(),
-            "{id:?} should have at least one feature flag"
-        );
+        assert!(flags.is_empty(), "{id:?} should have no flag linkage");
     }
 }
 
@@ -200,9 +198,9 @@ fn summarize_governance_totals() {
 #[test]
 fn summarize_governance_linked_flag_count() {
     let summary = summarize_governance();
-    // SignSeparate(1) + RenamesR4R6(1) + Comp1+Comp2(2) = 4
-    assert_eq!(summary.total_linked_feature_flags, 4);
-    assert_eq!(summary.explicit_bindings(), 4);
+    // #656 Phase C: only RenamesR4R6 remains flag-linked.
+    assert_eq!(summary.total_linked_feature_flags, 1);
+    assert_eq!(summary.explicit_bindings(), 1);
 }
 
 #[test]
@@ -237,8 +235,8 @@ fn audit_governance_reports_clean_state() {
 
 #[test]
 fn re_exported_feature_type_is_usable() {
-    let f = Feature::SignSeparate;
-    assert_eq!(f.to_string(), "sign_separate");
+    let f = Feature::RenamesR4R6;
+    assert_eq!(f.to_string(), "renames_r4_r6");
 }
 
 #[test]
@@ -267,5 +265,6 @@ fn re_exported_support_matrix_all_features_accessible() {
 #[test]
 fn re_exported_feature_flags_module_accessible() {
     let all = copybook_governance_grid::feature_flags::all_features();
-    assert_eq!(all.len(), 18);
+    // #656 Phase C: 18 -> 15 flags.
+    assert_eq!(all.len(), 15);
 }

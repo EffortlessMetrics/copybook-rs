@@ -6,16 +6,9 @@
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::expect_used)]
 mod comp_float_parse {
-    use copybook_core::feature_flags::{Feature, FeatureFlags};
+    // #656 Phase C: COMP-1/COMP-2 parse unconditionally; no flag setup needed.
     use copybook_core::parser::parse;
     use copybook_core::schema::FieldKind;
-
-    fn enable_comp_flags_for_tests() {
-        let mut flags = FeatureFlags::default();
-        flags.enable(Feature::Comp1);
-        flags.enable(Feature::Comp2);
-        copybook_core::feature_flags::FeatureFlags::set_global(flags);
-    }
 
     // =========================================================================
     // Lexer token tests
@@ -94,7 +87,6 @@ mod comp_float_parse {
 
     #[test]
     fn test_parser_creates_float_single() {
-        enable_comp_flags_for_tests();
         let input = "01 FIELD-A COMP-1.";
         let schema = parse(input).expect("Failed to parse COMP-1 field");
         assert_eq!(schema.fields.len(), 1);
@@ -107,7 +99,6 @@ mod comp_float_parse {
 
     #[test]
     fn test_parser_creates_float_double() {
-        enable_comp_flags_for_tests();
         let input = "01 FIELD-B COMP-2.";
         let schema = parse(input).expect("Failed to parse COMP-2 field");
         assert_eq!(schema.fields.len(), 1);
@@ -120,7 +111,6 @@ mod comp_float_parse {
 
     #[test]
     fn test_parser_usage_comp1() {
-        enable_comp_flags_for_tests();
         let input = "01 FIELD-A USAGE COMP-1.";
         let schema = parse(input).expect("Failed to parse USAGE COMP-1 field");
         assert_eq!(schema.fields.len(), 1);
@@ -129,7 +119,6 @@ mod comp_float_parse {
 
     #[test]
     fn test_parser_usage_comp2() {
-        enable_comp_flags_for_tests();
         let input = "01 FIELD-A USAGE COMP-2.";
         let schema = parse(input).expect("Failed to parse USAGE COMP-2 field");
         assert_eq!(schema.fields.len(), 1);
@@ -138,7 +127,6 @@ mod comp_float_parse {
 
     #[test]
     fn test_parser_computational_1() {
-        enable_comp_flags_for_tests();
         let input = "01 FIELD-A COMPUTATIONAL-1.";
         let schema = parse(input).expect("Failed to parse COMPUTATIONAL-1 field");
         assert_eq!(schema.fields.len(), 1);
@@ -147,7 +135,6 @@ mod comp_float_parse {
 
     #[test]
     fn test_parser_computational_2() {
-        enable_comp_flags_for_tests();
         let input = "01 FIELD-B COMPUTATIONAL-2.";
         let schema = parse(input).expect("Failed to parse COMPUTATIONAL-2 field");
         assert_eq!(schema.fields.len(), 1);
@@ -156,7 +143,6 @@ mod comp_float_parse {
 
     #[test]
     fn test_comp1_no_pic_required() {
-        enable_comp_flags_for_tests();
         // COMP-1/COMP-2 are self-defining, no PIC clause needed
         let input = "01 TEMP-VALUE COMP-1.";
         let schema = parse(input).expect("COMP-1 should not require PIC");
@@ -165,7 +151,6 @@ mod comp_float_parse {
 
     #[test]
     fn test_comp1_overrides_pic() {
-        enable_comp_flags_for_tests();
         // If PIC is present before COMP-1, the COMP-1 should override it
         let input = "01 TEMP-VALUE PIC 9(5) COMP-1.";
         let schema = parse(input).expect("COMP-1 should override PIC");
@@ -182,7 +167,6 @@ mod comp_float_parse {
 
     #[test]
     fn test_float_single_size_is_4_bytes() {
-        enable_comp_flags_for_tests();
         let input = "01 FIELD-A COMP-1.";
         let schema = parse(input).expect("Failed to parse COMP-1");
         assert_eq!(schema.fields[0].len, 4, "COMP-1 should be 4 bytes");
@@ -190,7 +174,6 @@ mod comp_float_parse {
 
     #[test]
     fn test_float_double_size_is_8_bytes() {
-        enable_comp_flags_for_tests();
         let input = "01 FIELD-B COMP-2.";
         let schema = parse(input).expect("Failed to parse COMP-2");
         assert_eq!(schema.fields[0].len, 8, "COMP-2 should be 8 bytes");
@@ -198,7 +181,6 @@ mod comp_float_parse {
 
     #[test]
     fn test_float_fields_in_record() {
-        enable_comp_flags_for_tests();
         let input = r"
 01 RECORD.
    05 ALPHA-FIELD PIC X(10).
@@ -235,7 +217,6 @@ mod comp_float_parse {
 
     #[test]
     fn test_float_single_synchronized_alignment() {
-        enable_comp_flags_for_tests();
         let input = r"
 01 RECORD.
    05 ONE-BYTE PIC X(1).
@@ -256,7 +237,6 @@ mod comp_float_parse {
 
     #[test]
     fn test_float_double_synchronized_alignment() {
-        enable_comp_flags_for_tests();
         let input = r"
 01 RECORD.
    05 ONE-BYTE PIC X(1).

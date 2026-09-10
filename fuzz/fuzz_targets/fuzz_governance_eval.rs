@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 use copybook_governance_runtime::{
-    Feature, FeatureFlags, governance_states, is_support_runtime_available, runtime_summary,
-    support_states,
+    FeatureFlags, feature_flags::all_features, governance_states, is_support_runtime_available,
+    runtime_summary, support_states,
 };
 use libfuzzer_sys::fuzz_target;
 
@@ -12,27 +12,9 @@ use libfuzzer_sys::fuzz_target;
 /// Derives feature flag combinations from fuzzed bytes and exercises
 /// governance state queries, summary computation, and availability checks.
 fuzz_target!(|data: &[u8]| {
-    // Use the actual Feature variants from copybook-contracts
-    let all_features: &[Feature] = &[
-        Feature::SignSeparate,
-        Feature::RenamesR4R6,
-        Feature::Comp1,
-        Feature::Comp2,
-        Feature::AuditSystem,
-        Feature::SoxCompliance,
-        Feature::HipaaCompliance,
-        Feature::GdprCompliance,
-        Feature::PciDssCompliance,
-        Feature::SecurityMonitoring,
-        Feature::AdvancedOptimization,
-        Feature::LruCache,
-        Feature::ParallelDecode,
-        Feature::ZeroCopy,
-        Feature::VerboseLogging,
-        Feature::DiagnosticOutput,
-        Feature::Profiling,
-        Feature::MemoryTracking,
-    ];
+    // Enumerate the live flag set so flag collapses (#656) cannot desync
+    // this target from the contracts crate.
+    let all_features = all_features();
 
     // Build feature flags from fuzz data bits
     let mut builder = FeatureFlags::builder();

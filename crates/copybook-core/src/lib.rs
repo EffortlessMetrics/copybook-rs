@@ -312,6 +312,10 @@ pub fn parse_copybook_with_options(text: &str, options: &ParseOptions) -> Result
 
 /// Parse a COBOL copybook with specific options and feature flags
 ///
+/// SIGN SEPARATE, COMP-1, and COMP-2 are stable behavior and parse
+/// unconditionally (#656 Phase C); remaining flags (e.g. `RenamesR4R6`)
+/// still gate their respective behaviors.
+///
 /// # Examples
 ///
 /// ```
@@ -319,9 +323,9 @@ pub fn parse_copybook_with_options(text: &str, options: &ParseOptions) -> Result
 ///
 /// let options = ParseOptions::default();
 /// let mut feature_flags = FeatureFlags::default();
-/// feature_flags.disable(Feature::SignSeparate);
+/// feature_flags.disable(Feature::RenamesR4R6);
 /// let source = "01 AMOUNT PIC S9(5) SIGN IS LEADING SEPARATE.";
-/// assert!(parse_copybook_with_feature_flags(source, &options, &feature_flags).is_err());
+/// assert!(parse_copybook_with_feature_flags(source, &options, &feature_flags).is_ok());
 /// ```
 ///
 /// # Errors

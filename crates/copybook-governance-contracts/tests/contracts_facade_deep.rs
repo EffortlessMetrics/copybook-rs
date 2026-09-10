@@ -33,8 +33,8 @@ fn feature_display_from_str_roundtrip_all_variants() {
 #[test]
 fn feature_from_str_is_case_insensitive() {
     assert_eq!(
-        Feature::from_str("SIGN_SEPARATE").unwrap(),
-        Feature::SignSeparate
+        Feature::from_str("RENAMES_R4_R6").unwrap(),
+        Feature::RenamesR4R6
     );
     assert_eq!(Feature::from_str("Lru_Cache").unwrap(), Feature::LruCache);
     assert_eq!(Feature::from_str("profiling").unwrap(), Feature::Profiling);
@@ -74,7 +74,8 @@ fn feature_env_var_names_are_all_unique() {
         .into_iter()
         .map(Feature::env_var_name)
         .collect();
-    assert_eq!(names.len(), 18);
+    // #656 Phase C: 18 -> 15 flags.
+    assert_eq!(names.len(), 15);
 }
 
 // =========================================================================
@@ -98,7 +99,8 @@ fn feature_descriptions_are_all_unique() {
         .into_iter()
         .map(Feature::description)
         .collect();
-    assert_eq!(descs.len(), 18);
+    // #656 Phase C: 18 -> 15 flags.
+    assert_eq!(descs.len(), 15);
 }
 
 // =========================================================================
@@ -147,15 +149,12 @@ fn feature_flags_specific_builder_configuration() {
         .enable(Feature::Profiling)
         .enable(Feature::AuditSystem)
         .disable(Feature::LruCache)
-        .disable(Feature::Comp1)
+        .disable(Feature::RenamesR4R6)
         .build();
     assert!(flags.is_enabled(Feature::Profiling));
     assert!(flags.is_enabled(Feature::AuditSystem));
     assert!(!flags.is_enabled(Feature::LruCache));
-    assert!(!flags.is_enabled(Feature::Comp1));
-    // Default-enabled that weren't touched
-    assert!(flags.is_enabled(Feature::SignSeparate));
-    assert!(flags.is_enabled(Feature::Comp2));
+    assert!(!flags.is_enabled(Feature::RenamesR4R6));
 }
 
 // =========================================================================
@@ -375,10 +374,11 @@ fn default_enabled_features_match_feature_default_enabled_method() {
 }
 
 #[test]
-fn exactly_four_features_are_default_enabled() {
-    let count = copybook_governance_contracts::feature_flags::all_features()
+fn exactly_one_feature_is_default_enabled() {
+    // #656 Phase C: LruCache is the only default-enabled flag.
+    let enabled: Vec<_> = copybook_governance_contracts::feature_flags::all_features()
         .into_iter()
         .filter(|f| f.default_enabled())
-        .count();
-    assert_eq!(count, 4);
+        .collect();
+    assert_eq!(enabled, vec![Feature::LruCache]);
 }

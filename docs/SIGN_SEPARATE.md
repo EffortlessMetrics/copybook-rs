@@ -7,10 +7,9 @@ This document specifies the behavior of SIGN SEPARATE clause support in copybook
 
 ## Feature Status
 
-- **Feature Flag**: `sign_separate`
-- **Default**: Enabled by default (since v0.4.3; can be disabled via `COPYBOOK_FF_SIGN_SEPARATE=0`)
+- **Feature Flag**: none (removed in v0.6.0, #656 Phase C)
+- **Default**: Always accepted — stable parser behavior since v0.4.3, unconditional since v0.6.0
 - **Category**: Stable (promoted from Experimental in v0.4.3)
-- **Error Code**: CBKP051 (when feature is disabled via override)
 
 ## COBOL Syntax
 
@@ -88,15 +87,11 @@ Digits are stored as standard display characters:
 
 ## Error Handling
 
-### When Feature Flag is Disabled (Override Mode)
+### Historical Note (pre-v0.6.0 Override Mode)
 
-If the `sign_separate` feature flag is explicitly disabled (e.g., `COPYBOOK_FF_SIGN_SEPARATE=0`):
+Before v0.6.0, `COPYBOOK_FF_SIGN_SEPARATE=0` rejected SIGN SEPARATE with `CBKP051_UNSUPPORTED_EDITED_PIC`. The override was removed in v0.6.0 (#656 Phase C); the variable is now ignored and SIGN SEPARATE always parses.
 
-- **Error Code**: CBKP051_UNSUPPORTED_EDITED_PIC
-- **Error Message**: "SIGN clause on field '{field_name}' is not supported yet"
-- **Action**: Reject parsing of copybook
-
-### When Feature Flag is Enabled
+### Accepted Forms
 
 The following validation rules apply:
 
@@ -169,7 +164,7 @@ Decoded value: `1234`
 
 ### Parser Changes
 
-1. When `sign_separate` flag is enabled, accept SIGN SEPARATE clause
+1. Accept SIGN SEPARATE clause unconditionally (no flag since v0.6.0)
 2. Parse placement (LEADING/TRAILING) - default to TRAILING
 3. Store sign information in field metadata
 
@@ -213,7 +208,7 @@ All phases are complete as of v0.4.3:
 - **Phase 3.2** ✅ Encode semantics implemented with comprehensive testing
 - **Phase 3.3** ✅ Promoted to enabled by default (v0.4.3)
 
-The feature flag remains available for compatibility testing (`COPYBOOK_FF_SIGN_SEPARATE=0`).
+The former `sign_separate` flag and `COPYBOOK_FF_SIGN_SEPARATE` override were removed in v0.6.0 (#656 Phase C).
 
 ## References
 

@@ -31,7 +31,7 @@ fn facade_reexports_all_runtime_types() {
 
 #[test]
 fn facade_reexports_feature_flags_types() {
-    let _f = Feature::SignSeparate;
+    let _f = Feature::RenamesR4R6;
     let _c = FeatureCategory::Experimental;
     let _l = FeatureLifecycle::Stable;
     let _b = FeatureFlags::builder();
@@ -64,15 +64,19 @@ fn end_to_end_enable_renames_changes_governance_state() {
 }
 
 #[test]
-fn end_to_end_disable_comp_flags_affects_summary() {
+fn end_to_end_disable_renames_flag_affects_summary() {
+    // #656 Phase C: Level66Renames is the remaining flag-gated binding;
+    // stable language entries (COMP-1/COMP-2) stay available.
     let flags = FeatureFlags::builder()
-        .disable(Feature::Comp1)
-        .disable(Feature::Comp2)
+        .disable(Feature::RenamesR4R6)
         .build();
 
-    let state = governance_state_for_support_id(FeatureId::Comp1Comp2, &flags).unwrap();
+    let state = governance_state_for_support_id(FeatureId::Level66Renames, &flags).unwrap();
     assert!(!state.runtime_enabled);
-    assert_eq!(state.missing_feature_flags.len(), 2);
+    assert_eq!(state.missing_feature_flags.len(), 1);
+
+    let comp_state = governance_state_for_support_id(FeatureId::Comp1Comp2, &flags).unwrap();
+    assert!(comp_state.runtime_enabled);
 
     let summary = runtime_summary(&flags);
     assert!(summary.has_runtime_unavailable_features());
@@ -122,7 +126,8 @@ fn end_to_end_governance_summary_and_runtime_summary_agree_on_totals() {
 fn feature_flags_module_accessible() {
     use copybook_governance::feature_flags;
     let all = feature_flags::all_features();
-    assert_eq!(all.len(), 18);
+    // #656 Phase C: 18 -> 15 flags.
+    assert_eq!(all.len(), 15);
 }
 
 #[test]

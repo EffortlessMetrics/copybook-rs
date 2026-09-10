@@ -14,12 +14,12 @@ of truth for feature-flag definitions used across all governance and runtime cra
 use copybook_contracts::{Feature, FeatureFlags, FeatureFlagsBuilder, FeatureCategory};
 
 let flags = FeatureFlags::builder()
-    .enable(Feature::Comp1)
+    .enable(Feature::RenamesR4R6)
     .disable(Feature::AuditSystem)
     .build();
 
-assert!(flags.is_enabled(Feature::Comp1));
-assert_eq!(Feature::Comp1.category(), FeatureCategory::Experimental);
+assert!(flags.is_enabled(Feature::RenamesR4R6));
+assert_eq!(Feature::RenamesR4R6.category(), FeatureCategory::Experimental);
 ```
 
 ## Public API

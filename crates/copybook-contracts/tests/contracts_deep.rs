@@ -14,17 +14,16 @@ use std::str::FromStr;
 // ============================================================================
 
 #[test]
-fn all_features_returns_all_18_variants() {
+fn all_features_returns_all_15_variants() {
+    // #656 Phase C: 18 -> 15 (SignSeparate/Comp1/Comp2 removed).
     let features = all_features();
-    assert_eq!(features.len(), 18, "expected 18 feature flags");
+    assert_eq!(features.len(), 15, "expected 15 feature flags");
 }
 
 #[test]
 fn feature_default_enabled_contract() {
-    // These should be enabled by default
-    assert!(Feature::SignSeparate.default_enabled());
-    assert!(Feature::Comp1.default_enabled());
-    assert!(Feature::Comp2.default_enabled());
+    // LruCache is the only default-enabled flag (#656 Phase C: stable
+    // language behavior is not flag-gated).
     assert!(Feature::LruCache.default_enabled());
     // These should be disabled by default
     assert!(!Feature::RenamesR4R6.default_enabled());
@@ -78,16 +77,11 @@ fn feature_enable_idempotent() {
 
 #[test]
 fn category_assignment_experimental() {
-    assert_eq!(
-        Feature::SignSeparate.category(),
-        FeatureCategory::Experimental
-    );
+    // #656 Phase C: RenamesR4R6 is the only remaining Experimental toggle.
     assert_eq!(
         Feature::RenamesR4R6.category(),
         FeatureCategory::Experimental
     );
-    assert_eq!(Feature::Comp1.category(), FeatureCategory::Experimental);
-    assert_eq!(Feature::Comp2.category(), FeatureCategory::Experimental);
 }
 
 #[test]
@@ -139,8 +133,9 @@ fn category_assignment_debug() {
 
 #[test]
 fn features_in_category_experimental_count() {
+    // #656 Phase C: Experimental holds only RenamesR4R6.
     let feats = FeatureFlags::features_in_category(FeatureCategory::Experimental);
-    assert_eq!(feats.len(), 4);
+    assert_eq!(feats, vec![Feature::RenamesR4R6]);
 }
 
 #[test]
@@ -161,10 +156,9 @@ fn builder_enable_single_feature() {
 
 #[test]
 fn builder_disable_default_feature() {
-    let flags = FeatureFlags::builder()
-        .disable(Feature::SignSeparate)
-        .build();
-    assert!(!flags.is_enabled(Feature::SignSeparate));
+    // LruCache is the only default-enabled flag (#656 Phase C).
+    let flags = FeatureFlags::builder().disable(Feature::LruCache).build();
+    assert!(!flags.is_enabled(Feature::LruCache));
 }
 
 #[test]
@@ -180,13 +174,16 @@ fn builder_enable_entire_category() {
 
 #[test]
 fn builder_disable_entire_category() {
+    // #656 Phase C: Experimental holds only RenamesR4R6.
     let flags = FeatureFlags::builder()
         .disable_category(FeatureCategory::Experimental)
         .build();
-    assert!(!flags.is_enabled(Feature::SignSeparate));
     assert!(!flags.is_enabled(Feature::RenamesR4R6));
-    assert!(!flags.is_enabled(Feature::Comp1));
-    assert!(!flags.is_enabled(Feature::Comp2));
+    assert!(
+        flags
+            .enabled_in_category(FeatureCategory::Experimental)
+            .is_empty()
+    );
 }
 
 #[test]
@@ -282,13 +279,24 @@ fn feature_display_from_str_roundtrip() {
 #[test]
 fn feature_from_str_case_insensitive() {
     assert_eq!(
-        Feature::from_str("SIGN_SEPARATE").unwrap(),
-        Feature::SignSeparate
+        Feature::from_str("RENAMES_R4_R6").unwrap(),
+        Feature::RenamesR4R6
     );
     assert_eq!(
         Feature::from_str("Verbose_Logging").unwrap(),
         Feature::VerboseLogging
     );
+}
+
+#[test]
+fn feature_from_str_rejects_removed_phase_c_names() {
+    // #656 Phase C (v0.6.0): stable language behavior is not flag-gated.
+    for removed in ["sign_separate", "comp_1", "comp_2"] {
+        assert!(
+            Feature::from_str(removed).is_err(),
+            "removed flag '{removed}' should not parse"
+        );
+    }
 }
 
 #[test]
@@ -312,14 +320,16 @@ fn feature_description_non_empty() {
 
 #[test]
 fn feature_env_var_name_format() {
-    let name = Feature::SignSeparate.env_var_name();
+    let name = Feature::RenamesR4R6.env_var_name();
+    assert_eq!(name, "COPYBOOK_FF_RENAMES_R4_R6");
     assert!(
         name.starts_with("COPYBOOK_FF_"),
         "env var should start with COPYBOOK_FF_"
     );
     assert!(
-        name.chars().all(|c| c.is_ascii_uppercase() || c == '_'),
-        "env var should be all uppercase: {name}"
+        name.chars()
+            .all(|c| c.is_ascii_uppercase() || c == '_' || c.is_ascii_digit()),
+        "env var should be uppercase/underscore/digit: {name}"
     );
 }
 

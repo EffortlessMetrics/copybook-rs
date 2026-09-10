@@ -8,9 +8,7 @@
 //! according to the normative grammar rules specified in the design document.
 
 use copybook_core::{
-    ErrorCode, FieldKind, Occurs, ParseOptions,
-    feature_flags::{Feature, FeatureFlags},
-    parse_copybook, parse_copybook_with_options,
+    ErrorCode, FieldKind, Occurs, ParseOptions, parse_copybook, parse_copybook_with_options,
 };
 
 #[test]
@@ -123,11 +121,6 @@ fn test_edited_pic_error_normative() {
 
 #[test]
 fn test_sign_clause_as_edited_pic_normative() {
-    let flags = FeatureFlags::from_env();
-    if !flags.is_enabled(Feature::SignSeparate) {
-        return;
-    }
-
     // NORMATIVE: SIGN LEADING/TRAILING are rejected as edited PIC syntax variants.
     let sign_clauses = vec![
         ("01 FIELD1 PIC S999 SIGN LEADING.", "SIGN LEADING"),

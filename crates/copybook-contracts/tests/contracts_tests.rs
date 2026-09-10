@@ -13,10 +13,7 @@ use std::str::FromStr;
 
 #[test]
 fn feature_display_uses_snake_case() {
-    assert_eq!(Feature::SignSeparate.to_string(), "sign_separate");
     assert_eq!(Feature::RenamesR4R6.to_string(), "renames_r4_r6");
-    assert_eq!(Feature::Comp1.to_string(), "comp_1");
-    assert_eq!(Feature::Comp2.to_string(), "comp_2");
     assert_eq!(Feature::AuditSystem.to_string(), "audit_system");
     assert_eq!(Feature::PciDssCompliance.to_string(), "pci_dss_compliance");
     assert_eq!(
@@ -73,12 +70,8 @@ fn feature_from_str_rejects_partial_match() {
 
 #[test]
 fn feature_category_experimental_members() {
-    let experimental = [
-        Feature::SignSeparate,
-        Feature::RenamesR4R6,
-        Feature::Comp1,
-        Feature::Comp2,
-    ];
+    // #656 Phase C: RenamesR4R6 is the only remaining Experimental toggle.
+    let experimental = [Feature::RenamesR4R6];
     for f in experimental {
         assert_eq!(f.category(), FeatureCategory::Experimental, "{f}");
     }
@@ -129,12 +122,9 @@ fn feature_category_debug_members() {
 
 #[test]
 fn feature_default_enabled_set() {
-    let enabled_by_default = [
-        Feature::SignSeparate,
-        Feature::Comp1,
-        Feature::Comp2,
-        Feature::LruCache,
-    ];
+    // #656 Phase C: LruCache is the only default-enabled flag; stable
+    // language behavior (SIGN SEPARATE, COMP-1, COMP-2) is not flag-gated.
+    let enabled_by_default = [Feature::LruCache];
     for f in enabled_by_default {
         assert!(f.default_enabled(), "{f} should be default-enabled");
     }
@@ -213,8 +203,19 @@ fn feature_serde_json_uses_snake_case() {
 #[test]
 fn feature_serde_alias_works() {
     // The serde alias should accept snake_case
-    let back: Feature = serde_json::from_str("\"sign_separate\"").unwrap();
-    assert_eq!(back, Feature::SignSeparate);
+    let back: Feature = serde_json::from_str("\"renames_r4_r6\"").unwrap();
+    assert_eq!(back, Feature::RenamesR4R6);
+}
+
+#[test]
+fn feature_serde_rejects_removed_phase_c_names() {
+    // #656 Phase C (v0.6.0): stable language behavior is not flag-gated.
+    for removed in ["\"sign_separate\"", "\"comp_1\"", "\"comp_2\""] {
+        assert!(
+            serde_json::from_str::<Feature>(removed).is_err(),
+            "removed flag {removed} should not deserialize"
+        );
+    }
 }
 
 // ── Feature: Debug ──────────────────────────────────────────────────
@@ -288,8 +289,9 @@ fn feature_lifecycle_debug_output() {
 // ── all_features ────────────────────────────────────────────────────
 
 #[test]
-fn all_features_returns_18_variants() {
-    assert_eq!(all_features().len(), 18);
+fn all_features_returns_15_variants() {
+    // #656 Phase C: 18 -> 15 (SignSeparate/Comp1/Comp2 removed).
+    assert_eq!(all_features().len(), 15);
 }
 
 #[test]
@@ -312,9 +314,10 @@ fn default_flags_matches_default_enabled_property() {
 }
 
 #[test]
-fn default_flags_enabled_count_is_4() {
+fn default_flags_enabled_count_is_1() {
+    // #656 Phase C: LruCache is the only default-enabled flag.
     let flags = FeatureFlags::default();
-    assert_eq!(flags.enabled_features().count(), 4);
+    assert_eq!(flags.enabled_features().count(), 1);
 }
 
 // ── FeatureFlags: enable / disable / toggle ─────────────────────────
@@ -360,7 +363,7 @@ fn enable_all_then_disable_all() {
     for f in all_features() {
         flags.enable(f);
     }
-    assert_eq!(flags.enabled_features().count(), 18);
+    assert_eq!(flags.enabled_features().count(), 15);
     for f in all_features() {
         flags.disable(f);
     }
@@ -384,9 +387,10 @@ fn enabled_in_category_empty_when_none_enabled() {
 
 #[test]
 fn features_in_category_counts() {
+    // #656 Phase C: Experimental holds only RenamesR4R6.
     assert_eq!(
         FeatureFlags::features_in_category(FeatureCategory::Experimental).len(),
-        4
+        1
     );
     assert_eq!(
         FeatureFlags::features_in_category(FeatureCategory::Enterprise).len(),
@@ -413,7 +417,7 @@ fn features_in_category_sum_equals_total() {
     .iter()
     .map(|c| FeatureFlags::features_in_category(*c).len())
     .sum();
-    assert_eq!(total, 18);
+    assert_eq!(total, 15);
 }
 
 // ── FeatureFlags: Serde roundtrip ───────────────────────────────────

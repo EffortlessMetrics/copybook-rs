@@ -36,7 +36,7 @@ The CLI provides several options for controlling feature flags:
 
 ```bash
 # Enable specific features
-copybook parse --enable-features sign_separate,verbose_logging
+copybook parse --enable-features renames_r4_r6,verbose_logging
 
 # Disable specific features
 copybook parse --disable-features lru_cache
@@ -58,7 +58,7 @@ Feature flags can be configured via TOML or JSON files:
 **TOML format:**
 ```toml
 [feature_flags]
-enabled = ["sign_separate", "verbose_logging", "diagnostic_output"]
+enabled = ["renames_r4_r6", "verbose_logging", "diagnostic_output"]
 disabled = ["lru_cache"]
 ```
 
@@ -66,7 +66,7 @@ disabled = ["lru_cache"]
 ```json
 {
   "feature_flags": {
-    "enabled": ["sign_separate", "verbose_logging", "diagnostic_output"],
+    "enabled": ["renames_r4_r6", "verbose_logging", "diagnostic_output"],
     "disabled": ["lru_cache"]
   }
 }
@@ -94,7 +94,7 @@ if flags.is_enabled(Feature::VerboseLogging) {
 
 // Create custom feature flags
 let custom_flags = FeatureFlags::builder()
-    .enable(Feature::SignSeparate)
+    .enable(Feature::RenamesR4R6)
     .disable(Feature::LruCache)
     .build();
 
@@ -105,17 +105,9 @@ handle.enable(Feature::VerboseLogging);
 
 ## Available Feature Flags
 
-### Stable Features (Promoted from Experimental)
+### Stable Language Behavior (No Flag)
 
-These features were originally experimental but have been promoted to stable defaults as of v0.4.3. They are enabled by default and fully supported in production.
-
-| Flag | Default | Description |
-|-------|----------|-------------|
-| `sign_separate` | **Enabled** | SIGN SEPARATE clause support (promoted to stable v0.4.3) |
-| `comp_1` | **Enabled** | COMP-1 single precision floating point (promoted to stable v0.4.3) |
-| `comp_2` | **Enabled** | COMP-2 double precision floating point (promoted to stable v0.4.3) |
-
-> **Note:** `sign_separate`, `comp_1`, and `comp_2` remain in the "experimental" category for organizational purposes but are **enabled by default since v0.4.3** (promoted to stable). They can still be disabled via `COPYBOOK_FF_SIGN_SEPARATE=0`, `COPYBOOK_FF_COMP_1=0`, or `COPYBOOK_FF_COMP_2=0` for compatibility testing.
+SIGN SEPARATE, COMP-1, and COMP-2 were promoted to stable defaults in v0.4.3 and their runtime flags were **removed in v0.6.0** (#656 Phase C). They are ordinary parser behavior now: always accepted, with no `COPYBOOK_FF_*` toggle and no `--enable-features` / `--disable-features` name. Stale configurations naming `sign_separate`, `comp_1`, or `comp_2` fail loudly (`Invalid feature flag` on the CLI); stale `COPYBOOK_FF_SIGN_SEPARATE`, `COPYBOOK_FF_COMP_1`, or `COPYBOOK_FF_COMP_2` environment variables are ignored.
 
 ### Experimental Features
 

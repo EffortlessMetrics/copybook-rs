@@ -19,23 +19,28 @@ use copybook_governance::{
 #[test]
 fn feature_flag_enable_disables_at_runtime() {
     let mut flags = FeatureFlags::default();
-    assert!(flags.is_enabled(Feature::SignSeparate));
-    flags.disable(Feature::SignSeparate);
-    assert!(!flags.is_enabled(Feature::SignSeparate));
-    flags.enable(Feature::SignSeparate);
-    assert!(flags.is_enabled(Feature::SignSeparate));
+    assert!(!flags.is_enabled(Feature::RenamesR4R6));
+    flags.enable(Feature::RenamesR4R6);
+    assert!(flags.is_enabled(Feature::RenamesR4R6));
+    flags.disable(Feature::RenamesR4R6);
+    assert!(!flags.is_enabled(Feature::RenamesR4R6));
 }
 
 #[test]
 fn feature_flag_runtime_toggle_reflects_in_governance_state() {
+    // #656 Phase C: Level66Renames is the remaining flag-gated binding;
+    // stable language entries are always available.
     let mut flags = FeatureFlags::default();
-    flags.disable(Feature::Comp1);
-    let state = governance_state_for_support_id(FeatureId::Comp1Comp2, &flags).unwrap();
+    flags.disable(Feature::RenamesR4R6);
+    let state = governance_state_for_support_id(FeatureId::Level66Renames, &flags).unwrap();
     assert!(!state.runtime_enabled);
 
-    flags.enable(Feature::Comp1);
-    let state = governance_state_for_support_id(FeatureId::Comp1Comp2, &flags).unwrap();
+    flags.enable(Feature::RenamesR4R6);
+    let state = governance_state_for_support_id(FeatureId::Level66Renames, &flags).unwrap();
     assert!(state.runtime_enabled);
+
+    let comp_state = governance_state_for_support_id(FeatureId::Comp1Comp2, &flags).unwrap();
+    assert!(comp_state.runtime_enabled);
 }
 
 // ---------------------------------------------------------------------------
@@ -69,14 +74,13 @@ fn governance_grid_binds_all_features_to_flags() {
     let bindings = governance_bindings();
     assert_eq!(bindings.len(), 7);
 
-    // Verify specific governed bindings
+    // Verify specific governed bindings (#656 Phase C: stable language
+    // entries carry no flag linkage).
     let sign_flags = feature_flags_for_support_id(FeatureId::SignSeparate).unwrap();
-    assert_eq!(sign_flags, &[Feature::SignSeparate]);
+    assert!(sign_flags.is_empty());
 
     let comp_flags = feature_flags_for_support_id(FeatureId::Comp1Comp2).unwrap();
-    assert_eq!(comp_flags.len(), 2);
-    assert!(comp_flags.contains(&Feature::Comp1));
-    assert!(comp_flags.contains(&Feature::Comp2));
+    assert!(comp_flags.is_empty());
 
     let renames_flags = feature_flags_for_support_id(FeatureId::Level66Renames).unwrap();
     assert_eq!(renames_flags, &[Feature::RenamesR4R6]);
@@ -168,21 +172,16 @@ fn all_governance_bindings_reference_valid_feature_ids() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn sign_separate_enabled_by_default() {
+fn stable_language_entries_have_no_flag_linkage() {
+    // #656 Phase C: SIGN SEPARATE, COMP-1, and COMP-2 are stable parser
+    // behavior with no runtime toggle; their governance rows stay available.
     let flags = FeatureFlags::default();
-    assert!(flags.is_enabled(Feature::SignSeparate));
-}
-
-#[test]
-fn comp1_enabled_by_default() {
-    let flags = FeatureFlags::default();
-    assert!(flags.is_enabled(Feature::Comp1));
-}
-
-#[test]
-fn comp2_enabled_by_default() {
-    let flags = FeatureFlags::default();
-    assert!(flags.is_enabled(Feature::Comp2));
+    for id in [FeatureId::SignSeparate, FeatureId::Comp1Comp2] {
+        let linked = feature_flags_for_support_id(id).unwrap();
+        assert!(linked.is_empty(), "{id:?} should have no flag linkage");
+        let state = governance_state_for_support_id(id, &flags).unwrap();
+        assert!(state.runtime_enabled, "{id:?} should be runtime-available");
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -235,9 +234,7 @@ fn governance_contracts_builder_creates_valid_contracts() {
     assert!(flags.is_enabled(Feature::Profiling));
     assert!(!flags.is_enabled(Feature::LruCache));
     // Defaults should still be applied for unmentioned features
-    assert!(flags.is_enabled(Feature::SignSeparate));
-    assert!(flags.is_enabled(Feature::Comp1));
-    assert!(flags.is_enabled(Feature::Comp2));
+    assert!(!flags.is_enabled(Feature::AuditSystem));
 }
 
 // ---------------------------------------------------------------------------
@@ -297,7 +294,8 @@ fn grid_completeness_all_features_mapped() {
         summary.mapped_support_features
     );
     assert_eq!(summary.total_support_features, 7);
-    assert_eq!(summary.explicit_bindings(), 4);
+    // #656 Phase C: only RenamesR4R6 remains flag-linked.
+    assert_eq!(summary.explicit_bindings(), 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -386,14 +384,14 @@ fn governance_state_consistent_across_modules() {
 
 #[test]
 fn e2e_disable_flags_propagates_to_runtime() {
+    // #656 Phase C: Level66Renames is the remaining flag-gated binding.
     let flags = FeatureFlags::builder()
-        .disable(Feature::Comp1)
-        .disable(Feature::Comp2)
+        .disable(Feature::RenamesR4R6)
         .build();
 
-    let state = governance_state_for_support_id(FeatureId::Comp1Comp2, &flags).unwrap();
+    let state = governance_state_for_support_id(FeatureId::Level66Renames, &flags).unwrap();
     assert!(!state.runtime_enabled);
-    assert_eq!(state.missing_feature_flags.len(), 2);
+    assert_eq!(state.missing_feature_flags.len(), 1);
 
     let summary = runtime_summary(&flags);
     assert!(summary.has_runtime_unavailable_features());
@@ -481,7 +479,10 @@ fn lifecycle_and_category_accessible_from_facade() {
     let _ = FeatureLifecycle::Stable;
     let _ = FeatureLifecycle::Deprecated;
 
-    assert_eq!(Feature::Comp1.category(), FeatureCategory::Experimental);
+    assert_eq!(
+        Feature::RenamesR4R6.category(),
+        FeatureCategory::Experimental
+    );
     assert_eq!(Feature::AuditSystem.category(), FeatureCategory::Enterprise);
     assert_eq!(Feature::LruCache.category(), FeatureCategory::Performance);
     assert_eq!(Feature::VerboseLogging.category(), FeatureCategory::Debug);

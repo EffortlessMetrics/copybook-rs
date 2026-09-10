@@ -75,23 +75,31 @@ fn list_features_shows_default_enabled() {
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&out.stdout);
-    // These four are default-enabled (verified in feature_flags_tests.rs)
-    assert!(
-        stdout.contains("sign_separate") && stdout.contains("enabled"),
-        "sign_separate should be enabled by default"
-    );
-    assert!(
-        stdout.contains("comp_1") && stdout.contains("enabled"),
-        "comp_1 should be enabled by default"
-    );
-    assert!(
-        stdout.contains("comp_2") && stdout.contains("enabled"),
-        "comp_2 should be enabled by default"
-    );
+    // lru_cache is the only default-enabled flag (#656 Phase C: stable
+    // language behavior is not flag-gated).
     assert!(
         stdout.contains("lru_cache") && stdout.contains("enabled"),
         "lru_cache should be enabled by default"
     );
+}
+
+#[test]
+fn list_features_omits_removed_phase_c_flags() {
+    let dir = TempDir::new().unwrap();
+    let cpy = write_comp1_copybook(&dir);
+    let out = cmd()
+        .arg("--list-features")
+        .args(["parse", cpy.to_str().unwrap()])
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    // #656 Phase C (v0.6.0): stable language behavior is not flag-gated.
+    for removed in ["sign_separate", "comp_1", "comp_2"] {
+        assert!(
+            !stdout.contains(removed),
+            "--list-features should not mention removed flag {removed}"
+        );
+    }
 }
 
 #[test]
@@ -154,52 +162,48 @@ fn disable_features_flag_accepted() {
 }
 
 #[test]
-fn disable_comp1_rejects_comp1_copybook() {
+fn removed_phase_c_flag_names_are_rejected() {
+    // #656 Phase C (v0.6.0): sign_separate/comp_1/comp_2 no longer exist.
+    // Stale CLI usage must fail loudly.
     let dir = TempDir::new().unwrap();
     let cpy = write_comp1_copybook(&dir);
-    // Disabling comp_1 should cause parse failure on a COMP-1 copybook
-    let out = cmd()
-        .args(["--disable-features", "comp_1"])
-        .args(["parse", cpy.to_str().unwrap()])
-        .output()
-        .unwrap();
-    assert!(
-        !out.status.success(),
-        "parse should fail when comp_1 is disabled and copybook uses COMP-1"
-    );
-    let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(
-        stderr.contains("CBKP011_UNSUPPORTED_CLAUSE"),
-        "disabled COMP-1 must report CBKP011, got: {stderr}"
-    );
-    assert!(
-        stderr.contains("COMP-1") || stderr.contains("comp_1"),
-        "error should mention COMP-1 or comp_1, got: {stderr}"
-    );
+    for removed in ["comp_1", "comp_2", "sign_separate"] {
+        let out = cmd()
+            .args(["--disable-features", removed])
+            .args(["parse", cpy.to_str().unwrap()])
+            .output()
+            .unwrap();
+        assert!(
+            !out.status.success(),
+            "removed flag {removed} should be rejected"
+        );
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            stderr.contains("Invalid feature flag"),
+            "removed flag {removed} must report Invalid feature flag, got: {stderr}"
+        );
+    }
 }
 
 #[test]
-fn disable_sign_separate_rejects_sign_separate_copybook() {
+fn stable_clauses_parse_despite_stale_disable_env() {
+    // #656 Phase C: stale COPYBOOK_FF_SIGN_SEPARATE / COPYBOOK_FF_COMP_1=0
+    // env vars are no longer recognized and must not affect parsing.
     let dir = TempDir::new().unwrap();
     let cpy = write_sign_separate_copybook(&dir);
-    let out = cmd()
-        .args(["--disable-features", "sign_separate"])
+    cmd()
+        .env("COPYBOOK_FF_SIGN_SEPARATE", "0")
         .args(["parse", cpy.to_str().unwrap()])
-        .output()
-        .unwrap();
-    assert!(
-        !out.status.success(),
-        "parse should fail when sign_separate is disabled"
-    );
-    let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(
-        stderr.contains("CBKP051_UNSUPPORTED_EDITED_PIC"),
-        "disabled SIGN SEPARATE must report CBKP051, got: {stderr}"
-    );
-    assert!(
-        stderr.contains("SIGN") || stderr.contains("sign_separate"),
-        "error should mention SIGN, got: {stderr}"
-    );
+        .assert()
+        .success();
+
+    let cpy = write_comp1_copybook(&dir);
+    cmd()
+        .env("COPYBOOK_FF_COMP_1", "0")
+        .env("COPYBOOK_FF_COMP_2", "0")
+        .args(["parse", cpy.to_str().unwrap()])
+        .assert()
+        .success();
 }
 
 // ── --enable-category / --disable-category ──────────────────────────
@@ -216,19 +220,16 @@ fn enable_category_debug_accepted() {
 }
 
 #[test]
-fn disable_category_experimental_rejects_comp1() {
+fn disable_category_experimental_still_parses_comp1() {
+    // #656 Phase C: COMP-1 is stable parser behavior, not an experimental
+    // toggle; disabling the experimental category must not reject it.
     let dir = TempDir::new().unwrap();
     let cpy = write_comp1_copybook(&dir);
-    // COMP-1 is in the experimental category; disabling it should reject the copybook
-    let out = cmd()
+    cmd()
         .args(["--disable-category", "experimental"])
         .args(["parse", cpy.to_str().unwrap()])
-        .output()
-        .unwrap();
-    assert!(
-        !out.status.success(),
-        "parse should fail when experimental category is disabled and copybook uses COMP-1"
-    );
+        .assert()
+        .success();
 }
 
 // ── --feature-flags-config ──────────────────────────────────────────
@@ -251,7 +252,10 @@ fn feature_flags_config_json_accepted() {
 }
 
 #[test]
-fn feature_flags_config_disables_comp1() {
+fn feature_flags_config_with_stale_phase_c_names_is_tolerated() {
+    // #656 Phase C: config files ignore unknown flag names (pre-existing
+    // lenient behavior); the COMP-1 copybook must still parse because
+    // COMP-1 is stable behavior, not a toggle.
     let dir = TempDir::new().unwrap();
     let cpy = write_comp1_copybook(&dir);
     let config = dir.path().join("flags.json");
@@ -260,15 +264,11 @@ fn feature_flags_config_disables_comp1() {
         r#"{"feature_flags":{"enabled":[],"disabled":["comp_1"]}}"#,
     )
     .unwrap();
-    let out = cmd()
+    cmd()
         .args(["--feature-flags-config", config.to_str().unwrap()])
         .args(["parse", cpy.to_str().unwrap()])
-        .output()
-        .unwrap();
-    assert!(
-        !out.status.success(),
-        "parse should fail when config disables comp_1"
-    );
+        .assert()
+        .success();
 }
 
 #[test]

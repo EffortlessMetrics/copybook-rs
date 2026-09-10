@@ -18,9 +18,7 @@ pub struct GovernedFeatureBinding {
     pub rationale: &'static str,
 }
 
-static SIGN_SEPARATE_MAPPING: [Feature; 1] = [Feature::SignSeparate];
 static RENAMES_R4R6_MAPPING: [Feature; 1] = [Feature::RenamesR4R6];
-static COMP12_MAPPING: [Feature; 2] = [Feature::Comp1, Feature::Comp2];
 
 static GOVERNANCE_BINDINGS: [GovernedFeatureBinding; 7] = [
     GovernedFeatureBinding {
@@ -45,13 +43,13 @@ static GOVERNANCE_BINDINGS: [GovernedFeatureBinding; 7] = [
     },
     GovernedFeatureBinding {
         support_id: FeatureId::Comp1Comp2,
-        feature_flags: &COMP12_MAPPING,
-        rationale: "COMP-1 and COMP-2 support are toggled by `comp_1` and `comp_2` for compatibility control.",
+        feature_flags: &[],
+        rationale: "COMP-1 and COMP-2 are stable parser behavior since #656 Phase C; no runtime toggle.",
     },
     GovernedFeatureBinding {
         support_id: FeatureId::SignSeparate,
-        feature_flags: &SIGN_SEPARATE_MAPPING,
-        rationale: "SIGN SEPARATE clause support is controlled by `sign_separate`.",
+        feature_flags: &[],
+        rationale: "SIGN SEPARATE is stable parser behavior since #656 Phase C; no runtime toggle.",
     },
     GovernedFeatureBinding {
         support_id: FeatureId::NestedOdo,
@@ -234,14 +232,16 @@ mod tests {
     }
 
     #[test]
-    fn test_sign_separate_and_comp12_mapped_to_flags() {
+    fn test_stable_language_has_no_flag_mapping() {
+        // #656 Phase C: SIGN SEPARATE, COMP-1, and COMP-2 are stable parser
+        // behavior with no runtime toggle.
         let sign_flags = feature_flags_for_support_id(FeatureId::SignSeparate)
             .expect("sign-separate should have mapping");
-        assert!(sign_flags.contains(&Feature::SignSeparate));
+        assert!(sign_flags.is_empty());
 
         let comp12_flags = feature_flags_for_support_id(FeatureId::Comp1Comp2)
             .expect("comp-1-comp-2 should have mapping");
-        assert_eq!(comp12_flags.len(), 2);
+        assert!(comp12_flags.is_empty());
     }
 
     #[test]
@@ -313,9 +313,9 @@ mod tests {
         assert_eq!(summary.total_support_features, 7);
         assert_eq!(summary.mapped_support_features, 7);
         assert!(summary.all_features_known());
-        // 1 (SignSeparate) + 1 (RenamesR4R6) + 2 (Comp1, Comp2) = 4
-        assert_eq!(summary.total_linked_feature_flags, 4);
-        assert_eq!(summary.explicit_bindings(), 4);
+        // #656 Phase C: only RenamesR4R6 remains flag-linked.
+        assert_eq!(summary.total_linked_feature_flags, 1);
+        assert_eq!(summary.explicit_bindings(), 1);
     }
 
     #[test]
@@ -338,10 +338,10 @@ mod tests {
     }
 
     #[test]
-    fn test_comp12_mapping_contains_both_flags() {
+    fn test_comp12_mapping_is_unconditional() {
+        // #656 Phase C: COMP-1/COMP-2 parse unconditionally; no flag linkage.
         let flags = feature_flags_for_support_id(FeatureId::Comp1Comp2).unwrap();
-        assert!(flags.contains(&Feature::Comp1));
-        assert!(flags.contains(&Feature::Comp2));
+        assert!(flags.is_empty());
     }
 
     #[test]
@@ -373,7 +373,7 @@ mod tests {
     fn test_summarize_governance_excludes_unknown_binding_ids() {
         let bindings = [GovernedFeatureBinding {
             support_id: FeatureId::SignSeparate,
-            feature_flags: &SIGN_SEPARATE_MAPPING,
+            feature_flags: &RENAMES_R4R6_MAPPING,
             rationale: "known",
         }];
 
@@ -412,7 +412,7 @@ mod tests {
             },
             GovernedFeatureBinding {
                 support_id: FeatureId::SignSeparate,
-                feature_flags: &SIGN_SEPARATE_MAPPING,
+                feature_flags: &RENAMES_R4R6_MAPPING,
                 rationale: "stale for this support subset",
             },
         ];

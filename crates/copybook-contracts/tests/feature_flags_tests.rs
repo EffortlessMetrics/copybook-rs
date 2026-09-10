@@ -23,12 +23,12 @@ fn feature_display_roundtrips_through_from_str() {
 #[test]
 fn feature_from_str_is_case_insensitive() {
     assert_eq!(
-        Feature::from_str("SIGN_SEPARATE").unwrap(),
-        Feature::SignSeparate
+        Feature::from_str("RENAMES_R4_R6").unwrap(),
+        Feature::RenamesR4R6
     );
     assert_eq!(
-        Feature::from_str("Sign_Separate").unwrap(),
-        Feature::SignSeparate
+        Feature::from_str("Renames_R4_R6").unwrap(),
+        Feature::RenamesR4R6
     );
     assert_eq!(Feature::from_str("lru_cache").unwrap(), Feature::LruCache);
 }
@@ -37,6 +37,15 @@ fn feature_from_str_is_case_insensitive() {
 fn feature_from_str_rejects_invalid_names() {
     let err = Feature::from_str("not_a_feature").unwrap_err();
     assert!(err.contains("Unknown feature flag"), "error was: {err}");
+}
+
+#[test]
+fn feature_from_str_rejects_removed_phase_c_names() {
+    // #656 Phase C (v0.6.0): stable language behavior is not flag-gated.
+    for removed in ["sign_separate", "comp_1", "comp_2"] {
+        let err = Feature::from_str(removed).unwrap_err();
+        assert!(err.contains("Unknown feature flag"), "error was: {err}");
+    }
 }
 
 #[test]
@@ -76,8 +85,8 @@ fn every_feature_belongs_to_exactly_one_category() {
 #[test]
 fn all_features_list_is_exhaustive() {
     let features = all_features();
-    // 4 Experimental + 6 Enterprise + 4 Performance + 4 Debug = 18
-    assert_eq!(features.len(), 18);
+    // #656 Phase C: 1 Experimental + 6 Enterprise + 4 Performance + 4 Debug = 15
+    assert_eq!(features.len(), 15);
 }
 
 // ── FeatureCategory ─────────────────────────────────────────────────────────
@@ -179,9 +188,10 @@ fn enabled_features_count_matches_default_enabled() {
 
 #[test]
 fn features_in_category_static_counts() {
+    // #656 Phase C: Experimental holds only RenamesR4R6.
     assert_eq!(
         FeatureFlags::features_in_category(FeatureCategory::Experimental).len(),
-        4
+        1
     );
     assert_eq!(
         FeatureFlags::features_in_category(FeatureCategory::Enterprise).len(),

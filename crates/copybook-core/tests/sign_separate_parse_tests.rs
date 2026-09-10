@@ -2,24 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #![allow(clippy::unwrap_used)]
 
-use copybook_core::{
-    FieldKind, SignPlacement,
-    feature_flags::{Feature, FeatureFlags},
-    parse_copybook,
-};
-
-fn enable_sign_separate_feature() {
-    let mut flags = FeatureFlags::default();
-    flags.enable(Feature::SignSeparate);
-    FeatureFlags::set_global(flags);
-}
+use copybook_core::{FieldKind, SignPlacement, parse_copybook};
 
 #[test]
-fn test_sign_separate_leading_parsed_when_feature_enabled() {
-    enable_sign_separate_feature();
-
+fn test_sign_separate_leading_parsed_unconditionally() {
     let copybook = "01 SIGNED-FIELD PIC S9(5) SIGN IS LEADING SEPARATE.";
-    let schema = parse_copybook(copybook).expect("SIGN SEPARATE should parse when feature enabled");
+    let schema =
+        parse_copybook(copybook).expect("SIGN SEPARATE parses unconditionally (#656 Phase C)");
 
     let field = schema
         .all_fields()
@@ -41,11 +30,10 @@ fn test_sign_separate_leading_parsed_when_feature_enabled() {
 }
 
 #[test]
-fn test_sign_separate_trailing_parsed_when_feature_enabled() {
-    enable_sign_separate_feature();
-
+fn test_sign_separate_trailing_parsed_unconditionally() {
     let copybook = "01 SIGNED-FIELD PIC S9(5)V99 SIGN TRAILING SEPARATE.";
-    let schema = parse_copybook(copybook).expect("SIGN SEPARATE should parse when feature enabled");
+    let schema =
+        parse_copybook(copybook).expect("SIGN SEPARATE parses unconditionally (#656 Phase C)");
 
     let field = schema
         .all_fields()

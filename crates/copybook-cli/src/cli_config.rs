@@ -38,12 +38,15 @@ pub(crate) struct FeatureFlagOpts {
     /// Enable specific feature flags (comma-separated)
     ///
     /// Available flags:
-    /// - Experimental: `sign_separate`, `renames_r4_r6`, `comp_1`, `comp_2`
+    /// - Experimental: `renames_r4_r6`
     /// - Enterprise: `audit_system`, `sox_compliance`, `hipaa_compliance`, `gdpr_compliance`, `pci_dss_compliance`, `security_monitoring`
     /// - Performance: `advanced_optimization`, `lru_cache`, `parallel_decode`, `zero_copy`
     /// - Debug: `verbose_logging`, `diagnostic_output`, `profiling`, `memory_tracking`
     ///
-    /// Example: --enable-features `sign_separate,verbose_logging`
+    /// SIGN SEPARATE, COMP-1, and COMP-2 are stable parser behavior since
+    /// v0.6.0 (#656 Phase C) and are not flags.
+    ///
+    /// Example: --enable-features `renames_r4_r6,verbose_logging`
     #[arg(long, value_delimiter = ',', value_name = "FEATURE")]
     pub enable_features: Vec<String>,
 
@@ -75,7 +78,7 @@ pub(crate) struct FeatureFlagOpts {
     /// TOML format:
     /// ```toml
     /// [feature_flags]
-    /// enabled = ["sign_separate", "verbose_logging"]
+    /// enabled = ["renames_r4_r6", "verbose_logging"]
     /// disabled = ["lru_cache"]
     /// ```
     ///
@@ -83,7 +86,7 @@ pub(crate) struct FeatureFlagOpts {
     /// ```json
     /// {
     ///   "feature_flags": {
-    ///     "enabled": ["sign_separate", "verbose_logging"],
+    ///     "enabled": ["renames_r4_r6", "verbose_logging"],
     ///     "disabled": ["lru_cache"]
     ///   }
     /// }

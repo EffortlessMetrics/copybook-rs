@@ -19,13 +19,6 @@ fn find_field<'a>(schema: &'a copybook_core::Schema, name: &str) -> &'a copybook
         .unwrap_or_else(|| panic!("field '{name}' not found in schema"))
 }
 
-fn enable_sign_separate() {
-    use copybook_core::feature_flags::{Feature, FeatureFlags};
-    let mut flags = FeatureFlags::default();
-    flags.enable(Feature::SignSeparate);
-    FeatureFlags::set_global(flags);
-}
-
 // ===========================================================================
 // 1. Simple flat layout — verify offsets
 // ===========================================================================
@@ -448,7 +441,6 @@ fn test_filler_does_not_affect_subsequent_offsets() {
 
 #[test]
 fn test_sign_separate_leading_length() {
-    enable_sign_separate();
     let cpy = r"
        01 REC.
           05 AMT PIC S9(5) SIGN IS LEADING SEPARATE.
@@ -463,7 +455,6 @@ fn test_sign_separate_leading_length() {
 
 #[test]
 fn test_sign_separate_trailing_length() {
-    enable_sign_separate();
     let cpy = r"
        01 REC.
           05 BAL PIC S9(7)V99 SIGN TRAILING SEPARATE.
@@ -479,7 +470,6 @@ fn test_sign_separate_trailing_length() {
 
 #[test]
 fn test_sign_separate_versus_embedded_sign() {
-    enable_sign_separate();
     let cpy = r"
        01 REC.
           05 EMBEDDED   PIC S9(5).

@@ -104,32 +104,37 @@ fn governance_state_for_supported_feature_with_defaults() {
         governance_state_for_support_id(FeatureId::Comp1Comp2, &flags).expect("should exist");
     assert_eq!(state.support_id, FeatureId::Comp1Comp2);
     assert!(state.runtime_enabled);
-    assert_eq!(state.required_feature_flags.len(), 2);
+    // #656 Phase C: COMP-1/COMP-2 carry no flag linkage.
+    assert!(state.required_feature_flags.is_empty());
     assert!(state.missing_feature_flags.is_empty());
 }
 
 #[test]
 fn governance_state_reports_missing_flags() {
+    // #656 Phase C: Level66Renames is the remaining flag-gated binding.
     let flags = FeatureFlags::builder()
-        .disable(Feature::Comp1)
-        .disable(Feature::Comp2)
+        .disable(Feature::RenamesR4R6)
         .build();
     let state =
-        governance_state_for_support_id(FeatureId::Comp1Comp2, &flags).expect("should exist");
+        governance_state_for_support_id(FeatureId::Level66Renames, &flags).expect("should exist");
     assert!(!state.runtime_enabled);
-    assert_eq!(state.missing_feature_flags.len(), 2);
-    assert!(state.missing_feature_flags.contains(&Feature::Comp1));
-    assert!(state.missing_feature_flags.contains(&Feature::Comp2));
+    assert_eq!(state.missing_feature_flags.len(), 1);
+    assert!(state.missing_feature_flags.contains(&Feature::RenamesR4R6));
 }
 
 #[test]
-fn governance_state_partial_missing_disables_feature() {
-    let flags = FeatureFlags::builder().disable(Feature::Comp1).build();
-    let state =
-        governance_state_for_support_id(FeatureId::Comp1Comp2, &flags).expect("should exist");
-    assert!(!state.runtime_enabled);
-    assert_eq!(state.missing_feature_flags.len(), 1);
-    assert!(state.missing_feature_flags.contains(&Feature::Comp1));
+fn governance_state_stable_entries_ignore_flag_state() {
+    // COMP-1/COMP-2 and SIGN SEPARATE stay available in every configuration.
+    let mut all_off = FeatureFlags::default();
+    for feat in copybook_governance_runtime::feature_flags::all_features() {
+        all_off.disable(feat);
+    }
+    for id in [FeatureId::Comp1Comp2, FeatureId::SignSeparate] {
+        let state = governance_state_for_support_id(id, &all_off).expect("should exist");
+        assert!(state.runtime_enabled, "{id:?} should stay available");
+        assert!(state.required_feature_flags.is_empty());
+        assert!(state.missing_feature_flags.is_empty());
+    }
 }
 
 #[test]
@@ -170,13 +175,14 @@ fn governance_state_renames_enabled_when_flag_on() {
 }
 
 #[test]
-fn governance_state_sign_separate_disabled() {
+fn governance_state_sign_separate_always_available() {
+    // #656 Phase C: SIGN SEPARATE carries no flag linkage.
     let flags = FeatureFlags::builder()
-        .disable(Feature::SignSeparate)
+        .disable(Feature::RenamesR4R6)
         .build();
     let state = governance_state_for_support_id(FeatureId::SignSeparate, &flags).unwrap();
-    assert!(!state.runtime_enabled);
-    assert_eq!(state.missing_feature_flags, vec![Feature::SignSeparate]);
+    assert!(state.runtime_enabled);
+    assert!(state.missing_feature_flags.is_empty());
 }
 
 #[test]
@@ -218,11 +224,12 @@ fn is_support_runtime_available_with_defaults() {
 
 #[test]
 fn is_support_runtime_available_disabled_when_flag_off() {
+    // #656 Phase C: Level66Renames is the remaining flag-gated binding.
     let flags = FeatureFlags::builder()
-        .disable(Feature::SignSeparate)
+        .disable(Feature::RenamesR4R6)
         .build();
     assert!(!is_support_runtime_available(
-        FeatureId::SignSeparate,
+        FeatureId::Level66Renames,
         &flags
     ));
 }
@@ -266,15 +273,17 @@ fn ungoverned_features_always_available() {
 }
 
 #[test]
-fn comp1comp2_unavailable_when_only_comp1_disabled() {
-    let flags = FeatureFlags::builder().disable(Feature::Comp1).build();
-    assert!(!is_support_runtime_available(FeatureId::Comp1Comp2, &flags));
-}
-
-#[test]
-fn comp1comp2_unavailable_when_only_comp2_disabled() {
-    let flags = FeatureFlags::builder().disable(Feature::Comp2).build();
-    assert!(!is_support_runtime_available(FeatureId::Comp1Comp2, &flags));
+fn comp1comp2_available_regardless_of_other_flags() {
+    // #656 Phase C: COMP-1/COMP-2 carry no flag linkage.
+    for flags in [
+        FeatureFlags::default(),
+        FeatureFlags::builder()
+            .disable(Feature::RenamesR4R6)
+            .build(),
+        FeatureFlags::builder().disable(Feature::LruCache).build(),
+    ] {
+        assert!(is_support_runtime_available(FeatureId::Comp1Comp2, &flags));
+    }
 }
 
 // ── governance_states (bulk) ────────────────────────────────────────────────
@@ -366,20 +375,18 @@ fn runtime_summary_all_enabled_no_unavailable() {
 }
 
 #[test]
-fn runtime_summary_disabled_count_increases_with_more_flags_off() {
-    let flags_default = FeatureFlags::default();
-    let summary_default = runtime_summary(&flags_default);
+fn runtime_summary_disabled_count_drops_when_gated_flag_enabled() {
+    // #656 Phase C: Level66Renames is the only flag-gated row. Defaults
+    // (RenamesR4R6 off) report 1 disabled; enabling it reports 0.
+    let summary_default = runtime_summary(&FeatureFlags::default());
+    assert_eq!(summary_default.runtime_disabled_features, 1);
 
-    let flags_more_off = FeatureFlags::builder()
-        .disable(Feature::SignSeparate)
-        .disable(Feature::Comp1)
-        .disable(Feature::Comp2)
-        .build();
-    let summary_more = runtime_summary(&flags_more_off);
-
+    let flags_on = FeatureFlags::builder().enable(Feature::RenamesR4R6).build();
+    let summary_on = runtime_summary(&flags_on);
+    assert_eq!(summary_on.runtime_disabled_features, 0);
     assert!(
-        summary_more.runtime_disabled_features >= summary_default.runtime_disabled_features,
-        "disabling more flags should not decrease disabled count"
+        summary_on.runtime_disabled_features <= summary_default.runtime_disabled_features,
+        "enabling the gated flag should not increase disabled count"
     );
 }
 
@@ -394,15 +401,13 @@ fn runtime_summary_enabled_plus_disabled_equals_mapped() {
 }
 
 #[test]
-fn runtime_summary_with_three_governed_disabled() {
+fn runtime_summary_with_governed_disabled() {
+    // #656 Phase C: only the Level66Renames row is flag-gated.
     let flags = FeatureFlags::builder()
-        .disable(Feature::Comp1)
-        .disable(Feature::Comp2)
-        .disable(Feature::SignSeparate)
+        .disable(Feature::RenamesR4R6)
         .build();
     let summary = runtime_summary(&flags);
-    // RenamesR4R6 (default off) + Comp1Comp2 + SignSeparate = 3
-    assert_eq!(summary.runtime_disabled_features, 3);
+    assert_eq!(summary.runtime_disabled_features, 1);
     assert!(summary.has_runtime_unavailable_features());
 }
 
@@ -454,7 +459,10 @@ fn re_exported_feature_flags_builder_works() {
 
 #[test]
 fn re_exported_feature_category_accessible() {
-    assert_eq!(Feature::Comp1.category(), FeatureCategory::Experimental);
+    assert_eq!(
+        Feature::RenamesR4R6.category(),
+        FeatureCategory::Experimental
+    );
     assert_eq!(Feature::AuditSystem.category(), FeatureCategory::Enterprise);
 }
 

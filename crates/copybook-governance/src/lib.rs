@@ -41,11 +41,10 @@ mod tests {
 
     #[test]
     fn test_facade_feature_flags_default() {
+        // #656 Phase C: LruCache is the only default-enabled flag.
         let flags = FeatureFlags::default();
-        assert!(flags.is_enabled(Feature::SignSeparate));
-        assert!(flags.is_enabled(Feature::Comp1));
-        assert!(flags.is_enabled(Feature::Comp2));
         assert!(flags.is_enabled(Feature::LruCache));
+        assert!(!flags.is_enabled(Feature::RenamesR4R6));
     }
 
     #[test]
@@ -74,8 +73,9 @@ mod tests {
 
     #[test]
     fn test_facade_feature_flags_for_support_id() {
+        // #656 Phase C: COMP-1/COMP-2 carry no flag linkage.
         let flags = feature_flags_for_support_id(FeatureId::Comp1Comp2).unwrap();
-        assert_eq!(flags.len(), 2);
+        assert!(flags.is_empty());
     }
 
     #[test]
@@ -125,16 +125,20 @@ mod tests {
 
     #[test]
     fn test_facade_end_to_end_governance_flow() {
-        // Build flags with specific configuration
+        // Build flags with specific configuration; Level66Renames is the
+        // remaining flag-gated binding (#656 Phase C).
         let flags = FeatureFlags::builder()
-            .disable(Feature::Comp1)
-            .disable(Feature::Comp2)
+            .disable(Feature::RenamesR4R6)
             .build();
 
         // Check specific governance state
-        let state = governance_state_for_support_id(FeatureId::Comp1Comp2, &flags).unwrap();
+        let state = governance_state_for_support_id(FeatureId::Level66Renames, &flags).unwrap();
         assert!(!state.runtime_enabled);
-        assert_eq!(state.missing_feature_flags.len(), 2);
+        assert_eq!(state.missing_feature_flags.len(), 1);
+
+        // Stable language entries stay available regardless of flags.
+        let comp_state = governance_state_for_support_id(FeatureId::Comp1Comp2, &flags).unwrap();
+        assert!(comp_state.runtime_enabled);
 
         // Check overall summary
         let summary = runtime_summary(&flags);

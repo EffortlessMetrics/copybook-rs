@@ -33,7 +33,7 @@ This document provides a canonical reference for all testing commands in copyboo
 | **Security (deny)** | `cargo deny check` | PR-gate | < 1 min | None |
 | **Security (audit)** | `cargo audit` | PR-gate (if Cargo.lock changed) | 1-2 min | `target/security.audit.json` |
 | **BDD Tests** | `cargo test -p copybook-bdd -- --nocapture` | Scheduled | 2-3 min | None |
-| **Feature Flags** | Matrix of 22 flags × enabled/disabled states | PR-gate | 5-10 min | None |
+| **Feature Flags** | Matrix of 15 flags × enabled/disabled states | PR-gate | 5-10 min | None |
 | **Full Proptest** | `PROPTEST_CASES=1024 PROPTEST_SEED=copybook-rs-proptest cargo test -p copybook-proptest --lib -- --test-threads=2 --nocapture` | Scheduled | 5-10 min | `copybook-core/tests/proptest-regressions/`, `copybook-codec/tests/proptest-regressions/`, `tests/proptest-regressions/` |
 | **Fuzzing** | `cargo fuzz run <target> -- -runs=0 -max_total_time=300` | Scheduled | 5-10 min per target | `fuzz/artifacts/<target>/`, `fuzz/corpus/<target>/` |
 | **Mutation Testing** | `cargo mutants --package <crate> --timeout <timeout> --test-tool nextest --in-place --json --file mutants.toml` | Local only (`just mutants`); CI uses the advisory RIPR lane instead | 15-60 min per crate | `mutants.out/outcomes.json`, `mutants-summary.csv` |
@@ -385,7 +385,7 @@ cargo build --release -p copybook-cli --features audit
 ./target/release/copybook parse --enable-features verbose_logging,diagnostic_output
 ```
 
-**Expected runtime**: 5-10 minutes (for all 18 flags × 2 states)
+**Expected runtime**: 5-10 minutes (for all 15 flags × 2 states)
 
 ---
 

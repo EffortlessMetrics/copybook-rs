@@ -12,11 +12,10 @@ use copybook_governance_contracts::{
 
 #[test]
 fn feature_flags_reexport_matches_contracts_behaviour() {
+    // #656 Phase C: LruCache is the only default-enabled flag.
     let flags = FeatureFlags::default();
-    assert!(flags.is_enabled(Feature::SignSeparate));
-    assert!(flags.is_enabled(Feature::Comp1));
-    assert!(flags.is_enabled(Feature::Comp2));
     assert!(flags.is_enabled(Feature::LruCache));
+    assert!(!flags.is_enabled(Feature::RenamesR4R6));
     assert!(!flags.is_enabled(Feature::AuditSystem));
 }
 
@@ -128,7 +127,8 @@ fn feature_id_all_variants_accessible() {
 fn feature_flags_module_path_works() {
     use copybook_governance_contracts::feature_flags;
     let features = feature_flags::all_features();
-    assert_eq!(features.len(), 18);
+    // #656 Phase C: 18 -> 15 flags.
+    assert_eq!(features.len(), 15);
 }
 
 #[test]

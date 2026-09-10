@@ -54,14 +54,8 @@ jobs:
       fail-fast: false
       matrix:
         feature_flag:
-          - name: "sign_separate"
-            env: "COPYBOOK_FF_SIGN_SEPARATE"
           - name: "renames_r4_r6"
             env: "COPYBOOK_FF_RENAMES_R4_R6"
-          - name: "comp_1"
-            env: "COPYBOOK_FF_COMP_1"
-          - name: "comp_2"
-            env: "COPYBOOK_FF_COMP_2"
           - name: "audit_system"
             env: "COPYBOOK_FF_AUDIT_SYSTEM"
           - name: "sox_compliance"

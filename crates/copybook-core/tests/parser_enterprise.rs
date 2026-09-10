@@ -7,11 +7,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use copybook_core::{
-    FieldKind, Occurs, Schema, SignPlacement,
-    feature_flags::{Feature, FeatureFlags},
-    parse_copybook,
-};
+use copybook_core::{FieldKind, Occurs, Schema, SignPlacement, parse_copybook};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -27,12 +23,6 @@ fn find_field<'a>(schema: &'a Schema, name: &str) -> &'a copybook_core::Field {
 
 fn count_all_fields(schema: &Schema) -> usize {
     schema.all_fields().len()
-}
-
-fn enable_sign_separate() {
-    let mut flags = FeatureFlags::default();
-    flags.enable(Feature::SignSeparate);
-    FeatureFlags::set_global(flags);
 }
 
 // ===========================================================================
@@ -704,13 +694,11 @@ fn retail_mixed_field_types() {
 
 #[test]
 fn payroll_parses_without_error() {
-    enable_sign_separate();
     parse_copybook(PAYROLL_RECORD).expect("payroll copybook should parse");
 }
 
 #[test]
 fn payroll_lrecl() {
-    enable_sign_separate();
     let schema = parse_copybook(PAYROLL_RECORD).unwrap();
     let lrecl = schema.lrecl_fixed.expect("payroll should have fixed LRECL");
     // Should be large – verify reasonable bounds
@@ -720,7 +708,6 @@ fn payroll_lrecl() {
 
 #[test]
 fn payroll_field_count() {
-    enable_sign_separate();
     let schema = parse_copybook(PAYROLL_RECORD).unwrap();
     let total = count_all_fields(&schema);
     assert!(total >= 40, "expected at least 40 fields, got {total}");
@@ -728,7 +715,6 @@ fn payroll_field_count() {
 
 #[test]
 fn payroll_sign_separate_regular_rate() {
-    enable_sign_separate();
     let schema = parse_copybook(PAYROLL_RECORD).unwrap();
     let f = find_field(&schema, "REGULAR-RATE");
     match &f.kind {
@@ -758,7 +744,6 @@ fn payroll_sign_separate_regular_rate() {
 
 #[test]
 fn payroll_sign_separate_overtime_rate() {
-    enable_sign_separate();
     let schema = parse_copybook(PAYROLL_RECORD).unwrap();
     let f = find_field(&schema, "OVERTIME-RATE");
     match &f.kind {
@@ -778,7 +763,6 @@ fn payroll_sign_separate_overtime_rate() {
 
 #[test]
 fn payroll_level88_emp_status() {
-    enable_sign_separate();
     let schema = parse_copybook(PAYROLL_RECORD).unwrap();
     for name in &["ACTIVE", "ON-LEAVE", "TERMINATED"] {
         let f = find_field(&schema, name);
@@ -788,7 +772,6 @@ fn payroll_level88_emp_status() {
 
 #[test]
 fn payroll_level88_pay_frequency() {
-    enable_sign_separate();
     let schema = parse_copybook(PAYROLL_RECORD).unwrap();
     for name in &["FREQ-WEEKLY", "FREQ-BIWEEKLY", "FREQ-MONTHLY"] {
         let f = find_field(&schema, name);
@@ -798,7 +781,6 @@ fn payroll_level88_pay_frequency() {
 
 #[test]
 fn payroll_comp3_earnings() {
-    enable_sign_separate();
     let schema = parse_copybook(PAYROLL_RECORD).unwrap();
     let gross = find_field(&schema, "GROSS-PAY");
     match &gross.kind {
@@ -818,7 +800,6 @@ fn payroll_comp3_earnings() {
 
 #[test]
 fn payroll_comp3_deductions() {
-    enable_sign_separate();
     let schema = parse_copybook(PAYROLL_RECORD).unwrap();
     for name in &[
         "FED-TAX",
@@ -837,7 +818,6 @@ fn payroll_comp3_deductions() {
 
 #[test]
 fn payroll_total_deductions_comp3() {
-    enable_sign_separate();
     let schema = parse_copybook(PAYROLL_RECORD).unwrap();
     let f = find_field(&schema, "TOTAL-DEDUCTIONS");
     match &f.kind {
@@ -856,7 +836,6 @@ fn payroll_total_deductions_comp3() {
 
 #[test]
 fn payroll_net_pay_comp3() {
-    enable_sign_separate();
     let schema = parse_copybook(PAYROLL_RECORD).unwrap();
     let f = find_field(&schema, "NET-PAY");
     assert!(
@@ -875,7 +854,6 @@ fn payroll_net_pay_comp3() {
 
 #[test]
 fn payroll_nested_groups() {
-    enable_sign_separate();
     let schema = parse_copybook(PAYROLL_RECORD).unwrap();
     let emp = find_field(&schema, "EMPLOYEE-INFO");
     assert!(matches!(&emp.kind, FieldKind::Group));
@@ -897,7 +875,6 @@ fn payroll_nested_groups() {
 
 #[test]
 fn payroll_ytd_fields() {
-    enable_sign_separate();
     let schema = parse_copybook(PAYROLL_RECORD).unwrap();
     for name in &[
         "YTD-GROSS",
@@ -970,7 +947,6 @@ fn roundtrip_retail_json_parse() {
 
 #[test]
 fn roundtrip_payroll_json_parse() {
-    enable_sign_separate();
     let schema = parse_copybook(PAYROLL_RECORD).unwrap();
     let json = serde_json::to_string(&schema).expect("schema should serialize to JSON");
     let deserialized: Schema =

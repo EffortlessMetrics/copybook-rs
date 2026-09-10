@@ -21,21 +21,6 @@ fn find_field<'a>(schema: &'a copybook_core::Schema, name: &str) -> &'a copybook
         .unwrap_or_else(|| panic!("field '{name}' not found in schema"))
 }
 
-fn enable_sign_separate() {
-    use copybook_core::feature_flags::{Feature, FeatureFlags};
-    let mut flags = FeatureFlags::default();
-    flags.enable(Feature::SignSeparate);
-    FeatureFlags::set_global(flags);
-}
-
-fn enable_comp_float() {
-    use copybook_core::feature_flags::{Feature, FeatureFlags};
-    let mut flags = FeatureFlags::default();
-    flags.enable(Feature::Comp1);
-    flags.enable(Feature::Comp2);
-    FeatureFlags::set_global(flags);
-}
-
 // ===========================================================================
 // 1. Empty / whitespace-only copybook
 // ===========================================================================
@@ -506,7 +491,6 @@ fn test_comp3_packed_decimal() {
 
 #[test]
 fn test_comp1_single_precision_float() {
-    enable_comp_float();
     let cpy = "01 REC.\n   05 F COMP-1.";
     let schema = parse_copybook(cpy).unwrap();
     let f = find_field(&schema, "F");
@@ -516,7 +500,6 @@ fn test_comp1_single_precision_float() {
 
 #[test]
 fn test_comp2_double_precision_float() {
-    enable_comp_float();
     let cpy = "01 REC.\n   05 F COMP-2.";
     let schema = parse_copybook(cpy).unwrap();
     let f = find_field(&schema, "F");
@@ -530,7 +513,6 @@ fn test_comp2_double_precision_float() {
 
 #[test]
 fn test_sign_separate_leading_adds_byte() {
-    enable_sign_separate();
     let cpy = r"
        01 REC.
           05 AMT PIC S9(5) SIGN IS LEADING SEPARATE.
@@ -553,7 +535,6 @@ fn test_sign_separate_leading_adds_byte() {
 
 #[test]
 fn test_sign_separate_trailing_adds_byte() {
-    enable_sign_separate();
     let cpy = r"
        01 REC.
           05 BAL PIC S9(7)V99 SIGN TRAILING SEPARATE.

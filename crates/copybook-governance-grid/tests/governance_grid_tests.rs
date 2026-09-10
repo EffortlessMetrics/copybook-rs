@@ -67,18 +67,17 @@ fn edited_pic_has_no_required_flags() {
 }
 
 #[test]
-fn comp1comp2_requires_both_comp_flags() {
+fn comp1comp2_has_no_required_flags() {
+    // #656 Phase C: COMP-1/COMP-2 parse unconditionally; no runtime toggle.
     let flags = feature_flags_for_support_id(FeatureId::Comp1Comp2).unwrap();
-    assert_eq!(flags.len(), 2);
-    assert!(flags.contains(&Feature::Comp1));
-    assert!(flags.contains(&Feature::Comp2));
+    assert!(flags.is_empty());
 }
 
 #[test]
-fn sign_separate_requires_sign_separate_flag() {
+fn sign_separate_has_no_required_flags() {
+    // #656 Phase C: SIGN SEPARATE parses unconditionally; no runtime toggle.
     let flags = feature_flags_for_support_id(FeatureId::SignSeparate).unwrap();
-    assert_eq!(flags.len(), 1);
-    assert!(flags.contains(&Feature::SignSeparate));
+    assert!(flags.is_empty());
 }
 
 #[test]
@@ -108,17 +107,17 @@ fn summary_mapped_equals_total() {
 #[test]
 fn summary_explicit_bindings_counts_flags() {
     let summary = summarize_governance();
-    // 1 (SignSeparate) + 1 (RenamesR4R6) + 2 (Comp1+Comp2) = 4
-    assert_eq!(summary.explicit_bindings(), 4);
-    assert_eq!(summary.total_linked_feature_flags, 4);
+    // #656 Phase C: only RenamesR4R6 remains flag-linked.
+    assert_eq!(summary.explicit_bindings(), 1);
+    assert_eq!(summary.total_linked_feature_flags, 1);
 }
 
 // ── Re-exported types ───────────────────────────────────────────────────────
 
 #[test]
 fn re_exported_feature_type_is_usable() {
-    let f = Feature::SignSeparate;
-    assert_eq!(f.to_string(), "sign_separate");
+    let f = Feature::RenamesR4R6;
+    assert_eq!(f.to_string(), "renames_r4_r6");
 }
 
 #[test]

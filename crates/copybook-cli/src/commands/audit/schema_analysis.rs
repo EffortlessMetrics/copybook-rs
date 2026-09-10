@@ -2,9 +2,17 @@
 
 use super::*;
 
-pub(super) fn parse_copybook_schema(path: &Path) -> AuditResult<Schema> {
+pub(super) fn parse_copybook_schema(
+    path: &Path,
+    feature_flags: &FeatureFlags,
+) -> AuditResult<Schema> {
     let copybook_text = fs::read_to_string(path)?;
-    Ok(copybook_core::parse_copybook(&copybook_text)?)
+    // #656 Phase D: CLI-resolved flags passed explicitly; no global state.
+    Ok(copybook_core::parse_copybook_with_feature_flags(
+        &copybook_text,
+        &copybook_core::ParseOptions::default(),
+        feature_flags,
+    )?)
 }
 
 pub(super) fn collect_leaf_fields<'a>(fields: &'a [Field], out: &mut Vec<&'a Field>) {

@@ -528,7 +528,7 @@ pub fn parse_copybook_with_feature_flags(
 ) -> Result<Schema, Error>
 ```
 
-Parse a copybook using an explicit feature-flag snapshot instead of the process-global feature configuration. The supplied flags are used consistently during parser and layout resolution, which makes isolated tests and concurrent callers deterministic.
+Parse a copybook using an explicit feature-flag snapshot. Since v0.6.0 there is no process-global feature configuration (#656 Phase D); this is the primary parsing entry point for embedders. The supplied flags are used consistently during parser and layout resolution, which makes isolated tests and concurrent callers deterministic.
 
 ```rust
 use copybook_core::{

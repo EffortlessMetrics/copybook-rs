@@ -17,7 +17,7 @@ use copybook_codec::{
         check_round_trip_determinism,
     },
 };
-use copybook_core::{Schema, parse_copybook};
+use copybook_core::{FeatureFlags, ParseOptions, Schema, parse_copybook_with_feature_flags};
 use std::fmt::Write as _;
 use std::fs;
 use std::io::{self, Read};
@@ -186,19 +186,22 @@ impl DeterminismVerdict {
 ///
 /// Returns an error if schema loading, data reading, or determinism checks fail.
 #[inline]
-pub fn run_check(cmd: &DeterminismCommand) -> anyhow::Result<DeterminismRun> {
+pub fn run_check(
+    cmd: &DeterminismCommand,
+    feature_flags: &FeatureFlags,
+) -> anyhow::Result<DeterminismRun> {
     let result = match &cmd.mode {
-        DeterminismModeCommand::Decode(args) => run_decode(args),
-        DeterminismModeCommand::Encode(args) => run_encode(args),
-        DeterminismModeCommand::RoundTrip(args) => run_round_trip(args),
+        DeterminismModeCommand::Decode(args) => run_decode(args, feature_flags),
+        DeterminismModeCommand::Encode(args) => run_encode(args, feature_flags),
+        DeterminismModeCommand::RoundTrip(args) => run_round_trip(args, feature_flags),
     }?;
 
     Ok(result)
 }
 
 /// Determinism validation for encode/decode operations.
-pub fn run(cmd: &DeterminismCommand) -> anyhow::Result<ExitCode> {
-    let result = run_check(cmd).context("Determinism command execution failed")?;
+pub fn run(cmd: &DeterminismCommand, feature_flags: &FeatureFlags) -> anyhow::Result<ExitCode> {
+    let result = run_check(cmd, feature_flags).context("Determinism command execution failed")?;
     write_stdout_all(result.output.as_bytes())?;
 
     let exit_code = match result.verdict {
@@ -209,8 +212,11 @@ pub fn run(cmd: &DeterminismCommand) -> anyhow::Result<ExitCode> {
 }
 
 /// Run decode determinism check.
-fn run_decode(args: &DecodeDeterminismArgs) -> anyhow::Result<DeterminismRun> {
-    let schema = load_schema(&args.common.copybook)?;
+fn run_decode(
+    args: &DecodeDeterminismArgs,
+    feature_flags: &FeatureFlags,
+) -> anyhow::Result<DeterminismRun> {
+    let schema = load_schema(&args.common.copybook, feature_flags)?;
     let decode_opts = build_decode_options(&args.common);
     let data = read_bytes_or_stdin(&args.data).with_context(|| {
         format!(
@@ -226,8 +232,11 @@ fn run_decode(args: &DecodeDeterminismArgs) -> anyhow::Result<DeterminismRun> {
 }
 
 /// Run encode determinism check.
-fn run_encode(args: &EncodeDeterminismArgs) -> anyhow::Result<DeterminismRun> {
-    let schema = load_schema(&args.common.copybook)?;
+fn run_encode(
+    args: &EncodeDeterminismArgs,
+    feature_flags: &FeatureFlags,
+) -> anyhow::Result<DeterminismRun> {
+    let schema = load_schema(&args.common.copybook, feature_flags)?;
     let encode_opts = build_encode_options(&args.common);
     let json_text = read_text_or_stdin(&args.json).with_context(|| {
         format!(
@@ -250,8 +259,11 @@ fn run_encode(args: &EncodeDeterminismArgs) -> anyhow::Result<DeterminismRun> {
 }
 
 /// Run round-trip determinism check.
-fn run_round_trip(args: &RoundTripDeterminismArgs) -> anyhow::Result<DeterminismRun> {
-    let schema = load_schema(&args.common.copybook)?;
+fn run_round_trip(
+    args: &RoundTripDeterminismArgs,
+    feature_flags: &FeatureFlags,
+) -> anyhow::Result<DeterminismRun> {
+    let schema = load_schema(&args.common.copybook, feature_flags)?;
     let decode_opts = build_decode_options(&args.common);
     let encode_opts = build_encode_options(&args.common);
     let data = read_bytes_or_stdin(&args.data).with_context(|| {
@@ -375,9 +387,10 @@ pub fn build_encode_options(common: &CommonDeterminismArgs) -> EncodeOptions {
 ///
 /// Returns an error if the file cannot be read or parsed.
 #[inline]
-pub fn load_schema(path: &Path) -> anyhow::Result<Schema> {
+pub fn load_schema(path: &Path, feature_flags: &FeatureFlags) -> anyhow::Result<Schema> {
     let text = read_text_or_stdin(path)?;
-    let schema = parse_copybook(&text)
+    // #656 Phase D: CLI-resolved flags passed explicitly; no global state.
+    let schema = parse_copybook_with_feature_flags(&text, &ParseOptions::default(), feature_flags)
         .with_context(|| format!("Failed to parse copybook: {}", path.display()))?;
     Ok(schema)
 }

@@ -39,6 +39,7 @@ pub fn run(
     input: &Path,
     output: &Path,
     options: &EncodeCliOptions,
+    feature_flags: &copybook_core::FeatureFlags,
 ) -> anyhow::Result<ExitCode> {
     info!("Encoding JSONL file: {:?}", input);
 
@@ -55,6 +56,7 @@ pub fn run(
             dialect: options.dialect,
         },
         options.select,
+        feature_flags,
     )?;
 
     let error_policy =

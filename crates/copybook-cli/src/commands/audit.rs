@@ -60,7 +60,7 @@ use copybook_core::audit::{
     SecurityViolation, ThroughputMetrics, TransformationType,
 };
 use copybook_core::{
-    Field, FieldKind, Schema,
+    FeatureFlags, Field, FieldKind, Schema,
     audit::{
         self as audit_core, LineageTracker,
         event::{
@@ -507,6 +507,7 @@ pub enum ValidationDepth {
 #[allow(clippy::too_many_lines)]
 pub async fn run(
     audit_command: AuditCommand,
+    feature_flags: &FeatureFlags,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     // Initialize audit context
     let audit_context = AuditContext::new()
@@ -537,6 +538,7 @@ pub async fn run(
                 args.include_lineage,
                 args.include_recommendations,
                 audit_context,
+                feature_flags,
             )
             .await
         }
@@ -554,6 +556,7 @@ pub async fn run(
                 args.report_violations,
                 args.include_recommendations,
                 audit_context,
+                feature_flags,
             )
             .await
         }
@@ -572,6 +575,7 @@ pub async fn run(
             args.impact_analysis,
             args.confidence_threshold,
             audit_context,
+            feature_flags,
         ),
 
         AuditSubcommand::Performance(args) => run_performance_audit(
@@ -589,6 +593,7 @@ pub async fn run(
             args.include_regression_analysis,
             args.iterations,
             audit_context,
+            feature_flags,
         ),
 
         AuditSubcommand::Security(args) => run_security_audit(
@@ -606,6 +611,7 @@ pub async fn run(
             args.validation_depth,
             args.threat_assessment,
             audit_context,
+            feature_flags,
         ),
 
         AuditSubcommand::Health(args) => run_audit_health_check(
@@ -653,6 +659,7 @@ async fn run_audit_report(
     include_lineage: bool,
     include_recommendations: bool,
     audit_context: AuditContext,
+    feature_flags: &FeatureFlags,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     let mut overall_code = ExitCode::Ok;
     if !matches!(format, OutputFormat::Json) {
@@ -663,7 +670,7 @@ async fn run_audit_report(
     write_stdout_line("Generating comprehensive audit report...")?;
 
     let mut sections = BTreeMap::new();
-    let schema = parse_copybook_schema(copybook)?;
+    let schema = parse_copybook_schema(copybook, feature_flags)?;
     let mut status_messages = Vec::new();
 
     status_messages.push(format!("copybook_fields: {}", schema.fields.len()));
@@ -683,6 +690,7 @@ async fn run_audit_report(
             true,
             include_recommendations,
             audit_context.clone(),
+            feature_flags,
         )
         .await?;
         overall_code = combine_exit_code(overall_code, code);
@@ -710,6 +718,7 @@ async fn run_audit_report(
             false,
             1,
             audit_context.clone(),
+            feature_flags,
         )?;
         overall_code = combine_exit_code(overall_code, code);
         let performance_file = report_section_from_file(sidecar)?;
@@ -736,6 +745,7 @@ async fn run_audit_report(
             ValidationDepth::Standard,
             include_recommendations,
             audit_context.clone(),
+            feature_flags,
         )?;
         overall_code = combine_exit_code(overall_code, code);
         let security_file = report_section_from_file(sidecar)?;
@@ -761,6 +771,7 @@ async fn run_audit_report(
             true,
             0.8,
             audit_context,
+            feature_flags,
         )?;
         overall_code = combine_exit_code(overall_code, code);
         let lineage_file = report_section_from_file(sidecar)?;
@@ -815,13 +826,14 @@ async fn run_compliance_validation(
     _report_violations: bool,
     include_recommendations: bool,
     audit_context: AuditContext,
+    feature_flags: &FeatureFlags,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync + 'static>> {
     write_stdout_line("Running compliance validation...")?;
 
     let (profiles, framework_names) = parse_compliance_profiles(compliance)?;
     let compliance_config = ComplianceConfig::default();
 
-    let mut schema = parse_copybook_schema(copybook)?;
+    let mut schema = parse_copybook_schema(copybook, feature_flags)?;
     if schema.lrecl_fixed.is_none() {
         schema.calculate_fingerprint();
     }
@@ -926,6 +938,7 @@ fn run_lineage_analysis(
     impact_analysis: bool,
     confidence_threshold: f64,
     audit_context: AuditContext,
+    feature_flags: &FeatureFlags,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     run_lineage_analysis_impl(
         source_copybook,
@@ -941,6 +954,7 @@ fn run_lineage_analysis(
         impact_analysis,
         confidence_threshold,
         audit_context,
+        feature_flags,
     )
 }
 
@@ -963,14 +977,15 @@ fn run_lineage_analysis_impl(
     impact_analysis: bool,
     confidence_threshold: f64,
     audit_context: AuditContext,
+    feature_flags: &FeatureFlags,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     write_stdout_line("Analyzing data lineage (implemented)...")?;
 
     let source_path = source.unwrap_or(source_copybook);
     let target_path = target_copybook.unwrap_or(source_copybook);
     let resolved_target_system = target_system.unwrap_or("target-system");
-    let source_schema = parse_copybook_schema(source_path)?;
-    let target_schema = parse_copybook_schema(target_path)?;
+    let source_schema = parse_copybook_schema(source_path, feature_flags)?;
+    let target_schema = parse_copybook_schema(target_path, feature_flags)?;
 
     let mut source_fields = Vec::new();
     let mut target_fields = Vec::new();
@@ -1305,6 +1320,7 @@ fn run_performance_audit(
     _include_regression_analysis: bool,
     _iterations: u32,
     _audit_context: AuditContext,
+    feature_flags: &FeatureFlags,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     return run_performance_audit_impl(
         _copybook,
@@ -1321,6 +1337,7 @@ fn run_performance_audit(
         _include_regression_analysis,
         _iterations,
         _audit_context,
+        feature_flags,
     );
 }
 
@@ -1344,10 +1361,11 @@ fn run_performance_audit_impl(
     include_regression_analysis: bool,
     iterations: u32,
     audit_context: AuditContext,
+    feature_flags: &FeatureFlags,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     write_stdout_line("Running performance audit (implemented)...")?;
 
-    let schema = parse_copybook_schema(copybook)?;
+    let schema = parse_copybook_schema(copybook, feature_flags)?;
     let decode_format = format.unwrap_or(RecordFormat::Fixed);
     let run_iterations = iterations.max(1);
 
@@ -1653,6 +1671,7 @@ fn run_security_audit(
     validation_depth: ValidationDepth,
     threat_assessment: bool,
     _audit_context: AuditContext,
+    feature_flags: &FeatureFlags,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     return run_security_audit_impl(
         _copybook,
@@ -1669,6 +1688,7 @@ fn run_security_audit(
         validation_depth,
         threat_assessment,
         _audit_context,
+        feature_flags,
     );
 }
 
@@ -1687,10 +1707,11 @@ fn run_security_audit_impl(
     validation_depth: ValidationDepth,
     threat_assessment: bool,
     audit_context: AuditContext,
+    feature_flags: &FeatureFlags,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     write_stdout_line("Running security audit (implemented)...")?;
 
-    let schema = parse_copybook_schema(copybook)?;
+    let schema = parse_copybook_schema(copybook, feature_flags)?;
     let sensitive_fields = collect_sensitive_fields(&schema);
     let mut parse_issues = Vec::new();
     let mut access_events = Vec::new();
@@ -2431,6 +2452,7 @@ mod tests {
             false,
             false,
             audit_context,
+            &FeatureFlags::default(),
         )
         .await
         .map_err(|err| anyhow::Error::msg(err.to_string()))?;

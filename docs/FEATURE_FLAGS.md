@@ -84,8 +84,8 @@ Feature flags can be controlled programmatically:
 ```rust
 use copybook_core::{Feature, FeatureFlags, FeatureFlagsHandle};
 
-// Get global feature flags
-let flags = FeatureFlags::global();
+// Resolve flags explicitly (no process-global instance since v0.6.0)
+let flags = FeatureFlags::from_env();
 
 // Check if a feature is enabled
 if flags.is_enabled(Feature::VerboseLogging) {
@@ -276,9 +276,7 @@ Stage 3: Full rollout (remove flag once stable)
 ```rust
 use copybook_core::{Feature, FeatureFlags};
 
-fn process_copybook(text: &str) -> Result<Schema> {
-    let flags = FeatureFlags::global();
-
+fn process_copybook(text: &str, flags: &FeatureFlags) -> Result<Schema> {
     if flags.is_enabled(Feature::RenamesR4R6) {
         // Use advanced RENAMES R4-R6 scenarios
         parse_with_advanced_renames(text)
@@ -288,6 +286,11 @@ fn process_copybook(text: &str) -> Result<Schema> {
     }
 }
 ```
+
+> Since v0.6.0 (#656 Phase D) there is no process-global flag instance:
+> resolve `FeatureFlags::from_env()` (or build explicitly) at your own
+> boundary and pass `&FeatureFlags` down. Long-lived owners can hold a
+> `FeatureFlagsHandle` instead.
 
 ## Troubleshooting
 

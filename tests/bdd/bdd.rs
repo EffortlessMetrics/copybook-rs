@@ -30,13 +30,28 @@ use cucumber::World as _;
 
 use crate::world::CopybookWorld;
 
+/// Explicit per-scenario flags for the BDD harness (#656 Phase D: the
+/// process-global flag instance is gone; each scenario world carries its
+/// own resolved value).
+pub(crate) fn harness_feature_flags() -> FeatureFlags {
+    FeatureFlags::builder()
+        .enable_category(FeatureCategory::Experimental)
+        .enable_category(FeatureCategory::Enterprise)
+        .build()
+}
+
 #[tokio::main]
 async fn main() {
-    FeatureFlags::set_global(
-        FeatureFlags::builder()
-            .enable_category(FeatureCategory::Experimental)
-            .enable_category(FeatureCategory::Enterprise)
-            .build(),
-    );
-    CopybookWorld::run(concat!(env!("CARGO_MANIFEST_DIR"), "/features")).await;
+    CopybookWorld::cucumber()
+        .with_default_cli()
+        .before(|_, _, _, world| {
+            Box::pin(async move {
+                *world = CopybookWorld {
+                    feature_flags: harness_feature_flags(),
+                    ..Default::default()
+                };
+            })
+        })
+        .run_and_exit(concat!(env!("CARGO_MANIFEST_DIR"), "/features"))
+        .await;
 }

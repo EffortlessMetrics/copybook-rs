@@ -43,8 +43,8 @@ pub enum StatusFilter {
     NotPlanned,
 }
 
-pub fn run(args: &SupportArgs) -> anyhow::Result<ExitCode> {
-    let feature_flags = FeatureFlags::global();
+pub fn run(args: &SupportArgs, feature_flags: &FeatureFlags) -> anyhow::Result<ExitCode> {
+    // #656 Phase D: CLI-resolved flags passed explicitly; no global state.
     let support_features = if args.with_governance {
         governance::governance_states(feature_flags)
     } else {

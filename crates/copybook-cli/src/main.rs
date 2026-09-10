@@ -559,11 +559,10 @@ fn run() -> anyhow::Result<ExitCode> {
     #[cfg(feature = "metrics")]
     let _metrics_guard = metrics_grace_guard(&metrics_opts);
 
-    // Handle feature flags
+    // Handle feature flags: the CLI resolves CLI args, env vars, and config
+    // files into one explicit value here (#656 Phase D) and passes it down
+    // to every command. No process-global flag state exists anymore.
     let feature_flags = initialize_feature_flags(&cli.feature_flags)?;
-
-    // Set global feature flags for use by parser
-    copybook_core::feature_flags::FeatureFlags::set_global(feature_flags.clone());
 
     if cli.feature_flags.list_features {
         list_all_features(&feature_flags);
@@ -599,7 +598,8 @@ fn run() -> anyhow::Result<ExitCode> {
         );
     }
 
-    let (exit_status, exit_op) = command_dispatch::run_command(command, strict_policy);
+    let (exit_status, exit_op) =
+        command_dispatch::run_command(command, strict_policy, &feature_flags);
 
     #[cfg(feature = "metrics")]
     if let (Err(err), Some((handle, _))) = (&exit_status, &metrics_server) {

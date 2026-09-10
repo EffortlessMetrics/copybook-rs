@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::env;
 use std::fmt;
 use std::str::FromStr;
-use std::sync::{OnceLock, RwLock};
+use std::sync::RwLock;
 
 /// All available feature flags.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -327,18 +327,12 @@ impl Default for FeatureFlags {
 }
 
 impl FeatureFlags {
-    /// Get the global feature flags instance.
-    #[inline]
-    #[must_use]
-    pub fn global() -> &'static Self {
-        GLOBAL_FLAGS.get_or_init(Self::from_env)
-    }
-
-    /// Set the global feature flags.
-    #[inline]
-    pub fn set_global(flags: Self) {
-        let _ = GLOBAL_FLAGS.set(flags);
-    }
+    // NOTE (#656 Phase D, v0.6.0): the process-global flag instance
+    // (`GLOBAL_FLAGS` / `global()` / `set_global()`) was removed. There is no
+    // implicit flag state anymore: libraries take explicit `&FeatureFlags`
+    // parameters, and `from_env()` performs a fresh, local read with no
+    // first-wins stickiness. Long-lived owners should hold a
+    // `FeatureFlagsHandle` (instance-level) instead.
 
     /// Create feature flags from environment variables.
     #[inline]
@@ -479,8 +473,6 @@ impl FeatureFlagsBuilder {
         self.flags
     }
 }
-
-static GLOBAL_FLAGS: OnceLock<FeatureFlags> = OnceLock::new();
 
 /// Thread-safe, mutable handle to [`FeatureFlags`] for runtime toggling.
 #[derive(Debug)]

@@ -4,7 +4,10 @@
 //! This module fills gaps identified by the error code audit:
 //! - CBKS610_RENAME_MULTIPLE_REDEFINES: Multiple REDEFINES in RENAMES span (R4 flag)
 //! - CBKS611_RENAME_PARTIAL_OCCURS: Partial array span in RENAMES (R5 flag)
-//! - CBKA001_BASELINE_ERROR: Performance baseline I/O error (audit feature)
+//!
+//! CBKA001_BASELINE_ERROR lives in `copybook-audit`
+//! (`crates/copybook-audit/tests/error_codes.rs`) since #656 Phase E moved
+//! audit out of the stable core.
 //!
 //! CBKD302 is vestigial (E2/E3 are now complete). CBKC201 is an I/O error
 //! that requires failing writes to trigger.
@@ -103,33 +106,5 @@ fn test_cbks611_partial_occurs_with_r4r6_flag() {
     assert!(
         err.message.contains("ORDER-DATA"),
         "Error should mention the alias name"
-    );
-}
-
-// =============================================================================
-// CBKA001_BASELINE_ERROR: Performance baseline I/O error
-// =============================================================================
-
-/// Test CBKA001: Loading baseline from non-existent file
-#[cfg(feature = "audit")]
-#[test]
-fn test_cbka001_baseline_load_missing_file() {
-    use copybook_core::audit::performance::BaselineManager;
-
-    let manager = BaselineManager::new("/nonexistent/path/baseline.json");
-    let result = manager.load_baseline();
-
-    assert!(result.is_err(), "Expected CBKA001 for missing file");
-    let err = result.unwrap_err();
-    assert_eq!(
-        err.code,
-        ErrorCode::CBKA001_BASELINE_ERROR,
-        "Expected CBKA001_BASELINE_ERROR, got {:?}",
-        err.code
-    );
-    assert!(
-        err.message.contains("Failed to read"),
-        "Error should mention read failure: {}",
-        err.message
     );
 }

@@ -731,7 +731,7 @@ pub enum ConfigurationChangeType {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::audit::AuditContext;
+    use crate::AuditContext;
 
     #[test]
     fn test_audit_event_creation() {

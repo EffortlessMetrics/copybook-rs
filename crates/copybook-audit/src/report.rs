@@ -473,7 +473,7 @@ pub enum ReportFormat {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::audit::{AuditContext, AuditPayload, event::ParseResult};
+    use crate::{AuditContext, AuditPayload, event::ParseResult};
 
     #[test]
     fn test_generate_audit_report_empty_events() {

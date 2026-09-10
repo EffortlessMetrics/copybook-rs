@@ -1271,7 +1271,7 @@ impl Default for ApiPerformanceRequirements {
 #### Audit Event Creation Example
 
 ```rust
-use copybook_core::audit::*;
+use copybook_audit::*;
 
 // Create audit context
 let context = AuditContext::new()
@@ -1309,7 +1309,7 @@ logger.log_event(event).await?;
 #### Compliance Validation Example
 
 ```rust
-use copybook_core::audit::{ComplianceEngine, ComplianceProfile};
+use copybook_audit::{ComplianceEngine, ComplianceProfile};
 
 // Initialize compliance engine
 let compliance_engine = ComplianceEngine::new()

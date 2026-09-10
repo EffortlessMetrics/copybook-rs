@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-audit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Experimental enterprise audit system (compliance, security, lineage) for copybook-rs, outside the stable core."
+documentation = "https://docs.rs/copybook-audit"
+readme = "README.md"
+keywords = ["cobol", "copybook", "audit", "compliance", "mainframe"]
+categories = ["encoding", "data-structures", "parsing"]
+
+# Keep tarballs slim; whitelist essential files
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE", "!**/claude.md"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+# Internal workspace dependencies
+copybook-core = { workspace = true }
+copybook-error = { workspace = true }
+
+# Audit system dependencies
+async-trait = { workspace = true }
+chrono = { version = "0.4.45", features = ["serde"] }
+hex = { workspace = true }
+rand = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+copybook-core = { workspace = true }
+tempfile = { workspace = true }
+tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread"] }
+
+[features]
+default = []
+
+[lints]
+workspace = true

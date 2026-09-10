@@ -42,6 +42,7 @@ copybook-codec = { workspace = true }
 copybook-charset = { workspace = true }
 copybook-governance = { workspace = true }
 copybook-arrow = { workspace = true, optional = true }
+copybook-audit = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 metrics = { workspace = true, optional = true }
 metrics-exporter-prometheus = { version = "0.18.3", optional = true, features = ["http-listener"] }
@@ -50,7 +51,7 @@ toml.workspace = true
 [features]
 default = []
 arrow = ["dep:copybook-arrow"]
-audit = ["copybook-core/audit", "dep:tokio"]
+audit = ["dep:copybook-audit", "dep:tokio"]
 metrics = [
     "copybook-codec/metrics",
     "dep:metrics",

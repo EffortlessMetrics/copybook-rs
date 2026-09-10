@@ -114,22 +114,20 @@ pub(super) fn risk_level_rank(level: &RiskLevel) -> u8 {
 
 pub(super) fn security_classification(
     classification: Option<DataClassification>,
-) -> copybook_core::audit::context::SecurityClassification {
+) -> copybook_audit::context::SecurityClassification {
     match classification {
-        Some(DataClassification::Public) => {
-            copybook_core::audit::context::SecurityClassification::Public
-        }
+        Some(DataClassification::Public) => copybook_audit::context::SecurityClassification::Public,
         Some(DataClassification::Internal) => {
-            copybook_core::audit::context::SecurityClassification::Internal
+            copybook_audit::context::SecurityClassification::Internal
         }
         Some(DataClassification::Confidential) => {
-            copybook_core::audit::context::SecurityClassification::Confidential
+            copybook_audit::context::SecurityClassification::Confidential
         }
         Some(DataClassification::MaterialTransaction) => {
-            copybook_core::audit::context::SecurityClassification::MaterialTransaction
+            copybook_audit::context::SecurityClassification::MaterialTransaction
         }
-        Some(DataClassification::PHI) => copybook_core::audit::context::SecurityClassification::PHI,
-        None => copybook_core::audit::context::SecurityClassification::Internal,
+        Some(DataClassification::PHI) => copybook_audit::context::SecurityClassification::PHI,
+        None => copybook_audit::context::SecurityClassification::Internal,
     }
 }
 

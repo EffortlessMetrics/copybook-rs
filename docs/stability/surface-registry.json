@@ -60,6 +60,38 @@
       }
     },
     {
+      "name": "copybook-audit",
+      "publish": true,
+      "class": "experimental",
+      "stability_statement": "Enterprise audit system is opt-in and may change behavior in place.",
+      "limitations": [
+        "Behavior, API shape, and output payloads can change while experimental.",
+        "Serialization formats may be incompatible across releases."
+      ],
+      "graduation_criteria": [
+        "Deterministic compatibility evidence for all documented audit paths is established.",
+        "The CLI and library contracts for audit are declared in the API/feature registry."
+      ],
+      "source_of_truth": [
+        "docs/STABILITY_GUARANTEES.md"
+      ],
+      "features": [],
+      "boundary": {
+        "role": "adapter",
+        "seam_type": "adapter",
+        "true_owner": "copybook-audit",
+        "external_user_story": "Opt into compliance, security, and lineage auditing without imposing those dependencies on core users.",
+        "invariant_owned": "isolated enterprise audit behavior outside the stable core",
+        "preferred_facade_path": null,
+        "target_disposition": "keep",
+        "compatibility_plan": "retained-primary-package",
+        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
+        "stability_class": "experimental",
+        "dependency_direction": "outer-surface-depends-inward-never-owned-by-core",
+        "module_insufficiency_reason": "The enterprise audit system with its compliance vocabulary and dependency closure must remain isolated from normal users; a module inside copybook-core cannot satisfy Phase E."
+      }
+    },
+    {
       "name": "copybook-bdd",
       "publish": false,
       "class": "internal-dev-only",
@@ -437,17 +469,6 @@
         "docs/STABILITY_GUARANTEES.md"
       ],
       "features": [
-        {
-          "name": "audit",
-          "class": "experimental",
-          "stability_statement": "Audit module remains experimental and may change.",
-          "limitations": [
-            "Behavior, API shape, and output payloads can change while experimental."
-          ],
-          "graduation_criteria": [
-            "Audit surface is moved to beta only after deterministic compatibility evidence."
-          ]
-        },
         {
           "name": "comprehensive-tests",
           "class": "internal-dev-only",

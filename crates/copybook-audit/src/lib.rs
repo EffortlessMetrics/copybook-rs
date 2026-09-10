@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Enterprise Audit System for copybook-rs
 //!
-//! **EXPERIMENTAL**: This module is experimental and subject to breaking changes.
-//! It is disabled by default and must be explicitly enabled via the `audit` feature flag.
+//! **EXPERIMENTAL**: This crate is experimental and subject to breaking changes.
+//! It lives outside the stable `copybook-core` surface; depend on
+//! `copybook-audit` explicitly to opt in.
 //!
 //! ## Status
 //!
@@ -10,17 +11,16 @@
 //! The API may change significantly between releases, and production use is not
 //! recommended without thorough validation in your specific environment.
 //!
-//! ## Feature Flag
+//! ## Opt-in dependency
 //!
-//! To enable the audit system, add the `audit` feature to your `Cargo.toml`:
+//! To enable the audit system, depend on this crate directly:
 //!
 //! ```toml
 //! [dependencies]
-//! copybook-core = { version = "0.4", features = ["audit"] }
+//! copybook-audit = "0.5"
 //! ```
 //!
-//! **Performance Note**: The audit system is disabled by default because it adds
-//! overhead to parsing and processing operations. Only enable it when you require
+//! **Performance Note**: Keep this dependency out of hot paths unless you require
 //! comprehensive audit capabilities for compliance or security monitoring.
 //!
 //! ## Capabilities
@@ -44,6 +44,42 @@
 //! - Error handling patterns may evolve
 //!
 //! Use at your own risk and validate thoroughly before production deployment.
+
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
+#![cfg_attr(
+    test,
+    allow(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::panic,
+        clippy::duplicated_attributes
+    )
+)]
+// Crate-level allows carried with the audit surface moved out of
+// `copybook-core` (#656 Phase E); the code below was developed under them.
+#![allow(clippy::missing_inline_in_public_items)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::format_push_string)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::match_same_arms)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::collapsible_else_if)]
+#![allow(clippy::unused_self)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::bool_to_int_with_if)]
+#![allow(clippy::cast_lossless)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::assigning_clones)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::manual_midpoint)]
+#![allow(clippy::redundant_closure_for_method_calls)]
+#![allow(clippy::single_match_else)]
+#![allow(clippy::ignored_unit_patterns)]
 
 pub mod compliance;
 pub mod context;

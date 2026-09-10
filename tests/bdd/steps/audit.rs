@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-use copybook_core::audit::context::SecurityClassification;
-use copybook_core::audit::event::{
+use copybook_audit::context::SecurityClassification;
+use copybook_audit::event::{
     AccessResult as AuditAccessResult, AccessType as AuditAccessType, ComparisonResult,
     ComplianceValidationResult, ConfigurationChangeType, ParseResult as AuditParseResult,
     PerformanceMeasurementType, PerformanceMetrics, SecurityEventType, TransformationOperation,
     TransformationResult, UserImpactLevel, ValidationResult as AuditValidationResult,
 };
-use copybook_core::audit::{
+use copybook_audit::{
     AuditContext, AuditEvent, AuditEventType, AuditPayload, ComplianceProfile, validate_audit_chain,
 };
 use copybook_core::parse_copybook;

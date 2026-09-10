@@ -32,9 +32,6 @@ copybook-rdw = { path = "../crates/copybook-rdw" }
 copybook-corruption-rdw = { path = "../crates/copybook-corruption-rdw" }
 copybook-record-io = { path = "../crates/copybook-record-io" }
 copybook-rdw-predicates = { path = "../crates/copybook-rdw-predicates" }
-copybook-safe-ops = { path = "../crates/copybook-safe-ops" }
-copybook-safe-index = { path = "../crates/copybook-safe-index" }
-copybook-safe-text = { path = "../crates/copybook-safe-text" }
 copybook-charset = { path = "../crates/copybook-charset" }
 copybook-governance = { path = "../crates/copybook-governance" }
 serde = { version = "1.0.228", features = ["derive"] }
@@ -98,18 +95,6 @@ path = "fuzz_targets/options_contract.rs"
 [[bin]]
 name = "record_io_dispatch"
 path = "fuzz_targets/record_io_dispatch.rs"
-
-[[bin]]
-name = "safe_ops"
-path = "fuzz_targets/safe_ops.rs"
-
-[[bin]]
-name = "safe_text"
-path = "fuzz_targets/safe_text.rs"
-
-[[bin]]
-name = "safe_index"
-path = "fuzz_targets/safe_index.rs"
 
 [[bin]]
 name = "zoned_format"

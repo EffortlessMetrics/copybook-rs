@@ -794,9 +794,6 @@ dependencies = [
  "copybook-governance",
  "copybook-rdw",
  "copybook-rdw-predicates",
- "copybook-safe-index",
- "copybook-safe-ops",
- "copybook-safe-text",
  "cucumber",
  "futures",
  "serde",
@@ -1077,13 +1074,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "copybook-overflow"
-version = "0.5.0"
-dependencies = [
- "copybook-error",
-]
-
-[[package]]
 name = "copybook-overpunch"
 version = "0.5.0"
 dependencies = [
@@ -1109,11 +1099,8 @@ dependencies = [
  "copybook-error",
  "copybook-fixed",
  "copybook-governance",
- "copybook-overflow",
  "copybook-rdw",
  "copybook-rdw-predicates",
- "copybook-safe-index",
- "copybook-safe-text",
  "copybook-support-matrix",
  "crossbeam-channel",
  "proptest",
@@ -1157,33 +1144,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "copybook-safe-index"
-version = "0.5.0"
-dependencies = [
- "copybook-error",
- "proptest",
-]
-
-[[package]]
-name = "copybook-safe-ops"
-version = "0.5.0"
-dependencies = [
- "copybook-error",
- "copybook-overflow",
- "copybook-safe-index",
- "copybook-safe-text",
- "proptest",
-]
-
-[[package]]
-name = "copybook-safe-text"
-version = "0.5.0"
-dependencies = [
- "copybook-error",
- "copybook-safe-ops",
-]
-
-[[package]]
 name = "copybook-scripts"
 version = "0.5.0"
 dependencies = [
@@ -1211,14 +1171,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_plain",
-]
-
-[[package]]
-name = "copybook-utils"
-version = "0.5.0"
-dependencies = [
- "copybook-error",
- "copybook-safe-ops",
 ]
 
 [[package]]

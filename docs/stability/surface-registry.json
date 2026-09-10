@@ -893,34 +893,6 @@
       }
     },
     {
-      "name": "copybook-overflow",
-      "publish": true,
-      "class": "internal-dev-only",
-      "stability_statement": "Overflow-aware behavior and helpers for parser internals.",
-      "limitations": [
-        "Not guaranteed for downstream API compatibility."
-      ],
-      "graduation_criteria": [],
-      "source_of_truth": [
-        "docs/STABILITY_GUARANTEES.md"
-      ],
-      "features": [],
-      "boundary": {
-        "role": "retiring",
-        "seam_type": "utility",
-        "true_owner": "split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
-        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw.",
-        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
-        "preferred_facade_path": null,
-        "target_disposition": "collapse",
-        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
-        "stability_class": "internal-dev-only",
-        "dependency_direction": "no-primary-consumers-after-owner-migration",
-        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
-      }
-    },
-    {
       "name": "copybook-overpunch",
       "publish": true,
       "class": "internal-dev-only",
@@ -1100,90 +1072,6 @@
       }
     },
     {
-      "name": "copybook-safe-index",
-      "publish": true,
-      "class": "internal-dev-only",
-      "stability_statement": "Safety and indexing primitives for internal bounded operations.",
-      "limitations": [
-        "Not intended for downstream API guarantees."
-      ],
-      "graduation_criteria": [],
-      "source_of_truth": [
-        "docs/STABILITY_GUARANTEES.md"
-      ],
-      "features": [],
-      "boundary": {
-        "role": "retiring",
-        "seam_type": "utility",
-        "true_owner": "split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
-        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw.",
-        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
-        "preferred_facade_path": null,
-        "target_disposition": "collapse",
-        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
-        "stability_class": "internal-dev-only",
-        "dependency_direction": "no-primary-consumers-after-owner-migration",
-        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
-      }
-    },
-    {
-      "name": "copybook-safe-ops",
-      "publish": true,
-      "class": "internal-dev-only",
-      "stability_statement": "Low-level safe operation helpers for internal execution paths.",
-      "limitations": [
-        "No external support or stability obligations."
-      ],
-      "graduation_criteria": [],
-      "source_of_truth": [
-        "docs/STABILITY_GUARANTEES.md"
-      ],
-      "features": [],
-      "boundary": {
-        "role": "retiring",
-        "seam_type": "utility",
-        "true_owner": "split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
-        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw.",
-        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
-        "preferred_facade_path": null,
-        "target_disposition": "collapse",
-        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
-        "stability_class": "internal-dev-only",
-        "dependency_direction": "no-primary-consumers-after-owner-migration",
-        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
-      }
-    },
-    {
-      "name": "copybook-safe-text",
-      "publish": true,
-      "class": "internal-dev-only",
-      "stability_statement": "Text safety helpers for internal parser and codec use.",
-      "limitations": [
-        "Not covered by downstream stability guarantees."
-      ],
-      "graduation_criteria": [],
-      "source_of_truth": [
-        "docs/STABILITY_GUARANTEES.md"
-      ],
-      "features": [],
-      "boundary": {
-        "role": "retiring",
-        "seam_type": "utility",
-        "true_owner": "split:copybook-core,copybook-codec",
-        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to split:copybook-core,copybook-codec.",
-        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
-        "preferred_facade_path": null,
-        "target_disposition": "collapse",
-        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
-        "stability_class": "internal-dev-only",
-        "dependency_direction": "no-primary-consumers-after-owner-migration",
-        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
-      }
-    },
-    {
       "name": "copybook-scripts",
       "publish": false,
       "class": "internal-dev-only",
@@ -1270,34 +1158,6 @@
         "stability_class": "beta",
         "dependency_direction": "outer-surface-depends-inward-never-owned-by-core",
         "module_insufficiency_reason": "Conditional: only a complete externally consumed machine contract can justify a package rather than repository data."
-      }
-    },
-    {
-      "name": "copybook-utils",
-      "publish": true,
-      "class": "internal-dev-only",
-      "stability_statement": "Utility helpers for parser/codec internals and test fixtures.",
-      "limitations": [
-        "No user-facing compatibility contract."
-      ],
-      "graduation_criteria": [],
-      "source_of_truth": [
-        "docs/STABILITY_GUARANTEES.md"
-      ],
-      "features": [],
-      "boundary": {
-        "role": "retiring",
-        "seam_type": "utility",
-        "true_owner": "split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw",
-        "external_user_story": "No new direct adoption; keep the 0.5 artifact resolvable while implementation and primary consumers move to split:copybook-core,copybook-codec,copybook-fixed,copybook-rdw.",
-        "invariant_owned": "No new implementation and no dependency from primary packages while the old artifact remains available.",
-        "preferred_facade_path": null,
-        "target_disposition": "collapse",
-        "compatibility_plan": "leave-0.5.0-available-and-stop-publishing-after-primary-consumers-move",
-        "consumer_data": "generated-from-cargo-metadata-by-issue-644",
-        "stability_class": "internal-dev-only",
-        "dependency_direction": "no-primary-consumers-after-owner-migration",
-        "module_insufficiency_reason": "None: a module under the true owner is sufficient, so this package leaves the primary graph."
       }
     },
     {

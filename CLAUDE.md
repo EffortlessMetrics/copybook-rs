@@ -48,9 +48,7 @@ crates/                           # 38 publishable crates (36 core + 2 facade)
   Governance: copybook-contracts, copybook-governance,
               copybook-governance-contracts, copybook-governance-grid,
               copybook-governance-runtime
-  Safety:     copybook-error, copybook-error-reporter, copybook-overflow,
-              copybook-safe-index, copybook-safe-ops, copybook-safe-text,
-              copybook-utils
+  Safety:     copybook-error, copybook-error-reporter
   Quality:    copybook-corruption, copybook-corruption-detectors,
               copybook-corruption-predicates, copybook-corruption-rdw
   Other:      copybook-arrow, copybook-sequence-ring

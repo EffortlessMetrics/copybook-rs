@@ -23,6 +23,7 @@ Start with **[START_HERE.md](START_HERE.md)** for the hand-maintained navigation
 - [Support Policy](SUPPORT_POLICY.md) -- release support windows
 - [Performance Governance](PERFORMANCE_GOVERNANCE.md) -- baseline and policy
 - [Release Process](RELEASE_PROCESS.md) -- release workflow
+- [Migration 0.5 to 0.6](migration/0.6.md) -- breaking changes and package moves
 
 ### Architecture
 - [Architecture Decision Records](adr/) -- ADRs for significant decisions

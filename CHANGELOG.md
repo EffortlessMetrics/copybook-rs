@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **workspace**: thirteen 0.5 crates retired ahead of 0.6.0. Internal helpers
+  (`copybook-safe-ops`, `copybook-safe-index`, `copybook-safe-text`,
+  `copybook-overflow`, `copybook-utils`, `copybook-corruption`,
+  `copybook-corruption-detectors`, `copybook-corruption-predicates`,
+  `copybook-rdw-predicates`) were folded into `pub(crate)` owning-crate
+  internals with no public successor; governance satellites
+  (`copybook-governance-contracts`, `copybook-governance-grid`,
+  `copybook-governance-runtime`) collapsed into the single `copybook-governance`
+  crate. `copybook-record-io` remains only as a compatibility forwarder over
+  `copybook-codec::file::dispatch`. See `docs/migration/0.6.md`.
+- **core**: `copybook_core::{utils, error_reporter}` compat re-exports removed
+  (#655); the frozen `copybook::error_reporter` facade forwarder remains for
+  the 0.6 migration window.
+- **flags**: `sign_separate`, `comp_1`, and `comp_2` runtime flags removed
+  (#656 Phase C). The behaviors are stable parser defaults; stale CLI names
+  fail loudly and stale `COPYBOOK_FF_*` variables are ignored.
+
+### Deprecated
+
+- **facade**: nine `copybook::` module aliases deprecated since 0.6.0
+  (`codepage`, `contracts`, `determinism`, `error_reporter`, `fixed`,
+  `options`, `overpunch`, `rdw`, `record_io`); each names its replacement in
+  the deprecation note. Removed after the 0.6 migration window.
+  See `docs/migration/0.6.md`.
+
 ### Changed
 
 - **codec**: `FloatFormat`, `RecordFormat`, `JsonNumberMode`, and `RawMode` now

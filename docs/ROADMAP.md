@@ -320,6 +320,20 @@ status, and remediation guidance **are** required to be complete.
 Do not begin source-level performance optimization before #546. Do not start the
 freeze clock before #541–#543 are complete.
 
+## Planned releases
+
+- **v0.6.0** (current Engineering Preview): workspace convergence release —
+  retired crates folded into owners, curated `copybook` facade with
+  deprecation shims, collapsed feature flags, MSRV Rust 1.95. Migration
+  notes live in [migration/0.6.md](migration/0.6.md).
+- **v0.7.0** (planned): Rust 1.98+ release (MSRV moves from 1.95 to 1.98
+  at minimum — expect to jump straight to 1.100 if it is out when we ship
+  0.7.0, since 1.100 adds minimum release age checks).
+  Expected to remove the deprecated 0.6 facade aliases (removal promised no
+  earlier than 0.7.0; see [migration/0.6.md](migration/0.6.md)) and to pick
+  up whatever the phase gates above require next. No calendar promise; scope
+  is set when the 0.7 planning issue lands.
+
 ## History
 
 Historical milestone detail is preserved in:

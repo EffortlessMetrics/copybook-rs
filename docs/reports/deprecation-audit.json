@@ -125,6 +125,72 @@
       "note": "The facade alias preserves the published module path while codec operation-option ownership converges in copybook-codec."
     },
     {
+      "path": "crates/copybook/src/lib.rs",
+      "symbol": "contracts",
+      "kind": "mod",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook::core::feature_flags",
+      "migration_example": "Replace `copybook::contracts::FeatureFlags` and related imports with `copybook::core::feature_flags`.",
+      "planned_removal": "Retained through the 0.6 migration window; removal requires a future compatibility decision documented by the surface registry.",
+      "compatibility_impact": "Existing facade imports continue to compile with a deprecation warning; new code should use the core flag-governance module.",
+      "note": "Flag governance moved into copybook-core under #656; the facade path is an implementation-free forwarder."
+    },
+    {
+      "path": "crates/copybook/src/lib.rs",
+      "symbol": "determinism",
+      "kind": "mod",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook::codec::determinism",
+      "migration_example": "Replace `copybook::determinism::DeterminismResult` and related imports with `copybook::codec::determinism`.",
+      "planned_removal": "Retained through the 0.6 migration window; removal requires a future compatibility decision documented by the surface registry.",
+      "compatibility_impact": "Existing facade imports continue to compile with a deprecation warning; new code should use the codec determinism module.",
+      "note": "Determinism behavior lives in copybook-codec; the facade path is an implementation-free forwarder."
+    },
+    {
+      "path": "crates/copybook/src/lib.rs",
+      "symbol": "error_reporter",
+      "kind": "mod",
+      "deprecated_since": "0.6.0",
+      "replacement": "none (frozen forwarder)",
+      "migration_example": "No replacement path: reporting splits by owning layer under #655. Keep existing imports only until the migration guide names the new owner paths.",
+      "planned_removal": "Retained through the 0.6 migration window; removal requires a future compatibility decision documented by the surface registry.",
+      "compatibility_impact": "Existing facade imports continue to compile with a deprecation warning; the forwarder gains no new behavior.",
+      "note": "ErrorReporter has no production callers; the facade path is frozen until #655 assigns reporting owners."
+    },
+    {
+      "path": "crates/copybook/src/lib.rs",
+      "symbol": "fixed",
+      "kind": "mod",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook::framing::fixed",
+      "migration_example": "Replace `copybook::fixed::FixedRecordReader` and related imports with `copybook::framing::fixed`.",
+      "planned_removal": "Retained through the 0.6 migration window; removal requires a future compatibility decision documented by the surface registry.",
+      "compatibility_impact": "Existing facade imports continue to compile with a deprecation warning; new code should use the framing module.",
+      "note": "Record framing moved under copybook::framing per the preferred facade shape in #657."
+    },
+    {
+      "path": "crates/copybook/src/lib.rs",
+      "symbol": "overpunch",
+      "kind": "mod",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook::codec::numeric::overpunch",
+      "migration_example": "Replace `copybook::overpunch` imports with `copybook::codec::numeric::overpunch`.",
+      "planned_removal": "Retained through the 0.6 migration window; removal requires a future compatibility decision documented by the surface registry.",
+      "compatibility_impact": "Existing facade imports continue to compile with a deprecation warning; new code should use the codec numeric module.",
+      "note": "Overpunch behavior lives in copybook-codec; the facade path is an implementation-free forwarder."
+    },
+    {
+      "path": "crates/copybook/src/lib.rs",
+      "symbol": "rdw",
+      "kind": "mod",
+      "deprecated_since": "0.6.0",
+      "replacement": "copybook::framing::rdw",
+      "migration_example": "Replace `copybook::rdw::RdwHeader` and related imports with `copybook::framing::rdw`.",
+      "planned_removal": "Retained through the 0.6 migration window; removal requires a future compatibility decision documented by the surface registry.",
+      "compatibility_impact": "Existing facade imports continue to compile with a deprecation warning; new code should use the framing module.",
+      "note": "Record framing moved under copybook::framing per the preferred facade shape in #657."
+    },
+    {
       "path": "crates/copybook-codepage/src/lib.rs",
       "symbol": "Codepage",
       "kind": "type",

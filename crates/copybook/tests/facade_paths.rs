@@ -29,7 +29,6 @@ fn deprecated_aliases_still_resolve() {
     let _ = std::any::type_name::<copybook::options::DecodeOptions>();
     let _ = std::any::type_name::<copybook::fixed::FixedRecordReader<std::io::Cursor<Vec<u8>>>>();
     let _ = std::any::type_name::<copybook::rdw::RdwHeader>();
-    let _ = std::any::type_name::<copybook::error_reporter::ErrorMode>();
 }
 
 /// Retired paths stay out of the facade.
@@ -40,14 +39,23 @@ fn deprecated_aliases_still_resolve() {
 #[test]
 fn retired_paths_are_absent() {
     const LIB: &str = include_str!("../src/lib.rs");
-    for module in ["pub mod overflow", "pub mod utils"] {
+    for module in [
+        "pub mod overflow",
+        "pub mod utils",
+        "pub mod error_reporter",
+    ] {
         assert!(
             !LIB.contains(module),
             "retired facade module restored: {module}"
         );
     }
     const MANIFEST: &str = include_str!("../Cargo.toml");
-    for dep in ["copybook-overflow", "copybook-utils"] {
+    for dep in [
+        "copybook-overflow",
+        "copybook-utils",
+        "copybook-error-reporter",
+        "copybook-contracts",
+    ] {
         assert!(
             !MANIFEST.contains(dep),
             "retired facade dependency restored: {dep}"

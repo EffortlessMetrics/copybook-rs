@@ -22,12 +22,20 @@ pub mod codepage {
 }
 
 /// Deprecated compatibility alias for feature-flag governance contracts.
+///
+/// Forwards through the true owner `copybook-core` (#656 Phase F) so the
+/// primary facade never depends on the compat `copybook-contracts` package;
+/// the re-exported names are unchanged.
 #[deprecated(
     since = "0.6.0",
     note = "use copybook::core::feature_flags for flag governance"
 )]
 pub mod contracts {
-    pub use copybook_contracts::*;
+    pub use copybook_core::feature_flags;
+    pub use copybook_core::feature_flags::{
+        Feature, FeatureCategory, FeatureFlags, FeatureFlagsBuilder, FeatureFlagsHandle,
+        FeatureLifecycle,
+    };
 }
 
 /// COBOL copybook parsing, schema, and validation primitives.
@@ -47,18 +55,6 @@ pub mod determinism {
 /// Error types and taxonomy.
 pub mod error {
     pub use copybook_error::*;
-}
-
-/// Frozen compatibility forwarder for error reporting policies and summaries.
-///
-/// Reporting splits by owning layer under #655; this path gains no new
-/// behavior and is removed after the 0.6 migration window.
-#[deprecated(
-    since = "0.6.0",
-    note = "frozen compatibility forwarder; reporting splits by owner under #655"
-)]
-pub mod error_reporter {
-    pub use copybook_error_reporter::*;
 }
 
 /// Record framing primitives: fixed-length and RDW framing.

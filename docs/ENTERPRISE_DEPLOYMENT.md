@@ -901,7 +901,7 @@ Before upgrading:
 
 2. **Install new version**: Install the new version
    ```bash
-   cargo install copybook-cli --version 0.5.0
+   cargo install copybook-cli --version 0.6.0
    ```
 
 3. **Update configuration**: Update configuration if needed

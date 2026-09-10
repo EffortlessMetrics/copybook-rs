@@ -43,7 +43,7 @@ exclude = [
 resolver = "2"
 
 [workspace.package]
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 rust-version = "1.95" # MSRV (validated in .github/workflows/ci.yml)
 license = "AGPL-3.0-or-later"
@@ -56,30 +56,30 @@ categories = ["parsing", "encoding", "command-line-utilities"]
 
 [workspace.dependencies]
 # Internal workspace crates (pin exact versions for publish)
-copybook = { version = "=0.5.0", path = "crates/copybook" }
-copybook-error = { version = "=0.5.0", path = "crates/copybook-error" }
-copybook-error-reporter = { version = "=0.5.0", path = "crates/copybook-error-reporter" }
-copybook-zoned-format = { version = "=0.5.0", path = "crates/copybook-zoned-format" }
-copybook-fixed = { version = "=0.5.0", path = "crates/copybook-fixed" }
-copybook-rdw = { version = "=0.5.0", path = "crates/copybook-rdw" }
-copybook-record-io = { version = "=0.5.0", path = "crates/copybook-record-io" }
-copybook-overpunch = { version = "=0.5.0", path = "crates/copybook-overpunch" }
-copybook-determinism = { version = "=0.5.0", path = "crates/copybook-determinism" }
-copybook-codepage = { version = "=0.5.0", path = "crates/copybook-codepage" }
-copybook-charset = { version = "=0.5.0", path = "crates/copybook-charset" }
-copybook-options = { version = "=0.5.0", path = "crates/copybook-options" }
-copybook-lexer = { version = "=0.5.0", path = "crates/copybook-lexer" }
-copybook-core = { version = "=0.5.0", path = "crates/copybook-core" }
-copybook-dialect = { version = "=0.5.0", path = "crates/copybook-dialect" }
-copybook-codec = { version = "=0.5.0", path = "crates/copybook-codec" }
-copybook-codec-memory = { version = "=0.5.0", path = "crates/copybook-codec-memory" }
-copybook-sequence-ring = { version = "=0.5.0", path = "crates/copybook-sequence-ring" }
-copybook-arrow = { version = "=0.5.0", path = "crates/copybook-arrow" }
-copybook-audit = { version = "=0.5.0", path = "crates/copybook-audit" }
-copybook-governance = { version = "=0.5.0", path = "crates/copybook-governance" }
-copybook-bench = { version = "=0.5.0", path = "tools/copybook-bench" }
-copybook-contracts = { version = "=0.5.0", path = "crates/copybook-contracts" }
-copybook-support-matrix = { version = "=0.5.0", path = "crates/copybook-support-matrix" }
+copybook = { version = "=0.6.0", path = "crates/copybook" }
+copybook-error = { version = "=0.6.0", path = "crates/copybook-error" }
+copybook-error-reporter = { version = "=0.6.0", path = "crates/copybook-error-reporter" }
+copybook-zoned-format = { version = "=0.6.0", path = "crates/copybook-zoned-format" }
+copybook-fixed = { version = "=0.6.0", path = "crates/copybook-fixed" }
+copybook-rdw = { version = "=0.6.0", path = "crates/copybook-rdw" }
+copybook-record-io = { version = "=0.6.0", path = "crates/copybook-record-io" }
+copybook-overpunch = { version = "=0.6.0", path = "crates/copybook-overpunch" }
+copybook-determinism = { version = "=0.6.0", path = "crates/copybook-determinism" }
+copybook-codepage = { version = "=0.6.0", path = "crates/copybook-codepage" }
+copybook-charset = { version = "=0.6.0", path = "crates/copybook-charset" }
+copybook-options = { version = "=0.6.0", path = "crates/copybook-options" }
+copybook-lexer = { version = "=0.6.0", path = "crates/copybook-lexer" }
+copybook-core = { version = "=0.6.0", path = "crates/copybook-core" }
+copybook-dialect = { version = "=0.6.0", path = "crates/copybook-dialect" }
+copybook-codec = { version = "=0.6.0", path = "crates/copybook-codec" }
+copybook-codec-memory = { version = "=0.6.0", path = "crates/copybook-codec-memory" }
+copybook-sequence-ring = { version = "=0.6.0", path = "crates/copybook-sequence-ring" }
+copybook-arrow = { version = "=0.6.0", path = "crates/copybook-arrow" }
+copybook-audit = { version = "=0.6.0", path = "crates/copybook-audit" }
+copybook-governance = { version = "=0.6.0", path = "crates/copybook-governance" }
+copybook-bench = { version = "=0.6.0", path = "tools/copybook-bench" }
+copybook-contracts = { version = "=0.6.0", path = "crates/copybook-contracts" }
+copybook-support-matrix = { version = "=0.6.0", path = "crates/copybook-support-matrix" }
 
 # Core dependencies
 serde = { version = "1.0.228", features = ["derive"] }

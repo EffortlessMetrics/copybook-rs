@@ -696,7 +696,7 @@
       "name": "copybook-governance",
       "publish": true,
       "class": "beta",
-      "stability_statement": "Compatibility runtime facade with user-facing imports but not yet v1 guaranteed.",
+      "stability_statement": "Interoperability contracts for governance and support are currently beta; consumed by the CLI support command and the canonical facade.",
       "limitations": [
         "Governance behavior may evolve as feature lifecycle definitions are finalized.",
         "No strict freeze guarantees until beta criteria are met."
@@ -716,12 +716,12 @@
         "external_user_story": "Consume governance/support policy as one optional beta integration surface if external adopters need it.",
         "invariant_owned": "Outer contract remains isolated from core ownership and matches its documented stability class.",
         "preferred_facade_path": null,
-        "target_disposition": "conditional",
-        "compatibility_plan": "retain-only-if-external-contract-is-proven",
+        "target_disposition": "keep",
+        "compatibility_plan": "retained-adapter-consumed-by-primary-facade-and-cli",
         "consumer_data": "generated-from-cargo-metadata-by-issue-644",
         "stability_class": "beta",
         "dependency_direction": "outer-surface-depends-inward-never-owned-by-core",
-        "module_insufficiency_reason": "Conditional: only a real external beta integration contract can justify a package rather than application modules."
+        "module_insufficiency_reason": "Retained: the shipped CLI support command and the canonical facade both consume the governance bindings; proven by copybook-cli and copybook dependencies."
       }
     },
     {
@@ -866,12 +866,12 @@
         "external_user_story": "Read and write RDW-framed streams independently after schema coupling is removed.",
         "invariant_owned": "bounded correct RDW framing",
         "preferred_facade_path": "copybook::framing::rdw",
-        "target_disposition": "conditional",
-        "compatibility_plan": "retain-only-if-schema-independent-direct-use-proof-passes-issue-651",
+        "target_disposition": "keep",
+        "compatibility_plan": "retained-primary-framing-consumed-by-facade-codec-cli",
         "consumer_data": "generated-from-cargo-metadata-by-issue-644",
         "stability_class": "internal-dev-only",
         "dependency_direction": "edge-leaf:no-core-codec-cli-framework-or-governance",
-        "module_insufficiency_reason": "Conditional: a package is justified only if schema-independent RDW users and proof survive #651."
+        "module_insufficiency_reason": "Retained: schema-independent RDW framing (reader/writer/diagnostics) consumed by the facade framing::rdw path, codec file::dispatch, and the CLI; #651 proof is the live framing surface."
       }
     },
     {
@@ -1012,12 +1012,12 @@
         "external_user_story": "Consume a complete authoritative machine-readable support contract if that external use case is proven.",
         "invariant_owned": "Outer contract remains isolated from core ownership and matches its documented stability class.",
         "preferred_facade_path": null,
-        "target_disposition": "conditional",
-        "compatibility_plan": "retain-only-if-external-contract-is-proven",
+        "target_disposition": "keep",
+        "compatibility_plan": "retained-contract-consumed-by-primary-core-facade-and-governance",
         "consumer_data": "generated-from-cargo-metadata-by-issue-644",
         "stability_class": "beta",
         "dependency_direction": "outer-surface-depends-inward-never-owned-by-core",
-        "module_insufficiency_reason": "Conditional: only a complete externally consumed machine contract can justify a package rather than repository data."
+        "module_insufficiency_reason": "Retained: the machine support contract is consumed by primary copybook-core and copybook and the selected copybook-governance adapter."
       }
     },
     {

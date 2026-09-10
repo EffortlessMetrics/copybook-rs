@@ -12,7 +12,7 @@ Rust toolkit for COBOL copybook parsing and fixed-record data conversion. Determ
 
 ## Status
 
-Engineering Preview (v0.5.0). Stable CLI and library APIs; feature completeness is preview-level. See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
+Engineering Preview (v0.6.0). Stable CLI and library APIs; feature completeness is preview-level. See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
 
 <!-- TEST_STATUS:BEGIN -->
 **conformance:** 9040/9040  • **roundtrip:** N/A  • **negative:** N/A  • **skipped:** 0  • **leaks:** 0<br>

@@ -376,10 +376,9 @@ fn default_enabled_features_match_feature_default_enabled_method() {
 #[test]
 fn exactly_one_feature_is_default_enabled() {
     // #656 Phase C: LruCache is the only default-enabled flag.
-    let enabled: Vec<_> =
-        copybook_governance_contracts::feature_flags::all_features()
-            .into_iter()
-            .filter(|f| f.default_enabled())
-            .collect();
+    let enabled: Vec<_> = copybook_governance_contracts::feature_flags::all_features()
+        .into_iter()
+        .filter(|f| f.default_enabled())
+        .collect();
     assert_eq!(enabled, vec![Feature::LruCache]);
 }

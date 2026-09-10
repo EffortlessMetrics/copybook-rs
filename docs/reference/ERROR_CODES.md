@@ -641,6 +641,17 @@ Error: CBKI001_INVALID_STATE on first record
 Fixed format iterator requires LRECL; set schema.lrecl_fixed or use RecordFormat::Variable
 ```
 
+#### CBKI002_TOO_MANY_ERRORS
+**Description**: Error budget exhausted; the reporter halted processing after reaching the configured maximum error count
+**Severity**: Fatal
+**Context**: Configured limit, count at halt
+**Resolution**: Raise the `max_errors` budget, fix the upstream records causing errors, or run in strict mode to stop at the first error
+
+```
+Error: CBKI002_TOO_MANY_ERRORS
+Maximum error limit reached: 10
+```
+
 ### File I/O Errors (CBKF*)
 
 Errors in file operations and transfer corruption detection.
@@ -919,7 +930,7 @@ The complete command-level table, including `CBK?` and command-specific
 
 ## Error Code Index
 
-All 65 stable error codes across 10 families:
+All 66 stable error codes across 10 families:
 
 | Code | Category | Severity | Description |
 |------|----------|----------|-------------|
@@ -971,6 +982,7 @@ All 65 stable error codes across 10 families:
 | CBKD431 | Decode | Reserved | Float NaN (decoded as null; code not currently emitted) |
 | CBKD432 | Decode | Reserved | Float infinity (decoded as null; code not currently emitted) |
 | CBKI001 | Infrastructure | Fatal | Invalid iterator/internal state |
+| CBKI002 | Infrastructure | Fatal | Error budget exhausted, processing halted |
 | CBKE501 | Encode | Fatal | JSON type mismatch |
 | CBKE505 | Encode | Fatal | Decimal scale mismatch |
 | CBKE510 | Encode | Fatal | Numeric overflow |

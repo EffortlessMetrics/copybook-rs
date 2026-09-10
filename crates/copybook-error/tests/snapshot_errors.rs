@@ -210,6 +210,7 @@ fn snapshot_family_prefix_mapping() {
     assert_eq!(ErrorCode::CBKC201_JSON_WRITE_ERROR.family_prefix(), "CBKC");
     assert_eq!(ErrorCode::CBKD301_RECORD_TOO_SHORT.family_prefix(), "CBKD");
     assert_eq!(ErrorCode::CBKI001_INVALID_STATE.family_prefix(), "CBKI");
+    assert_eq!(ErrorCode::CBKI002_TOO_MANY_ERRORS.family_prefix(), "CBKI");
     assert_eq!(
         ErrorCode::CBKE501_JSON_TYPE_MISMATCH.family_prefix(),
         "CBKE"

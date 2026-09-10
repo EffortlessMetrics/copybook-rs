@@ -225,6 +225,9 @@ pub enum ErrorCode {
     // =============================================================================
     /// CBKI001: Iterator or decoder encountered an invalid internal state
     CBKI001_INVALID_STATE,
+    /// CBKI002: Error budget exhausted; the reporter halted processing
+    /// after reaching the configured maximum error count
+    CBKI002_TOO_MANY_ERRORS,
 
     // =============================================================================
     // Encode Errors (CBKE*) - JSON to binary encoding validation
@@ -331,6 +334,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKD431_FLOAT_NAN => "CBKD431_FLOAT_NAN",
             ErrorCode::CBKD432_FLOAT_INFINITY => "CBKD432_FLOAT_INFINITY",
             ErrorCode::CBKI001_INVALID_STATE => "CBKI001_INVALID_STATE",
+            ErrorCode::CBKI002_TOO_MANY_ERRORS => "CBKI002_TOO_MANY_ERRORS",
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH => "CBKE501_JSON_TYPE_MISMATCH",
             ErrorCode::CBKE505_SCALE_MISMATCH => "CBKE505_SCALE_MISMATCH",
             ErrorCode::CBKE510_NUMERIC_OVERFLOW => "CBKE510_NUMERIC_OVERFLOW",
@@ -405,7 +409,7 @@ impl ErrorCode {
             | Self::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO
             | Self::CBKD431_FLOAT_NAN
             | Self::CBKD432_FLOAT_INFINITY => "CBKD",
-            Self::CBKI001_INVALID_STATE => "CBKI",
+            Self::CBKI001_INVALID_STATE | Self::CBKI002_TOO_MANY_ERRORS => "CBKI",
             Self::CBKE501_JSON_TYPE_MISMATCH
             | Self::CBKE505_SCALE_MISMATCH
             | Self::CBKE510_NUMERIC_OVERFLOW
@@ -920,6 +924,7 @@ mod tests {
             "CBKC"
         );
         assert_eq!(ErrorCode::CBKI001_INVALID_STATE.family_prefix(), "CBKI");
+        assert_eq!(ErrorCode::CBKI002_TOO_MANY_ERRORS.family_prefix(), "CBKI");
         assert_eq!(
             ErrorCode::CBKF102_RECORD_LENGTH_INVALID.family_prefix(),
             "CBKF"
@@ -947,6 +952,7 @@ mod tests {
             ErrorCode::CBKC201_JSON_WRITE_ERROR,
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
             ErrorCode::CBKI001_INVALID_STATE,
+            ErrorCode::CBKI002_TOO_MANY_ERRORS,
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
             ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
             ErrorCode::CBKA001_BASELINE_ERROR,
@@ -975,6 +981,7 @@ mod tests {
             ErrorCode::CBKC201_JSON_WRITE_ERROR,
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
             ErrorCode::CBKI001_INVALID_STATE,
+            ErrorCode::CBKI002_TOO_MANY_ERRORS,
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
             ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
             ErrorCode::CBKA001_BASELINE_ERROR,

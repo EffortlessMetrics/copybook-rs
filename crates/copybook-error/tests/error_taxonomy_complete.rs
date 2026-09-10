@@ -64,6 +64,7 @@ fn all_error_codes() -> Vec<ErrorCode> {
         ErrorCode::CBKD432_FLOAT_INFINITY,
         // CBKI
         ErrorCode::CBKI001_INVALID_STATE,
+        ErrorCode::CBKI002_TOO_MANY_ERRORS,
         // CBKE
         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
         ErrorCode::CBKE505_SCALE_MISMATCH,

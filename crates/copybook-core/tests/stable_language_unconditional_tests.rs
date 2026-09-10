@@ -27,9 +27,12 @@ fn test_comp1_parses_with_default_flags() {
         "01 TEMP PIC 9(4) USAGE COMP-1.",
         "01 FIELD-A COMP-1.",
     ] {
-        let schema = parse_copybook_with_feature_flags(source, &ParseOptions::default(), &flags);
-        let schema = schema
-            .unwrap_or_else(|e| panic!("COMP-1 should parse unconditionally ({source}): {e}"));
+        let result = parse_copybook_with_feature_flags(source, &ParseOptions::default(), &flags);
+        assert!(
+            result.is_ok(),
+            "COMP-1 should parse unconditionally ({source})"
+        );
+        let schema = result.unwrap();
         assert!(
             matches!(schema.fields[0].kind, FieldKind::FloatSingle),
             "COMP-1 should produce FloatSingle for {source}"
@@ -45,9 +48,12 @@ fn test_comp2_parses_with_default_flags() {
         "01 TEMP PIC 9(4) USAGE COMP-2.",
         "01 FIELD-B USAGE COMP-2.",
     ] {
-        let schema = parse_copybook_with_feature_flags(source, &ParseOptions::default(), &flags);
-        let schema = schema
-            .unwrap_or_else(|e| panic!("COMP-2 should parse unconditionally ({source}): {e}"));
+        let result = parse_copybook_with_feature_flags(source, &ParseOptions::default(), &flags);
+        assert!(
+            result.is_ok(),
+            "COMP-2 should parse unconditionally ({source})"
+        );
+        let schema = result.unwrap();
         assert!(
             matches!(schema.fields[0].kind, FieldKind::FloatDouble),
             "COMP-2 should produce FloatDouble for {source}"

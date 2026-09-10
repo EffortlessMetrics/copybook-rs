@@ -9,7 +9,7 @@ use crate::utils::{
 };
 use crate::{write_stderr_all, write_stdout_all};
 use anyhow::bail;
-use copybook_codec::{Codepage, EncodeOptions, FloatFormat, RecordFormat};
+use copybook::codec::{Codepage, EncodeOptions, FloatFormat, RecordFormat};
 use std::fmt::Write as _;
 use std::path::Path;
 use tracing::info;
@@ -27,9 +27,9 @@ pub struct EncodeCliOptions<'a> {
     pub threads: usize,
     pub coerce_numbers: bool,
     pub strict_comments: bool,
-    pub zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
+    pub zoned_encoding_override: Option<copybook::codec::ZonedEncodingFormat>,
     pub float_format: FloatFormat,
-    pub dialect: copybook_core::dialect::Dialect,
+    pub dialect: copybook::core::dialect::Dialect,
     pub select: &'a [String],
 }
 
@@ -39,7 +39,7 @@ pub fn run(
     input: &Path,
     output: &Path,
     options: &EncodeCliOptions,
-    feature_flags: &copybook_core::FeatureFlags,
+    feature_flags: &copybook::core::FeatureFlags,
 ) -> anyhow::Result<ExitCode> {
     info!("Encoding JSONL file: {:?}", input);
 
@@ -76,7 +76,7 @@ pub fn run(
 
     let (summary, write_to_stdout) =
         run_with_output(input, output, |input_file, output_writer| {
-            Ok(copybook_codec::encode_jsonl_to_file(
+            Ok(copybook::codec::encode_jsonl_to_file(
                 &working_schema,
                 input_file,
                 output_writer,

@@ -6,8 +6,8 @@
 
 use anyhow::anyhow;
 use clap::{Args, ValueEnum};
-use copybook_charset::{Codepage, UnmappablePolicy};
-use copybook_core::{Feature, FeatureCategory, FeatureFlags};
+use copybook::charset::{Codepage, UnmappablePolicy};
+use copybook::core::{Feature, FeatureCategory, FeatureFlags};
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -112,7 +112,7 @@ pub(crate) enum DialectPreference {
     One,
 }
 
-impl From<DialectPreference> for copybook_core::dialect::Dialect {
+impl From<DialectPreference> for copybook::core::dialect::Dialect {
     #[inline]
     fn from(value: DialectPreference) -> Self {
         match value {
@@ -136,7 +136,7 @@ pub(crate) enum ZonedEncodingPreference {
     Auto,
 }
 
-impl From<ZonedEncodingPreference> for copybook_codec::ZonedEncodingFormat {
+impl From<ZonedEncodingPreference> for copybook::codec::ZonedEncodingFormat {
     #[inline]
     fn from(value: ZonedEncodingPreference) -> Self {
         match value {

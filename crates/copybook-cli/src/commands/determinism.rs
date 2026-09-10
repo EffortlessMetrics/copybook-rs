@@ -10,14 +10,14 @@ use crate::exit_codes::ExitCode;
 use crate::write_stdout_all;
 use anyhow::Context;
 use clap::{Args, Subcommand, ValueEnum};
-use copybook_codec::{
+use copybook::codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat,
     determinism::{
         DeterminismResult, check_decode_determinism, check_encode_determinism,
         check_round_trip_determinism,
     },
 };
-use copybook_core::{FeatureFlags, ParseOptions, Schema, parse_copybook_with_feature_flags};
+use copybook::core::{FeatureFlags, ParseOptions, Schema, parse_copybook_with_feature_flags};
 use std::fmt::Write as _;
 use std::fs;
 use std::io::{self, Read};
@@ -432,7 +432,7 @@ fn read_bytes_or_stdin(path: &Path) -> anyhow::Result<Vec<u8>> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use copybook_codec::determinism::{ByteDiff, DeterminismMode as CodecDeterminismMode};
+    use copybook::codec::determinism::{ByteDiff, DeterminismMode as CodecDeterminismMode};
     use proptest::prelude::*;
 
     #[test]

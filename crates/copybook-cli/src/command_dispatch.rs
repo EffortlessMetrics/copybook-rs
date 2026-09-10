@@ -8,7 +8,7 @@ use crate::cli_config::effective_dialect;
 use crate::exit_codes::ExitCode;
 use crate::{Commands, commands};
 use anyhow::anyhow;
-use copybook_core::FeatureFlags;
+use copybook::core::FeatureFlags;
 use std::convert::TryFrom;
 
 type CommandOutcome = (anyhow::Result<ExitCode>, &'static str);

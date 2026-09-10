@@ -2,8 +2,8 @@
 //! Utility functions for CLI operations
 
 use crate::exit_codes::ExitCode;
-use copybook_codec::RunSummary;
-use copybook_core::{
+use copybook::codec::RunSummary;
+use copybook::core::{
     Error as CoreError, ErrorCode, FeatureFlags, ParseOptions, Schema,
     parse_copybook_with_feature_flags,
 };
@@ -111,7 +111,7 @@ pub fn apply_field_projection(schema: Schema, select_args: &[String]) -> anyhow:
         "Applying field projection with {} selectors",
         selectors.len()
     );
-    copybook_core::project_schema(&schema, &selectors).map_err(|err| {
+    copybook::core::project_schema(&schema, &selectors).map_err(|err| {
         anyhow::anyhow!("Failed to apply field projection with selectors {selectors:?}: {err}")
     })
 }
@@ -122,7 +122,7 @@ pub struct ParseOptionsConfig<'a> {
     pub strict_comments: bool,
     pub codepage: &'a str,
     pub emit_filler: bool,
-    pub dialect: copybook_core::dialect::Dialect,
+    pub dialect: copybook::core::dialect::Dialect,
 }
 
 /// Build `ParseOptions` from CLI configuration

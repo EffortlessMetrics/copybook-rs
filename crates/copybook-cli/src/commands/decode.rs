@@ -11,7 +11,7 @@ use crate::utils::{
 use crate::{
     ExitDiagnostics, Stage, emit_exit_diagnostics_stage, write_stderr_all, write_stdout_all,
 };
-use copybook_codec::{
+use copybook::codec::{
     Codepage, DecodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
 use std::path::PathBuf;
@@ -35,12 +35,12 @@ pub struct DecodeArgs<'a> {
     pub threads: usize,
     pub strict_comments: bool,
     pub preserve_zoned_encoding: bool,
-    pub preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat,
+    pub preferred_zoned_encoding: copybook::codec::ZonedEncodingFormat,
     pub float_format: FloatFormat,
     pub strict_policy: bool,
-    pub dialect: copybook_core::dialect::Dialect,
+    pub dialect: copybook::core::dialect::Dialect,
     pub select: &'a [String],
-    pub feature_flags: &'a copybook_core::FeatureFlags,
+    pub feature_flags: &'a copybook::core::FeatureFlags,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -49,7 +49,7 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
 
     log_strict_comments(args.strict_comments);
 
-    if args.preferred_zoned_encoding != copybook_codec::ZonedEncodingFormat::Auto
+    if args.preferred_zoned_encoding != copybook::codec::ZonedEncodingFormat::Auto
         && !args.preserve_zoned_encoding
     {
         let preferred = args.preferred_zoned_encoding;
@@ -121,7 +121,7 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
 
     let (summary, write_to_stdout) =
         run_with_output(args.input, args.output, |input_file, output_writer| {
-            Ok(copybook_codec::decode_file_to_jsonl(
+            Ok(copybook::codec::decode_file_to_jsonl(
                 &working_schema,
                 input_file,
                 output_writer,

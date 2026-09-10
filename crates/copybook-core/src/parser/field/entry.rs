@@ -1,4 +1,5 @@
 use crate::error::{ErrorCode, ErrorContext};
+use crate::internal::bounds;
 use crate::lexer::{Token, TokenPos};
 use crate::schema::{Field, FieldKind};
 use crate::{Error, Result};
@@ -125,8 +126,7 @@ fn normalize_filler_name(name: String, emit_filler: bool) -> String {
 }
 
 fn invalid_level_error(number: u32, line: usize) -> Error {
-    let safe_line_number =
-        copybook_overflow::safe_usize_to_u32(line, "error context line number").ok();
+    let safe_line_number = bounds::usize_to_u32(line, "error context line number").ok();
 
     Error::new(
         ErrorCode::CBKP001_SYNTAX,

@@ -2050,6 +2050,7 @@ fn verify_facade_invariants() -> Result<()> {
             "overpunch",
             "record_io",
         ],
+        &["overflow", "utils"],
     )?;
 
     let (readme_only, lib_readme_only) = symmetric_diff(&readme_module_set, &lib_module_set);
@@ -2066,7 +2067,20 @@ fn verify_facade_module_dependency_invariant(
     lib_module_set: &BTreeSet<String>,
     dep_module_set: &BTreeSet<String>,
     aliases: &[&str],
+    retired: &[&str],
 ) -> Result<()> {
+    // Retired 0.5 paths must stay out of the facade; restoring one fails
+    // the gate instead of silently reviving a retired ownership edge.
+    let restored: Vec<&str> = retired
+        .iter()
+        .filter(|name| lib_module_set.contains(**name))
+        .copied()
+        .collect();
+    if !restored.is_empty() {
+        bail!(
+            "copybook facade restores retired modules: {restored:?} | authoritative-source=crates/copybook/src/lib.rs"
+        );
+    }
     let mut dependency_modules = lib_module_set.clone();
     for alias in aliases {
         if !dep_module_set.contains(*alias) {
@@ -3189,6 +3203,7 @@ mod tests {
                 &lib_modules,
                 &dependency_modules,
                 &["determinism"],
+                &["overflow"],
             )
             .is_ok()
         );
@@ -3208,8 +3223,27 @@ mod tests {
                 &lib_modules,
                 &dependency_modules,
                 &["determinism"],
+                &["overflow"],
             )
             .is_err()
+        );
+    }
+
+    #[test]
+    fn facade_dependency_invariant_rejects_restored_retired_module() {
+        let lib_modules = BTreeSet::from(["codec".to_string(), "overflow".to_string()]);
+        let dependency_modules = BTreeSet::from(["codec".to_string()]);
+
+        let err = verify_facade_module_dependency_invariant(
+            &lib_modules,
+            &dependency_modules,
+            &[],
+            &["overflow", "utils"],
+        )
+        .unwrap_err();
+        assert!(
+            err.to_string().contains("restores retired modules"),
+            "unexpected error: {err}"
         );
     }
 

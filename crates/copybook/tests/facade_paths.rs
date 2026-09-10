@@ -32,12 +32,25 @@ fn deprecated_aliases_still_resolve() {
     let _ = std::any::type_name::<copybook::error_reporter::ErrorMode>();
 }
 
-/// Retired paths are gone from the facade.
+/// Retired paths stay out of the facade.
+///
+/// Restoring `pub mod overflow`/`pub mod utils` (or their dependencies)
+/// fails this test; the docs-truth facade-invariant gate enforces the
+/// same deny-list independently.
 #[test]
 fn retired_paths_are_absent() {
-    // This test documents intent; the compile contract is that the lines
-    // below do NOT resolve. They are kept as comments so a future reader
-    // sees the deliberate removal:
-    // - copybook::overflow (behavior moved to core::internal::bounds, #655)
-    // - copybook::utils (live behavior moved to core::internal, #655)
+    const LIB: &str = include_str!("../src/lib.rs");
+    for module in ["pub mod overflow", "pub mod utils"] {
+        assert!(
+            !LIB.contains(module),
+            "retired facade module restored: {module}"
+        );
+    }
+    const MANIFEST: &str = include_str!("../Cargo.toml");
+    for dep in ["copybook-overflow", "copybook-utils"] {
+        assert!(
+            !MANIFEST.contains(dep),
+            "retired facade dependency restored: {dep}"
+        );
+    }
 }

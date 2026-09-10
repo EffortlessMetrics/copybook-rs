@@ -503,7 +503,7 @@ impl EnterpriseWorkflow {
   "performance_baseline": {
     "measurement_date": "2025-09-27T00:00:00Z",
     "environment": {
-      "rust_version": "1.92+",
+      "rust_version": "1.95+",
       "target_triple": "x86_64-unknown-linux-gnu",
       "cpu_info": "Enterprise validation environment",
       "memory_gb": 64

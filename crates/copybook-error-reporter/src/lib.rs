@@ -122,11 +122,9 @@ impl ErrorReporter {
     ///
     /// Returns `Ok(())` when work may proceed and `Err(error)` when it must stop.
     ///
-    /// # Panics
-    /// Panics if `max_errors` is configured but becomes `None` during processing.
-    ///
     /// # Errors
-    /// Returns an error when severity or error limits require halting processing.
+    /// Returns the triggering error when severity requires halting, or
+    /// `CBKI002_TOO_MANY_ERRORS` when the configured error budget is exhausted.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn report_error(&mut self, error: Error) -> Result<(), Error> {
@@ -169,7 +167,7 @@ impl ErrorReporter {
             Ok(())
         } else if matches!(severity, ErrorSeverity::Error) && self.max_errors.is_some() {
             Err(Error::new(
-                ErrorCode::CBKS141_RECORD_TOO_LARGE, // Reusing for "too many errors"
+                ErrorCode::CBKI002_TOO_MANY_ERRORS,
                 format!(
                     "Maximum error limit reached: {}",
                     self.max_errors.unwrap_or(0)
@@ -365,7 +363,8 @@ impl ErrorReporter {
             // A file the user named cannot be read: nothing downstream can proceed
             | ErrorCode::CBKF001_FILE_READ_ERROR
             // Iterator/internal state errors are fatal
-            | ErrorCode::CBKI001_INVALID_STATE => ErrorSeverity::Fatal,
+            | ErrorCode::CBKI001_INVALID_STATE
+            | ErrorCode::CBKI002_TOO_MANY_ERRORS => ErrorSeverity::Fatal,
 
             // ODO clipping is a warning in lenient mode, error in strict mode
             ErrorCode::CBKS301_ODO_CLIPPED
@@ -579,6 +578,23 @@ mod tests {
         // Second error should stop processing (we've reached the limit)
         let error2 = Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "Error 2");
         assert!(reporter.report_error(error2).is_err());
+    }
+
+    #[test]
+    fn test_max_errors_limit_reports_dedicated_code() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, Some(1));
+
+        let error1 = Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, "Error 1");
+        assert!(reporter.report_error(error1).is_ok());
+
+        // Budget exhaustion must carry its own infrastructure identity rather
+        // than reusing the record-too-large schema code.
+        let error2 = Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "Error 2");
+        let halted = reporter
+            .report_error(error2)
+            .expect_err("error budget should be exhausted");
+        assert_eq!(halted.code, ErrorCode::CBKI002_TOO_MANY_ERRORS);
+        assert!(halted.message.contains("Maximum error limit reached"));
     }
 
     #[test]

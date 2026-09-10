@@ -1,8 +1,8 @@
-//! Integration tests for copybook-governance-grid.
+//! Integration tests for governance static mappings.
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use copybook_governance_grid::{
+use copybook_governance::{
     Feature, FeatureFlags, FeatureId, audit_governance, feature_flags_for_support_id,
     governance_bindings, summarize_governance,
 };
@@ -120,7 +120,7 @@ fn all_support_ids_have_bindings() {
 
 #[test]
 fn governance_bindings_cover_all_support_matrix_entries() {
-    let support_ids: Vec<_> = copybook_governance_grid::support_matrix::all_features()
+    let support_ids: Vec<_> = copybook_governance::support_matrix::all_features()
         .iter()
         .map(|f| f.id)
         .collect();
@@ -133,7 +133,7 @@ fn governance_bindings_cover_all_support_matrix_entries() {
 
 #[test]
 fn grid_binding_flags_are_valid_feature_variants() {
-    let all = copybook_governance_grid::feature_flags::all_features();
+    let all = copybook_governance::feature_flags::all_features();
     for binding in governance_bindings() {
         for flag in binding.feature_flags {
             assert!(
@@ -258,13 +258,13 @@ fn re_exported_feature_flags_builder_works() {
 
 #[test]
 fn re_exported_support_matrix_all_features_accessible() {
-    let features = copybook_governance_grid::support_matrix::all_features();
+    let features = copybook_governance::support_matrix::all_features();
     assert_eq!(features.len(), 7);
 }
 
 #[test]
 fn re_exported_feature_flags_module_accessible() {
-    let all = copybook_governance_grid::feature_flags::all_features();
+    let all = copybook_governance::feature_flags::all_features();
     // #656 Phase C: 18 -> 15 flags.
     assert_eq!(all.len(), 15);
 }

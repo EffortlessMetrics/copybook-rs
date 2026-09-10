@@ -8,7 +8,7 @@
 
 use std::collections::HashSet;
 
-use copybook_governance_runtime::{
+use copybook_governance::{
     Feature, FeatureFlags, FeatureGovernanceState, FeatureId, governance_bindings,
     governance_state_for_support_id, governance_states, is_support_runtime_available,
     runtime_summary, summarize_governance,
@@ -115,7 +115,7 @@ fn comp1comp2_stable_binding_available_in_all_combinations() {
             .build(),
         {
             let mut all_off = FeatureFlags::default();
-            for feat in copybook_governance_runtime::feature_flags::all_features() {
+            for feat in copybook_governance::feature_flags::all_features() {
                 all_off.disable(feat);
             }
             all_off
@@ -220,14 +220,14 @@ fn runtime_enabled_iff_missing_flags_empty_for_all_configs() {
             .build(),
         {
             let mut f = FeatureFlags::default();
-            for feat in copybook_governance_runtime::feature_flags::all_features() {
+            for feat in copybook_governance::feature_flags::all_features() {
                 f.enable(feat);
             }
             f
         },
         {
             let mut f = FeatureFlags::default();
-            for feat in copybook_governance_runtime::feature_flags::all_features() {
+            for feat in copybook_governance::feature_flags::all_features() {
                 f.disable(feat);
             }
             f
@@ -272,8 +272,7 @@ fn support_status_in_governance_state_matches_support_matrix() {
     let flags = FeatureFlags::default();
     for state in governance_states(&flags) {
         let support =
-            copybook_governance_runtime::support_matrix::find_feature_by_id(state.support_id)
-                .unwrap();
+            copybook_governance::support_matrix::find_feature_by_id(state.support_id).unwrap();
         assert_eq!(
             state.support_status, support.status,
             "{:?}: status mismatch between governance state and support matrix",
@@ -342,7 +341,7 @@ fn runtime_summary_field_values_are_consistent() {
 
 #[test]
 fn from_support_for_each_feature_preserves_all_metadata() {
-    for feature in copybook_governance_runtime::support_matrix::all_features() {
+    for feature in copybook_governance::support_matrix::all_features() {
         let state = FeatureGovernanceState::from_support(feature);
         assert_eq!(state.support_id, feature.id);
         assert_eq!(state.support_name, feature.name);

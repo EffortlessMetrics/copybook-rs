@@ -742,7 +742,7 @@ dependencies = [
  "copybook-error",
  "copybook-error-reporter",
  "copybook-fixed",
- "copybook-governance-contracts",
+ "copybook-governance",
  "copybook-overflow",
  "copybook-rdw",
  "copybook-support-matrix",
@@ -794,7 +794,6 @@ dependencies = [
  "copybook-corruption-predicates",
  "copybook-fixed",
  "copybook-governance",
- "copybook-governance-runtime",
  "copybook-rdw",
  "copybook-rdw-predicates",
  "copybook-safe-index",
@@ -924,9 +923,8 @@ dependencies = [
 name = "copybook-contracts"
 version = "0.5.0"
 dependencies = [
- "serde",
+ "copybook-core",
  "serde_json",
- "serde_plain",
 ]
 
 [[package]]
@@ -936,8 +934,8 @@ dependencies = [
  "anyhow",
  "copybook-error",
  "copybook-error-reporter",
- "copybook-governance-contracts",
  "copybook-overflow",
+ "copybook-support-matrix",
  "copybook-utils",
  "logos",
  "proptest",
@@ -1061,33 +1059,11 @@ dependencies = [
 name = "copybook-governance"
 version = "0.5.0"
 dependencies = [
- "copybook-governance-grid",
- "copybook-governance-runtime",
- "serde_json",
-]
-
-[[package]]
-name = "copybook-governance-contracts"
-version = "0.5.0"
-dependencies = [
  "copybook-contracts",
  "copybook-support-matrix",
-]
-
-[[package]]
-name = "copybook-governance-grid"
-version = "0.5.0"
-dependencies = [
- "copybook-governance-contracts",
- "serde_plain",
-]
-
-[[package]]
-name = "copybook-governance-runtime"
-version = "0.5.0"
-dependencies = [
- "copybook-governance-grid",
  "serde",
+ "serde_json",
+ "serde_plain",
 ]
 
 [[package]]
@@ -1138,8 +1114,7 @@ dependencies = [
  "copybook-corruption-rdw",
  "copybook-error",
  "copybook-fixed",
- "copybook-governance-grid",
- "copybook-governance-runtime",
+ "copybook-governance",
  "copybook-overflow",
  "copybook-rdw",
  "copybook-rdw-predicates",

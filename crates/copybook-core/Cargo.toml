@@ -33,7 +33,7 @@ thiserror.workspace = true
 tracing.workspace = true
 logos.workspace = true
 sha2.workspace = true
-copybook-governance-contracts.workspace = true
+copybook-support-matrix.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true

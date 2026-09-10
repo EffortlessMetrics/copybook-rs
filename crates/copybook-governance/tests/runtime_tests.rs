@@ -2,7 +2,7 @@
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use copybook_governance_runtime::{
+use copybook_governance::{
     Feature, FeatureCategory, FeatureFlags, FeatureGovernanceState, FeatureId, SupportStatus,
     governance_state_for_support_id, governance_states, is_support_runtime_available,
     runtime_summary, support_states,
@@ -56,7 +56,7 @@ fn support_states_preserve_support_matrix_ids() {
 #[test]
 fn support_states_count_matches_all_features() {
     let states = support_states();
-    let all = copybook_governance_runtime::support_matrix::all_features();
+    let all = copybook_governance::support_matrix::all_features();
     assert_eq!(states.len(), all.len());
 }
 
@@ -65,8 +65,7 @@ fn support_states_count_matches_all_features() {
 #[test]
 fn from_support_sets_no_governance_rationale() {
     let feature =
-        copybook_governance_runtime::support_matrix::find_feature_by_id(FeatureId::EditedPic)
-            .unwrap();
+        copybook_governance::support_matrix::find_feature_by_id(FeatureId::EditedPic).unwrap();
     let state = FeatureGovernanceState::from_support(feature);
     assert_eq!(state.rationale, "No runtime governance mapping requested.");
     assert!(state.runtime_enabled);
@@ -75,8 +74,7 @@ fn from_support_sets_no_governance_rationale() {
 #[test]
 fn from_support_copies_support_metadata_correctly() {
     let feature =
-        copybook_governance_runtime::support_matrix::find_feature_by_id(FeatureId::SignSeparate)
-            .unwrap();
+        copybook_governance::support_matrix::find_feature_by_id(FeatureId::SignSeparate).unwrap();
     let state = FeatureGovernanceState::from_support(feature);
     assert_eq!(state.support_id, FeatureId::SignSeparate);
     assert_eq!(state.support_name, feature.name);
@@ -87,7 +85,7 @@ fn from_support_copies_support_metadata_correctly() {
 
 #[test]
 fn from_support_for_every_feature_has_empty_flags() {
-    for feature in copybook_governance_runtime::support_matrix::all_features() {
+    for feature in copybook_governance::support_matrix::all_features() {
         let state = FeatureGovernanceState::from_support(feature);
         assert!(state.required_feature_flags.is_empty());
         assert!(state.missing_feature_flags.is_empty());
@@ -126,7 +124,7 @@ fn governance_state_reports_missing_flags() {
 fn governance_state_stable_entries_ignore_flag_state() {
     // COMP-1/COMP-2 and SIGN SEPARATE stay available in every configuration.
     let mut all_off = FeatureFlags::default();
-    for feat in copybook_governance_runtime::feature_flags::all_features() {
+    for feat in copybook_governance::feature_flags::all_features() {
         all_off.disable(feat);
     }
     for id in [FeatureId::Comp1Comp2, FeatureId::SignSeparate] {
@@ -255,7 +253,7 @@ fn renames_enabled_when_flag_on() {
 #[test]
 fn ungoverned_features_always_available() {
     let mut flags = FeatureFlags::default();
-    for f in copybook_governance_runtime::feature_flags::all_features() {
+    for f in copybook_governance::feature_flags::all_features() {
         flags.disable(f);
     }
     let ungoverned = [
@@ -291,7 +289,7 @@ fn comp1comp2_available_regardless_of_other_flags() {
 #[test]
 fn governance_states_with_all_enabled() {
     let mut flags = FeatureFlags::default();
-    for f in copybook_governance_runtime::feature_flags::all_features() {
+    for f in copybook_governance::feature_flags::all_features() {
         flags.enable(f);
     }
     let states = governance_states(&flags);
@@ -309,7 +307,7 @@ fn governance_states_with_all_enabled() {
 #[test]
 fn governance_states_with_all_disabled() {
     let mut flags = FeatureFlags::default();
-    for f in copybook_governance_runtime::feature_flags::all_features() {
+    for f in copybook_governance::feature_flags::all_features() {
         flags.disable(f);
     }
     let states = governance_states(&flags);
@@ -328,7 +326,7 @@ fn governance_states_with_all_disabled() {
 fn governance_states_default_count_matches_bindings() {
     let flags = FeatureFlags::default();
     let states = governance_states(&flags);
-    let bindings = copybook_governance_runtime::governance_bindings();
+    let bindings = copybook_governance::governance_bindings();
     assert_eq!(states.len(), bindings.len());
 }
 
@@ -362,7 +360,7 @@ fn runtime_summary_counts_with_defaults() {
 #[test]
 fn runtime_summary_all_enabled_no_unavailable() {
     let mut flags = FeatureFlags::default();
-    for f in copybook_governance_runtime::feature_flags::all_features() {
+    for f in copybook_governance::feature_flags::all_features() {
         flags.enable(f);
     }
     let summary = runtime_summary(&flags);
@@ -437,7 +435,7 @@ fn summary_has_unavailable_when_renames_off() {
 #[test]
 fn summary_no_unavailable_when_all_on() {
     let mut flags = FeatureFlags::default();
-    for f in copybook_governance_runtime::feature_flags::all_features() {
+    for f in copybook_governance::feature_flags::all_features() {
         flags.enable(f);
     }
     let summary = runtime_summary(&flags);
@@ -469,7 +467,6 @@ fn re_exported_feature_category_accessible() {
 #[test]
 fn re_exported_support_status_accessible() {
     let feature =
-        copybook_governance_runtime::support_matrix::find_feature_by_id(FeatureId::NestedOdo)
-            .unwrap();
+        copybook_governance::support_matrix::find_feature_by_id(FeatureId::NestedOdo).unwrap();
     assert_eq!(feature.status, SupportStatus::Partial);
 }

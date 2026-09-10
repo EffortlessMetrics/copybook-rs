@@ -3,7 +3,7 @@
 //!
 //! Provides CLI access to:
 //! - The canonical support matrix (`copybook-support-matrix`).
-//! - Runtime governance linkage to feature flags (`copybook-governance-grid`).
+//! - Runtime governance linkage to feature flags (`copybook-governance` bindings).
 
 use crate::exit_codes::ExitCode;
 use copybook_governance as governance;

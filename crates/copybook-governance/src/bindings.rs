@@ -4,7 +4,7 @@
 //! The grid is intentionally explicit so changes in parser capability, runtime feature flags,
 //! and docs can be tracked as a first-class compatibility surface.
 
-use crate::{feature_flags::Feature, support_matrix::FeatureId};
+use super::{feature_flags::Feature, support_matrix::FeatureId};
 use std::collections::HashSet;
 
 /// A single link between a support-matrix entry and its runtime feature flags.
@@ -146,7 +146,7 @@ fn summarize_governance_from_bindings(
 #[must_use]
 pub fn summarize_governance() -> GovernanceSummary {
     summarize_governance_from_bindings(
-        crate::support_matrix::all_features().iter().map(|f| f.id),
+        super::support_matrix::all_features().iter().map(|f| f.id),
         &GOVERNANCE_BINDINGS,
     )
 }
@@ -159,7 +159,7 @@ pub fn summarize_governance() -> GovernanceSummary {
 #[must_use]
 pub fn audit_governance() -> GovernanceAudit {
     audit_governance_from_bindings(
-        crate::support_matrix::all_features().iter().map(|f| f.id),
+        super::support_matrix::all_features().iter().map(|f| f.id),
         &GOVERNANCE_BINDINGS,
     )
 }

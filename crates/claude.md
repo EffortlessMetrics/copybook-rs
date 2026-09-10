@@ -16,7 +16,7 @@
 | Framing | `copybook-fixed`, `copybook-rdw`, `copybook-rdw-predicates`, `copybook-record-io` |
 | Schema | `copybook-determinism`, `copybook-support-matrix` |
 | Compatibility | `copybook-cli-determinism`, `copybook-dialect`, `copybook-lexer` |
-| Governance | `copybook-contracts`, `copybook-governance`, `copybook-governance-contracts`, `copybook-governance-grid`, `copybook-governance-runtime` |
+| Governance | `copybook-contracts`, `copybook-governance` |
 | Safety | `copybook-error`, `copybook-error-reporter`, `copybook-overflow`, `copybook-safe-index`, `copybook-safe-ops`, `copybook-safe-text`, `copybook-utils` |
 | Quality | `copybook-corruption`, `copybook-corruption-detectors`, `copybook-corruption-predicates`, `copybook-corruption-rdw` |
 | Other | `copybook-arrow`, `copybook-sequence-ring` |

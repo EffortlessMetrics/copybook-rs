@@ -7,3 +7,4 @@
 //! so the convergence work adds no public API surface.
 
 pub(crate) mod bounds;
+pub(crate) mod collections;

@@ -3,20 +3,21 @@
 #![allow(clippy::unwrap_used)]
 
 use copybook_core::{
-    FieldKind,
+    FieldKind, ParseOptions,
     feature_flags::{Feature, FeatureFlags},
-    parse_copybook,
+    parse_copybook_with_feature_flags,
 };
 
-fn enable_renames_r4_r6_feature() {
+// #656 Phase D: explicit per-operation flags; no process-global state.
+fn renames_r4_r6_flags() -> FeatureFlags {
     let mut flags = FeatureFlags::default();
     flags.enable(Feature::RenamesR4R6);
-    FeatureFlags::set_global(flags);
+    flags
 }
 
 #[test]
 fn test_r4_single_redefines_renames_accepted_with_feature_flag() {
-    enable_renames_r4_r6_feature();
+    let flags = renames_r4_r6_flags();
 
     let copybook = r#"
        01  TRANSACTION-RECORD.
@@ -31,7 +32,7 @@ fn test_r4_single_redefines_renames_accepted_with_feature_flag() {
            66  PAYMENT-INFO RENAMES CHECK-DATA THRU CHECK-DATA.
     "#;
 
-    let schema = parse_copybook(copybook)
+    let schema = parse_copybook_with_feature_flags(copybook, &ParseOptions::default(), &flags)
         .expect("RENAMES over single REDEFINES should resolve when feature enabled");
 
     let alias = schema
@@ -51,7 +52,7 @@ fn test_r4_single_redefines_renames_accepted_with_feature_flag() {
 
 #[test]
 fn test_r5_occurs_alias_accepted_with_feature_flag() {
-    enable_renames_r4_r6_feature();
+    let flags = renames_r4_r6_flags();
 
     let copybook = r#"
        01  ORDER-RECORD.
@@ -62,7 +63,7 @@ fn test_r5_occurs_alias_accepted_with_feature_flag() {
            66  ORDER-ITEMS RENAMES LINE-ITEMS THRU LINE-ITEMS.
     "#;
 
-    let schema = parse_copybook(copybook)
+    let schema = parse_copybook_with_feature_flags(copybook, &ParseOptions::default(), &flags)
         .expect("RENAMES over an entire OCCURS array should resolve when feature enabled");
 
     let alias = schema

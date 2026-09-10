@@ -5,7 +5,9 @@ use crate::exit_codes::ExitCode;
 use crate::utils::{InputRole, read_input_or_stdin};
 use crate::write_stdout_all;
 use copybook_codec::Codepage;
-use copybook_core::{Field, FieldKind, Occurs, ParseOptions, parse_copybook_with_options};
+use copybook_core::{
+    FeatureFlags, Field, FieldKind, Occurs, ParseOptions, parse_copybook_with_feature_flags,
+};
 use std::fmt::Write as _;
 use std::path::PathBuf;
 use tracing::info;
@@ -25,6 +27,7 @@ pub fn run(
     strict: bool,
     strict_comments: bool,
     dialect: crate::DialectPreference,
+    feature_flags: &FeatureFlags,
 ) -> anyhow::Result<ExitCode> {
     info!("Inspecting copybook: {:?}", copybook);
 
@@ -44,7 +47,8 @@ pub fn run(
         allow_inline_comments: !strict_comments,
         dialect: dialect.into(),
     };
-    let schema = parse_copybook_with_options(&copybook_text, &options)?;
+    // #656 Phase D: CLI-resolved flags passed explicitly; no global state.
+    let schema = parse_copybook_with_feature_flags(&copybook_text, &options, feature_flags)?;
 
     let rows: Vec<Row> = schema
         .all_fields()

@@ -30,6 +30,14 @@ use cucumber::World as _;
 
 use crate::world::CopybookWorld;
 
+/// Explicit per-scenario flags for the BDD smoke harness (#656 Phase D).
+pub(crate) fn harness_feature_flags() -> FeatureFlags {
+    FeatureFlags::builder()
+        .enable_category(FeatureCategory::Experimental)
+        .enable_category(FeatureCategory::Enterprise)
+        .build()
+}
+
 const SMOKE_TAGS: [&str; 53] = [
     "raw",
     "metadata",
@@ -88,17 +96,18 @@ const SMOKE_TAGS: [&str; 53] = [
 
 #[tokio::main]
 async fn main() {
-    FeatureFlags::set_global(
-        FeatureFlags::builder()
-            .enable_category(FeatureCategory::Experimental)
-            .enable_category(FeatureCategory::Enterprise)
-            .build(),
-    );
-
     let features_root = concat!(env!("CARGO_MANIFEST_DIR"), "/features");
 
     CopybookWorld::cucumber()
         .with_default_cli()
+        .before(|_, _, _, world| {
+            Box::pin(async move {
+                *world = CopybookWorld {
+                    feature_flags: harness_feature_flags(),
+                    ..Default::default()
+                };
+            })
+        })
         .filter_run_and_exit(features_root, |feature, _rule, scenario| {
             feature
                 .tags

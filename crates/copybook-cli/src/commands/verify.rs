@@ -16,7 +16,7 @@ use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, RecordIterator,
     UnmappablePolicy,
 };
-use copybook_core::{Error, parse_copybook_with_options};
+use copybook_core::{Error, FeatureFlags, parse_copybook_with_feature_flags};
 use std::fmt::Write as _;
 use std::fs::{File, metadata};
 use std::io::BufReader;
@@ -112,6 +112,7 @@ pub fn run(
     input: &Path,
     report: Option<PathBuf>,
     opts: &VerifyOptions,
+    feature_flags: &FeatureFlags,
 ) -> anyhow::Result<ExitCode> {
     info!("Verifying data file: {:?}", input);
 
@@ -130,7 +131,8 @@ pub fn run(
         emit_filler: false,
         dialect: opts.dialect,
     });
-    let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
+    // #656 Phase D: CLI-resolved flags passed explicitly; no global state.
+    let schema = parse_copybook_with_feature_flags(&copybook_text, &parse_options, feature_flags)?;
 
     // Apply field projection if --select is provided
     let working_schema = apply_field_projection(schema, opts.select)?;

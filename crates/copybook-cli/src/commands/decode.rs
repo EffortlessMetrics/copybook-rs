@@ -40,6 +40,7 @@ pub struct DecodeArgs<'a> {
     pub strict_policy: bool,
     pub dialect: copybook_core::dialect::Dialect,
     pub select: &'a [String],
+    pub feature_flags: &'a copybook_core::FeatureFlags,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -98,6 +99,7 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
             dialect: args.dialect,
         },
         args.select,
+        args.feature_flags,
     )?;
 
     let error_policy = effective_error_policy(args.strict, args.fail_fast, args.max_errors);

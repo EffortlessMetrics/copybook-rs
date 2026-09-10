@@ -21,16 +21,12 @@ use copybook_core::error::ErrorCode;
 /// Test CBKS610: RENAMES alias spans multiple REDEFINES alternatives with
 /// the RenamesR4R6 feature flag enabled.
 ///
-/// This test uses FeatureFlags::set_global to enable R4/R6 scenarios.
-/// Because OnceLock can only be set once per process, this test is in its
-/// own binary (integration test file) so it doesn't conflict with other tests.
+/// Explicit per-operation flags (#656 Phase D: no process-global state).
 #[test]
 fn test_cbks610_multiple_redefines_with_r4r6_flag() {
-    // Enable the R4/R6 feature flag for this test process
     use copybook_core::feature_flags::{Feature, FeatureFlags};
     let mut flags = FeatureFlags::default();
     flags.enable(Feature::RenamesR4R6);
-    FeatureFlags::set_global(flags);
 
     let copybook = r#"
        01  TRANSACTION-RECORD.
@@ -45,7 +41,11 @@ fn test_cbks610_multiple_redefines_with_r4r6_flag() {
            66  PAYMENT-INFO RENAMES CHECK-DATA THRU CARD-DATA.
     "#;
 
-    let result = copybook_core::parse_copybook(copybook);
+    let result = copybook_core::parse_copybook_with_feature_flags(
+        copybook,
+        &copybook_core::ParseOptions::default(),
+        &flags,
+    );
 
     assert!(
         result.is_err(),
@@ -68,12 +68,10 @@ fn test_cbks610_multiple_redefines_with_r4r6_flag() {
 /// the RenamesR4R6 feature flag enabled.
 #[test]
 fn test_cbks611_partial_occurs_with_r4r6_flag() {
-    // Note: FeatureFlags::set_global uses OnceLock - if test_cbks610 already
-    // set it, this will be a no-op but the flag should still be enabled.
+    // Explicit per-operation flags (#656 Phase D: no process-global state).
     use copybook_core::feature_flags::{Feature, FeatureFlags};
     let mut flags = FeatureFlags::default();
     flags.enable(Feature::RenamesR4R6);
-    FeatureFlags::set_global(flags);
 
     let copybook = r#"
        01  ORDER-RECORD.
@@ -85,7 +83,11 @@ fn test_cbks611_partial_occurs_with_r4r6_flag() {
            66  ORDER-DATA RENAMES LINE-ITEMS THRU TOTAL-AMT.
     "#;
 
-    let result = copybook_core::parse_copybook(copybook);
+    let result = copybook_core::parse_copybook_with_feature_flags(
+        copybook,
+        &copybook_core::ParseOptions::default(),
+        &flags,
+    );
 
     assert!(
         result.is_err(),

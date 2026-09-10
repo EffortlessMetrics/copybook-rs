@@ -73,12 +73,16 @@ impl LayoutContext {
 /// - `ZeroTolerant`: `min_count` always treated as 0
 /// - `OneTolerant`: `min_count` clamped to at least 1
 ///
+/// Flag state comes from a fresh `FeatureFlags::from_env()` read performed
+/// for this call only (#656 Phase D: no process-global state). Callers with
+/// resolved configuration should prefer `resolve_layout_with_feature_flags`.
+///
 /// # Errors
 /// Returns an error if field configuration is invalid or the record size exceeds limits.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn resolve_layout(schema: &mut Schema, dialect: Dialect) -> Result<()> {
-    resolve_layout_with_feature_flags(schema, dialect, FeatureFlags::global())
+    resolve_layout_with_feature_flags(schema, dialect, &FeatureFlags::from_env())
 }
 
 pub(crate) fn resolve_layout_with_feature_flags(

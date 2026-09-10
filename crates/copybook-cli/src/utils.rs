@@ -4,7 +4,8 @@
 use crate::exit_codes::ExitCode;
 use copybook_codec::RunSummary;
 use copybook_core::{
-    Error as CoreError, ErrorCode, ParseOptions, Schema, parse_copybook_with_options,
+    Error as CoreError, ErrorCode, FeatureFlags, ParseOptions, Schema,
+    parse_copybook_with_feature_flags,
 };
 use std::fmt::Write as FmtWrite;
 use std::fs;
@@ -53,10 +54,12 @@ pub fn parse_projected_schema(
     copybook: &Path,
     config: &ParseOptionsConfig,
     select_args: &[String],
+    feature_flags: &FeatureFlags,
 ) -> anyhow::Result<Schema> {
     let copybook_text = read_input_or_stdin(InputRole::Copybook, copybook)?;
     let parse_options = build_parse_options(config);
-    let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
+    // #656 Phase D: CLI-resolved flags passed explicitly; no global state.
+    let schema = parse_copybook_with_feature_flags(&copybook_text, &parse_options, feature_flags)?;
     apply_field_projection(schema, select_args)
 }
 

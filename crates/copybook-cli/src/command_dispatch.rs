@@ -8,21 +8,31 @@ use crate::cli_config::effective_dialect;
 use crate::exit_codes::ExitCode;
 use crate::{Commands, commands};
 use anyhow::anyhow;
+use copybook_core::FeatureFlags;
 use std::convert::TryFrom;
 
 type CommandOutcome = (anyhow::Result<ExitCode>, &'static str);
 
-pub(crate) fn run_command(command: Commands, strict_policy: bool) -> CommandOutcome {
+pub(crate) fn run_command(
+    command: Commands,
+    strict_policy: bool,
+    feature_flags: &FeatureFlags,
+) -> CommandOutcome {
     match command {
-        command @ Commands::Parse { .. } => run_parse_command(command),
-        command @ Commands::Inspect { .. } => run_inspect_command(command),
-        command @ Commands::Decode { .. } => run_decode_command(command, strict_policy),
-        command @ Commands::Encode { .. } => run_encode_command(command),
+        command @ Commands::Parse { .. } => run_parse_command(command, feature_flags),
+        command @ Commands::Inspect { .. } => run_inspect_command(command, feature_flags),
+        command @ Commands::Decode { .. } => {
+            run_decode_command(command, strict_policy, feature_flags)
+        }
+        command @ Commands::Encode { .. } => run_encode_command(command, feature_flags),
         #[cfg(feature = "audit")]
-        command @ Commands::Audit { .. } => run_audit_command(command),
-        command @ Commands::Verify { .. } => run_verify_command(command),
-        Commands::Support { args } => (commands::support::run(&args), "support"),
-        Commands::Determinism { command } => (commands::determinism::run(&command), "determinism"),
+        command @ Commands::Audit { .. } => run_audit_command(command, feature_flags),
+        command @ Commands::Verify { .. } => run_verify_command(command, feature_flags),
+        Commands::Support { args } => (commands::support::run(&args, feature_flags), "support"),
+        Commands::Determinism { command } => (
+            commands::determinism::run(&command, feature_flags),
+            "determinism",
+        ),
     }
 }
 
@@ -35,7 +45,7 @@ fn dispatch_mismatch(operation: &'static str) -> CommandOutcome {
     )
 }
 
-fn run_parse_command(command: Commands) -> CommandOutcome {
+fn run_parse_command(command: Commands, feature_flags: &FeatureFlags) -> CommandOutcome {
     let Commands::Parse {
         copybook,
         output,
@@ -55,12 +65,13 @@ fn run_parse_command(command: Commands) -> CommandOutcome {
             strict,
             strict_comments,
             effective_dialect,
+            feature_flags,
         ),
         "parse",
     )
 }
 
-fn run_inspect_command(command: Commands) -> CommandOutcome {
+fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> CommandOutcome {
     let Commands::Inspect {
         copybook,
         codepage,
@@ -80,12 +91,17 @@ fn run_inspect_command(command: Commands) -> CommandOutcome {
             strict,
             strict_comments,
             effective_dialect,
+            feature_flags,
         ),
         "inspect",
     )
 }
 
-fn run_decode_command(command: Commands, strict_policy: bool) -> CommandOutcome {
+fn run_decode_command(
+    command: Commands,
+    strict_policy: bool,
+    feature_flags: &FeatureFlags,
+) -> CommandOutcome {
     let Commands::Decode {
         copybook,
         input,
@@ -136,12 +152,13 @@ fn run_decode_command(command: Commands, strict_policy: bool) -> CommandOutcome 
             strict_policy,
             dialect: effective_dialect.into(),
             select: &select,
+            feature_flags,
         }),
         "decode",
     )
 }
 
-fn run_encode_command(command: Commands) -> CommandOutcome {
+fn run_encode_command(command: Commands, feature_flags: &FeatureFlags) -> CommandOutcome {
     let Commands::Encode {
         copybook,
         input,
@@ -191,13 +208,14 @@ fn run_encode_command(command: Commands) -> CommandOutcome {
                 dialect: effective_dialect.into(),
                 select: &select,
             },
+            feature_flags,
         ),
         "encode",
     )
 }
 
 #[cfg(feature = "audit")]
-fn run_audit_command(command: Commands) -> CommandOutcome {
+fn run_audit_command(command: Commands, feature_flags: &FeatureFlags) -> CommandOutcome {
     let Commands::Audit { audit_command } = command else {
         return dispatch_mismatch("audit");
     };
@@ -208,13 +226,13 @@ fn run_audit_command(command: Commands) -> CommandOutcome {
     };
     (
         runtime
-            .block_on(commands::audit::run(audit_command))
+            .block_on(commands::audit::run(audit_command, feature_flags))
             .map_err(|err| anyhow!(err)),
         "audit",
     )
 }
 
-fn run_verify_command(command: Commands) -> CommandOutcome {
+fn run_verify_command(command: Commands, feature_flags: &FeatureFlags) -> CommandOutcome {
     let Commands::Verify {
         copybook,
         input,
@@ -255,7 +273,7 @@ fn run_verify_command(command: Commands) -> CommandOutcome {
         select: &select,
     };
     (
-        commands::verify::run(&copybook, &input, report, &opts),
+        commands::verify::run(&copybook, &input, report, &opts, feature_flags),
         "verify",
     )
 }

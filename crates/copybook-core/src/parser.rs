@@ -97,12 +97,18 @@ pub fn parse_with_options_and_feature_flags(
 
 /// Parse a COBOL copybook text into a schema with specific options
 ///
+/// Flag state comes from a fresh `FeatureFlags::from_env()` read performed
+/// for this call only (#656 Phase D: no process-global state). Embedders
+/// that resolve configuration themselves should prefer
+/// [`parse_with_options_and_feature_flags`] with an explicit value.
+/// The CLI always passes explicit flags; it never relies on this fallback.
+///
 /// # Errors
 /// Returns an error if the copybook contains syntax errors or unsupported features.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> {
-    parse_with_options_and_feature_flags(text, options, FeatureFlags::global())
+    parse_with_options_and_feature_flags(text, options, &FeatureFlags::from_env())
 }
 
 /// Options for controlling COBOL copybook parsing behavior.

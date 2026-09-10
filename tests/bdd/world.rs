@@ -11,6 +11,9 @@ use crate::helpers::{
 /// BDD World struct to maintain test state across steps
 #[derive(Debug, Default, cucumber::World)]
 pub struct CopybookWorld {
+    /// Explicit feature flags for this scenario (#656 Phase D: no global).
+    /// Initialized by the `before` hook in the harness mains.
+    pub(crate) feature_flags: copybook_governance::FeatureFlags,
     /// The copybook text being parsed
     pub(crate) copybook_text: Option<String>,
     /// The parsed schema

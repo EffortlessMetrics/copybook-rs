@@ -92,7 +92,6 @@ dependencies = [
  "blake3",
  "copybook-charset",
  "copybook-core",
- "copybook-corruption",
  "copybook-error",
  "copybook-fixed",
  "copybook-rdw",

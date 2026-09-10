@@ -1123,4 +1123,4 @@ For enterprise deployment support:
 - Contact enterprise support for production deployments
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

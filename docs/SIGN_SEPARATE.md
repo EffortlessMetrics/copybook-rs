@@ -217,4 +217,4 @@ The former `sign_separate` flag and `COPYBOOK_FF_SIGN_SEPARATE` override were re
 - COBOL 2014 Standard: Section 8.5.4 SIGN clause
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

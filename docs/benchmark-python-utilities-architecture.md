@@ -1028,4 +1028,4 @@ def create_github_config_from_env() -> GitHubConfig:
 This comprehensive Python utilities architecture provides enterprise-grade benchmark automation capabilities while maintaining clean abstractions, comprehensive error handling, and seamless integration with the existing copybook-bench infrastructure.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

@@ -571,7 +571,7 @@ copybook inspect schema.cpy --show-metadata | grep LRECL
 ### Documentation Resources
 - [README.md](../README.md) - Usage examples
 - [CLI_REFERENCE.md](CLI_REFERENCE.md) - Complete CLI documentation
-- [ERROR_CODES.md](ERROR_CODES.md) - Detailed error descriptions
+- [ERROR_CODES.md](reference/ERROR_CODES.md) - Detailed error descriptions
 - [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) - Migration from other tools
 
 ### Diagnostic Commands
@@ -598,4 +598,4 @@ When reporting issues, include:
 5. Expected vs actual behavior
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

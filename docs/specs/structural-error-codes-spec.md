@@ -646,4 +646,4 @@ pub struct ReportingConfig {
 This comprehensive error code specification establishes a robust foundation for structural validation error handling in copybook-rs, providing clear programmatic interfaces, detailed context information, and actionable remediation guidance for enterprise mainframe data processing scenarios.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

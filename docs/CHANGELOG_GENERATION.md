@@ -114,4 +114,4 @@ feat: add new feature ([#123](https://github.com/EffortlessMetrics/copybook-rs/i
 - Changelog generation is reproducible and doesn't depend on network access
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

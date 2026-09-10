@@ -1358,4 +1358,4 @@ The Enterprise Audit System API contracts provide:
 All APIs are designed for seamless integration with existing copybook-rs workflows while providing comprehensive enterprise audit capabilities.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

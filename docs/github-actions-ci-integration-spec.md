@@ -899,4 +899,4 @@ thresholds:
 This comprehensive CI/CD integration provides enterprise-grade automation for copybook-rs performance monitoring while maintaining security, compliance, and operational excellence standards.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

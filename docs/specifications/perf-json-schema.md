@@ -355,4 +355,4 @@ While maintaining backward compatibility, future versions may include:
 This specification ensures that the `perf.json` schema provides robust, enterprise-grade performance reporting while maintaining simplicity and machine-readability for automated CI/CD integration.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

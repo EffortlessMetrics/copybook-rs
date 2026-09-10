@@ -225,4 +225,4 @@ All 10 Acceptance Criteria test requirements are satisfied through comprehensive
 This architecture ensures that copybook-rs maintains its position as the **premier enterprise mainframe data processing solution** while adding **world-class performance monitoring** and **regulatory compliance capabilities** that exceed industry standards.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

@@ -522,4 +522,4 @@ mod prop_tests {
 This domain schema provides a comprehensive foundation for implementing zoned decimal encoding detection and preservation while maintaining copybook-rs's enterprise-grade performance and reliability standards.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

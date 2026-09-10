@@ -35,7 +35,7 @@ Coverage is tracked using **cargo-tarpaulin** and reported to Codecov.
 | parser.rs | 90% | High | Core parsing logic |
 | pic.rs | 85% | High | PIC clause parsing |
 | layout.rs | 88% | High | Record layout calculation |
-| error.rs | 95% | High | Error types and codes |
+| copybook-error/src/lib.rs | 95% | High | Error types and codes |
 | schema.rs | 90% | High | Schema structures |
 | projection.rs | 80% | Medium | Field projection |
 | charset.rs | 85% | Medium | Character set conversion |
@@ -206,7 +206,7 @@ The XML report is used by CI systems like Codecov to:
 
 The following areas are considered critical paths and should maintain >90% coverage:
 
-1. **Numeric Encoding/Decoding** ([`numeric.rs`](copybook-codec/src/numeric.rs))
+1. **Numeric Encoding/Decoding** ([`numeric.rs`](../crates/copybook-codec/src/numeric.rs))
    - encode_zoned_decimal
    - encode_packed_decimal
    - encode_binary_int
@@ -214,18 +214,18 @@ The following areas are considered critical paths and should maintain >90% cover
    - decode_packed_decimal
    - decode_binary_int
 
-2. **Record Processing** ([`record.rs`](copybook-codec/src/record.rs))
+2. **Record Processing** ([`record.rs`](../crates/copybook-codec/src/record.rs))
    - encode_record
    - decode_record
    - FixedRecordReader
    - RdwRecordReader
 
-3. **Copybook Parsing** ([`parser.rs`](copybook-core/src/parser.rs))
+3. **Copybook Parsing** ([`parser.rs`](../crates/copybook-core/src/parser.rs))
    - parse_copybook
    - parse_field
    - parse_pic_clause
 
-4. **Error Handling** ([`error.rs`](copybook-core/src/error.rs))
+4. **Error Handling** ([`lib.rs`](../crates/copybook-error/src/lib.rs))
    - All error codes
    - Error context methods
    - Error reporting
@@ -415,4 +415,4 @@ For questions about coverage:
 - Review coverage reports in CI for guidance
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

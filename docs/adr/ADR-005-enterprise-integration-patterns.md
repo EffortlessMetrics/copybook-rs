@@ -1284,4 +1284,4 @@ mod integration_tests {
 - [Elastic Common Schema (ECS)](https://www.elastic.co/guide/en/ecs/current/index.html)
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

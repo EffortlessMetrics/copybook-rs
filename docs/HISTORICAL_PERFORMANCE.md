@@ -86,4 +86,4 @@ When updating performance documentation:
 > **Status**: ARCHIVED - For reference only. Current performance data lives in canonical receipts.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

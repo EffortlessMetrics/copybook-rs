@@ -473,7 +473,7 @@ docker build --pull --no-cache -t copybook-rs-bench .
 - [Baseline Methodology](../../tools/copybook-bench/BASELINE_METHODOLOGY.md) - How baselines are established
 - [Hardware Specifications](../../tools/copybook-bench/HARDWARE_SPECS.md) - Reference hardware details
 - [Performance Report](../REPORT.md) - Comprehensive performance analysis
-- [GitHub Workflow](.github/workflows/perf-container.yml) - Automated CI integration
+- [GitHub Workflow](../../.github/workflows/perf-container.yml) - Automated CI integration
 
 ---
 
@@ -489,4 +489,4 @@ For performance-related questions, include:
 - Docker/Podman version (`docker version`)
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

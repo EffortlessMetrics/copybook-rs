@@ -1182,4 +1182,4 @@ perf report
 **AC Priority**: AC2 (Baseline Reconciliation) FIRST, then AC1/AC3/AC4/AC5
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

@@ -664,4 +664,4 @@ This comprehensive performance requirements specification ensures that the enhan
 <parameter name="todos">[{"content": "Create Golden Fixture Architecture Specification document", "status": "completed", "activeForm": "Creating Golden Fixture Architecture Specification document"}, {"content": "Create COBOL Structural Validation Rules specification", "status": "completed", "activeForm": "Creating COBOL Structural Validation Rules specification"}, {"content": "Create API Contracts specification for structural validation", "status": "completed", "activeForm": "Creating API Contracts specification for structural validation"}, {"content": "Create Error Code Specifications for structural validation", "status": "completed", "activeForm": "Creating Error Code Specifications for structural validation"}, {"content": "Create Performance Requirements specification", "status": "completed", "activeForm": "Creating Performance Requirements specification"}]
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

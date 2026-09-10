@@ -688,4 +688,4 @@ pub fn emit_error_metrics(error_summary: &ErrorSummary) {
 With these patterns, your copybook-rs production system will gracefully handle errors and provide comprehensive insights for operational monitoring. 🛡️
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

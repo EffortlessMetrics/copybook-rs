@@ -152,4 +152,4 @@ automated flow above, from a tag on `main` whose version equals
 
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

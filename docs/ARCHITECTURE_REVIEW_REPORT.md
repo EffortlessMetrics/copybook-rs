@@ -176,4 +176,4 @@ The Enterprise Audit System demonstrates exceptional architectural alignment and
 *PR: #61 - Enterprise Audit System Implementation*
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

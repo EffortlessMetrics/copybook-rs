@@ -655,4 +655,4 @@ if regression_report.has_regression() {
 This API specification establishes the comprehensive contracts for structural validation in copybook-rs, ensuring enterprise-grade reliability and performance while maintaining clear, documented interfaces for all structural validation operations.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

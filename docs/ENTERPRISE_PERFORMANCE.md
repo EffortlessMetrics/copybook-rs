@@ -222,8 +222,8 @@ When investigating overhead:
 
 ## References
 
-- [Enterprise Audit System Spec](../copybook-core/src/audit/README.md)
-- [Performance Benchmarks](../copybook-bench/benches/)
+- [Enterprise Audit System Spec](../crates/copybook-audit/README.md)
+- [Performance Benchmarks](../tools/copybook-bench/benches/)
 - [CI Performance Workflow](../.github/workflows/perf.yml)
 - [Justfile Bench Targets](../justfile)
 
@@ -236,4 +236,4 @@ When investigating overhead:
 - Advisory mode enabled
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

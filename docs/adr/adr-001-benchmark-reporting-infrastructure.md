@@ -193,8 +193,8 @@ This ADR will be reviewed in 6 months (March 2025) to assess:
 ## References
 
 - [Issue #52: Machine-Readable Benchmark Reporting Infrastructure](https://github.com/copybook-rs/copybook-rs/issues/52)
-- [copybook-bench Performance Regression Detection](../copybook-bench/src/regression.rs)
-- [Enterprise Performance Requirements](../CLAUDE.md#performance)
+- [copybook-bench Performance Regression Detection](../../tools/copybook-bench/src/regression.rs)
+- [Enterprise Performance Requirements](../../CLAUDE.md#performance)
 - [Criterion.rs Statistical Analysis Patterns](https://bheisler.github.io/criterion.rs/book/index.html)
 - [SOX Compliance Requirements for IT Systems](https://www.sec.gov/rules/final/33-8238.htm)
 - [NIST Cybersecurity Framework](https://www.nist.gov/cyberframework)
@@ -208,4 +208,4 @@ This ADR will be reviewed in 6 months (March 2025) to assess:
 - **Next Review**: 2025-03-28
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

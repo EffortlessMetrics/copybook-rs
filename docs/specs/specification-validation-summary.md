@@ -289,4 +289,4 @@ Input Binary → [Decode + Detection] → JSON + Metadata → [Encode + Preserva
 The architectural blueprint is **ready for implementation** and maintains copybook-rs's commitment to enterprise-grade reliability, performance, and maintainability.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

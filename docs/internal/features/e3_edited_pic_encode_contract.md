@@ -462,4 +462,4 @@ The following patterns are explicitly NOT supported in v0.5.0 and should return 
 **Maintainer:** copybook-rs team
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../../LICENSE).

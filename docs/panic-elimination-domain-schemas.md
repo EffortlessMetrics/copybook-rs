@@ -585,4 +585,4 @@ cargo xtask panic-elimination-domain-verify
 **Implementation Ready**: ✓ Comprehensive domain schemas with systematic validation strategy
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

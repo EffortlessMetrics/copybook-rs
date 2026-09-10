@@ -320,10 +320,10 @@ copybook decode schema.cpy data.bin --verbose --output results.jsonl 2>&1 | \
 
 ### Complete Documentation
 - **[README.md](../README.md)**: Comprehensive feature overview
-- **[REPORT.md](../REPORT.md)**: Production readiness assessment
-- **[ERROR_CODES.md](ERROR_CODES.md)**: Complete error reference
+- **[REPORT.md](REPORT.md)**: Production readiness assessment
+- **[ERROR_CODES.md](reference/ERROR_CODES.md)**: Complete error reference
 - **[CLI_REFERENCE.md](CLI_REFERENCE.md)**: Detailed command documentation
-- **[LIBRARY_API.md](LIBRARY_API.md)**: Programming interface guide
+- **[LIBRARY_API.md](reference/LIBRARY_API.md)**: Programming interface guide
 
 ### Production Support
 For production deployments:
@@ -336,4 +336,4 @@ For production deployments:
 **Status**: copybook-rs is in Engineering Preview (v0.6.0). Suitable for teams that validate copybooks against supported features. Production deployment requires pilot validation on representative workloads. See [ROADMAP.md](ROADMAP.md) for adoption guidance.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

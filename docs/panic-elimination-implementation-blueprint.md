@@ -1054,4 +1054,4 @@ echo "🏢 Enterprise: Regulatory compliance enabled, audit trails preserved"
 **Implementation Ready**: ✓ Comprehensive 3-phase systematic approach with enterprise validation
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

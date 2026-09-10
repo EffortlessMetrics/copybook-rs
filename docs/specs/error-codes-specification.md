@@ -513,4 +513,4 @@ mod integration_tests {
 This error code specification ensures robust error handling while maintaining copybook-rs's enterprise-grade reliability and structured error taxonomy.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

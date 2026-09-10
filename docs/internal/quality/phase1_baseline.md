@@ -161,4 +161,4 @@ The following items are blocking Phase 2 progress:
 - This documentation will be updated as Phase 1 evolves into Phase 2
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../../LICENSE).

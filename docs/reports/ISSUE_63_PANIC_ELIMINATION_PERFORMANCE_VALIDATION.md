@@ -154,4 +154,4 @@ panic elimination: 283 .unwrap()/.expect() calls safely eliminated with performa
 **Authorization**: Route to enterprise-docs-reviewer for production deployment documentation
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

@@ -319,4 +319,4 @@ Update this protocol when:
 Keep `MERGE_PROTOCOL.md` synchronized with `VALIDATION_PROTOCOL.md` for consistency.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

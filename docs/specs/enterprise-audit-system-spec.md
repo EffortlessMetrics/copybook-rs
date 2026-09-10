@@ -406,4 +406,4 @@ cargo test --workspace lineage_tracking_validation
 This comprehensive enterprise audit system positions copybook-rs as a fully enterprise-ready solution for regulated industries requiring complete audit trails, compliance validation, and comprehensive monitoring capabilities.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

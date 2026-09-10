@@ -9,4 +9,4 @@ The canonical changelog now lives at the repository root in `CHANGELOG.md` so re
 If you update release notes, edit `CHANGELOG.md` in the repository root; this file should remain a lightweight pointer.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

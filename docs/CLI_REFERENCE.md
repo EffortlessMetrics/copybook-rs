@@ -772,7 +772,7 @@ diff original.bin roundtrip.bin
 - Check data file format matches expectation
 
 **"Unsupported COBOL feature"**
-- See [ERROR_CODES.md](ERROR_CODES.md) for details
+- See [ERROR_CODES.md](reference/ERROR_CODES.md) for details
 - Modify copybook to use supported features
 
 **"Character encoding errors"**
@@ -783,10 +783,10 @@ diff original.bin roundtrip.bin
 ### Getting Help
 
 1. Use `copybook <command> --help` for command-specific help
-2. Check error codes in [ERROR_CODES.md](ERROR_CODES.md)
+2. Check error codes in [ERROR_CODES.md](reference/ERROR_CODES.md)
 3. Use `-v/--verbose` (before the subcommand) for detailed diagnostics
 4. Test with small data samples first
 5. Refer to examples in [README.md](../README.md)
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

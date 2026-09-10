@@ -1810,4 +1810,4 @@ The Enterprise Integration Patterns provide comprehensive connectivity for the c
 This integration framework ensures that copybook-rs audit events can be consumed by any enterprise security, monitoring, or analytics platform while maintaining high performance and reliability standards.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

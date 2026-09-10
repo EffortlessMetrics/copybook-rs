@@ -717,4 +717,4 @@ The gap for PR-C is **not foundational** but rather **formalization** of receipt
 Current baseline (2025-09-30): **DISPLAY 205 MiB/s, COMP-3 58 MiB/s** with documented measurement environment and <8% variance acceptable for WSL2.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

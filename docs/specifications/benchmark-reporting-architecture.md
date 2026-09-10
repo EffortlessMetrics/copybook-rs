@@ -301,4 +301,4 @@ The architecture supports comprehensive validation through existing test scaffol
 All specifications align with copybook-rs TDD patterns using `// AC:ID` test tags and workspace validation via `cargo nextest run --workspace`.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

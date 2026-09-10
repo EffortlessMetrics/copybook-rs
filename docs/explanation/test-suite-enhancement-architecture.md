@@ -163,4 +163,4 @@ pub enum DataPattern {
 This architecture provides the foundation for comprehensive test suite enhancement while maintaining copybook-rs production-ready status and enterprise performance standards.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

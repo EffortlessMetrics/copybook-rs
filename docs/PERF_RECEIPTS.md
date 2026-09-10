@@ -277,4 +277,4 @@ just perf
 - [Perf Receipt Schema](../schemas/perf-receipt-schema.json) - JSON schema validation
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

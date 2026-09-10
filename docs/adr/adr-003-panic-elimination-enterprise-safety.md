@@ -203,9 +203,9 @@ pub struct EnterpriseMonitor {
 
 - [Issue #33: Eliminate .unwrap() Panics](../archived/issue-33-spec.md)
 - [copybook-rs Production Readiness Report](../REPORT.md)
-- [Enterprise Audit System Specification](../specs/issue-60-enterprise-audit-spec.md)
-- [Golden Fixtures Framework](../golden-fixtures-spec.md)
-- [Performance Benchmarking Strategy](../benchmarking-guide.md)
+- [Enterprise Audit System Specification](../specs/enterprise-audit-system-spec.md)
+- [Golden Fixtures Framework](../specs/golden-fixtures-spec.md)
+- [Performance Benchmarking Strategy](../reference/BENCHMARKS.md)
 
 ---
 
@@ -215,4 +215,4 @@ pub struct EnterpriseMonitor {
 **Implementation Ready**: ✓ Comprehensive technical approach with systematic validation strategy
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

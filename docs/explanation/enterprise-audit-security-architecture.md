@@ -1441,4 +1441,4 @@ The Security Architecture provides comprehensive security controls for the Enter
 This security architecture ensures that copybook-rs's Enterprise Audit System meets the highest security standards while maintaining performance and regulatory compliance requirements.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

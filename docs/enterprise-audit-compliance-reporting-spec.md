@@ -1069,4 +1069,4 @@ if __name__ == '__main__':
 This comprehensive enterprise audit and compliance reporting specification provides regulatory-grade audit capabilities while maintaining practical usability for copybook-rs performance monitoring and enterprise deployment validation.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

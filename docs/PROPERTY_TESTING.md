@@ -347,4 +347,4 @@ When adding new property tests:
 5. **Test locally**: Run tests locally before pushing to ensure they pass
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

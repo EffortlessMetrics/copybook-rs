@@ -218,4 +218,4 @@ if not results['valid']:
 For additional details, see the main [copybook-rs documentation](../README.md) and [CLAUDE.md](../CLAUDE.md).
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

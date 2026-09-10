@@ -412,4 +412,4 @@ The copybook-rs infrastructure has been validated beyond basic functionality tes
 3. Update operator runbook after first GHCR publication
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

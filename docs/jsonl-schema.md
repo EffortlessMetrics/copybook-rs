@@ -457,4 +457,4 @@ matches the envelope described above. Update both the schema file and this docum
 new keys or schema versions.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

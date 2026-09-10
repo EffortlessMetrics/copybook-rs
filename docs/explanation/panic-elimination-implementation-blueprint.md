@@ -705,4 +705,4 @@ echo "🎆 PANIC ELIMINATION IMPLEMENTATION COMPLETE"
 This implementation blueprint provides the complete roadmap for safely eliminating all 243 panic instances from copybook-rs while maintaining enterprise-grade reliability, performance, and compatibility for production mainframe data processing workloads.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

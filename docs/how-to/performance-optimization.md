@@ -805,4 +805,4 @@ pub fn validate_enterprise_performance(
 With these optimization patterns, you'll achieve maximum copybook-rs performance while maintaining enterprise-grade reliability and safety! ⚡
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

@@ -1307,4 +1307,4 @@ The Performance Integration Strategy ensures that copybook-rs maintains its exce
 This strategy ensures that copybook-rs's production-ready performance remains uncompromised while adding comprehensive enterprise audit capabilities required for regulatory compliance and enterprise monitoring.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

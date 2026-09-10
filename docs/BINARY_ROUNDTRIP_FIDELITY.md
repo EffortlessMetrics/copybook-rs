@@ -354,4 +354,4 @@ Binary round-trip fidelity in copybook-rs provides enterprise-grade guarantees f
 The implementation balances automatic detection with explicit control, providing both ease of use for simple scenarios and fine-grained control for complex enterprise requirements.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

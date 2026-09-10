@@ -169,4 +169,4 @@ cargo clippy --workspace -- -D warnings -W clippy::pedantic
 This ADR establishes the foundation for real-world data integration while maintaining copybook-rs production-ready status and enterprise performance standards.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

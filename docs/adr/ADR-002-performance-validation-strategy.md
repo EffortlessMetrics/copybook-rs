@@ -299,4 +299,4 @@ cargo xtask ci-performance-gate --baseline pre-enhancement-baseline --fail-on-re
 This performance validation strategy ensures copybook-rs maintains its exceptional performance characteristics while providing comprehensive validation infrastructure for enterprise deployment confidence.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

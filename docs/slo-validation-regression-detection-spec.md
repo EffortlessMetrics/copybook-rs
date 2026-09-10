@@ -986,4 +986,4 @@ class AdvancedStatisticalAnalyzer:
 This comprehensive SLO validation framework and performance regression detection system provides enterprise-grade statistical analysis capabilities while maintaining practical usability for copybook-rs performance monitoring.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

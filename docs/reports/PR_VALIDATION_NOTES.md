@@ -55,4 +55,4 @@ fn validate_odo_array(schema: &Schema, record: &[u8]) -> Result<(), Error> {
 Critical for maintaining data integrity in COBOL record processing, especially for mainframe migrations and legacy system integrations.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

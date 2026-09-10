@@ -216,4 +216,4 @@ No migration required - this is an additive enhancement:
 **Reviewers**: Please focus on API design, test coverage adequacy, and documentation completeness. All quality gates have been validated and the implementation maintains full backward compatibility.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

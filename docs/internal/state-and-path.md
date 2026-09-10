@@ -87,8 +87,8 @@ The project has a **full CI pipeline active** (CI Quick as PR gate, CI Full matr
 **Status**: ⚠️ Experimental scaffolding
 
 **Implementation**:
-- Framework exists in [`copybook-core/src/audit/`](../../copybook-core/src/audit/mod.rs)
-- CLI commands in [`copybook-cli/src/commands/audit.rs`](../../copybook-cli/src/commands/audit.rs)
+- Framework exists in [`copybook-core/src/audit/`](../../crates/copybook-audit/src/lib.rs)
+- CLI commands in [`copybook-cli/src/commands/audit.rs`](../../crates/copybook-cli/src/commands/audit.rs)
 - All outputs contain `"status": "stub"` and warnings that outputs are not compliance evidence
 
 **Not Production-Ready**: Full compliance validation requires significant work (SOX, HIPAA, GDPR, PCI DSS).
@@ -340,4 +340,4 @@ Ensure docs don't embed stray performance numbers - all claims must be receipt-r
 - [`docs/PERFORMANCE_RECEIPT_REFERENCE.md`](../PERFORMANCE_RECEIPT_REFERENCE.md) - Receipt schema reference
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

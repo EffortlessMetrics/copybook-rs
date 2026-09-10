@@ -628,4 +628,4 @@ copybook audit health-check --all-frameworks --detailed-report
 This comprehensive compliance guide ensures copybook-rs meets enterprise regulatory requirements while maintaining high performance and usability standards.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

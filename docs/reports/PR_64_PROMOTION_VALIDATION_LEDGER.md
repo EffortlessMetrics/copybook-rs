@@ -327,4 +327,4 @@ enterprise: ✅ pass | safety: zero-panic maintained, performance: targets achie
 **Estimated Effort**: 2-3 optimization cycles with architectural changes to achieve targets while preserving safety benefits.
 ## License
 
-Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

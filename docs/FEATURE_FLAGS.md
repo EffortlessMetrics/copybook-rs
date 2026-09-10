@@ -160,16 +160,7 @@ Debug features provide diagnostic and profiling capabilities.
 | `profiling` | Disabled | Enable CPU profiling hooks |
 | `memory_tracking` | Disabled | Enable memory usage tracking |
 
-### Testing Features
-
-Testing features provide hooks for mutation testing and fuzzing.
-
-| Flag | Default | Description |
-|-------|----------|-------------|
-| `mutation_testing` | Disabled | Enable mutation testing hooks |
-| `fuzzing_integration` | Disabled | Enable fuzzing integration points |
-| `coverage_instrumentation` | Disabled | Enable test coverage instrumentation |
-| `property_based_testing` | Disabled | Enable property-based testing integration |
+> **Note:** Repository-test controls (`mutation_testing`, `fuzzing_integration`, `coverage_instrumentation`, `property_based_testing`) were removed from the runtime flag set in v0.6.0 — they gated no shipped behavior. Test tooling is invoked directly (cargo test, cargo nextest, cargo fuzz); see [Testing Commands](TESTING_COMMANDS.md).
 
 ## Feature Flag Lifecycle
 
@@ -263,7 +254,7 @@ Create a production configuration file:
 # production-flags.toml
 [feature_flags]
 enabled = ["lru_cache", "advanced_optimization"]
-disabled = ["verbose_logging", "profiling", "mutation_testing"]
+disabled = ["verbose_logging", "profiling"]
 ```
 
 Use it:

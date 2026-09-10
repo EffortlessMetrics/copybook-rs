@@ -114,9 +114,9 @@ mod tests {
     #[test]
     fn test_feature_flags_enable_disable_category_via_facade() {
         let flags = FeatureFlags::builder()
-            .enable_category(FeatureCategory::Testing)
+            .enable_category(FeatureCategory::Debug)
             .build();
-        assert!(flags.is_enabled(Feature::MutationTesting));
-        assert!(flags.is_enabled(Feature::FuzzingIntegration));
+        assert!(flags.is_enabled(Feature::Profiling));
+        assert!(flags.is_enabled(Feature::MemoryTracking));
     }
 }

@@ -142,8 +142,6 @@ disabled = [
   "diagnostic_output",
   "profiling",
   "memory_tracking",
-  "mutation_testing",
-  "fuzzing_integration",
 ]
 ```
 

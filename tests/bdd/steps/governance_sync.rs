@@ -34,7 +34,6 @@ async fn given_all_categories_enabled(world: &mut CopybookWorld) {
         .enable_category(FeatureCategory::Enterprise)
         .enable_category(FeatureCategory::Performance)
         .enable_category(FeatureCategory::Debug)
-        .enable_category(FeatureCategory::Testing)
         .build();
     let json = serde_json::to_string(&flags).expect("serialize all-enabled flags");
     world.json_data = Some(json);

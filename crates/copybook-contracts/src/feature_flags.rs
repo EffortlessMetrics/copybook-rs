@@ -88,23 +88,6 @@ pub enum Feature {
     /// Enable memory usage tracking
     #[serde(alias = "memory_tracking")]
     MemoryTracking,
-
-    // ========== Testing Features ==========
-    /// Enable mutation testing hooks
-    #[serde(alias = "mutation_testing")]
-    MutationTesting,
-
-    /// Enable fuzzing integration points
-    #[serde(alias = "fuzzing_integration")]
-    FuzzingIntegration,
-
-    /// Enable test coverage instrumentation
-    #[serde(alias = "coverage_instrumentation")]
-    CoverageInstrumentation,
-
-    /// Enable property-based testing integration
-    #[serde(alias = "property_based_testing")]
-    PropertyBasedTesting,
 }
 
 impl Feature {
@@ -139,10 +122,6 @@ impl Feature {
             | Feature::DiagnosticOutput
             | Feature::Profiling
             | Feature::MemoryTracking => FeatureCategory::Debug,
-            Feature::MutationTesting
-            | Feature::FuzzingIntegration
-            | Feature::CoverageInstrumentation
-            | Feature::PropertyBasedTesting => FeatureCategory::Testing,
         }
     }
 
@@ -174,11 +153,7 @@ impl Feature {
             | Feature::VerboseLogging
             | Feature::DiagnosticOutput
             | Feature::Profiling
-            | Feature::MemoryTracking
-            | Feature::MutationTesting
-            | Feature::FuzzingIntegration
-            | Feature::CoverageInstrumentation
-            | Feature::PropertyBasedTesting => FeatureLifecycle::Experimental,
+            | Feature::MemoryTracking => FeatureLifecycle::Experimental,
         }
     }
 
@@ -201,11 +176,7 @@ impl Feature {
             | Feature::VerboseLogging
             | Feature::DiagnosticOutput
             | Feature::Profiling
-            | Feature::MemoryTracking
-            | Feature::MutationTesting
-            | Feature::FuzzingIntegration
-            | Feature::CoverageInstrumentation
-            | Feature::PropertyBasedTesting => false,
+            | Feature::MemoryTracking => false,
         }
     }
 
@@ -241,10 +212,6 @@ impl Feature {
             Feature::DiagnosticOutput => "Enable diagnostic output for troubleshooting",
             Feature::Profiling => "Enable CPU profiling hooks",
             Feature::MemoryTracking => "Enable memory usage tracking",
-            Feature::MutationTesting => "Enable mutation testing hooks",
-            Feature::FuzzingIntegration => "Enable fuzzing integration points",
-            Feature::CoverageInstrumentation => "Enable test coverage instrumentation",
-            Feature::PropertyBasedTesting => "Enable property-based testing integration",
         }
     }
 }
@@ -271,10 +238,6 @@ impl fmt::Display for Feature {
             Feature::DiagnosticOutput => "diagnostic_output",
             Feature::Profiling => "profiling",
             Feature::MemoryTracking => "memory_tracking",
-            Feature::MutationTesting => "mutation_testing",
-            Feature::FuzzingIntegration => "fuzzing_integration",
-            Feature::CoverageInstrumentation => "coverage_instrumentation",
-            Feature::PropertyBasedTesting => "property_based_testing",
         };
         write!(f, "{s}")
     }
@@ -304,10 +267,6 @@ impl FromStr for Feature {
             "diagnostic_output" => Ok(Self::DiagnosticOutput),
             "profiling" => Ok(Self::Profiling),
             "memory_tracking" => Ok(Self::MemoryTracking),
-            "mutation_testing" => Ok(Self::MutationTesting),
-            "fuzzing_integration" => Ok(Self::FuzzingIntegration),
-            "coverage_instrumentation" => Ok(Self::CoverageInstrumentation),
-            "property_based_testing" => Ok(Self::PropertyBasedTesting),
             _ => Err(format!("Unknown feature flag: '{s}'")),
         }
     }
@@ -326,8 +285,6 @@ pub enum FeatureCategory {
     Performance,
     /// Diagnostic and profiling features for development.
     Debug,
-    /// Testing infrastructure hooks (mutation, fuzzing, coverage).
-    Testing,
 }
 
 impl fmt::Display for FeatureCategory {
@@ -338,7 +295,6 @@ impl fmt::Display for FeatureCategory {
             FeatureCategory::Enterprise => write!(f, "enterprise"),
             FeatureCategory::Performance => write!(f, "performance"),
             FeatureCategory::Debug => write!(f, "debug"),
-            FeatureCategory::Testing => write!(f, "testing"),
         }
     }
 }
@@ -645,10 +601,6 @@ pub fn all_features() -> Vec<Feature> {
         Feature::DiagnosticOutput,
         Feature::Profiling,
         Feature::MemoryTracking,
-        Feature::MutationTesting,
-        Feature::FuzzingIntegration,
-        Feature::CoverageInstrumentation,
-        Feature::PropertyBasedTesting,
     ]
 }
 
@@ -683,10 +635,6 @@ mod tests {
         assert_eq!(Feature::AuditSystem.category(), FeatureCategory::Enterprise);
         assert_eq!(Feature::LruCache.category(), FeatureCategory::Performance);
         assert_eq!(Feature::VerboseLogging.category(), FeatureCategory::Debug);
-        assert_eq!(
-            Feature::MutationTesting.category(),
-            FeatureCategory::Testing
-        );
     }
 
     #[test]
@@ -845,7 +793,6 @@ mod tests {
         assert_eq!(FeatureCategory::Enterprise.to_string(), "enterprise");
         assert_eq!(FeatureCategory::Performance.to_string(), "performance");
         assert_eq!(FeatureCategory::Debug.to_string(), "debug");
-        assert_eq!(FeatureCategory::Testing.to_string(), "testing");
     }
 
     #[test]
@@ -910,8 +857,6 @@ mod tests {
         assert_eq!(performance.len(), 4);
         let debug = FeatureFlags::features_in_category(FeatureCategory::Debug);
         assert_eq!(debug.len(), 4);
-        let testing = FeatureFlags::features_in_category(FeatureCategory::Testing);
-        assert_eq!(testing.len(), 4);
     }
 
     #[test]

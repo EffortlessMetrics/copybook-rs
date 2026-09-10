@@ -485,10 +485,6 @@ fn lifecycle_and_category_accessible_from_facade() {
     assert_eq!(Feature::AuditSystem.category(), FeatureCategory::Enterprise);
     assert_eq!(Feature::LruCache.category(), FeatureCategory::Performance);
     assert_eq!(Feature::VerboseLogging.category(), FeatureCategory::Debug);
-    assert_eq!(
-        Feature::MutationTesting.category(),
-        FeatureCategory::Testing
-    );
 }
 
 #[test]

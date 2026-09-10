@@ -62,7 +62,6 @@ fn every_feature_belongs_to_exactly_one_category() {
         FeatureCategory::Enterprise,
         FeatureCategory::Performance,
         FeatureCategory::Debug,
-        FeatureCategory::Testing,
     ];
 
     for feature in all_features() {
@@ -77,8 +76,8 @@ fn every_feature_belongs_to_exactly_one_category() {
 #[test]
 fn all_features_list_is_exhaustive() {
     let features = all_features();
-    // 4 Experimental + 6 Enterprise + 4 Performance + 4 Debug + 4 Testing = 22
-    assert_eq!(features.len(), 22);
+    // 4 Experimental + 6 Enterprise + 4 Performance + 4 Debug = 18
+    assert_eq!(features.len(), 18);
 }
 
 // ── FeatureCategory ─────────────────────────────────────────────────────────
@@ -90,7 +89,6 @@ fn feature_category_display_all_variants() {
         (FeatureCategory::Enterprise, "enterprise"),
         (FeatureCategory::Performance, "performance"),
         (FeatureCategory::Debug, "debug"),
-        (FeatureCategory::Testing, "testing"),
     ];
     for (cat, expected) in cases {
         assert_eq!(cat.to_string(), expected);
@@ -104,7 +102,6 @@ fn feature_category_serde_roundtrip_all_variants() {
         FeatureCategory::Enterprise,
         FeatureCategory::Performance,
         FeatureCategory::Debug,
-        FeatureCategory::Testing,
     ];
     for cat in categories {
         let json = serde_json::to_string(&cat).unwrap();
@@ -196,10 +193,6 @@ fn features_in_category_static_counts() {
     );
     assert_eq!(
         FeatureFlags::features_in_category(FeatureCategory::Debug).len(),
-        4
-    );
-    assert_eq!(
-        FeatureFlags::features_in_category(FeatureCategory::Testing).len(),
         4
     );
 }
@@ -317,8 +310,8 @@ fn handle_snapshot_is_independent_of_future_mutations() {
 #[test]
 fn handle_clone_yields_independent_copy() {
     let handle = FeatureFlagsHandle::new();
-    handle.enable(Feature::MutationTesting);
+    handle.enable(Feature::Profiling);
     let cloned = handle.clone();
-    handle.disable(Feature::MutationTesting);
-    assert!(cloned.is_enabled(Feature::MutationTesting));
+    handle.disable(Feature::Profiling);
+    assert!(cloned.is_enabled(Feature::Profiling));
 }

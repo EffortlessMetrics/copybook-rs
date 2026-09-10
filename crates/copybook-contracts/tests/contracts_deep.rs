@@ -14,9 +14,9 @@ use std::str::FromStr;
 // ============================================================================
 
 #[test]
-fn all_features_returns_all_22_variants() {
+fn all_features_returns_all_18_variants() {
     let features = all_features();
-    assert_eq!(features.len(), 22, "expected 22 feature flags");
+    assert_eq!(features.len(), 18, "expected 18 feature flags");
 }
 
 #[test]
@@ -138,26 +138,6 @@ fn category_assignment_debug() {
 }
 
 #[test]
-fn category_assignment_testing() {
-    assert_eq!(
-        Feature::MutationTesting.category(),
-        FeatureCategory::Testing
-    );
-    assert_eq!(
-        Feature::FuzzingIntegration.category(),
-        FeatureCategory::Testing
-    );
-    assert_eq!(
-        Feature::CoverageInstrumentation.category(),
-        FeatureCategory::Testing
-    );
-    assert_eq!(
-        Feature::PropertyBasedTesting.category(),
-        FeatureCategory::Testing
-    );
-}
-
-#[test]
 fn features_in_category_experimental_count() {
     let feats = FeatureFlags::features_in_category(FeatureCategory::Experimental);
     assert_eq!(feats.len(), 4);
@@ -264,7 +244,6 @@ fn feature_category_serde_roundtrip() {
         FeatureCategory::Enterprise,
         FeatureCategory::Performance,
         FeatureCategory::Debug,
-        FeatureCategory::Testing,
     ];
     for cat in categories {
         let json = serde_json::to_string(&cat).unwrap();
@@ -401,7 +380,6 @@ fn category_display_all_variants() {
     assert_eq!(FeatureCategory::Enterprise.to_string(), "enterprise");
     assert_eq!(FeatureCategory::Performance.to_string(), "performance");
     assert_eq!(FeatureCategory::Debug.to_string(), "debug");
-    assert_eq!(FeatureCategory::Testing.to_string(), "testing");
 }
 
 #[test]

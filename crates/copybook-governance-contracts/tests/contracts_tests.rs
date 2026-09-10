@@ -133,8 +133,6 @@ fn features_in_category_counts_match() {
     assert_eq!(perf.len(), 4);
     let dbg = FeatureFlags::features_in_category(FeatureCategory::Debug);
     assert_eq!(dbg.len(), 4);
-    let test = FeatureFlags::features_in_category(FeatureCategory::Testing);
-    assert_eq!(test.len(), 4);
 }
 
 // ── Support matrix queries ──────────────────────────────────────────────────
@@ -259,10 +257,6 @@ fn feature_category_round_trip_via_facade() {
     assert_eq!(Feature::AuditSystem.category(), FeatureCategory::Enterprise);
     assert_eq!(Feature::LruCache.category(), FeatureCategory::Performance);
     assert_eq!(Feature::VerboseLogging.category(), FeatureCategory::Debug);
-    assert_eq!(
-        Feature::MutationTesting.category(),
-        FeatureCategory::Testing
-    );
 }
 
 // ── FeatureFlagsHandle ──────────────────────────────────────────────────────
@@ -321,7 +315,7 @@ fn cross_module_id_equality() {
 fn feature_flags_module_path_works() {
     use copybook_governance_contracts::feature_flags;
     let features = feature_flags::all_features();
-    assert_eq!(features.len(), 22);
+    assert_eq!(features.len(), 18);
 }
 
 #[test]

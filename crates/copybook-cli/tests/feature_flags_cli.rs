@@ -37,12 +37,7 @@ fn test_list_features() {
         .stdout(predicate::str::contains("verbose_logging"))
         .stdout(predicate::str::contains("diagnostic_output"))
         .stdout(predicate::str::contains("profiling"))
-        .stdout(predicate::str::contains("memory_tracking"))
-        .stdout(predicate::str::contains("TESTING"))
-        .stdout(predicate::str::contains("mutation_testing"))
-        .stdout(predicate::str::contains("fuzzing_integration"))
-        .stdout(predicate::str::contains("coverage_instrumentation"))
-        .stdout(predicate::str::contains("property_based_testing"));
+        .stdout(predicate::str::contains("memory_tracking"));
 }
 
 #[test]

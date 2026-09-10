@@ -25,10 +25,6 @@ fn feature_display_uses_snake_case() {
     );
     assert_eq!(Feature::ParallelDecode.to_string(), "parallel_decode");
     assert_eq!(Feature::DiagnosticOutput.to_string(), "diagnostic_output");
-    assert_eq!(
-        Feature::CoverageInstrumentation.to_string(),
-        "coverage_instrumentation"
-    );
 }
 
 // ── Feature: FromStr ────────────────────────────────────────────────
@@ -129,19 +125,6 @@ fn feature_category_debug_members() {
     }
 }
 
-#[test]
-fn feature_category_testing_members() {
-    let testing = [
-        Feature::MutationTesting,
-        Feature::FuzzingIntegration,
-        Feature::CoverageInstrumentation,
-        Feature::PropertyBasedTesting,
-    ];
-    for f in testing {
-        assert_eq!(f.category(), FeatureCategory::Testing, "{f}");
-    }
-}
-
 // ── Feature: default_enabled ────────────────────────────────────────
 
 #[test]
@@ -165,7 +148,6 @@ fn feature_default_disabled_set() {
         Feature::SoxCompliance,
         Feature::AdvancedOptimization,
         Feature::VerboseLogging,
-        Feature::MutationTesting,
     ];
     for f in disabled_by_default {
         assert!(!f.default_enabled(), "{f} should be default-disabled");
@@ -224,8 +206,8 @@ fn feature_serde_json_roundtrip_all_variants() {
 
 #[test]
 fn feature_serde_json_uses_snake_case() {
-    let json = serde_json::to_string(&Feature::PropertyBasedTesting).unwrap();
-    assert_eq!(json, "\"property_based_testing\"");
+    let json = serde_json::to_string(&Feature::MemoryTracking).unwrap();
+    assert_eq!(json, "\"memory_tracking\"");
 }
 
 #[test]
@@ -252,7 +234,6 @@ fn feature_category_display_all() {
     assert_eq!(FeatureCategory::Enterprise.to_string(), "enterprise");
     assert_eq!(FeatureCategory::Performance.to_string(), "performance");
     assert_eq!(FeatureCategory::Debug.to_string(), "debug");
-    assert_eq!(FeatureCategory::Testing.to_string(), "testing");
 }
 
 // ── FeatureCategory: Serde roundtrip ────────────────────────────────
@@ -264,7 +245,6 @@ fn feature_category_serde_roundtrip_all() {
         FeatureCategory::Enterprise,
         FeatureCategory::Performance,
         FeatureCategory::Debug,
-        FeatureCategory::Testing,
     ];
     for cat in categories {
         let json = serde_json::to_string(&cat).unwrap();
@@ -308,8 +288,8 @@ fn feature_lifecycle_debug_output() {
 // ── all_features ────────────────────────────────────────────────────
 
 #[test]
-fn all_features_returns_22_variants() {
-    assert_eq!(all_features().len(), 22);
+fn all_features_returns_18_variants() {
+    assert_eq!(all_features().len(), 18);
 }
 
 #[test]
@@ -380,7 +360,7 @@ fn enable_all_then_disable_all() {
     for f in all_features() {
         flags.enable(f);
     }
-    assert_eq!(flags.enabled_features().count(), 22);
+    assert_eq!(flags.enabled_features().count(), 18);
     for f in all_features() {
         flags.disable(f);
     }
@@ -420,10 +400,6 @@ fn features_in_category_counts() {
         FeatureFlags::features_in_category(FeatureCategory::Debug).len(),
         4
     );
-    assert_eq!(
-        FeatureFlags::features_in_category(FeatureCategory::Testing).len(),
-        4
-    );
 }
 
 #[test]
@@ -433,12 +409,11 @@ fn features_in_category_sum_equals_total() {
         FeatureCategory::Enterprise,
         FeatureCategory::Performance,
         FeatureCategory::Debug,
-        FeatureCategory::Testing,
     ]
     .iter()
     .map(|c| FeatureFlags::features_in_category(*c).len())
     .sum();
-    assert_eq!(total, 22);
+    assert_eq!(total, 18);
 }
 
 // ── FeatureFlags: Serde roundtrip ───────────────────────────────────
@@ -561,11 +536,11 @@ fn handle_snapshot_is_independent() {
 #[test]
 fn handle_clone_yields_independent_copy() {
     let handle = FeatureFlagsHandle::new();
-    handle.enable(Feature::MutationTesting);
+    handle.enable(Feature::Profiling);
     let cloned = handle.clone();
-    handle.disable(Feature::MutationTesting);
-    assert!(cloned.is_enabled(Feature::MutationTesting));
-    assert!(!handle.is_enabled(Feature::MutationTesting));
+    handle.disable(Feature::Profiling);
+    assert!(cloned.is_enabled(Feature::Profiling));
+    assert!(!handle.is_enabled(Feature::Profiling));
 }
 
 #[test]

@@ -382,10 +382,10 @@ COPYBOOK_FF_MUTATION_TESTING=1 cargo test --workspace --lib --features audit
 # Test CLI feature flag options
 cargo build --release -p copybook-cli --features audit
 ./target/release/copybook --list-features
-./target/release/copybook parse --enable-features mutation_testing,fuzzing_integration
+./target/release/copybook parse --enable-features verbose_logging,diagnostic_output
 ```
 
-**Expected runtime**: 5-10 minutes (for all 22 flags × 2 states)
+**Expected runtime**: 5-10 minutes (for all 18 flags × 2 states)
 
 ---
 

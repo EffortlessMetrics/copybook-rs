@@ -8,6 +8,7 @@ copybook-rs maintains security updates for the following versions:
 | Version | Supported          | Status |
 | ------- | ------------------ | ------ |
 | 0.6.x   | :white_check_mark: | Current stable release (Engineering Preview) |
+| 0.5.x   | :white_check_mark: | Previous minor: security patches only, 6-month window |
 | 0.4.x   | :x:                | No longer supported |
 | < 0.4.0 | :x:                | No longer supported |
 

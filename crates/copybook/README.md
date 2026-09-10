@@ -54,7 +54,7 @@ available as a deprecated compatibility alias during the planned 0.6 migration
 window. The `copybook::options` module is also deprecated since 0.6.0; use
 `copybook::codec::options` for codec operation options. Record framing moved
 under `copybook::framing` (`fixed`, `rdw`); the flat modules are deprecated
-aliases. The installation example below uses the currently published 0.5
+aliases. The installation example below uses the currently published 0.6
 release.
 
 Add `copybook` in your `Cargo.toml`:

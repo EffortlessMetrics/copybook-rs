@@ -884,12 +884,12 @@ Before upgrading:
 
 3. **Run compatibility check**: Check for breaking changes
    ```bash
-   copybook --check-compatibility --from v0.4.0 --to v0.5.0
+   copybook --check-compatibility --from v0.5.0 --to v0.6.0
    ```
 
 4. **Review changelog**: Review the changelog for breaking changes
    ```bash
-   cat docs/CHANGELOG.md | grep -A 20 "v0.5.0"
+   cat docs/CHANGELOG.md | grep -A 20 "v0.6.0"
    ```
 
 #### Upgrade Procedure

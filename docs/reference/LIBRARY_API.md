@@ -549,38 +549,20 @@ assert!(result.is_ok());
 
 This entry point returns the same structured parse errors as `parse_copybook` and `parse_copybook_with_options`. Stable language behavior (SIGN SEPARATE, COMP-1, COMP-2) parses unconditionally; only the remaining gated behaviors (e.g. RENAMES R4-R6) consult the supplied flags. It does not mutate the global feature configuration.
 
-### Enhanced Safe Operations Module
+### Checked Operations Ownership (v0.6)
 
-The copybook-core crate provides comprehensive panic-safe operations in the `utils::safe_ops` module:
-
-```rust
-use copybook_core::utils::safe_ops;
-
-// Safe integer conversions with overflow checking
-let safe_u32 = safe_ops::safe_u64_to_u32(large_value, "field offset calculation")?;
-let safe_u16 = safe_ops::safe_u64_to_u16(value, "sync padding calculation")?;
-let safe_u32_from_usize = safe_ops::safe_usize_to_u32(array_len, "record length")?;
-
-// Safe string and slice operations
-let parsed_number = safe_ops::safe_parse_u16("123", "PIC clause parsing")?;
-let char_at_index = safe_ops::safe_string_char_at(&pic_string, index, "PIC character access")?;
-let token = safe_ops::safe_slice_get(&tokens, index, "parser token access")?;
-
-// Safe arithmetic operations
-let divided_result = safe_ops::safe_divide(numerator, denominator, "field size calculation")?;
-let array_bound = safe_ops::safe_array_bound(base_offset, count, item_size, "ODO array sizing")?;
-
-// Safe formatting operations for JSON generation
-let mut json_buffer = String::new();
-safe_ops::safe_write(&mut json_buffer, format_args!("{{\"field\": \"{}\"}}", value))?;
-safe_ops::safe_write_str(&mut json_buffer, ",\n")?;
-```
+The former `copybook_core::utils::safe_ops` surface is retired: checked
+narrowing moved into `copybook-core` internals and the remaining helpers
+had no production callers (see #655). Fallible numeric conversion still
+returns the same stable `CBKS141_RECORD_TOO_LARGE` failures from the
+owning layer; the `copybook_core::utils` re-export path is gone and the
+standalone safety crates are retiring (0.5.0 artifacts stay on
+crates.io). The 0.5.0 to 0.6.0 migration guide (#659) records the
+replacement for each removed path.
 
 **Key Safety Features:**
 - **Panic elimination** - All `.unwrap()` and `.expect()` calls replaced with structured error handling
 - **Context-aware errors** - Every operation includes descriptive context for debugging
-- **Performance preservation** - <5% overhead while maintaining enterprise throughput targets
-- **Hardware optimization** - Uses CPU overflow detection for maximum performance
 
 ### Enhanced High-Performance Codec Operations
 
@@ -918,7 +900,6 @@ pub struct ErrorContext {
 
 ```rust
 use copybook_core::{parse_copybook, Error, ErrorCode};
-use copybook_core::utils::{OptionExt, VecExt};
 
 // Enhanced error handling with panic safety
 match parse_copybook(text) {
@@ -967,33 +948,29 @@ match parse_copybook(text) {
     }
 }
 
-// Using panic-safe extension traits
-use copybook_core::utils::{OptionExt, VecExt, SliceExt};
-
-// Safe option unwrapping with structured errors
+// Fallible access with structured errors (v0.6: the former
+// `copybook_core::utils` extension traits are retired, see #655)
 let field = schema.fields
     .first()
-    .ok_or_cbkp_error(
+    .ok_or_else(|| Error::new(
         ErrorCode::CBKP001_SYNTAX,
-        "Schema must contain at least one field"
-    )?;
+        "Schema must contain at least one field",
+    ))?;
 
-// Safe vector operations
-let mut field_stack = Vec::new();
-field_stack.push(field);
+let mut field_stack = vec![field];
 let current_field = field_stack
-    .pop_or_cbkp_error(
+    .pop()
+    .ok_or_else(|| Error::new(
         ErrorCode::CBKP001_SYNTAX,
-        "Field stack underflow during parsing"
-    )?;
+        "Field stack underflow during parsing",
+    ))?;
 
-// Safe slice access
 let token = tokens
-    .get_or_cbkp_error(
-        token_index,
+    .get(token_index)
+    .ok_or_else(|| Error::new(
         ErrorCode::CBKP001_SYNTAX,
-        format!("Token index {} out of bounds", token_index)
-    )?;
+        format!("Token index {token_index} out of bounds"),
+    ))?;
 
 // Collect errors during processing
 let opts = DecodeOptions {

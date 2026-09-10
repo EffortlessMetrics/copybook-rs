@@ -1007,52 +1007,17 @@ All 66 stable error codes across 10 families:
 
 copybook-rs has **eliminated all panic risks** through systematic replacement of `.unwrap()` and `.expect()` calls with structured error handling. This ensures **zero panic risk** in production environments.
 
-#### Safe Operations Module
+#### Checked Operations Ownership (v0.6)
 
-The `copybook_core::utils::safe_ops` module provides comprehensive panic-safe operations:
-
-```rust
-// Safe integer conversions with overflow checking
-let field_offset = safe_ops::safe_u64_to_u32(offset_u64, "field offset calculation")?;
-let sync_padding = safe_ops::safe_u64_to_u16(padding_u64, "sync padding calculation")?;
-let record_length = safe_ops::safe_usize_to_u32(length_usize, "record length conversion")?;
-
-// Safe string and slice operations
-let token = safe_ops::safe_slice_get(&tokens, index, "parser token access")?;
-let char_at = safe_ops::safe_string_char_at(&pic_string, pos, "PIC character access")?;
-let parsed_num = safe_ops::safe_parse_u16(&num_str, "PIC digits parsing")?;
-
-// Safe arithmetic with overflow protection
-let array_size = safe_ops::safe_array_bound(base, count, item_size, "ODO array sizing")?;
-let division_result = safe_ops::safe_divide(numerator, denominator, "field size calculation")?;
-
-// Safe JSON formatting operations
-safe_ops::safe_write(&mut buffer, format_args!("{{\"field\": {}}}", value))?;
-safe_ops::safe_write_str(&mut buffer, ",\n")?;
-```
-
-#### Extension Traits for Collections
-
-Panic-safe extension traits for common collection operations:
-
-```rust
-use copybook_core::utils::{OptionExt, VecExt, SliceExt};
-
-// Safe option unwrapping
-let field = schema.fields
-    .first()
-    .ok_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "Empty schema not allowed")?;
-
-// Safe vector operations
-let mut parser_stack = Vec::new();
-parser_stack.push(field);
-let current = parser_stack
-    .pop_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "Parser stack underflow")?;
-
-// Safe slice indexing
-let token = tokens
-    .get_or_cbkp_error(index, ErrorCode::CBKP001_SYNTAX, "Token index out of bounds")?;
-```
+The former `copybook_core::utils::safe_ops` surface and the
+`OptionExt`/`VecExt`/`SliceExt` re-exports are retired (see #655):
+checked narrowing moved into `copybook-core` internals, and the
+remaining helpers had no production callers. Fallible operations keep
+returning the same stable error codes (`CBKS141_RECORD_TOO_LARGE` for
+narrowing, `CBKP001_SYNTAX` for parser stack operations) from the
+owning layer. The standalone safety crates are retiring; their 0.5.0
+artifacts stay on crates.io. The 0.5.0 to 0.6.0 migration guide (#659)
+records the replacement for each removed path.
 
 #### Performance Impact
 

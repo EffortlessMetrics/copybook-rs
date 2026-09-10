@@ -4,6 +4,12 @@
 > **Note**: Performance numbers in this document reflect earlier planning phases.
 > Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
 > See [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERNANCE.md) for current policy.
+> **v0.6 API note**: code samples below still import the retired
+> `copybook_core::utils::{VecExt, SliceExt}` / `safe_ops` paths. Checked
+> narrowing moved into `copybook-core` internals and the remaining helpers
+> had no production callers (see #655); the 0.5.0 to 0.6.0 migration guide
+> (#659) is the authoritative replacement reference. A full rewrite of this
+> explanation is tracked under #659.
 ## Issue #33 - Enterprise Safety Enhancement
 
 ### Executive Summary

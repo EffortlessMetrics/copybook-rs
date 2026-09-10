@@ -117,9 +117,7 @@ name = "copybook-core"
 version = "0.5.0"
 dependencies = [
  "copybook-error",
- "copybook-error-reporter",
  "copybook-support-matrix",
- "copybook-utils",
  "logos",
  "serde",
  "serde_json",
@@ -166,14 +164,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "copybook-error-reporter"
-version = "0.5.0"
-dependencies = [
- "copybook-error",
- "tracing",
-]
-
-[[package]]
 name = "copybook-fixed"
 version = "0.5.0"
 dependencies = [
@@ -197,9 +187,6 @@ dependencies = [
  "copybook-rdw",
  "copybook-rdw-predicates",
  "copybook-record-io",
- "copybook-safe-index",
- "copybook-safe-ops",
- "copybook-safe-text",
  "libfuzzer-sys",
  "serde",
  "serde_json",
@@ -212,13 +199,6 @@ dependencies = [
  "copybook-contracts",
  "copybook-support-matrix",
  "serde",
-]
-
-[[package]]
-name = "copybook-overflow"
-version = "0.5.0"
-dependencies = [
- "copybook-error",
 ]
 
 [[package]]
@@ -244,43 +224,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "copybook-safe-index"
-version = "0.5.0"
-dependencies = [
- "copybook-error",
-]
-
-[[package]]
-name = "copybook-safe-ops"
-version = "0.5.0"
-dependencies = [
- "copybook-error",
- "copybook-overflow",
- "copybook-safe-index",
- "copybook-safe-text",
-]
-
-[[package]]
-name = "copybook-safe-text"
-version = "0.5.0"
-dependencies = [
- "copybook-error",
-]
-
-[[package]]
 name = "copybook-support-matrix"
 version = "0.5.0"
 dependencies = [
  "serde",
  "serde_plain",
-]
-
-[[package]]
-name = "copybook-utils"
-version = "0.5.0"
-dependencies = [
- "copybook-error",
- "copybook-safe-ops",
 ]
 
 [[package]]

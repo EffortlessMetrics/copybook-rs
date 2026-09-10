@@ -51,7 +51,7 @@ direct_test = "tests/e2e/e2e_cli_error_code_coverage.rs::cli_cbks121_counter_not
 code = "CBKS141_RECORD_TOO_LARGE"
 stability_class = "stable"
 evidence_status = "direct"
-direct_test = "crates/copybook-overflow/tests/overflow_comprehensive.rs::chain_fails_at_u16_narrowing"
+direct_test = "crates/copybook-core/src/internal/bounds.rs::u64_to_u16_overflow"
 [[errors]]
 code = "CBKS301_ODO_CLIPPED"
 stability_class = "stable"

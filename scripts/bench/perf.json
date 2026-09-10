@@ -1,9 +1,36 @@
 {
+  "timestamp": "2026-09-09T23:40:29Z",
+  "commit": "04970793",
+  "toolchain": "cargo bench (criterion)",
+  "status": "measured",
+  "display_mibps": 3087.4795722332256,
+  "display_gibps": 3.0151167697590093,
+  "comp3_mibps": 25.90882548604745,
+  "benchmarks": [
+    {
+      "name": "slo_validation/display_heavy_slo_80mbps",
+      "mean_ns": 1544422.0667611435,
+      "bytes_processed": 5000000,
+      "mean_mibps": 3087.4795722332256
+    },
+    {
+      "name": "slo_validation/comp3_heavy_slo_40mbps",
+      "mean_ns": 22085315.68333333,
+      "bytes_processed": 600000,
+      "mean_mibps": 25.90882548604745
+    }
+  ],
+  "summary": {
+    "display_mibps": 3087.4795722332256,
+    "comp3_mibps": 25.90882548604745,
+    "max_rss_mib": 4,
+    "p50_mibps": 30.752818323445787,
+    "p90_mibps": 3549.944835938738,
+    "p99_mibps": 3823.0437347066113
+  },
   "format_version": "1.0.0",
-  "timestamp": "2026-07-11T08:25:10Z",
-  "commit": "f556364",
   "build_profile": "release",
-  "target_cpu": "native",
+  "target_cpu": "x86-64-v3",
   "environment": {
     "os": "Linux",
     "kernel": "6.6.87.2-microsoft-standard-WSL2",
@@ -11,34 +38,7 @@
     "cpu_cores": 32,
     "wsl2_detected": true
   },
-  "toolchain": "cargo bench (criterion)",
-  "status": "pass",
-  "display_mibps": 1298.319349069406,
-  "display_gibps": 1.2678899893255915,
-  "comp3_mibps": 11.086267591566882,
-  "benchmarks": [
-    {
-      "name": "slo_validation/display_heavy_slo_80mbps",
-      "mean_ns": 3672726.271428572,
-      "bytes_processed": 5000000,
-      "mean_mibps": 1298.319349069406
-    },
-    {
-      "name": "slo_validation/comp3_heavy_slo_40mbps",
-      "mean_ns": 51613817.285,
-      "bytes_processed": 600000,
-      "mean_mibps": 11.086267591566882
-    }
-  ],
-  "summary": {
-    "display_mibps": 1298.319349069406,
-    "comp3_mibps": 11.086267591566882,
-    "max_rss_mib": 0,
-    "p50_mibps": 15.010525773780232,
-    "p90_mibps": 1473.9520961044127,
-    "p99_mibps": 1817.6077800259757
-  },
   "integrity": {
-    "sha256": "8d400f0db08262f589abd99481c672a28e5b9edde59affedf8b911cea719b94e"
+    "sha256": "e22144dcb60f635200e316ecb74cb60ceacdab80297c807f6551e79e97b905ec"
   }
 }

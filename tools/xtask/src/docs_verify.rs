@@ -2035,15 +2035,17 @@ fn verify_facade_invariants() -> Result<()> {
     let dep_module_set = collect_copybook_dependency_modules()?;
     let readme_module_set = collect_copybook_readme_modules()?;
 
-    // These deprecated facade aliases forward directly to their true owners;
-    // they intentionally have no compatibility-crate dependency so the
-    // facade does not reintroduce an old ownership edge.
+    // These facade modules forward directly to their true owners without a
+    // dedicated compatibility-crate dependency: deprecated aliases (so the
+    // facade does not reintroduce an old ownership edge) and the `framing`
+    // grouping module (whose children re-export the fixed/RDW crates).
     verify_facade_module_dependency_invariant(
         &lib_module_set,
         &dep_module_set,
         &[
             "codepage",
             "determinism",
+            "framing",
             "options",
             "overpunch",
             "record_io",

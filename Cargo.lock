@@ -743,10 +743,8 @@ dependencies = [
  "copybook-error-reporter",
  "copybook-fixed",
  "copybook-governance",
- "copybook-overflow",
  "copybook-rdw",
  "copybook-support-matrix",
- "copybook-utils",
 ]
 
 [[package]]

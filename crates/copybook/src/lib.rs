@@ -21,7 +21,11 @@ pub mod codepage {
     pub use copybook_charset::*;
 }
 
-/// Shared feature-flag governance contracts.
+/// Deprecated compatibility alias for feature-flag governance contracts.
+#[deprecated(
+    since = "0.6.0",
+    note = "use copybook::core::feature_flags for flag governance"
+)]
 pub mod contracts {
     pub use copybook_contracts::*;
 }
@@ -31,7 +35,11 @@ pub mod core {
     pub use copybook_core::*;
 }
 
-/// Determinism primitives for stable hash, diff comparison, and codec checks.
+/// Deprecated compatibility alias for determinism primitives.
+#[deprecated(
+    since = "0.6.0",
+    note = "use copybook::codec::determinism for stable hash and diff checks"
+)]
 pub mod determinism {
     pub use copybook_codec::determinism::*;
 }
@@ -41,12 +49,32 @@ pub mod error {
     pub use copybook_error::*;
 }
 
-/// Structured error reporting policies and summaries.
+/// Frozen compatibility forwarder for error reporting policies and summaries.
+///
+/// Reporting splits by owning layer under #655; this path gains no new
+/// behavior and is removed after the 0.6 migration window.
+#[deprecated(
+    since = "0.6.0",
+    note = "frozen compatibility forwarder; reporting splits by owner under #655"
+)]
 pub mod error_reporter {
     pub use copybook_error_reporter::*;
 }
 
-/// Fixed-length record framing primitives.
+/// Record framing primitives: fixed-length and RDW framing.
+pub mod framing {
+    /// Fixed-length record framing primitives (preferred path).
+    pub mod fixed {
+        pub use copybook_fixed::*;
+    }
+    /// RDW framing primitives (preferred path).
+    pub mod rdw {
+        pub use copybook_rdw::*;
+    }
+}
+
+/// Deprecated compatibility alias for fixed-length record framing.
+#[deprecated(since = "0.6.0", note = "use copybook::framing::fixed")]
 pub mod fixed {
     pub use copybook_fixed::*;
 }
@@ -65,17 +93,14 @@ pub mod options {
     pub use copybook_codec::options::*;
 }
 
-/// Overflow-safe integer narrowing and bounds arithmetic.
-pub mod overflow {
-    pub use copybook_overflow::*;
-}
-
-/// Zoned decimal overpunch encode/decode primitives.
+/// Deprecated compatibility alias for zoned decimal overpunch primitives.
+#[deprecated(since = "0.6.0", note = "use copybook::codec::numeric::overpunch")]
 pub mod overpunch {
     pub use copybook_codec::numeric::overpunch::*;
 }
 
-/// RDW framing primitives.
+/// Deprecated compatibility alias for RDW framing primitives.
+#[deprecated(since = "0.6.0", note = "use copybook::framing::rdw")]
 pub mod rdw {
     pub use copybook_rdw::*;
 }
@@ -92,9 +117,4 @@ pub mod record_io {
 /// COBOL feature support matrix contracts.
 pub mod support_matrix {
     pub use copybook_support_matrix::*;
-}
-
-/// Panic-safe utility functions and extension traits.
-pub mod utils {
-    pub use copybook_utils::*;
 }

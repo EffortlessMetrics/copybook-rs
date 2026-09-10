@@ -14,14 +14,6 @@
       "owner_issue": 655
     },
     {
-      "id": "primary-dep:copybook->copybook-overflow",
-      "owner_issue": 655
-    },
-    {
-      "id": "primary-dep:copybook->copybook-utils",
-      "owner_issue": 655
-    },
-    {
       "id": "primary-dep:copybook-core->copybook-error-reporter",
       "owner_issue": 655
     },

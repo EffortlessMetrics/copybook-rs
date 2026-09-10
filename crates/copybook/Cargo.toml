@@ -30,10 +30,8 @@ copybook-error.workspace = true
 copybook-error-reporter.workspace = true
 copybook-fixed.workspace = true
 copybook-governance.workspace = true
-copybook-overflow.workspace = true
 copybook-rdw.workspace = true
 copybook-support-matrix.workspace = true
-copybook-utils.workspace = true
 
 [lints]
 workspace = true

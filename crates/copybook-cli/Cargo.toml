@@ -37,9 +37,11 @@ md5 = "0.8.0"
 serde.workspace = true
 chrono.workspace = true
 anyhow.workspace = true
-copybook-core = { workspace = true }
+copybook = { workspace = true }
+# Direct codec edge kept solely for `copybook-codec/metrics` feature
+# forwarding (cargo features cannot route through a facade re-export);
+# all code paths use the canonical facade above.
 copybook-codec = { workspace = true }
-copybook-charset = { workspace = true }
 copybook-governance = { workspace = true }
 copybook-arrow = { workspace = true, optional = true }
 copybook-audit = { workspace = true, optional = true }

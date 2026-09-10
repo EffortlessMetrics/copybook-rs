@@ -10,13 +10,13 @@ use crate::utils::{
     read_input_or_stdin,
 };
 use crate::write_stdout_all;
-use copybook_codec::file::fixed as fixed_file;
-use copybook_codec::lib_api::decode_record_with_raw_data;
-use copybook_codec::{
+use copybook::codec::file::fixed as fixed_file;
+use copybook::codec::lib_api::decode_record_with_raw_data;
+use copybook::codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, RecordIterator,
     UnmappablePolicy,
 };
-use copybook_core::{Error, FeatureFlags, parse_copybook_with_feature_flags};
+use copybook::core::{Error, FeatureFlags, parse_copybook_with_feature_flags};
 use std::fmt::Write as _;
 use std::fs::{File, metadata};
 use std::io::BufReader;
@@ -102,7 +102,7 @@ pub struct VerifyOptions<'a> {
     pub max_errors: u32,
     pub sample: u32,
     pub strict_comments: bool,
-    pub dialect: copybook_core::dialect::Dialect,
+    pub dialect: copybook::core::dialect::Dialect,
     pub select: &'a [String],
 }
 
@@ -154,7 +154,7 @@ pub fn run(
         .with_unmappable_policy(UnmappablePolicy::Error)
         .with_threads(1) // Single-threaded for deterministic error reporting
         .with_preserve_zoned_encoding(false)
-        .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto);
+        .with_preferred_zoned_encoding(copybook::codec::ZonedEncodingFormat::Auto);
 
     // Validate record format constraints
     match opts.format {

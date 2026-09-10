@@ -4,8 +4,8 @@
 use crate::exit_codes::ExitCode;
 use crate::utils::{InputRole, read_input_or_stdin};
 use crate::write_stdout_all;
-use copybook_codec::Codepage;
-use copybook_core::{
+use copybook::codec::Codepage;
+use copybook::core::{
     FeatureFlags, Field, FieldKind, Occurs, ParseOptions, parse_copybook_with_feature_flags,
 };
 use std::fmt::Write as _;
@@ -291,10 +291,10 @@ fn render_details(field: &Field) -> String {
 }
 
 /// Human-readable SIGN SEPARATE placement.
-fn sign_placement(info: &copybook_core::SignSeparateInfo) -> &'static str {
+fn sign_placement(info: &copybook::core::SignSeparateInfo) -> &'static str {
     match info.placement {
-        copybook_core::SignPlacement::Leading => "LEADING",
-        copybook_core::SignPlacement::Trailing => "TRAILING",
+        copybook::core::SignPlacement::Leading => "LEADING",
+        copybook::core::SignPlacement::Trailing => "TRAILING",
     }
 }
 

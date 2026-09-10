@@ -8,9 +8,9 @@ pub(super) fn parse_copybook_schema(
 ) -> AuditResult<Schema> {
     let copybook_text = fs::read_to_string(path)?;
     // #656 Phase D: CLI-resolved flags passed explicitly; no global state.
-    Ok(copybook_core::parse_copybook_with_feature_flags(
+    Ok(copybook::core::parse_copybook_with_feature_flags(
         &copybook_text,
-        &copybook_core::ParseOptions::default(),
+        &copybook::core::ParseOptions::default(),
         feature_flags,
     )?)
 }
@@ -27,18 +27,22 @@ pub(super) fn collect_leaf_fields<'a>(fields: &'a [Field], out: &mut Vec<&'a Fie
 
 pub(super) fn map_field_type_name(field: &Field) -> String {
     match &field.kind {
-        copybook_core::FieldKind::Alphanum { len } => format!("alphanum[{len}]"),
-        copybook_core::FieldKind::ZonedDecimal { digits, .. } => format!("zoned-decimal[{digits}]"),
-        copybook_core::FieldKind::BinaryInt { bits, .. } => format!("binary-int[{bits}]"),
-        copybook_core::FieldKind::PackedDecimal { digits, .. } => {
+        copybook::core::FieldKind::Alphanum { len } => format!("alphanum[{len}]"),
+        copybook::core::FieldKind::ZonedDecimal { digits, .. } => {
+            format!("zoned-decimal[{digits}]")
+        }
+        copybook::core::FieldKind::BinaryInt { bits, .. } => format!("binary-int[{bits}]"),
+        copybook::core::FieldKind::PackedDecimal { digits, .. } => {
             format!("packed-decimal[{digits}]")
         }
-        copybook_core::FieldKind::Group => "group".to_string(),
-        copybook_core::FieldKind::Condition { .. } => "condition".to_string(),
-        copybook_core::FieldKind::Renames { .. } => "renames".to_string(),
-        copybook_core::FieldKind::EditedNumeric { width, .. } => format!("edited-numeric[{width}]"),
-        copybook_core::FieldKind::FloatSingle => "float-single".to_string(),
-        copybook_core::FieldKind::FloatDouble => "float-double".to_string(),
+        copybook::core::FieldKind::Group => "group".to_string(),
+        copybook::core::FieldKind::Condition { .. } => "condition".to_string(),
+        copybook::core::FieldKind::Renames { .. } => "renames".to_string(),
+        copybook::core::FieldKind::EditedNumeric { width, .. } => {
+            format!("edited-numeric[{width}]")
+        }
+        copybook::core::FieldKind::FloatSingle => "float-single".to_string(),
+        copybook::core::FieldKind::FloatDouble => "float-double".to_string(),
     }
 }
 

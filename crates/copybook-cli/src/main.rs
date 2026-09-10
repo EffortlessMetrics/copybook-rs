@@ -17,10 +17,10 @@ use anyhow::anyhow;
 use clap::Args;
 use clap::error::ErrorKind as ClapErrorKind;
 use clap::{ColorChoice, Parser, Subcommand};
-use copybook_codec::{
+use copybook::codec::{
     Codepage, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
-use copybook_core::{Error as CoreError, Feature};
+use copybook::core::{Error as CoreError, Feature};
 use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::io::{self, ErrorKind, Write};
@@ -355,8 +355,8 @@ Field Projection:\n\
         #[arg(long)]
         strict_comments: bool,
         /// Force zoned encoding format (ascii, ebcdic, or auto), ignoring preserved/preferred.
-        #[arg(long, value_parser = clap::value_parser!(copybook_codec::ZonedEncodingFormat))]
-        zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
+        #[arg(long, value_parser = clap::value_parser!(copybook::codec::ZonedEncodingFormat))]
+        zoned_encoding_override: Option<copybook::codec::ZonedEncodingFormat>,
         /// COMP-1/COMP-2 floating-point binary format.
         #[arg(long, default_value = "ieee-be")]
         float_format: FloatFormat,
@@ -1142,7 +1142,7 @@ mod utils;
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use copybook_core::ErrorCode;
+    use copybook::core::ErrorCode;
     use proptest::prelude::*;
 
     #[test]

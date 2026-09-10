@@ -51,6 +51,8 @@ use crate::utils::atomic_write;
 use crate::{write_stderr_line, write_stdout_line};
 use chrono::{self, DateTime, Duration as ChronoDuration};
 use clap::{Parser, Subcommand};
+use copybook::codec::{Codepage, DecodeOptions, RecordFormat, decode_file_to_jsonl};
+use copybook::core::{FeatureFlags, Field, FieldKind, Schema};
 use copybook_audit::{
     self as audit_core, LineageTracker,
     event::{
@@ -65,8 +67,6 @@ use copybook_audit::{
     PerformanceBaseline, ResourceMetrics, RiskLevel, SecurityAuditor, SecurityMonitor,
     SecurityViolation, ThroughputMetrics, TransformationType,
 };
-use copybook_codec::{Codepage, DecodeOptions, RecordFormat, decode_file_to_jsonl};
-use copybook_core::{FeatureFlags, Field, FieldKind, Schema};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};

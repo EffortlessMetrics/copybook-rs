@@ -4,7 +4,7 @@
 use crate::exit_codes::ExitCode;
 use crate::utils::{InputRole, atomic_write, read_input_or_stdin};
 use crate::write_stdout_all;
-use copybook_core::{FeatureFlags, ParseOptions, parse_copybook_with_feature_flags};
+use copybook::core::{FeatureFlags, ParseOptions, parse_copybook_with_feature_flags};
 use std::path::PathBuf;
 use tracing::info;
 

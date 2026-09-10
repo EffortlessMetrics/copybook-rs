@@ -12,14 +12,6 @@
     {
       "id": "primary-dep:copybook->copybook-error-reporter",
       "owner_issue": 655
-    },
-    {
-      "id": "primary-dep:copybook-core->copybook-error-reporter",
-      "owner_issue": 655
-    },
-    {
-      "id": "primary-dep:copybook-core->copybook-utils",
-      "owner_issue": 655
     }
   ]
 }

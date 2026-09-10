@@ -9,7 +9,7 @@
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use copybook_corruption::{detect_ebcdic_corruption, detect_packed_corruption};
+use copybook_corruption_detectors::{detect_ebcdic_corruption, detect_packed_corruption};
 use copybook_corruption_predicates::{
     is_invalid_comp3_high_nibble, is_invalid_comp3_low_nibble, is_invalid_comp3_sign_nibble,
     is_likely_corrupted_ebcdic_byte,

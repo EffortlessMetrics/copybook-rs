@@ -323,7 +323,7 @@ fn predicate_agrees_with_copybook_rdw_re_export() {
 
 #[test]
 fn predicate_agrees_with_corruption_rdw_detection() {
-    use copybook_corruption_rdw::detect_rdw_ascii_corruption;
+    use copybook_rdw::diagnostics::detect_rdw_ascii_corruption;
 
     // When the predicate says suspect, the corruption detector should also flag it
     let suspect = [b'1', b'2', 0x00, 0x00];

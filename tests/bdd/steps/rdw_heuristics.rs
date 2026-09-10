@@ -3,7 +3,7 @@ use copybook_corruption_predicates::{
     is_invalid_comp3_high_nibble, is_invalid_comp3_low_nibble, is_invalid_comp3_sign_nibble,
     is_likely_corrupted_ebcdic_byte,
 };
-use copybook_corruption_rdw::detect_rdw_ascii_corruption;
+use copybook_rdw::diagnostics::detect_rdw_ascii_corruption;
 use copybook_rdw_predicates::rdw_is_suspect_ascii_corruption_slice;
 use cucumber::{then, when};
 

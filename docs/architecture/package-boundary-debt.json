@@ -26,10 +26,6 @@
       "owner_issue": 655
     },
     {
-      "id": "primary-dep:copybook-core->copybook-overflow",
-      "owner_issue": 655
-    },
-    {
       "id": "primary-dep:copybook-core->copybook-utils",
       "owner_issue": 655
     }

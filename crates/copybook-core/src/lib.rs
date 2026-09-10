@@ -136,6 +136,8 @@ pub mod error {
 pub mod error_reporter;
 /// Compile-time and runtime feature flag governance.
 pub mod feature_flags;
+/// Crate-internal semantic helpers; no public API surface.
+pub(crate) mod internal;
 /// Layout resolution: byte offsets, REDEFINES, and OCCURS DEPENDING ON.
 pub mod layout;
 /// Lexical analysis of COBOL copybook source text.

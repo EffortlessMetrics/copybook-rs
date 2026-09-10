@@ -153,70 +153,172 @@ fn verify() -> Result<()> {
     Ok(())
 }
 
+/// Expected status marker for a registry [`support_matrix::SupportStatus`].
+///
+/// The registry is authoritative for feature status (#656 Phase G); each
+/// governed doc row renders one of these markers in its Status column.
+fn status_marker(status: support_matrix::SupportStatus) -> &'static str {
+    match status {
+        support_matrix::SupportStatus::Supported => "✅",
+        support_matrix::SupportStatus::Partial => "⚠️",
+        support_matrix::SupportStatus::Planned => "🔄",
+        support_matrix::SupportStatus::NotPlanned => "❌",
+        // SupportStatus is non_exhaustive: unknown future variants map to a
+        // marker no row carries, forcing an explicit verifier update.
+        _ => "❓",
+    }
+}
+
+/// True for Markdown table separator rows (`|---|---|`, with optional colons).
+fn is_separator_line(line: &str) -> bool {
+    let trimmed = line.trim();
+    if !trimmed.starts_with('|') || !trimmed.ends_with('|') {
+        return false;
+    }
+    let cells: Vec<&str> = trimmed
+        .split('|')
+        .map(str::trim)
+        .filter(|cell| !cell.is_empty())
+        .collect();
+    !cells.is_empty()
+        && cells.iter().all(|cell| {
+            let inner = cell.trim_matches(':');
+            inner.len() >= 3 && inner.chars().all(|c| c == '-')
+        })
+}
+
+/// Split a Markdown table line into trimmed cells.
+///
+/// Returns `None` for non-table lines and separator rows (`|---|---|`).
+/// Interior empty cells are dropped, so callers must only use the result on
+/// dense tables (no `||` gaps); every governed support-matrix table is dense.
+fn table_cells(line: &str) -> Option<Vec<String>> {
+    let trimmed = line.trim();
+    if !trimmed.starts_with('|') || !trimmed.ends_with('|') {
+        return None;
+    }
+    let cells: Vec<String> = trimmed
+        .split('|')
+        .map(str::trim)
+        .filter(|cell| !cell.is_empty())
+        .map(str::to_owned)
+        .collect();
+    if cells.is_empty() {
+        return None;
+    }
+    let is_separator = cells.iter().all(|cell| {
+        let inner = cell.trim_matches(':');
+        inner.len() >= 3 && inner.chars().all(|c| c == '-')
+    });
+    if is_separator { None } else { Some(cells) }
+}
+
+/// Verify registry features against the governed `Feature|Status` doc tables.
+///
+/// A table is governed when its header row has `Feature` and `Status` cells;
+/// the Status column index is derived from that header. Each registry feature
+/// must have exactly one governed body row carrying its `` (`id`) `` marker,
+/// and that row's Status cell must contain the registry status marker.
+///
+/// Returns one error line per drifted feature (`missing:`, `duplicate:`, or
+/// `status:` prefixed). Pure over the doc text so checker changes carry
+/// accept/reject fixtures (unit tests at the bottom of this file).
+fn verify_support_matrix_content(
+    doc: &str,
+    features: &[support_matrix::FeatureSupport],
+) -> Vec<String> {
+    // Collect (status column index, body rows) for every governed table.
+    let mut governed: Vec<(usize, Vec<Vec<String>>)> = Vec::new();
+    let mut current: Option<(usize, Vec<Vec<String>>)> = None;
+    let flush = |current: &mut Option<(usize, Vec<Vec<String>>)>,
+                 governed: &mut Vec<(usize, Vec<Vec<String>>)>| {
+        if let Some(table) = current.take() {
+            governed.push(table);
+        }
+    };
+    for line in doc.lines() {
+        // Separator rows (`|---|---|`) belong to the current table: skip them
+        // without flushing, or the header's own separator would end the table
+        // before any body row is collected.
+        if is_separator_line(line) {
+            continue;
+        }
+        let Some(cells) = table_cells(line) else {
+            flush(&mut current, &mut governed);
+            continue;
+        };
+        let header_status = cells
+            .iter()
+            .position(|cell| cell == "Status")
+            .filter(|_| cells.iter().any(|cell| cell == "Feature"));
+        if let Some(status_idx) = header_status {
+            flush(&mut current, &mut governed);
+            current = Some((status_idx, Vec::new()));
+        } else if let Some((_, rows)) = current.as_mut() {
+            rows.push(cells);
+        }
+        // Cells before any governed header are ignored.
+    }
+    flush(&mut current, &mut governed);
+
+    let mut errors = Vec::new();
+    for feature in features {
+        let id =
+            serde_plain::to_string(&feature.id).unwrap_or_else(|_| format!("{:?}", feature.id));
+        let row_marker = format!("(`{id}`)");
+        let mut matches: Vec<(usize, &[String])> = Vec::new();
+        for (status_idx, rows) in &governed {
+            for row in rows {
+                if row.iter().any(|cell| cell.contains(&row_marker)) {
+                    matches.push((*status_idx, row));
+                }
+            }
+        }
+        if matches.is_empty() {
+            errors.push(format!(
+                "missing: `{id}` is in the registry but has no governed row"
+            ));
+        } else if matches.len() > 1 {
+            errors.push(format!(
+                "duplicate: `{id}` has {} governed rows; keep exactly one",
+                matches.len()
+            ));
+        } else {
+            let (status_idx, row) = matches[0];
+            let marker = status_marker(feature.status);
+            let agrees = row
+                .get(status_idx)
+                .is_some_and(|cell| cell.contains(marker));
+            if !agrees {
+                errors.push(format!(
+                    "status: `{id}`: registry says {:?} (expected marker {marker} in the Status column)",
+                    feature.status
+                ));
+            }
+        }
+    }
+    errors
+}
+
 fn verify_support_matrix() -> Result<()> {
     let doc_path = "docs/reference/COBOL_SUPPORT_MATRIX.md";
     let doc_content = fs::read_to_string(doc_path)?;
 
-    let all_features = support_matrix::all_features();
-    let mut missing = Vec::new();
-    let mut status_mismatches = Vec::new();
-
-    for feature in all_features {
-        let id =
-            serde_plain::to_string(&feature.id).unwrap_or_else(|_| format!("{:?}", feature.id));
-
-        // Check if the feature ID appears anywhere in the doc
-        // We're lenient: just check for the kebab-case ID string
-        if !doc_content.contains(&id) {
-            missing.push(id.clone());
-            continue;
-        }
-
-        // #656 Phase G: the registry is authoritative for feature status, so the
-        // doc's table row for the feature must carry the matching status marker.
-        // SupportStatus is non_exhaustive: unknown future variants map to a
-        // marker no row carries, forcing an explicit verifier update.
-        let expected_marker = match feature.status {
-            support_matrix::SupportStatus::Supported => "✅",
-            support_matrix::SupportStatus::Partial => "⚠️",
-            support_matrix::SupportStatus::Planned => "🔄",
-            support_matrix::SupportStatus::NotPlanned => "❌",
-            _ => "❓",
-        };
-        let row_marker = format!("(`{id}`)");
-        let agrees = doc_content
-            .lines()
-            .any(|line| line.contains(row_marker.as_str()) && line.contains(expected_marker));
-        if !agrees {
-            status_mismatches.push(format!(
-                "{id}: registry says {:?} (expected marker {expected_marker})",
-                feature.status
-            ));
-        }
-    }
-
-    if !missing.is_empty() {
+    let errors = verify_support_matrix_content(&doc_content, support_matrix::all_features());
+    if !errors.is_empty() {
         bail!(
             "Support matrix drift detected!\n\
-             The following features are in the registry but not documented in {doc_path}:\n  - {}\n\n\
-             Add these features to the appropriate tables in {doc_path}.",
-            missing.join("\n  - ")
-        );
-    }
-
-    if !status_mismatches.is_empty() {
-        bail!(
-            "Support matrix status drift detected!\n\
-             The registry is authoritative for feature status (#656 Phase G); \
-             these {doc_path} rows disagree:\n  - {}\n\n\
-             Align the row status markers with the registry.",
-            status_mismatches.join("\n  - ")
+             The registry is authoritative for feature status (#656 Phase G).\n\
+             These {doc_path} rows disagree:\n  - {}\n\n\
+             Align the governed rows with the registry: exactly one row per \
+             feature, with the Status column carrying the registry marker.",
+            errors.join("\n  - ")
         );
     }
 
     println!(
         "\u{2713} Support matrix registry \u{2194} docs in sync ({} features verified)",
-        all_features.len()
+        support_matrix::all_features().len()
     );
     Ok(())
 }
@@ -278,4 +380,133 @@ fn perf_summarize_last() -> Result<()> {
     println!("{summary}");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use copybook_core::support_matrix::{FeatureId, FeatureSupport, SupportStatus};
+
+    const HEADER: &str = "| Feature | Status | Test Evidence | Notes |\n|---------|--------|---------------|-------|\n";
+
+    fn feature(id: FeatureId, status: SupportStatus) -> FeatureSupport {
+        FeatureSupport {
+            id,
+            name: "fixture",
+            description: "fixture",
+            status,
+            doc_ref: None,
+        }
+    }
+
+    fn check(doc: &str, id: FeatureId, status: SupportStatus) -> Vec<String> {
+        verify_support_matrix_content(doc, std::slice::from_ref(&feature(id, status)))
+    }
+
+    #[test]
+    fn status_marker_mapping() {
+        assert_eq!(status_marker(SupportStatus::Supported), "✅");
+        assert_eq!(status_marker(SupportStatus::Partial), "⚠️");
+        assert_eq!(status_marker(SupportStatus::Planned), "🔄");
+        assert_eq!(status_marker(SupportStatus::NotPlanned), "❌");
+    }
+
+    #[test]
+    fn accept_supported_row() {
+        let doc =
+            format!("{HEADER}| Edited PIC (`edited-pic`) | ✅ Fully Supported | `e1.rs` | masks |");
+        assert!(
+            check(&doc, FeatureId::EditedPic, SupportStatus::Supported).is_empty(),
+            "matching Status marker must verify"
+        );
+    }
+
+    #[test]
+    fn accept_partial_row_with_emoji_in_notes() {
+        // Notes-column emoji must not disturb the Status-column agreement.
+        let doc = format!(
+            "{HEADER}| Nested ODO (`nested-odo`) | ⚠️ Partially Supported (O1-O4) | `o1.rs` | O1-O4✅ supported; O5-O6🚫 rejected |"
+        );
+        assert!(
+            check(&doc, FeatureId::NestedOdo, SupportStatus::Partial).is_empty(),
+            "notes emoji must not break Partial agreement"
+        );
+    }
+
+    #[test]
+    fn reject_supported_registry_change_masked_by_notes_emoji() {
+        // Devin review on #896: flipping the registry to Supported while the
+        // row still renders ⚠️ must fail even though the notes contain ✅.
+        let doc = format!(
+            "{HEADER}| Nested ODO (`nested-odo`) | ⚠️ Partially Supported (O1-O4) | `o1.rs` | O1-O4✅ supported; O5-O6🚫 rejected |"
+        );
+        let errors = check(&doc, FeatureId::NestedOdo, SupportStatus::Supported);
+        assert_eq!(errors.len(), 1, "expected one status error, got {errors:?}");
+        assert!(
+            errors[0].starts_with("status:"),
+            "expected a status error, got {:?}",
+            errors[0]
+        );
+    }
+
+    #[test]
+    fn reject_marker_only_in_evidence_column() {
+        // The expected marker in Evidence (not Status) is still drift.
+        let doc = format!(
+            "{HEADER}| ODO (`occurs-depending`) | ✅ Fully Supported | ⚠️ tail-only run `odo.rs` | driver checks |"
+        );
+        let errors = check(&doc, FeatureId::OccursDepending, SupportStatus::Partial);
+        assert_eq!(
+            errors.len(),
+            1,
+            "evidence-column marker must not satisfy the Status check, got {errors:?}"
+        );
+        assert!(errors[0].starts_with("status:"));
+    }
+
+    #[test]
+    fn reject_mismatched_marker() {
+        let doc = format!(
+            "{HEADER}| SIGN SEPARATE (`sign-separate`) | ✅ Fully Supported | `s.rs` | unconditional |"
+        );
+        let errors = check(&doc, FeatureId::SignSeparate, SupportStatus::Partial);
+        assert_eq!(errors.len(), 1, "got {errors:?}");
+        assert!(errors[0].starts_with("status:"));
+    }
+
+    #[test]
+    fn reject_missing_row() {
+        let doc = format!("{HEADER}| Unrelated | ✅ Supported | `u.rs` | - |");
+        let errors = check(&doc, FeatureId::Level88Conditions, SupportStatus::Supported);
+        assert_eq!(errors.len(), 1, "got {errors:?}");
+        assert!(errors[0].starts_with("missing:"));
+    }
+
+    #[test]
+    fn reject_duplicate_rows() {
+        let doc = format!(
+            "{HEADER}| Level-88 (`level-88`) | ✅ Fully Supported | `a.rs` | - |\n| Level-88 bis (`level-88`) | ✅ Fully Supported | `b.rs` | - |"
+        );
+        let errors = check(&doc, FeatureId::Level88Conditions, SupportStatus::Supported);
+        assert_eq!(errors.len(), 1, "got {errors:?}");
+        assert!(errors[0].starts_with("duplicate:"));
+    }
+
+    #[test]
+    fn ignores_ungoverned_tables() {
+        // An id row in a table without a Feature|Status header is not governed.
+        let doc = "| Scenario | Detail |\n|---|---|\n| Nested (`nested-odo`) | ✅ |\n";
+        let errors = check(doc, FeatureId::NestedOdo, SupportStatus::Supported);
+        assert_eq!(errors.len(), 1, "got {errors:?}");
+        assert!(errors[0].starts_with("missing:"));
+    }
+
+    #[test]
+    fn duplicate_across_governed_tables_is_rejected() {
+        let row = "| Nested ODO (`nested-odo`) | ⚠️ Partial | `o.rs` | - |";
+        let doc = format!("{HEADER}{row}\n\nSome prose.\n\n{HEADER}{row}");
+        let errors = check(&doc, FeatureId::NestedOdo, SupportStatus::Partial);
+        assert_eq!(errors.len(), 1, "got {errors:?}");
+        assert!(errors[0].starts_with("duplicate:"));
+    }
 }

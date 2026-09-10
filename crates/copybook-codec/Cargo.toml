@@ -26,7 +26,6 @@ copybook-core = { workspace = true }
 copybook-charset.workspace = true
 copybook-fixed.workspace = true
 copybook-rdw.workspace = true
-copybook-corruption.workspace = true
 copybook-error.workspace = true
 serde.workspace = true
 serde_json.workspace = true

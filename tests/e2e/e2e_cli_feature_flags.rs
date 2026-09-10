@@ -59,7 +59,10 @@ fn list_features_shows_categories() {
     assert!(stdout.contains("ENTERPRISE:"), "should list ENTERPRISE");
     assert!(stdout.contains("PERFORMANCE:"), "should list PERFORMANCE");
     assert!(stdout.contains("DEBUG:"), "should list DEBUG");
-    assert!(stdout.contains("TESTING:"), "should list TESTING");
+    assert!(
+        !stdout.contains("TESTING:"),
+        "testing category was removed in 0.6"
+    );
 }
 
 #[test]

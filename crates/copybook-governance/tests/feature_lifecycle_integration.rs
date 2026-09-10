@@ -192,7 +192,6 @@ fn category_member_counts_sum_to_total_feature_count() {
         FeatureCategory::Enterprise,
         FeatureCategory::Performance,
         FeatureCategory::Debug,
-        FeatureCategory::Testing,
     ];
     let total: usize = categories
         .iter()

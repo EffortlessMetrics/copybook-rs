@@ -122,7 +122,7 @@ fn end_to_end_governance_summary_and_runtime_summary_agree_on_totals() {
 fn feature_flags_module_accessible() {
     use copybook_governance::feature_flags;
     let all = feature_flags::all_features();
-    assert_eq!(all.len(), 22);
+    assert_eq!(all.len(), 18);
 }
 
 #[test]

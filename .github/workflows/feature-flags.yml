@@ -90,14 +90,6 @@ jobs:
             env: "COPYBOOK_FF_PROFILING"
           - name: "memory_tracking"
             env: "COPYBOOK_FF_MEMORY_TRACKING"
-          - name: "mutation_testing"
-            env: "COPYBOOK_FF_MUTATION_TESTING"
-          - name: "fuzzing_integration"
-            env: "COPYBOOK_FF_FUZZING_INTEGRATION"
-          - name: "coverage_instrumentation"
-            env: "COPYBOOK_FF_COVERAGE_INSTRUMENTATION"
-          - name: "property_based_testing"
-            env: "COPYBOOK_FF_PROPERTY_BASED_TESTING"
         state:
           - enabled
           - disabled

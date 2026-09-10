@@ -74,7 +74,7 @@ fn feature_env_var_names_are_all_unique() {
         .into_iter()
         .map(Feature::env_var_name)
         .collect();
-    assert_eq!(names.len(), 22);
+    assert_eq!(names.len(), 18);
 }
 
 // =========================================================================
@@ -98,7 +98,7 @@ fn feature_descriptions_are_all_unique() {
         .into_iter()
         .map(Feature::description)
         .collect();
-    assert_eq!(descs.len(), 22);
+    assert_eq!(descs.len(), 18);
 }
 
 // =========================================================================
@@ -169,7 +169,6 @@ fn every_feature_has_a_known_category() {
         FeatureCategory::Enterprise,
         FeatureCategory::Performance,
         FeatureCategory::Debug,
-        FeatureCategory::Testing,
     ]
     .into_iter()
     .collect();
@@ -190,7 +189,6 @@ fn no_feature_appears_in_multiple_categories() {
         FeatureCategory::Enterprise,
         FeatureCategory::Performance,
         FeatureCategory::Debug,
-        FeatureCategory::Testing,
     ];
     let mut seen = HashSet::new();
     for cat in &categories {

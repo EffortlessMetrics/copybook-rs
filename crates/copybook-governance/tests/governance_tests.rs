@@ -32,7 +32,7 @@ fn all_public_types_accessible_from_facade() {
 #[test]
 fn feature_flags_module_re_exports_all_features() {
     let all = copybook_governance::feature_flags::all_features();
-    assert_eq!(all.len(), 22, "expected 22 feature variants");
+    assert_eq!(all.len(), 18, "expected 18 feature variants");
 }
 
 #[test]
@@ -165,10 +165,6 @@ fn features_in_category_static_counts() {
         FeatureFlags::features_in_category(FeatureCategory::Debug).len(),
         4
     );
-    assert_eq!(
-        FeatureFlags::features_in_category(FeatureCategory::Testing).len(),
-        4
-    );
 }
 
 // =========================================================================
@@ -233,7 +229,6 @@ fn feature_category_display_produces_lowercase() {
     assert_eq!(FeatureCategory::Enterprise.to_string(), "enterprise");
     assert_eq!(FeatureCategory::Performance.to_string(), "performance");
     assert_eq!(FeatureCategory::Debug.to_string(), "debug");
-    assert_eq!(FeatureCategory::Testing.to_string(), "testing");
 }
 
 #[test]
@@ -283,7 +278,6 @@ fn feature_category_serde_roundtrip() {
         FeatureCategory::Enterprise,
         FeatureCategory::Performance,
         FeatureCategory::Debug,
-        FeatureCategory::Testing,
     ];
     for cat in categories {
         let json = serde_json::to_string(&cat).unwrap();

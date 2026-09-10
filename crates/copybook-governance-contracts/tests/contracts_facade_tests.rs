@@ -53,12 +53,12 @@ fn find_feature_returns_none_for_garbage_string() {
 #[test]
 fn builder_enable_category_through_facade() {
     let flags = FeatureFlags::builder()
-        .enable_category(FeatureCategory::Testing)
+        .enable_category(FeatureCategory::Debug)
         .build();
-    assert!(flags.is_enabled(Feature::MutationTesting));
-    assert!(flags.is_enabled(Feature::FuzzingIntegration));
-    assert!(flags.is_enabled(Feature::CoverageInstrumentation));
-    assert!(flags.is_enabled(Feature::PropertyBasedTesting));
+    assert!(flags.is_enabled(Feature::Profiling));
+    assert!(flags.is_enabled(Feature::MemoryTracking));
+    assert!(flags.is_enabled(Feature::DiagnosticOutput));
+    assert!(flags.is_enabled(Feature::VerboseLogging));
 }
 
 #[test]
@@ -128,7 +128,7 @@ fn feature_id_all_variants_accessible() {
 fn feature_flags_module_path_works() {
     use copybook_governance_contracts::feature_flags;
     let features = feature_flags::all_features();
-    assert_eq!(features.len(), 22);
+    assert_eq!(features.len(), 18);
 }
 
 #[test]

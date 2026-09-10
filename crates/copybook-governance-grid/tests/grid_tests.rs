@@ -267,5 +267,5 @@ fn re_exported_support_matrix_all_features_accessible() {
 #[test]
 fn re_exported_feature_flags_module_accessible() {
     let all = copybook_governance_grid::feature_flags::all_features();
-    assert_eq!(all.len(), 22);
+    assert_eq!(all.len(), 18);
 }

@@ -32,10 +32,6 @@ fuzz_target!(|data: &[u8]| {
         Feature::DiagnosticOutput,
         Feature::Profiling,
         Feature::MemoryTracking,
-        Feature::MutationTesting,
-        Feature::FuzzingIntegration,
-        Feature::CoverageInstrumentation,
-        Feature::PropertyBasedTesting,
     ];
 
     // Build feature flags from fuzz data bits

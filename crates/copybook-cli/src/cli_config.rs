@@ -32,8 +32,7 @@ pub(crate) fn parse_unmappable_policy(input: &str) -> Result<UnmappablePolicy, S
 /// Feature flag options for the CLI
 ///
 /// These options allow runtime control over experimental features,
-/// enterprise features, performance optimizations, debug capabilities,
-/// and testing hooks.
+/// enterprise features, performance optimizations, and debug capabilities.
 #[derive(Args, Debug, Clone)]
 pub(crate) struct FeatureFlagOpts {
     /// Enable specific feature flags (comma-separated)
@@ -43,7 +42,6 @@ pub(crate) struct FeatureFlagOpts {
     /// - Enterprise: `audit_system`, `sox_compliance`, `hipaa_compliance`, `gdpr_compliance`, `pci_dss_compliance`, `security_monitoring`
     /// - Performance: `advanced_optimization`, `lru_cache`, `parallel_decode`, `zero_copy`
     /// - Debug: `verbose_logging`, `diagnostic_output`, `profiling`, `memory_tracking`
-    /// - Testing: `mutation_testing`, `fuzzing_integration`, `coverage_instrumentation`, `property_based_testing`
     ///
     /// Example: --enable-features `sign_separate,verbose_logging`
     #[arg(long, value_delimiter = ',', value_name = "FEATURE")]
@@ -59,7 +57,7 @@ pub(crate) struct FeatureFlagOpts {
 
     /// Enable all features in a category
     ///
-    /// Available categories: `experimental`, `enterprise`, `performance`, `debug`, `testing`
+    /// Available categories: `experimental`, `enterprise`, `performance`, `debug`
     ///
     /// Example: --enable-category `debug`
     #[arg(long, value_name = "CATEGORY")]
@@ -272,9 +270,8 @@ fn parse_feature_category(category_name: &str) -> anyhow::Result<FeatureCategory
         "enterprise" => Ok(FeatureCategory::Enterprise),
         "performance" => Ok(FeatureCategory::Performance),
         "debug" => Ok(FeatureCategory::Debug),
-        "testing" => Ok(FeatureCategory::Testing),
         _ => Err(anyhow!(
-            "Invalid feature category '{category_name}'. Valid categories: experimental, enterprise, performance, debug, testing"
+            "Invalid feature category '{category_name}'. Valid categories: experimental, enterprise, performance, debug"
         )),
     }
 }
@@ -308,7 +305,6 @@ pub(crate) fn list_all_features(flags: &FeatureFlags) {
         FeatureCategory::Enterprise,
         FeatureCategory::Performance,
         FeatureCategory::Debug,
-        FeatureCategory::Testing,
     ] {
         writeln!(stdout, "{}:", category.to_string().to_uppercase()).unwrap();
         for feature in FeatureFlags::features_in_category(category) {

@@ -10,7 +10,7 @@ mod integration_tests {
         create_hipaa_test_context, create_audit_event_chain, create_cef_log_samples,
         AuditTestEnvironment, AuditFixtureValidator
     };
-    use copybook_core::audit::{
+    use copybook_audit::{
         ComplianceEngine, ComplianceProfile, AuditLogger, AuditLoggerConfig, LogFormat,
         validate_audit_chain, AuditEvent, AuditEventType
     };
@@ -69,10 +69,10 @@ mod integration_tests {
 
         let context = create_hipaa_test_context();
 
-        let payload = copybook_core::audit::event::AuditPayload::CopybookParse {
+        let payload = copybook_audit::event::AuditPayload::CopybookParse {
             copybook_path: "test_schema.cpy".to_string(),
             schema_fingerprint: "test_fingerprint".to_string(),
-            parse_result: copybook_core::audit::event::ParseResult::Success,
+            parse_result: copybook_audit::event::ParseResult::Success,
             parsing_duration_ms: 100,
             field_count: 10,
             level_88_count: 2,
@@ -206,7 +206,7 @@ mod integration_tests {
         // Verify PHI security classification
         assert_eq!(
             hipaa_context.security.classification,
-            copybook_core::audit::context::SecurityClassification::PHI
+            copybook_audit::context::SecurityClassification::PHI
         );
 
         // Verify required HIPAA metadata

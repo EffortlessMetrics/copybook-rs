@@ -213,11 +213,12 @@ if [ "${SMOKE_MODE}" != "local" ] && [ "${SMOKE_MODE}" != "registry" ]; then
 fi
 
 if [ "${RELEASE_SMOKE_ADVISORY:-0}" = "1" ]; then
-  # Advisory experimental-adapter smoke only. Arrow/Parquet is in the
-  # experimental adapter track and is not part of the stable-core promise,
-  # so this mode is run from a non-blocking workflow job.
+  # Advisory experimental-adapter smoke only. Arrow/Parquet and the
+  # enterprise audit adapter are in the experimental adapter track and are
+  # not part of the stable-core promise, so this mode is run from a
+  # non-blocking workflow job.
   if [ "${SMOKE_MODE}" = "local" ]; then
-    echo "Advisory Arrow smoke requires registry mode (RELEASE_SMOKE_DEPS=registry)." >&2
+    echo "Advisory adapter smoke requires registry mode (RELEASE_SMOKE_DEPS=registry)." >&2
     exit 1
   fi
 
@@ -225,6 +226,12 @@ if [ "${RELEASE_SMOKE_ADVISORY:-0}" = "1" ]; then
   echo "Installing copybook-cli@${VERSION} (arrow feature, advisory)"
   install_copybook_cli "arrow" "${INSTALL_ARROW}"
   "${INSTALL_ARROW}/bin/copybook" --version
+
+  INSTALL_AUDIT="${RUN_DIR}/copybook-audit"
+  echo "Installing copybook-cli@${VERSION} (audit feature, advisory)"
+  install_copybook_cli "audit" "${INSTALL_AUDIT}"
+  "${INSTALL_AUDIT}/bin/copybook" --version
+  "${INSTALL_AUDIT}/bin/copybook" audit --help >/dev/null
 
   echo "Advisory experimental-adapter smoke completed successfully."
   exit 0

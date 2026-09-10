@@ -3,7 +3,7 @@
 //!
 //! Provides test data for audit events, integrity chains, and CEF logging scenarios
 
-use copybook_core::audit::{
+use copybook_audit::{
     AuditContext, AuditEvent, AuditEventType, AuditLogger, AuditLoggerConfig, LogFormat,
     context::SecurityClassification, ComplianceProfile, generate_audit_id,
     event::{AuditPayload, ParseResult}
@@ -62,7 +62,7 @@ pub fn create_audit_event_chain(count: usize) -> Vec<AuditEvent> {
         let event_bytes = serde_json::to_vec(&event_for_hashing)
             .expect("Should serialize event");
 
-        event.integrity_hash = copybook_core::audit::generate_integrity_hash(
+        event.integrity_hash = copybook_audit::generate_integrity_hash(
             &event_bytes,
             previous_hash.as_deref()
         );

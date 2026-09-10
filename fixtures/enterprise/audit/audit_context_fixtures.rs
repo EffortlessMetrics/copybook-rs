@@ -4,7 +4,7 @@
 //! Provides realistic audit context test data for all compliance frameworks
 //! including proper security configurations, metadata, and compliance requirements.
 
-use copybook_core::audit::{
+use copybook_audit::{
     AuditContext,
     context::{
         SecurityClassification, EnvironmentContext, ProcessingConfig, SecurityContext,
@@ -57,7 +57,7 @@ pub fn create_sox_compliant_context() -> AuditContext {
         },
         security: SecurityContext {
             classification: SecurityClassification::MaterialTransaction,
-            encryption: copybook_core::audit::context::EncryptionConfig {
+            encryption: copybook_audit::context::EncryptionConfig {
                 at_rest: EncryptionStandard::AES256,
                 in_transit: EncryptionStandard::AES256,
                 key_management: "enterprise_kms".to_string(),
@@ -107,7 +107,7 @@ pub fn create_gdpr_compliant_context() -> AuditContext {
         },
         security: SecurityContext {
             classification: SecurityClassification::PersonalData,
-            encryption: copybook_core::audit::context::EncryptionConfig {
+            encryption: copybook_audit::context::EncryptionConfig {
                 at_rest: EncryptionStandard::AES256,
                 in_transit: EncryptionStandard::AES256,
                 key_management: "gdpr_compliant_kms".to_string(),
@@ -156,7 +156,7 @@ pub fn create_pci_dss_compliant_context() -> AuditContext {
         },
         security: SecurityContext {
             classification: SecurityClassification::CardholderData,
-            encryption: copybook_core::audit::context::EncryptionConfig {
+            encryption: copybook_audit::context::EncryptionConfig {
                 at_rest: EncryptionStandard::AES256,
                 in_transit: EncryptionStandard::AES256,
                 key_management: "pci_compliant_hsm".to_string(),
@@ -207,7 +207,7 @@ pub fn create_multi_compliance_context() -> AuditContext {
         },
         security: SecurityContext {
             classification: SecurityClassification::PHI, // Highest sensitivity
-            encryption: copybook_core::audit::context::EncryptionConfig {
+            encryption: copybook_audit::context::EncryptionConfig {
                 at_rest: EncryptionStandard::AES256,
                 in_transit: EncryptionStandard::AES256,
                 key_management: "fips_140_2_level_3_hsm".to_string(),
@@ -258,7 +258,7 @@ pub fn create_non_compliant_context() -> AuditContext {
         },
         security: SecurityContext {
             classification: SecurityClassification::PHI,
-            encryption: copybook_core::audit::context::EncryptionConfig {
+            encryption: copybook_audit::context::EncryptionConfig {
                 at_rest: EncryptionStandard::None, // No encryption
                 in_transit: EncryptionStandard::None,
                 key_management: "none".to_string(),

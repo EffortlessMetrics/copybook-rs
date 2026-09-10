@@ -157,22 +157,22 @@ impl AuditFixtureValidator {
     }
 
     /// Validate audit context has required compliance settings
-    pub fn validate_audit_context_compliance(context: &copybook_core::audit::AuditContext, profile: copybook_core::audit::ComplianceProfile) -> bool {
+    pub fn validate_audit_context_compliance(context: &copybook_audit::AuditContext, profile: copybook_audit::ComplianceProfile) -> bool {
         match profile {
-            copybook_core::audit::ComplianceProfile::HIPAA => {
+            copybook_audit::ComplianceProfile::HIPAA => {
                 context.requires_compliance(profile) &&
                 context.metadata.contains_key("minimum_necessary_justification") &&
-                matches!(context.security.classification, copybook_core::audit::context::SecurityClassification::PHI)
+                matches!(context.security.classification, copybook_audit::context::SecurityClassification::PHI)
             },
-            copybook_core::audit::ComplianceProfile::SOX => {
+            copybook_audit::ComplianceProfile::SOX => {
                 context.requires_compliance(profile) &&
-                matches!(context.security.classification, copybook_core::audit::context::SecurityClassification::MaterialTransaction)
+                matches!(context.security.classification, copybook_audit::context::SecurityClassification::MaterialTransaction)
             },
-            copybook_core::audit::ComplianceProfile::GDPR => {
+            copybook_audit::ComplianceProfile::GDPR => {
                 context.requires_compliance(profile) &&
                 context.metadata.contains_key("gdpr_legal_basis")
             },
-            copybook_core::audit::ComplianceProfile::PciDss => {
+            copybook_audit::ComplianceProfile::PciDss => {
                 context.requires_compliance(profile) &&
                 context.metadata.contains_key("cardholder_data_present")
             },
@@ -236,7 +236,7 @@ impl PerformanceTestConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use copybook_core::audit::ComplianceProfile;
+    use copybook_audit::ComplianceProfile;
 
     #[test]
     fn test_enterprise_cobol_data_loading() {

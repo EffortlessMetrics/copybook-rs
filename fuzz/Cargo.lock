@@ -128,34 +128,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "copybook-corruption"
-version = "0.5.0"
-dependencies = [
- "copybook-core",
- "copybook-corruption-detectors",
- "copybook-rdw",
-]
-
-[[package]]
-name = "copybook-corruption-detectors"
-version = "0.5.0"
-dependencies = [
- "copybook-core",
- "copybook-corruption-predicates",
-]
-
-[[package]]
-name = "copybook-corruption-predicates"
-version = "0.5.0"
-
-[[package]]
-name = "copybook-corruption-rdw"
-version = "0.5.0"
-dependencies = [
- "copybook-rdw",
-]
-
-[[package]]
 name = "copybook-error"
 version = "0.5.0"
 dependencies = [
@@ -178,14 +150,9 @@ dependencies = [
  "copybook-charset",
  "copybook-codec",
  "copybook-core",
- "copybook-corruption",
- "copybook-corruption-detectors",
- "copybook-corruption-predicates",
- "copybook-corruption-rdw",
  "copybook-fixed",
  "copybook-governance",
  "copybook-rdw",
- "copybook-rdw-predicates",
  "copybook-record-io",
  "libfuzzer-sys",
  "serde",
@@ -207,13 +174,6 @@ version = "0.5.0"
 dependencies = [
  "copybook-error",
  "tracing",
-]
-
-[[package]]
-name = "copybook-rdw-predicates"
-version = "0.5.0"
-dependencies = [
- "copybook-rdw",
 ]
 
 [[package]]

@@ -11,7 +11,6 @@
 
 mod arrays;
 mod config;
-mod corruption;
 mod determinism;
 mod fixed;
 mod generators;
@@ -25,8 +24,6 @@ mod prop_charset_roundtrip;
 mod prop_codec_bijection;
 mod prop_codec_roundtrip;
 mod prop_codepage;
-mod prop_corruption;
-mod prop_corruption_detect;
 mod prop_determinism;
 mod prop_determinism_ordering;
 mod prop_edited_pic;

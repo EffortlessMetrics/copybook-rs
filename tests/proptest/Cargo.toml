@@ -26,11 +26,6 @@ path = "mod.rs"
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true
-copybook-corruption-predicates.workspace = true
-copybook-corruption-detectors.workspace = true
-copybook-corruption.workspace = true
-copybook-corruption-rdw.workspace = true
-copybook-rdw-predicates.workspace = true
 copybook-contracts.workspace = true
 copybook-governance.workspace = true
 copybook-support-matrix.workspace = true

@@ -13,12 +13,11 @@
 | Parser | `copybook-core` |
 | Codec | `copybook-codec`, `copybook-codec-memory`, `copybook-codepage`, `copybook-charset`, `copybook-overpunch`, `copybook-zoned-format` |
 | CLI | `copybook-cli`, `copybook-options` |
-| Framing | `copybook-fixed`, `copybook-rdw`, `copybook-rdw-predicates`, `copybook-record-io` |
+| Framing | `copybook-fixed`, `copybook-rdw`, `copybook-record-io` |
 | Schema | `copybook-determinism`, `copybook-support-matrix` |
 | Compatibility | `copybook-cli-determinism`, `copybook-dialect`, `copybook-lexer` |
 | Governance | `copybook-contracts`, `copybook-governance` |
 | Safety | `copybook-error`, `copybook-error-reporter` |
-| Quality | `copybook-corruption`, `copybook-corruption-detectors`, `copybook-corruption-predicates`, `copybook-corruption-rdw` |
 | Other | `copybook-arrow`, `copybook-sequence-ring` |
 
 ## Navigation

@@ -29,7 +29,7 @@ committed baseline (`scripts/bench/baseline.json`).
 
 ## Overview
 
-The `copybook-rs` workspace combines 38 publishable Rust crates and 4 dev-only
+The `copybook-rs` workspace combines 26 publishable Rust crates and 4 dev-only
 tools (generator, benchmarks, scripts, and xtask) to provide
 deterministic COBOL→JSON processing. The
 focus is on transparent validation rather than performance bravado: adopters
@@ -55,7 +55,7 @@ responsibilities:
 ### Test Coverage
 
 <!-- TEST_STATUS:BEGIN -->
-**conformance:** 9669/9669  • **roundtrip:** N/A  • **negative:** N/A  • **skipped:** 0  • **leaks:** 0<br>
+**conformance:** 9040/9040  • **roundtrip:** N/A  • **negative:** N/A  • **skipped:** 0  • **leaks:** 0<br>
 _Source: CI receipts (nextest/junit). This block is updated automatically._
 <!-- TEST_STATUS:END -->
 

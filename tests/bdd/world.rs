@@ -54,8 +54,6 @@ pub struct CopybookWorld {
     pub(crate) exit_code_result: Option<i32>,
     /// Last zoned encoding detected from a byte probe
     pub(crate) detected_zoned_encoding: Option<copybook_codec::ZonedEncodingFormat>,
-    /// RDW ASCII heuristic result for BDD coverage.
-    pub(crate) rdw_predicate_result: Option<bool>,
     /// Audit-related fields (for enterprise audit testing)
     #[cfg(feature = "audit")]
     pub(crate) audit_context: Option<copybook_audit::AuditContext>,

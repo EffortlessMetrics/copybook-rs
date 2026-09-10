@@ -148,17 +148,6 @@
     },
     {
       "path": "crates/copybook/src/lib.rs",
-      "symbol": "error_reporter",
-      "kind": "mod",
-      "deprecated_since": "0.6.0",
-      "replacement": "none (frozen forwarder)",
-      "migration_example": "No replacement path: reporting splits by owning layer under #655. Keep existing imports only until the migration guide names the new owner paths.",
-      "planned_removal": "Retained through the 0.6 migration window; removal requires a future compatibility decision documented by the surface registry.",
-      "compatibility_impact": "Existing facade imports continue to compile with a deprecation warning; the forwarder gains no new behavior.",
-      "note": "ErrorReporter has no production callers; the facade path is frozen until #655 assigns reporting owners."
-    },
-    {
-      "path": "crates/copybook/src/lib.rs",
       "symbol": "fixed",
       "kind": "mod",
       "deprecated_since": "0.6.0",

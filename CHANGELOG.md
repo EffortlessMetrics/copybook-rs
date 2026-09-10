@@ -21,18 +21,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   crate. `copybook-record-io` remains only as a compatibility forwarder over
   `copybook-codec::file::dispatch`. See `docs/migration/0.6.md`.
 - **core**: `copybook_core::{utils, error_reporter}` compat re-exports removed
-  (#655); the frozen `copybook::error_reporter` facade forwarder remains for
-  the 0.6 migration window.
+  (#655).
+- **facade**: `copybook::error_reporter` removed. A primary package cannot
+  depend on the compat `copybook-error-reporter` package and reporting has
+  no single primary owner; depend on the `copybook-error-reporter` crate
+  directly through the 0.6 compatibility window.
 - **flags**: `sign_separate`, `comp_1`, and `comp_2` runtime flags removed
   (#656 Phase C). The behaviors are stable parser defaults; stale CLI names
   fail loudly and stale `COPYBOOK_FF_*` variables are ignored.
 
 ### Deprecated
 
-- **facade**: nine `copybook::` module aliases deprecated since 0.6.0
-  (`codepage`, `contracts`, `determinism`, `error_reporter`, `fixed`,
-  `options`, `overpunch`, `rdw`, `record_io`); each names its replacement in
-  the deprecation note. Removed after the 0.6 migration window.
+- **facade**: eight `copybook::` module aliases deprecated since 0.6.0
+  (`codepage`, `contracts`, `determinism`, `fixed`, `options`, `overpunch`,
+  `rdw`, `record_io`); each names its replacement in the deprecation note.
+  Removed after the 0.6 migration window. `copybook::contracts` now forwards
+  through the true owner `copybook-core` instead of the compat
+  `copybook-contracts` package, with identical re-exported names.
   See `docs/migration/0.6.md`.
 
 ### Changed

@@ -11,5 +11,5 @@ license = "AGPL-3.0-or-later"
 publish = false
 
 [dependencies]
-copybook-error = { version = "=0.5.0", path = "../../crates/copybook-error" }
-copybook-fixed = { version = "=0.5.0", path = "../../crates/copybook-fixed" }
+copybook-error = { version = "=0.6.0", path = "../../crates/copybook-error" }
+copybook-fixed = { version = "=0.6.0", path = "../../crates/copybook-fixed" }

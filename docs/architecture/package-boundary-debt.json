@@ -4,14 +4,6 @@
     {
       "id": "library-cli-framework:copybook-scripts->clap",
       "owner_issue": 640
-    },
-    {
-      "id": "primary-dep:copybook->copybook-contracts",
-      "owner_issue": 656
-    },
-    {
-      "id": "primary-dep:copybook->copybook-error-reporter",
-      "owner_issue": 655
     }
   ]
 }

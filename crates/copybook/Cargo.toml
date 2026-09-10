@@ -24,10 +24,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 copybook-charset.workspace = true
 copybook-codec.workspace = true
-copybook-contracts.workspace = true
 copybook-core.workspace = true
 copybook-error.workspace = true
-copybook-error-reporter.workspace = true
 copybook-fixed.workspace = true
 copybook-governance.workspace = true
 copybook-rdw.workspace = true

@@ -7,7 +7,7 @@ Maintainer and operator guidance for Claude Code working in this repository.
 
 - Rust workspace, Edition 2024, MSRV 1.95
 - COBOL copybook parsing and data conversion (EBCDIC/ASCII to JSON and back)
-- Engineering Preview v0.5.0
+- Engineering Preview v0.6.0
 - 26 publishable crates under `crates/` (24 core + 2 facade), 4 dev-only under `tools/`, 3 test suites under `tests/`
 
 ## Canonical Sources

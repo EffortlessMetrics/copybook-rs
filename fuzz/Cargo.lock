@@ -77,7 +77,7 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "copybook-charset"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "copybook-error",
  "serde",
@@ -86,7 +86,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-codec"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64",
  "blake3",
@@ -107,14 +107,14 @@ dependencies = [
 
 [[package]]
 name = "copybook-contracts"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "copybook-core",
 ]
 
 [[package]]
 name = "copybook-core"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "copybook-error",
  "copybook-support-matrix",
@@ -129,7 +129,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-error"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "thiserror",
@@ -137,7 +137,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-fixed"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "copybook-error",
  "tracing",
@@ -161,7 +161,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-governance"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "copybook-contracts",
  "copybook-support-matrix",
@@ -170,7 +170,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-rdw"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "copybook-error",
  "tracing",
@@ -178,14 +178,14 @@ dependencies = [
 
 [[package]]
 name = "copybook-record-io"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "copybook-codec",
 ]
 
 [[package]]
 name = "copybook-support-matrix"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_plain",
@@ -325,9 +325,9 @@ checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
 
 [[package]]
 name = "libfuzzer-sys"
-version = "0.4.12"
+version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f12a681b7dd8ce12bff52488013ba614b869148d54dd79836ab85aafdd53f08d"
+checksum = "a9fd2f41a1cba099f79a0b6b6c35656cf7c03351a7bae8ff0f28f25270f929d2"
 dependencies = [
  "arbitrary",
  "cc",

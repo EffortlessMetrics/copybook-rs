@@ -2044,6 +2044,7 @@ fn verify_facade_invariants() -> Result<()> {
         &dep_module_set,
         &[
             "codepage",
+            "contracts",
             "determinism",
             "framing",
             "options",

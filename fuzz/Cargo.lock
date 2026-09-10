@@ -118,7 +118,6 @@ version = "0.5.0"
 dependencies = [
  "copybook-error",
  "copybook-error-reporter",
- "copybook-overflow",
  "copybook-support-matrix",
  "copybook-utils",
  "logos",

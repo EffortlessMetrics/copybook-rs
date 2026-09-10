@@ -1,7 +1,7 @@
 #![no_main]
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use copybook_governance_runtime::{
+use copybook_governance::{
     FeatureFlags, feature_flags::all_features, governance_states, is_support_runtime_available,
     runtime_summary, support_states,
 };

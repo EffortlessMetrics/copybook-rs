@@ -98,14 +98,18 @@ git tag -a "${RELEASE_TAG}" -m "copybook-rs ${RELEASE_TAG}"
 git push origin "${RELEASE_TAG}"
 ```
 
-2. Publish via workflow dispatch to the protected `production` environment:
+2. Publish by pushing the release tag. The `push: tags: 'v*'` trigger starts
+`publish.yml` with no manual step (`workflow_dispatch` with `-f tag=` remains
+available for retries):
 
 ```bash
-gh workflow run publish.yml -f tag="${RELEASE_TAG}"
+git push origin "${RELEASE_TAG}"
 ```
 
-`publish.yml` uses `tools/xtask` plan output for publish order and count. Keep approval required by the
-GitHub `production` environment guardrails before publishing starts.
+`publish.yml` uses `tools/xtask` plan output for publish order and count. There
+is no approval gate: the `production` environment reference is retained for
+continuity, but required reviewers were removed to match house standard
+(tag push publishes unattended).
 
 ---
 

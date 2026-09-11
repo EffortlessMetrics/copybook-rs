@@ -146,7 +146,16 @@ jobs:
 
         # Verify publish manifests that intentionally keep path-only internal
         # dev-dependencies for workspace tests strip cleanly for crates.io.
-        cargo package -p copybook-determinism --no-verify
+        # NOTE: use --list, not a full `cargo package`: packaging resolves
+        # intra-workspace pins (e.g. copybook-codec =0.6.0) against the
+        # crates.io index, which can only succeed in dependency order at
+        # publish time. `--list` performs no resolution (same technique as
+        # publish-dry-run.yml, which is why dry-run stayed green).
+        if cargo package -p copybook-determinism --list | grep -E '(^|/)tests/'; then
+          echo "copybook-determinism would publish workspace test files" >&2
+          exit 1
+        fi
+        echo "  copybook-determinism package file list OK (no tests/ payload)"
 
     - name: Build publish plan
       id: publish-plan

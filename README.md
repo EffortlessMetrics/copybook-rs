@@ -24,11 +24,11 @@ _Source: CI receipts (nextest/junit). This block is updated automatically._
 Install the CLI from crates.io and decode an EBCDIC file to JSON:
 
 ```bash
-cargo install copybook-cli@0.5.0 --locked
+cargo install copybook-cli@0.6.0 --locked
 
 # Fetch the example fixtures (or use your own copybook + data)
-curl -LO https://github.com/EffortlessMetrics/copybook-rs/raw/v0.5.0/fixtures/copybooks/simple.cpy
-curl -LO https://github.com/EffortlessMetrics/copybook-rs/raw/v0.5.0/fixtures/data/simple.bin
+curl -LO https://github.com/EffortlessMetrics/copybook-rs/raw/v0.6.0/fixtures/copybooks/simple.cpy
+curl -LO https://github.com/EffortlessMetrics/copybook-rs/raw/v0.6.0/fixtures/data/simple.bin
 
 # Decode EBCDIC fixture to JSON
 copybook decode simple.cpy simple.bin \
@@ -46,7 +46,7 @@ For Rust library use, depend on the canonical facade:
 
 ```toml
 [dependencies]
-copybook = "=0.5.0"
+copybook = "=0.6.0"
 ```
 
 ```rust
@@ -56,7 +56,7 @@ use copybook::codec::{decode_record, DecodeOptions};
 
 (`copybook-rs` is a redirect/search alias for the same API; `copybook-core`/`copybook-codec` remain available as intentional granular crates.)
 
-To build from source instead, clone the repo, `git checkout v0.5.0`, and `cargo build --release`; the binary is `./target/release/copybook`.
+To build from source instead, clone the repo, `git checkout v0.6.0`, and `cargo build --release`; the binary is `./target/release/copybook`.
 
 ## What It Supports
 

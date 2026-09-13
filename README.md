@@ -142,7 +142,7 @@ See [COBOL_SUPPORT_MATRIX.md](docs/reference/COBOL_SUPPORT_MATRIX.md) for the fu
 
 ## Exit codes
 
-| Code | Tag | Meaning (1-liner) | Test |
+| Code | Tag  | Meaning (1-liner) | Test |
 |----:|:----:|--------------------|------|
 | 2 | CBKD | Data quality failure | exit_code_mapping::exit_code_cbkd_is_2 |
 | 3 | CBKE | Encode/validation failure | exit_code_mapping::exit_code_cbke_is_3 |

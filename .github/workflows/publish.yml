@@ -5,12 +5,6 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to publish (e.g., v0.3.1)'
-        required: true
-        type: string
 
 permissions:
   contents: write
@@ -19,10 +13,9 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  # Single source of truth for the release tag. For manual dispatch the input
-  # wins; github.ref_name is the branch the dispatch was launched from, not
-  # the entered tag, so it must not take precedence.
-  RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  # Publishing is tag-only. Retry a failed tag-push run through GitHub Actions
+  # so every publish attempt retains the authorization of the protected tag.
+  RELEASE_TAG: ${{ github.ref_name }}
 
 jobs:
   publish:
@@ -331,7 +324,7 @@ jobs:
 
   smoke-test-experimental:
     # Advisory only: Arrow and other experimental adapters are not part of the
-    # v0.5 stable-core promise. A failure here must produce a follow-up issue,
+    # v0.6 stable-core promise. A failure here must produce a follow-up issue,
     # not retroactively fail an already-correct stable-core release.
     runs-on: ubuntu-latest
     needs: publish

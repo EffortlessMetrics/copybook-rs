@@ -25,7 +25,9 @@ fn require_release_surface(
         .collect();
 
     match matches.as_slice() {
-        [] => Err(format!("{label}: missing release surface containing `{selector}`")),
+        [] => Err(format!(
+            "{label}: missing release surface containing `{selector}`"
+        )),
         [line] if line.contains(expected) => Ok(()),
         [line] => Err(format!(
             "{label}: release surface drift: expected `{expected}` in `{line}`"
@@ -99,13 +101,15 @@ fn current_release_examples_match_workspace_version() -> Result<(), Box<dyn std:
 #[test]
 fn release_surface_check_accepts_one_current_surface() {
     let document = "before\ncargo install copybook-cli@0.6.0 --locked\nafter\n";
-    assert!(require_release_surface(
-        document,
-        "install",
-        "cargo install copybook-cli@",
-        "cargo install copybook-cli@0.6.0 --locked",
-    )
-    .is_ok());
+    assert!(
+        require_release_surface(
+            document,
+            "install",
+            "cargo install copybook-cli@",
+            "cargo install copybook-cli@0.6.0 --locked",
+        )
+        .is_ok()
+    );
 }
 
 #[test]

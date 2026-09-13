@@ -11,6 +11,7 @@ Thank you for your interest in contributing to copybook-rs. This guide will help
 - **Git** for version control
 - **Cargo** (comes with Rust)
 - **[just](https://github.com/casey/just)** task runner (for `just ci-quick`, `just pr`) — `cargo install just`
+- **[Changie](https://changie.dev/)** for release-note fragments when a change needs one
 
 The remaining dev-only cargo subcommands used by the justfile
 (`cargo-nextest`, `cargo-deny`, `cargo-watch`, `cargo-llvm-cov`,
@@ -116,9 +117,10 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete reference.
 1. **Fork** the repository and create a feature branch from `main`
 2. **Make changes** with comprehensive tests
 3. **Run validation**: `cargo clippy`, `cargo test`, `cargo fmt`
-4. **Update docs** if you changed APIs or CLI commands
-5. **Fill out PR template** completely (see [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md))
-6. **Submit PR** with descriptive title
+4. **Add a Changie fragment** with `changie new` when the change is notable, user-facing, compatibility/security relevant, or otherwise belongs in release notes. Ordinary PRs do not hand-edit `CHANGELOG.md`; see [Changelog Management](docs/CHANGELOG_GENERATION.md).
+5. **Update docs** if you changed APIs or CLI commands
+6. **Fill out PR template** completely (see [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md))
+7. **Submit PR** with descriptive title
 
 ### Commit Messages
 
@@ -127,6 +129,8 @@ Use [conventional commit format](https://www.conventionalcommits.org/): `<type>(
 Examples: `feat(core): add ODO support`, `fix(codec): correct COMP-3 decoding`, `docs(readme): update baseline`
 
 **Types**: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `chore`, `ci`
+
+Conventional commits remain development metadata; Changie fragments are the source for public release notes.
 
 ### What Reviewers Look For
 
@@ -168,7 +172,7 @@ the root `Cargo.toml` for current architecture and membership. Key crates includ
 - **copybook-codec**: Data encoding/decoding, character conversion, record framing
 - **copybook-arrow**: Apache Arrow and Parquet format conversion (experimental)
 - **copybook-cli**: Command-line interface (parse, inspect, decode, encode, verify, determinism)
-- **copybook-gen**: Test fixture and synthetic data generation (dev-only)
+- **copybook-gen**: Test fixture generation and synthetic data generation (dev-only)
 - **copybook-bench**: Performance benchmarks and regression detection (dev-only)
 
 **Processing Flow**: copybook-core (parse) → copybook-codec (encode/decode) → copybook-cli (commands)
@@ -177,11 +181,11 @@ See [AGENTS.md](AGENTS.md) for architecture and ownership guidance.
 
 ## Release Process
 
-See [RELEASE_RUNBOOK.md](docs/RELEASE_RUNBOOK.md) for detailed procedures.
+See [RELEASE_RUNBOOK.md](docs/RELEASE_RUNBOOK.md) for detailed procedures and [Changelog Management](docs/CHANGELOG_GENERATION.md) for the Changie fragment/batching workflow.
 
 **Release Train**: Minor releases every 6-8 weeks; patch releases as-needed
 
-**Pre-release**: Build/test pass, benchmarks generated, CHANGELOG updated, GitHub release tagged
+**Pre-release**: Build/test pass, Changie fragments batched into the target version and merged into `CHANGELOG.md`, GitHub release tagged through the documented release flow
 
 ## Performance Standards
 

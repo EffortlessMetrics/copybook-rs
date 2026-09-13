@@ -33,13 +33,13 @@ git pull
 git status
 ```
 
-2. Confirm the commit you will tag is exactly what passed the required gates:
+1. Confirm the commit you will tag is exactly what passed the required gates:
 
 ```bash
 git rev-parse HEAD
 ```
 
-3. Verify the commit is not dirty:
+1. Verify the commit is not dirty:
 
 ```bash
 test -z "$(git status --porcelain)"
@@ -98,14 +98,19 @@ git tag -a "${RELEASE_TAG}" -m "copybook-rs ${RELEASE_TAG}"
 git push origin "${RELEASE_TAG}"
 ```
 
-2. Publish via workflow dispatch to the protected `production` environment:
+The push starts `publish.yml` through its `push: tags: 'v*'` trigger. Publishing
+is tag-only; if a run fails, retry that same tag-push workflow run through
+GitHub Actions rather than opening a second publication entrance.
 
-```bash
-gh workflow run publish.yml -f tag="${RELEASE_TAG}"
-```
+`publish.yml` uses `tools/xtask` plan output for publish order and count. There
+is no approval click: the job still targets the `production` environment
+(retained for continuity and secrets scoping), but the environment has no
+required reviewers, so an authorized tag push publishes unattended.
 
-`publish.yml` uses `tools/xtask` plan output for publish order and count. Keep approval required by the
-GitHub `production` environment guardrails before publishing starts.
+The active `release-tags` repository ruleset is the authorization boundary. It
+covers `refs/tags/v*`, blocks matching-tag creation/deletion/non-fast-forward
+updates by default, and grants the intended Maintain/Admin repository roles the
+release bypass. Verify that ruleset remains active before cutting a release.
 
 ---
 
@@ -116,9 +121,9 @@ Treat each publish step as potentially ambiguous unless a post-step verification
 ### On timeout or interruption
 
 1. Pause and classify the failure as **ambiguous** until checked.
-2. Inspect workflow logs and capture the last checkpoint crate index.
-3. Record the checkpoint under `release-state/${RELEASE_TAG}/` locally before continuing.
-4. For every crate before the failed checkpoint, verify it is visible on crates.io:
+1. Inspect workflow logs and capture the last checkpoint crate index.
+1. Record the checkpoint under `release-state/${RELEASE_TAG}/` locally before continuing.
+1. For every crate before the failed checkpoint, verify it is visible on crates.io:
 
 ```bash
 CRATE_NAME="copybook-core"
@@ -126,7 +131,7 @@ VERSION="X.Y.Z"
 curl -sf "https://crates.io/api/v1/crates/${CRATE_NAME}/${VERSION}" | jq -r '.version.num'
 ```
 
-5. Resume publishing from the first unchecked crate in `publish-plan.json`.
+1. Resume publishing from the first unchecked crate in `publish-plan.json`.
 
 ### On partial visibility
 

@@ -9,8 +9,13 @@ use serde::Serialize;
 pub struct VerifyReport {
     /// Report format version (bump on breaking changes)
     pub report_version: u32,
-    /// Schema fingerprint for identity tracking
+    /// Canonical schema fingerprint (SHA-256 over the canonical schema JSON
+    /// plus parse options); identical to the value codec surfaces emit via
+    /// `--emit-meta` for the same effective schema
     pub schema_fingerprint: String,
+    /// SHA-256 of the raw copybook source text; changes on any source edit,
+    /// unlike the canonical schema fingerprint
+    pub source_fingerprint: String,
     /// Record format used for processing
     pub record_format: String,
     /// Input file path for pipeline integration
@@ -76,6 +81,7 @@ impl VerifyReport {
     /// Create a new verification report with version 1
     pub fn new(
         schema_fingerprint: String,
+        source_fingerprint: String,
         record_format: String,
         file: String,
         file_size_bytes: u64,
@@ -84,6 +90,7 @@ impl VerifyReport {
         Self {
             report_version: 1,
             schema_fingerprint,
+            source_fingerprint,
             record_format,
             file,
             file_size_bytes,

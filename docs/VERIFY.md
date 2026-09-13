@@ -59,7 +59,8 @@ When `--report` is specified, verification results are written as JSON conformin
 ```json
 {
   "report_version": 1,
-  "schema_fingerprint": "sha256:a1b2c3...",
+  "schema_fingerprint": "a1b2c3d4...",
+  "source_fingerprint": "e5f6a7b8...",
   "record_format": "fixed",
   "records_total": 1000,
   "errors_total": 3,
@@ -74,6 +75,13 @@ When `--report` is specified, verification results are written as JSON conformin
   "sample": [...]
 }
 ```
+
+`schema_fingerprint` is the canonical schema identity (SHA-256 over the
+canonical schema JSON plus parse options) — the same value `decode`/`encode`
+emit via `--emit-meta` for the same effective schema, so reports can be
+cross-checked against codec metadata. `source_fingerprint` is SHA-256 of the
+raw copybook source text: it changes on any source edit (including comments
+and formatting) where the canonical fingerprint does not.
 
 ### Error Reporting
 

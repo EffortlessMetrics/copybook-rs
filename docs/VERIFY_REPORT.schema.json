@@ -7,6 +7,7 @@
   "required": [
     "report_version",
     "schema_fingerprint",
+    "source_fingerprint",
     "record_format",
     "records_total",
     "errors_total",
@@ -23,7 +24,13 @@
     },
     "schema_fingerprint": {
       "type": "string",
-      "description": "Schema fingerprint for identity tracking"
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Canonical schema fingerprint: SHA-256 over the canonical schema JSON plus parse options; identical to the value decode/encode emit via --emit-meta for the same effective schema"
+    },
+    "source_fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 of the raw copybook source text; changes on any source edit, unlike the canonical schema fingerprint"
     },
     "record_format": {
       "type": "string",

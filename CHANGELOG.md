@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **cli**: `copybook verify --report` now reports the canonical schema
+  fingerprint. `schema_fingerprint` was an MD5 of the raw copybook source
+  text; it is now the same SHA-256 value (over the canonical schema JSON plus
+  parse options) that `decode`/`encode --emit-meta` emit, so verify reports
+  can be cross-checked against codec metadata. A new `source_fingerprint`
+  field carries SHA-256 of the raw copybook source text for byte-level source
+  identity (#919).
+- **core**: canonical schema fingerprints are now always fixed-width 64-hex.
+  Digest bytes below `0x10` were previously emitted without zero-padding,
+  producing variable-length fingerprints that violated the documented
+  `^[a-f0-9]{64}$` contract in `schemas/record-format.json`.
+
 ## [0.6.0] — 2026-09-11
 
 ### Removed

@@ -292,26 +292,40 @@ mod tests {
 
     type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
 
+    fn table_cells(line: &str) -> Vec<&str> {
+        line.trim()
+            .trim_matches('|')
+            .split('|')
+            .map(str::trim)
+            .collect()
+    }
+
     #[test]
     fn readme_exit_code_table_matches_source_of_truth() -> TestResult<()> {
         let readme = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../README.md"));
-        let mut rows = readme
-            .lines()
-            .skip_while(|line| *line != "| Code | Tag  | Meaning (1-liner) | Test |");
 
-        let header = rows
-            .next()
+        // Match the table structurally (trimmed cells) so README reformatting
+        // that only changes cell padding does not break the contract.
+        let expected_header = ["Code", "Tag", "Meaning (1-liner)", "Test"];
+        let header_index = readme
+            .lines()
+            .position(|line| table_cells(line) == expected_header)
             .ok_or_else(|| io::Error::other("exit code table header missing"))?;
-        assert_eq!(
-            header, "| Code | Tag  | Meaning (1-liner) | Test |",
-            "exit code table header missing"
-        );
+        let mut rows = readme.lines().skip(header_index + 1);
 
         let separator = rows
             .next()
             .ok_or_else(|| io::Error::other("exit code table separator missing"))?;
+        let separator_cells = table_cells(separator);
         assert_eq!(
-            separator, "|----:|:----:|--------------------|------|",
+            separator_cells.len(),
+            4,
+            "exit code table separator missing"
+        );
+        assert!(
+            separator_cells
+                .iter()
+                .all(|cell| !cell.is_empty() && cell.chars().all(|ch| ch == '-' || ch == ':')),
             "exit code table separator missing"
         );
 

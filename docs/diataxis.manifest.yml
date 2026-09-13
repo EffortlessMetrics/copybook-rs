@@ -64,7 +64,6 @@ categories:
       - docs/NORMATIVE_SPEC.md
       - docs/PERFORMANCE_GOVERNANCE.md
       - docs/PERFORMANCE_RECEIPT_REFERENCE.md
-      - docs/PRODUCTION_READINESS.md
       - docs/RENAMES_R4_R6.md
       - docs/SIGN_SEPARATE.md
       - docs/THROUGHPUT_OPTIMIZATIONS.md

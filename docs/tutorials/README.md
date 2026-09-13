@@ -26,7 +26,7 @@ Use these when you need to understand how to use copybook-rs for the first time 
 ### Operations Path
 
 1. Read [Enterprise Deployment](enterprise-deployment.md)
-2. Review [Production readiness checks](../PRODUCTION_READINESS.md)
+2. Review [Engineering Report](../REPORT.md) for current readiness status
 3. Review [Troubleshooting Matrix](../TROUBLESHOOTING_MATRIX.md)
 4. Review release and governance runbooks:
    - [Release Runbook](../RELEASE_RUNBOOK.md)

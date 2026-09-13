@@ -12,6 +12,7 @@ the generated publish plan win.
 | Question | Authoritative source |
 | --- | --- |
 | Step-by-step release execution | [RELEASE_RUNBOOK.md](RELEASE_RUNBOOK.md) |
+| Changelog fragments and assembly | `.changie.yaml`, `.changes/`, `CHANGELOG.md` |
 | Publishable package set and order | `cargo run -p xtask -- publish plan` |
 | What the release automation does | `.github/workflows/publish.yml` |
 | What the post-publish smoke proves | `scripts/ci/release_smoke.sh` |
@@ -70,8 +71,12 @@ tagging. The canonical combined local gate is `just pr` (also `just ci`).
 | Test | `just test` (nextest; excludes BDD and bench crates) | All pass |
 | Doctests | `cargo test --workspace --doc` | All pass |
 | Docs | `just docs` (`cargo doc --workspace --no-deps`) | No warnings |
-| Changelog | manual | `CHANGELOG.md` has a section for the target version |
+| Changelog | target version file + `changie merge --dry-run` | `.changes/v${VERSION}.md` exists and generated output matches `CHANGELOG.md` |
 | Publish plan | `cargo run -p xtask -- publish plan --check` | Exit 0 |
+
+The changelog gate is target-specific rather than global-latest-specific. That
+keeps supported 0.5.x maintenance releases valid after a newer release line has
+already been recorded.
 
 ## Automated release flow
 
@@ -79,8 +84,9 @@ A release is a single automated pipeline driven by
 `.github/workflows/publish.yml`:
 
 1. **Trigger**: push an annotated, signed `v*` tag from `main` (for example
-   `v0.5.0`), or dispatch the workflow manually with the tag as input
-   (`gh workflow run publish.yml -f tag=vX.Y.Z`).
+   `v0.6.0`). Publishing is tag-only; a failed run is retried from that same
+   tag-push workflow run in GitHub Actions rather than through a separate manual
+   dispatch entrance.
 2. **Tag-identity validation**: the tag must match
    `vMAJOR.MINOR.PATCH[-prerelease]`, must equal `[workspace.package].version`,
    and the checked-out commit must be the tagged commit. Any mismatch fails the
@@ -113,9 +119,10 @@ A release is a single automated pipeline driven by
    is not, so it comes last. docs.rs links are informational — docs.rs builds
    asynchronously.
 
-The publish job runs in the workflow's protected GitHub environment
-(`production`); keep environment approval guardrails in place so publication
-cannot start unreviewed.
+The publish job still targets the `production` environment for continuity and
+secrets scoping, but that environment has no required reviewers. The active
+`release-tags` ruleset is the authorization boundary for `refs/tags/v*` and
+limits who can create, delete, or move release tags.
 
 ## Failure and recovery policy
 
@@ -133,18 +140,24 @@ cannot start unreviewed.
 See [RELEASE_RUNBOOK.md](RELEASE_RUNBOOK.md) sections 5–7 for the detailed
 recovery and rollback procedure.
 
-## Version bumps and changelogs (local helpers only)
+## Version bumps and changelogs
 
-`release.toml` and `cliff.toml` configure optional local helpers
-(`cargo-release`, `git-cliff`) that can draft a workspace version bump or
-changelog entries while preparing a release PR. They are conveniences only —
-they are **not** the release path. Publication happens exclusively through the
-automated flow above, from a tag on `main` whose version equals
+Changie is the changelog preparation tool. Notable changes land as files under
+`.changes/unreleased/`; a release-preparation PR batches them with the explicit
+target version and runs `changie merge` to update the canonical `CHANGELOG.md`.
+Changie does not choose the release version and is not a publication path. See
+[CHANGELOG_GENERATION.md](CHANGELOG_GENERATION.md) and the runbook for the exact
+commands.
+
+`release.toml` configures optional `cargo-release` behavior for local version-
+bump assistance. It is a convenience only — publication happens exclusively
+through the automated flow above, from a tag on `main` whose version equals
 `[workspace.package].version`.
 
 ## See Also
 
 - [RELEASE_RUNBOOK.md](RELEASE_RUNBOOK.md) — canonical execution runbook
+- [CHANGELOG_GENERATION.md](CHANGELOG_GENERATION.md) — Changie fragment and batching workflow
 - [STABILITY_GUARANTEES.md](STABILITY_GUARANTEES.md) — stability commitments
 - [SUPPORT_POLICY.md](SUPPORT_POLICY.md) — support policy
 - [Conventional Commits](https://www.conventionalcommits.org/)

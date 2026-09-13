@@ -22,6 +22,44 @@ Non-goals:
 
 ---
 
+## 0) Prepare the release changelog in a reviewed PR
+
+Changie preparation happens before selecting the exact release commit. It assembles public release
+notes; it does not choose the version, tag the repository, or publish anything.
+
+Choose the target version through the normal versioning decision, then batch the accumulated fragments
+with that explicit version:
+
+```bash
+VERSION="X.Y.Z"
+changie batch "v${VERSION}"
+changie merge
+```
+
+Review `.changes/v${VERSION}.md` and `CHANGELOG.md`. Curate the batched version file when the release
+needs clearer migration or compatibility context, then run `changie merge` again. Do not use
+`changie batch auto` to substitute fragment categories for the release version decision.
+
+Before merging the release-preparation PR, prove the target release file exists and the tracked
+changelog is reproducible:
+
+```bash
+test -f ".changes/v${VERSION}.md"
+changie merge --dry-run > /tmp/CHANGELOG.md
+diff -u CHANGELOG.md /tmp/CHANGELOG.md
+```
+
+Do not require `changie latest` to equal the target. A supported maintenance release can legitimately
+batch below a newer release line; the target version file plus reproducible merged output is the
+release-line-specific proof.
+
+The release-preparation PR should contain the target `.changes/v${VERSION}.md`, the merged
+`CHANGELOG.md`, the corresponding version changes, and any required migration documentation. Once that
+PR is merged to `main`, continue below using its exact commit.
+
+See [CHANGELOG_GENERATION.md](CHANGELOG_GENERATION.md) for normal fragment authoring and the migration
+baseline.
+
 ## 1) Choose the exact release commit
 
 1. Ensure you are on a clean `main` branch:

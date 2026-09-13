@@ -173,8 +173,19 @@ pub fn run(
         }
     }
 
-    // Calculate schema fingerprint (simple hash of copybook content)
-    let schema_fingerprint = format!("{:x}", md5::compute(copybook_text.as_bytes()));
+    // Canonical schema identity: SHA-256 over the canonical schema JSON plus
+    // parse options, computed by the parser (and recomputed after projection).
+    // This is the same value codec surfaces emit via `--emit-meta`.
+    let schema_fingerprint = working_schema.fingerprint.clone();
+
+    // Byte-level source identity: SHA-256 of the raw copybook text. Unlike
+    // the canonical schema fingerprint this changes on any source edit
+    // (comments, formatting), which is what operators diffing two verify
+    // reports want.
+    let source_fingerprint = {
+        use sha2::{Digest as _, Sha256};
+        format!("{:x}", Sha256::digest(copybook_text.as_bytes()))
+    };
 
     // Create CLI options echo for report
     let cli_opts = VerifyCliEcho {
@@ -188,6 +199,7 @@ pub fn run(
     // Initialize report
     let mut verify_report = VerifyReport::new(
         schema_fingerprint,
+        source_fingerprint,
         format!("{:?}", opts.format).to_lowercase(),
         input.to_string_lossy().to_string(),
         file_size,

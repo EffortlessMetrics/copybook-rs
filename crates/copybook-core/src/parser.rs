@@ -693,7 +693,7 @@ impl Parser {
 
         // Compute final hash
         let result = hasher.finalize();
-        schema.fingerprint = format!("{:x}", result);
+        schema.fingerprint = crate::schema::sha256_hex(&result);
     }
 
     /// Parse PIC clause

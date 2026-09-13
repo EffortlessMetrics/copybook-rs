@@ -219,6 +219,20 @@ pub enum Occurs {
     },
 }
 
+/// Format a SHA-256 digest as fixed-width 64-character lowercase hex.
+///
+/// `LowerHex` on the digest type does not zero-pad bytes below `0x10`, which
+/// produced variable-length fingerprints and violated the documented
+/// `^[a-f0-9]{64}$` contract (`schemas/record-format.json`).
+pub(crate) fn sha256_hex(digest: &[u8]) -> String {
+    use std::fmt::Write as _;
+    let mut hex = String::with_capacity(64);
+    for byte in digest {
+        let _ = write!(hex, "{byte:02x}");
+    }
+    hex
+}
+
 impl Schema {
     /// Create a new empty schema
     #[must_use]
@@ -256,7 +270,7 @@ impl Schema {
         hasher.update(canonical_json.as_bytes());
 
         let result = hasher.finalize();
-        self.fingerprint = format!("{result:x}");
+        self.fingerprint = sha256_hex(&result);
     }
 
     /// Create canonical JSON representation for fingerprinting

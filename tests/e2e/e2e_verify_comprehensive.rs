@@ -248,7 +248,7 @@ fn verify_report_cli_opts_echo() {
 }
 
 #[test]
-fn verify_report_schema_fingerprint_is_md5_hex() {
+fn verify_report_schema_fingerprint_matches_canonical_emit_meta() {
     let dir = setup(SIMPLE_CPY, &simple_record());
     cmd()
         .args([
@@ -268,11 +268,53 @@ fn verify_report_schema_fingerprint_is_md5_hex() {
     let report: Value =
         serde_json::from_str(&std::fs::read_to_string(report_path(&dir)).unwrap()).unwrap();
     let fp = report["schema_fingerprint"].as_str().unwrap();
-    // MD5 hex is 32 hex characters
-    assert_eq!(fp.len(), 32, "fingerprint should be 32-char MD5 hex");
+    // Canonical schema fingerprint is 64-char SHA-256 hex
+    assert_eq!(fp.len(), 64, "fingerprint should be 64-char SHA-256 hex");
     assert!(
         fp.chars().all(|c| c.is_ascii_hexdigit()),
         "fingerprint should only contain hex chars"
+    );
+
+    // Cross-surface: decode --emit-meta must report the same canonical
+    // schema fingerprint for the same copybook and options.
+    let out = dir.path().join("out.jsonl");
+    cmd()
+        .args([
+            "decode",
+            "--format",
+            "fixed",
+            "--codepage",
+            "cp037",
+            "--emit-meta",
+            "--output",
+        ])
+        .arg(&out)
+        .arg(cpy_path(&dir))
+        .arg(data_path(&dir))
+        .assert()
+        .success();
+
+    let content = std::fs::read_to_string(&out).unwrap();
+    let json: Value = serde_json::from_str(content.trim()).unwrap();
+    assert_eq!(
+        json["schema_fingerprint"].as_str().unwrap(),
+        fp,
+        "verify report and decode --emit-meta must agree on schema_fingerprint"
+    );
+
+    // Source identity: SHA-256 of the raw copybook text (also 64 hex chars),
+    // distinct from the canonical schema fingerprint.
+    let source_fp = report["source_fingerprint"]
+        .as_str()
+        .expect("missing source_fingerprint");
+    assert_eq!(
+        source_fp.len(),
+        64,
+        "source fingerprint should be 64-char SHA-256 hex"
+    );
+    assert!(
+        source_fp.chars().all(|c| c.is_ascii_hexdigit()),
+        "source fingerprint should only contain hex chars"
     );
 }
 

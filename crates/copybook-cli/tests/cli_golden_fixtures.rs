@@ -130,12 +130,30 @@ fn validate_verify_report_schema(report: &Value) -> TestResult<()> {
     )?;
     assert_eq!(
         fingerprint.len(),
-        32,
-        "schema_fingerprint should be 32 hex chars"
+        64,
+        "schema_fingerprint should be 64 hex chars"
     );
     assert!(
         fingerprint.chars().all(|c| c.is_ascii_hexdigit()),
         "schema_fingerprint should be hex"
+    );
+
+    assert!(
+        obj.contains_key("source_fingerprint"),
+        "Missing source_fingerprint"
+    );
+    let source_fingerprint = require_some(
+        obj["source_fingerprint"].as_str(),
+        "source_fingerprint should be string",
+    )?;
+    assert_eq!(
+        source_fingerprint.len(),
+        64,
+        "source_fingerprint should be 64 hex chars"
+    );
+    assert!(
+        source_fingerprint.chars().all(|c| c.is_ascii_hexdigit()),
+        "source_fingerprint should be hex"
     );
 
     assert!(obj.contains_key("record_format"), "Missing record_format");

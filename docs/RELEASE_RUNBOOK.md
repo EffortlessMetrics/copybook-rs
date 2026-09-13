@@ -109,10 +109,14 @@ gh workflow run publish.yml -f tag="${RELEASE_TAG}"
 `publish.yml` uses `tools/xtask` plan output for publish order and count. There
 is no approval click: the job still targets the `production` environment
 (retained for continuity and secrets scoping), but the environment has no
-required reviewers, so a tag push publishes unattended. The control is
-upstream of the workflow: a repository tag ruleset restricts `v*` tag
-creation to release maintainers, so ordinary push access cannot trigger a
-publish.
+required reviewers, so a tag push publishes unattended.
+
+Before creating a release tag, verify that an active repository tag ruleset
+restricts `v*` tag creation to the intended release maintainers. This is the
+authorization boundary for the unattended flow; the v0.6.0 post-release
+hardening is tracked in #915. If that rule is absent, establish tag protection
+(or temporarily restore an environment approval gate) before treating the
+release path as fully authorized.
 
 ---
 

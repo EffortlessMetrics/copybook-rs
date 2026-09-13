@@ -107,11 +107,16 @@ fn usage() {
 fn block(c: &Counts) -> String {
     let p = c.passed;
     let s = c.skipped;
+    // Emit only fields the junit receipts actually prove. Roundtrip/negative
+    // counts and leak absence have no receipt source (leak absence is
+    // explicitly NOT_PROVEN, see #776), so they must not appear here.
     format!(
-        "**conformance:** {p}/{p}  \u{2022} **roundtrip:** N/A  \u{2022} **negative:** N/A  \u{2022} **skipped:** {s}  \u{2022} **leaks:** 0<br>\n\
+        "**conformance:** {p}/{p}  \u{2022} **skipped:** {s}<br>\n\
          _Source: CI receipts (nextest/junit). This block is updated automatically._"
     )
 }
+
+const TEST_STATUS_PATHS: [&str; 2] = ["README.md", "docs/REPORT.md"];
 
 fn replace_in_file(path: &str, new_block: &str) -> Result<()> {
     let content = fs::read_to_string(path)?;
@@ -131,10 +136,16 @@ fn sync() -> Result<()> {
     let c = counts()?;
     let b = block(&c);
 
-    replace_in_file("README.md", &b)?;
-    replace_in_file("docs/REPORT.md", &b)?;
+    // Only update files that carry the marker: the block was removed from the
+    // README front page, and sync must not reintroduce it.
+    for path in TEST_STATUS_PATHS {
+        let content = fs::read_to_string(path)?;
+        if content.contains("<!-- TEST_STATUS:BEGIN -->") {
+            replace_in_file(path, &b)?;
+        }
+    }
 
-    println!("\u{2713} Synced test status to README.md and docs/REPORT.md");
+    println!("\u{2713} Synced test status where the marker is present");
     Ok(())
 }
 
@@ -142,8 +153,11 @@ fn verify() -> Result<()> {
     let c = counts()?;
     let expected = block(&c);
 
-    for path in ["README.md", "docs/REPORT.md"] {
+    for path in TEST_STATUS_PATHS {
         let content = fs::read_to_string(path)?;
+        if !content.contains("<!-- TEST_STATUS:BEGIN -->") {
+            continue;
+        }
         if !content.contains(&expected) {
             bail!("{path} test-status out of sync");
         }

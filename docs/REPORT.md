@@ -5,7 +5,7 @@
 
 **Status**: ⚠️ **Engineering Preview (v0.6.0)** - See
 [ROADMAP.md](ROADMAP.md) for adoption guidance
-**Last Updated**: 2026-07-28
+**Last Updated**: 2026-09-12
 
 **Readiness**: Cautious Adoption Recommended - See
 [Readiness Assessment](#readiness-assessment) below
@@ -29,7 +29,7 @@ committed baseline (`scripts/bench/baseline.json`).
 
 ## Overview
 
-The `copybook-rs` workspace combines 26 publishable Rust crates and 4 dev-only
+The `copybook-rs` workspace combines 22 publishable Rust crates and 4 dev-only
 tools (generator, benchmarks, scripts, and xtask) to provide
 deterministic COBOL→JSON processing. The
 focus is on transparent validation rather than performance bravado: adopters
@@ -55,7 +55,7 @@ responsibilities:
 ### Test Coverage
 
 <!-- TEST_STATUS:BEGIN -->
-**conformance:** 9045/9045  • **roundtrip:** N/A  • **negative:** N/A  • **skipped:** 0  • **leaks:** 0<br>
+**conformance:** 9045/9045  • **skipped:** 0<br>
 _Source: CI receipts (nextest/junit). This block is updated automatically._
 <!-- TEST_STATUS:END -->
 
@@ -279,8 +279,9 @@ remaining limitations are addressed.
 
 #### Technical Signals
 
-- ✅ **Test Health**: `cargo test --workspace` reports 10,250+ tests passing (15
-  ignored)
+- ✅ **Test Health**: the full workspace suite passes in CI (see the generated
+  conformance counts in [Test Coverage](#test-coverage) above; the suite was
+  intentionally consolidated during the 0.6.0 workspace convergence)
 - ✅ **Memory Safety**: Zero `unsafe` in public APIs; pedantic linting enforced
 - ✅ **Performance Gate**: A blocking CI gate (`perf-gate.yml`) enforces floors
   (DISPLAY ≥ 80, COMP-3 ≥ 8 MiB/s) and >5% relative regression; see

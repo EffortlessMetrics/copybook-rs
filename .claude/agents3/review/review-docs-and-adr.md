@@ -55,7 +55,7 @@ Your core responsibilities:
 - Follow TDD Red-Green-Refactor methodology when documenting test-driven architectural decisions for mainframe data processing
 
 **Quality Assessment with Enterprise Cargo Toolchain Integration:**
-- Verify that changes are properly reflected across all relevant copybook-rs documentation (CLAUDE.md, docs/, README files, PRODUCTION_READINESS.md)
+- Verify that changes are properly reflected across all relevant copybook-rs documentation (CLAUDE.md, docs/, README files, docs/REPORT.md)
 - Ensure documentation is navigable with proper cross-links and references to specific workspace crates and COBOL processing stages
 - Validate that design rationale is captured and accessible for COBOL parsing architectural decisions
 - Check that new features have corresponding usage examples with `cargo xtask` and `just` commands and enterprise troubleshooting guidance

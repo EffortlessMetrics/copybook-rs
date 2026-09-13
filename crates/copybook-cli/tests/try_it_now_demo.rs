@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Integration test for README.md "Try It Now" demo
+//! Integration test for README.md "The first useful run" demo
 //!
 //! This test verifies that the demo command shown in the README works as expected:
 //! ```bash

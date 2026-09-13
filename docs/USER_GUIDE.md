@@ -10,7 +10,7 @@ copybook-rs is an **Engineering Preview** system for enterprise mainframe data p
 ### **Cautious Adoption Recommended** ⚠️
 
 copybook-rs is in **Engineering Preview** status with:
-- **10,250+ tests passing (15 ignored)** (comprehensive validation including golden fixtures)
+- **Full workspace test suite green in CI** (comprehensive validation including golden fixtures; see the generated conformance counts in [REPORT.md](REPORT.md))
 - **Performance baseline established** (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s)
 - **Level-88 condition value support** with structural validation
 - **Golden fixtures framework** for enterprise scenario validation
@@ -327,7 +327,7 @@ copybook decode schema.cpy data.bin --verbose --output results.jsonl 2>&1 | \
 
 ### Production Support
 For production deployments:
-1. Review comprehensive test coverage (10,250+ tests passing (15 ignored))
+1. Review current test and conformance status in [REPORT.md](REPORT.md)
 2. Validate performance for your specific workload against established baseline
 3. Implement error monitoring using stable error codes
 4. Use verification mode for data quality auditing

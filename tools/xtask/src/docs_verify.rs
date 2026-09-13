@@ -289,6 +289,12 @@ const RECORD_PIPELINE_SOURCE_PATHS: [&str; 6] = [
     "crates/copybook-record-io",
     "tests/e2e",
 ];
+/// Markdown files under the digest paths (READMEs, agent guides) cannot
+/// affect record-pipeline behavior, so they are excluded from the digest to
+/// keep docs-only edits from re-anchoring the evidence registry (#931).
+fn is_record_pipeline_digest_excluded(path: &str) -> bool {
+    path.to_ascii_lowercase().ends_with(".md")
+}
 const STABLE_CONTRACT_SCHEMA_VERSION: &str = "1.0.0";
 const STABLE_CONTRACT_MANIFEST_PATH: &str = "docs/contracts/stable-surface-contract.json";
 const STABLE_CONTRACT_SOURCE_PATHS: [&str; 6] = [
@@ -441,7 +447,8 @@ fn verify_record_pipeline_content_digest(root: &Path, expected: &str) -> Result<
     let actual = compute_record_pipeline_digest(root)?;
     if actual != expected {
         bail!(
-            "fixed/RDW evidence content digest mismatch: registry records `{expected}`, workspace computes `{actual}`; run `cargo run -p xtask -- docs sync-record-pipeline` and commit the update"
+            "fixed/RDW evidence content digest mismatch: registry records `{expected}`, workspace computes `{actual}`; digest inputs are the tracked non-markdown files under {} — inspect recent changes with `git log -p -- <paths>`; if the change is intended, run `cargo run -p xtask -- docs sync-record-pipeline` and commit the update",
+            RECORD_PIPELINE_SOURCE_PATHS.join(", ")
         );
     }
     Ok(())
@@ -564,6 +571,7 @@ fn tracked_record_pipeline_digest_files(root: &Path) -> Result<Vec<RecordPipelin
     }
 
     let mut files = parse_tracked_record_pipeline_paths(&output.stdout)?;
+    files.retain(|file| !is_record_pipeline_digest_excluded(&file.path));
     files.sort();
     if files.is_empty() {
         bail!("record-pipeline digest has no tracked input files");
@@ -3029,6 +3037,28 @@ mod tests {
             b"ignored build artifact\n",
         )
         .unwrap();
+
+        let after = compute_record_pipeline_digest(temp.path()).unwrap();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn record_pipeline_digest_ignores_markdown_files() {
+        let temp = tempfile::tempdir().unwrap();
+        scaffold_record_pipeline_paths(temp.path());
+        let before = compute_record_pipeline_digest(temp.path()).unwrap();
+
+        std::fs::write(
+            temp.path().join("crates/copybook-cli/README.md"),
+            b"# docs-only change\n",
+        )
+        .unwrap();
+        let status = Command::new("git")
+            .current_dir(temp.path())
+            .args(["add", "--", "crates/copybook-cli/README.md"])
+            .status()
+            .unwrap();
+        assert!(status.success());
 
         let after = compute_record_pipeline_digest(temp.path()).unwrap();
         assert_eq!(before, after);

@@ -3,7 +3,9 @@
 set -euo pipefail
 
 # Prefer cargo.exe on Git Bash/Windows to avoid stale MSYS cargo binaries.
-if command -v cargo.exe >/dev/null 2>&1; then
+# Never under WSL: Windows interop exposes cargo.exe there, but the Windows
+# binary mangles paths (\\wsl.localhost\...) and breaks incremental builds.
+if [ -z "${WSL_DISTRO_NAME:-}" ] && ! grep -qi microsoft /proc/version 2>/dev/null && command -v cargo.exe >/dev/null 2>&1; then
   CARGO_BIN="cargo.exe"
 else
   CARGO_BIN="cargo"

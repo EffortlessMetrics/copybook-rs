@@ -151,7 +151,14 @@ jobs:
         # crates.io index, which can only succeed in dependency order at
         # publish time. `--list` performs no resolution (same technique as
         # publish-dry-run.yml, which is why dry-run stayed green).
-        if cargo package -p copybook-determinism --list | grep -E '(^|/)tests/'; then
+        # Check the cargo exit status explicitly: piping straight into grep
+        # would turn a `cargo package --list` failure into an empty grep
+        # input, which the `if` would read as "no tests/ payload" (fail-open).
+        if ! PACKAGE_FILES="$(cargo package -p copybook-determinism --list)"; then
+          echo "cargo package --list failed for copybook-determinism" >&2
+          exit 1
+        fi
+        if printf '%s\n' "${PACKAGE_FILES}" | grep -E '(^|/)tests/'; then
           echo "copybook-determinism would publish workspace test files" >&2
           exit 1
         fi

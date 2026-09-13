@@ -98,18 +98,21 @@ git tag -a "${RELEASE_TAG}" -m "copybook-rs ${RELEASE_TAG}"
 git push origin "${RELEASE_TAG}"
 ```
 
-2. Publish by pushing the release tag. The `push: tags: 'v*'` trigger starts
-`publish.yml` with no manual step (`workflow_dispatch` with `-f tag=` remains
-available for retries):
+2. Publish by pushing the release tag (the push in step 1). The
+`push: tags: 'v*'` trigger starts `publish.yml` with no manual step;
+`workflow_dispatch` with `-f tag=` remains available for retries:
 
 ```bash
-git push origin "${RELEASE_TAG}"
+gh workflow run publish.yml -f tag="${RELEASE_TAG}"
 ```
 
 `publish.yml` uses `tools/xtask` plan output for publish order and count. There
-is no approval gate: the `production` environment reference is retained for
-continuity, but required reviewers were removed to match house standard
-(tag push publishes unattended).
+is no approval click: the job still targets the `production` environment
+(retained for continuity and secrets scoping), but the environment has no
+required reviewers, so a tag push publishes unattended. The control is
+upstream of the workflow: a repository tag ruleset restricts `v*` tag
+creation to release maintainers, so ordinary push access cannot trigger a
+publish.
 
 ---
 

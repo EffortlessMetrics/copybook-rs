@@ -77,7 +77,7 @@ copybook determinism decode --output json --format fixed --codepage cp037 schema
 ## Installation
 
 ```bash
-cargo install copybook-cli@0.5.0 --locked
+cargo install copybook-cli@0.6.0 --locked
 ```
 
 For source builds:

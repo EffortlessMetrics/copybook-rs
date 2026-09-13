@@ -10,7 +10,7 @@ also exist under `crates/`, `tests/`, `tools/`, `examples/`, and `fuzz/`.
 `copybook-rs` is a Rust toolkit for COBOL copybook parsing and deterministic
 fixed-record data conversion between mainframe binary formats (EBCDIC/ASCII,
 fixed-length and RDW records) and JSON. It is currently at Engineering Preview
-(v0.5.0): stable CLI and library APIs, preview-level feature completeness.
+(v0.6.0): stable CLI and library APIs, preview-level feature completeness.
 
 - **Repository**: https://github.com/EffortlessMetrics/copybook-rs
 - **Language / toolchain**: Rust, edition 2024, MSRV 1.95 (enforced in CI and
@@ -65,16 +65,15 @@ Key crates and roles:
   (2=CBKD, 3=CBKE, 4=CBKF, 5=CBKI).
 - Record format primitives: `copybook-fixed`, `copybook-rdw`,
   `copybook-record-io`. Numeric/text primitives: `copybook-zoned-format`,
-  `copybook-overpunch`, `copybook-overflow`, `copybook-safe-*`.
+  `copybook-overpunch`. Streaming primitive: `copybook-sequence-ring`.
 - `copybook-error`, `copybook-error-reporter` — typed error taxonomy and
   structured reporting.
 - `copybook-charset`, `copybook-codepage` — EBCDIC/ASCII conversion and
   codepage policy (CP037/CP273/CP500/CP1047/CP1140).
 - `copybook-dialect`, `copybook-options`, `copybook-determinism` — dialect
   lever, shared codec options, stable hash/diff primitives.
-- `copybook-corruption*` — corruption detection and RDW predicates.
-- `copybook-governance*` + `copybook-contracts`, `copybook-support-matrix` —
-  feature-flag governance microcrate stack.
+- `copybook-governance` + `copybook-contracts`, `copybook-support-matrix` —
+  feature-flag governance crate stack.
 - `copybook-arrow` — experimental Apache Arrow/Parquet adapter.
 
 Before editing, inspect the branch, status, relevant canonical documents,

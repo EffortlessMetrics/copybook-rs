@@ -86,3 +86,7 @@ test_counts.txt
 .github/workflows/gemini-*.yaml
 GEMINI.md
 **/GEMINI.md
+
+# Python bytecode artifacts
+__pycache__/
+*.py[cod]

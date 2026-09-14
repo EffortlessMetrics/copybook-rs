@@ -16,9 +16,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install Changie
-        uses: miniscruff/changie-action@v3
+        # changie-action v3.0.1; installs the Changie binary pinned below
+        uses: miniscruff/changie-action@3223cb29b92a0972dedc864ace3da01e04780ae4
         with:
           version: v1.26.0
 
@@ -35,7 +38,20 @@ jobs:
           PY
           )"
           test -n "${VERSION}"
-          test -f ".changes/v${VERSION}.md"
+          VERSION_FILE=".changes/v${VERSION}.md"
+          test -f "${VERSION_FILE}"
+
+          # The filename alone is not proof: the version file must label the
+          # workspace release, and the merged changelog must contain exactly
+          # one section for it.
+          grep -Eq "^## \[${VERSION}\] — [0-9]{4}-[0-9]{2}-[0-9]{2}\$" "${VERSION_FILE}" || {
+            echo "::error::${VERSION_FILE} must start with '## [${VERSION}] — <date>'"
+            exit 1
+          }
+          test "$(grep -cE "^## \[${VERSION}\] — " CHANGELOG.md)" -eq 1 || {
+            echo "::error::CHANGELOG.md must contain exactly one '## [${VERSION}]' section"
+            exit 1
+          }
 
       - name: Validate unreleased fragments
         run: changie batch patch --dry-run

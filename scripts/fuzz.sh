@@ -63,8 +63,8 @@ check_cargo_fuzz() {
     if ! command -v cargo-fuzz &> /dev/null; then
         echo -e "${RED}Error: cargo-fuzz is not installed${NC}"
         echo ""
-        echo "Install cargo-fuzz:"
-        echo "  cargo install cargo-fuzz --version 0.13.4"
+        echo "Install cargo-fuzz (pinned in fuzz/cargo-fuzz-version, from the repository root):"
+        echo "  cargo install cargo-fuzz --locked --version \"\$(tr -d '[:space:]' < fuzz/cargo-fuzz-version)\""
         exit 1
     fi
 }

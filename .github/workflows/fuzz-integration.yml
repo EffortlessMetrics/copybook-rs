@@ -94,15 +94,53 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@nightly
 
-      - name: Install cargo-fuzz
+      - name: Read pinned cargo-fuzz version
+        id: pins
         run: |
-          cargo install cargo-fuzz --version 0.13.1
+          version="$(tr -d '[:space:]' < fuzz/cargo-fuzz-version)"
+          if [ -z "$version" ]; then
+            echo "::error::fuzz/cargo-fuzz-version is missing or empty"
+            exit 1
+          fi
+          echo "cargo_fuzz_version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Record toolchain identity
+        id: toolchain
+        run: echo "id=$(rustc -vV | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache cargo-fuzz binary
+        id: cargo-fuzz-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-fuzz
+          key: cargo-fuzz-${{ runner.os }}-${{ steps.toolchain.outputs.id }}-${{ steps.pins.outputs.cargo_fuzz_version }}
+
+      - name: Install cargo-fuzz (pinned, locked)
+        if: steps.cargo-fuzz-cache.outputs.cache-hit != 'true'
+        run: cargo install cargo-fuzz --locked --version "${{ steps.pins.outputs.cargo_fuzz_version }}"
+
+      - name: Verify cargo-fuzz installation
+        run: |
+          installed="$(cargo fuzz --version | awk '{print $2}')"
+          echo "cargo-fuzz ${installed:-missing} (pinned: ${{ steps.pins.outputs.cargo_fuzz_version }})"
+          if [ "$installed" != "${{ steps.pins.outputs.cargo_fuzz_version }}" ]; then
+            echo "::error::cargo-fuzz install failed or version mismatch: expected ${{ steps.pins.outputs.cargo_fuzz_version }}, got ${installed:-none}"
+            exit 1
+          fi
 
       - name: Cache cargo build
         uses: Swatinem/rust-cache@v2
         with:
           key: fuzz-${{ matrix.target }}-${{ github.sha }}
           save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Verify fuzz target discovery
+        run: |
+          cargo fuzz list
+          if ! cargo fuzz list | grep -qx '${{ matrix.target }}'; then
+            echo "::error::fuzz target '${{ matrix.target }}' is not discoverable via 'cargo fuzz list'"
+            exit 1
+          fi
 
       - name: Run fuzzer (${{ matrix.target }})
         id: fuzz

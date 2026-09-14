@@ -7,8 +7,14 @@ This directory contains the fuzzing infrastructure for the copybook-rs project u
 
 ### Install Dependencies
 
+The exact cargo-fuzz version is pinned in
+[`cargo-fuzz-version`](cargo-fuzz-version) (repository-relative path
+`fuzz/cargo-fuzz-version`) and installed with `--locked`. CI reads the same
+file, so the version is recorded in exactly one place. From the repository
+root:
+
 ```bash
-cargo install cargo-fuzz --version 0.13.4
+cargo install cargo-fuzz --locked --version "$(tr -d '[:space:]' < fuzz/cargo-fuzz-version)"
 ```
 
 ### Run a Fuzzer
@@ -123,7 +129,7 @@ Ensure you have the correct Rust version:
 
 ```bash
 rustc --version  # Should be 1.95.0 or later
-cargo install cargo-fuzz --version 0.13.4
+cargo install cargo-fuzz --locked --version "$(tr -d '[:space:]' < fuzz/cargo-fuzz-version)"
 ```
 
 ### No Coverage Increase

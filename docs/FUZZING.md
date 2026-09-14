@@ -104,7 +104,7 @@ Tests the record I/O dispatch microcrate with various inputs including:
 1. Install Rust (1.95.0 or later)
 2. Install cargo-fuzz:
    ```bash
-   cargo install cargo-fuzz --version 0.13.4
+   cargo install cargo-fuzz --locked --version "$(tr -d '[:space:]' < fuzz/cargo-fuzz-version)"
    ```
 
 ### Basic Usage
@@ -359,7 +359,7 @@ Ensure you have the correct Rust version and cargo-fuzz installed:
 
 ```bash
 rustc --version  # Should be 1.95.0 or later
-cargo install cargo-fuzz --version 0.13.4
+cargo install cargo-fuzz --locked --version "$(tr -d '[:space:]' < fuzz/cargo-fuzz-version)"
 ```
 
 #### No coverage increase

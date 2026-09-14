@@ -110,7 +110,7 @@ jobs:
 
       - name: Cache cargo-fuzz binary
         id: cargo-fuzz-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cargo/bin/cargo-fuzz
           key: cargo-fuzz-${{ runner.os }}-${{ steps.toolchain.outputs.id }}-${{ steps.pins.outputs.cargo_fuzz_version }}

@@ -50,13 +50,13 @@
 
 - [ ] Tests added/updated (or N/A for docs-only changes)
 - [ ] Documentation updated (AGENTS.md, tool adapters, docs/, or inline comments if needed)
-- [ ] CHANGELOG.md updated (if user-facing change)
+- [ ] Changie fragment added under `.changes/unreleased/` if the change belongs in public release notes (otherwise N/A)
 - [ ] `cargo fmt --all` passes
 - [ ] `cargo clippy --workspace -- -D warnings -W clippy::pedantic` passes
 - [ ] `cargo test --workspace` passes (or `cargo nextest run --workspace`)
 - [ ] `bash scripts/ci/governance-bdd-smoke.sh` passes (if governance or BDD touched)
 - [ ] Follows [conventional commit format](https://www.conventionalcommits.org/) (e.g., `feat(core):`, `fix(codec):`)
-- [ ] MSRV compliance (Rust 1.92+) verified if dependencies changed
+- [ ] MSRV compliance (Rust 1.95+) verified if dependencies changed
 - [ ] Golden fixtures updated if applicable
 
 ## Testing Instructions

@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# cargo-release configuration for copybook-rs workspace
+# cargo-release configuration for copybook-rs workspace.
+# Version-bump helper only: prepare changelog fragments/releases with Changie
+# in a reviewed PR as documented in docs/RELEASE_RUNBOOK.md.
 tag-name = "v{{version}}"
 tag-message = "Release v{{version}}"
 sign-tag = true
@@ -12,11 +14,3 @@ allow-branch = ["main"]
 dependent-version = "fix"
 shared-version = true
 consolidate-commits = true
-pre-release-hook = [
-  "git-cliff",
-  "--unreleased",
-  "--tag",
-  "v{{version}}",
-  "--output",
-  "CHANGELOG.md",
-]

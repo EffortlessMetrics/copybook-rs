@@ -1,117 +1,141 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-# Changelog Generation
+# Changelog Management
 
-This project uses [git-cliff](https://git-cliff.org/) for automated changelog generation based on conventional commits.
+copybook-rs uses [Changie](https://changie.dev/) to collect release-note fragments during normal development and assemble the canonical root `CHANGELOG.md` in a reviewed release-preparation pull request.
 
-## Prerequisites
+Changie manages changelog text only. It does **not** choose the release version, tag the repository, publish crates, or replace the release controls in [RELEASE_RUNBOOK.md](RELEASE_RUNBOOK.md).
 
-Install git-cliff:
+## Files and source of truth
+
+- `.changie.yaml` — Changie configuration and public changelog categories.
+- `.changes/unreleased/` — one small YAML fragment per notable unreleased change.
+- `.changes/vX.Y.Z.md` — batched, reviewable release notes for a version.
+- `.changes/header.tpl.md` — stable changelog header; it ends with the standing `## [Unreleased]` heading (decision below).
+- `CHANGELOG.md` — canonical public changelog assembled by `changie merge`.
+- `.changes/v0.6.1.md` — the 0.6.1 release section from the pre-Changie changelog.
+- `.changes/v0.6.0.md` — the 0.6.0 release section from the pre-Changie changelog.
+- `.changes/v0.5.0.md` — the 0.5.0-and-earlier historical baseline from the pre-Changie changelog.
+
+The root changelog remains the public source of truth. The `.changes/` tree is the evidence used to reproduce it and to prepare the next release without deriving public notes from commit-message heuristics.
+
+The historical baseline is deliberately split at the supported release-line boundary. Keeping the 0.6.x sections separate from the 0.5.0-and-earlier history means a future 0.5.x maintenance release sorts below 0.6.0 and above 0.5.0 when Changie merges the version files.
+
+## The `[Unreleased]` decision
+
+`CHANGELOG.md` deliberately keeps a standing, usually empty `## [Unreleased]`
+heading as its first section: the file always shows where the next cycle's
+notes will land. Two mechanics make that posture work with Changie rather than
+against it:
+
+- The heading is the last line of `.changes/header.tpl.md`, so
+  `changie merge` reproduces it in the empty state. This is why the merged
+  output matches the canonical file byte for byte.
+- `changie merge` does **not** render `.changes/unreleased/` fragments; it only
+  stitches the header and the batched version files. Fragments therefore never
+  appear in `CHANGELOG.md` as a side effect — they become public exactly once,
+  at `changie batch vX.Y.Z` + `changie merge` time in release preparation. The
+  standing heading is intentional empty posture, not missing content.
+
+## Install Changie
+
+CI pins Changie v1.26.0. Use that version locally so validation and release preparation run against the same implementation. For a Go source install:
 
 ```bash
-cargo install git-cliff --locked
+go install github.com/miniscruff/changie@v1.26.0
 ```
 
-## Local Usage
-
-### Generate Unreleased Changes
-
-To see what changes would be added to the changelog for unreleased commits:
+Changie injects its displayed release version through GoReleaser, so a binary built by `go install` may report `vdev`. The embedded Go module metadata still records the selected source version:
 
 ```bash
-git cliff --config cliff.toml --unreleased --no-exec
+go version -m "$(command -v changie)" | grep github.com/miniscruff/changie
 ```
 
-### Generate Full Changelog
+The official Changie release binary reports `v1.26.0` directly. Other supported installation methods are documented by Changie; keep the installed version aligned with the CI pin.
 
-To regenerate the complete changelog from all tags:
+## Add a change fragment
+
+For a notable user-facing, compatibility, security, or release-relevant change, run:
 
 ```bash
-git cliff --config cliff.toml --no-exec --output CHANGELOG.md
+changie new
 ```
 
-### Generate Changelog for Specific Range
+Select the category and write the public-facing change. The configured categories match the project changelog vocabulary:
+
+- `Added`
+- `Changed`
+- `Deprecated`
+- `Removed`
+- `Fixed`
+- `Security`
+
+For scripted or agentic work, the same operation can be non-interactive:
 
 ```bash
-git cliff --config cliff.toml --no-exec v0.4.0..HEAD
+changie new --kind fixed --body '**codec**: Reject malformed numeric input instead of silently defaulting the field'
 ```
 
-## GitHub Actions Workflow
+Commit the generated file under `.changes/unreleased/` with the code or documentation change it describes. Ordinary pull requests should **not** hand-edit `CHANGELOG.md`; batching happens once, in release preparation.
 
-The project includes an automated changelog workflow at `.github/workflows/changelog.yml`.
+Not every PR needs a fragment. Internal refactors, tests, CI maintenance, dependency churn, formatting, and documentation corrections that do not belong in public release notes may omit one.
 
-### Automatic Generation
+## Validate locally
 
-- **Triggers**: Runs automatically on every push to `main`
-- **Output**: Generates incremental changelog for unreleased commits
-- **Artifact**: Available as `changelog-incremental` artifact for 30 days
+The lightweight changelog checks are:
 
-### Manual Full Regeneration
+```bash
+# Parse and sort unreleased fragments without writing a release file.
+changie batch patch --dry-run
 
-To manually regenerate the full changelog:
+# Rebuild released history without changing CHANGELOG.md.
+changie merge --dry-run > /tmp/CHANGELOG.md
 
-1. Go to the Actions tab in GitHub
-2. Select the "Changelog" workflow
-3. Click "Run workflow"
-4. Check "Regenerate full changelog"
-5. Download the `changelog-full` artifact
-6. Review and manually update `CHANGELOG.md` if desired
-
-## Configuration
-
-The changelog configuration is in `cliff.toml` at the repository root.
-
-### Commit Conventions
-
-The changelog generation follows these conventional commit types:
-
-- `feat:` → Added
-- `fix:` → Fixed
-- `docs:` → Documentation
-- `perf:` → Performance
-- `refactor:` → Changed
-- `style:` → Styling
-- `test:` → Testing
-- `ci:` → Miscellaneous Tasks
-- `chore:` → Miscellaneous Tasks (or skipped for deps/pr)
-- `build:` → Build
-- `release:` → Release
-
-### Filtering
-
-The following commits are automatically filtered out:
-
-- `chore(deps)`: Dependency updates
-- `build(deps)`: Build dependency updates
-- `chore(pr)`: PR-related chores
-- `chore(pull)`: Pull request automation
-
-### Issue/PR References
-
-Commit messages with issue/PR numbers like `(#123)` are automatically converted to links:
-
-```
-feat: add new feature (#123)
+diff -u CHANGELOG.md /tmp/CHANGELOG.md
 ```
 
-becomes:
+The `patch` argument in the dry run is only a validation version. It does not select the real release version or write files.
 
+The `Changelog` GitHub Actions workflow runs the same checks on pull requests and on pushes to `main`. It also reads `[workspace.package].version` from `Cargo.toml` and requires the matching `.changes/vX.Y.Z.md` file, so a version bump cannot merge without its batched release notes.
+
+## Prepare a release
+
+Choose the release version through the normal release process. Then batch the accumulated fragments with that **explicit** version; do not use `changie batch auto` as a substitute for the project's versioning decision.
+
+```bash
+VERSION="X.Y.Z"
+
+changie batch "v${VERSION}"
+changie merge
+
+git diff -- \
+  CHANGELOG.md \
+  ".changes/v${VERSION}.md" \
+  .changes/unreleased
 ```
-feat: add new feature ([#123](https://github.com/EffortlessMetrics/copybook-rs/issues/123))
-```
 
-## Best Practices
+Review and, when useful, curate `.changes/v${VERSION}.md` before the final `changie merge`. That version file is the release-note candidate; edits remain explicit and reviewable rather than being regenerated from git history.
 
-1. **Use Conventional Commits**: Follow the conventional commit format for automatic categorization
-2. **Review Before Committing**: The workflow generates artifacts but doesn't auto-commit - review before updating CHANGELOG.md
-3. **Manual Curation**: For releases, review the generated changelog and add additional context or notes as needed
-4. **Consistency**: Keep the existing CHANGELOG.md format when merging generated content
+The finished release-preparation PR must leave:
 
-## Notes
+1. the target version file present under `.changes/`;
+2. its fragments removed from `.changes/unreleased/` by the batch operation;
+3. `CHANGELOG.md` reproducible by `changie merge --dry-run`; and
+4. the public notes reviewed for migration or compatibility guidance required by project policy.
 
-- The `--no-exec` flag is used to prevent external command execution (GitHub API calls)
-- GitHub remote integration is commented out in `cliff.toml` to avoid API rate limits
-- The workflow uses local git history only, no external API dependencies
-- Changelog generation is reproducible and doesn't depend on network access
+The target file is the release-line-specific proof. Do not require `changie latest` to equal the target: a supported maintenance release may be lower than a newer version already present in `.changes/`.
+
+After that PR is merged, follow [RELEASE_RUNBOOK.md](RELEASE_RUNBOOK.md) for the exact-commit gates, tag, protected publication workflow, smoke tests, and recovery procedure.
+
+## Conventional commits
+
+The repository still uses Conventional Commit-style commit and PR titles because they are useful development metadata. They are no longer the changelog source. Public release notes come from Changie fragments, so a squash title or internal commit sequence cannot silently rewrite the release narrative.
+
+## Historical migration
+
+Changie was adopted after the 0.6.1 changelog already existed. The migration keeps the public text unchanged while storing it in three ordered inputs: the 0.6.1 section in `.changes/v0.6.1.md`, the 0.6.0 section in `.changes/v0.6.0.md`, and the 0.5.0-and-earlier record in `.changes/v0.5.0.md`. Actual publication dates are preserved exactly (0.6.1 — 2026-09-14; 0.6.0 — 2026-09-11; 0.5.0 — 2026-07-28). The split preserves the supported 0.5.x maintenance insertion point without forcing a cosmetic reconstruction of every older release section.
+
+Together with `.changes/header.tpl.md` (including its trailing `## [Unreleased]` line), those files make `changie merge` reproduce the canonical changelog byte for byte before any new release is batched.
+
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

@@ -10,7 +10,7 @@ also exist under `crates/`, `tests/`, `tools/`, `examples/`, and `fuzz/`.
 `copybook-rs` is a Rust toolkit for COBOL copybook parsing and deterministic
 fixed-record data conversion between mainframe binary formats (EBCDIC/ASCII,
 fixed-length and RDW records) and JSON. It is currently at Engineering Preview
-(v0.6.0): stable CLI and library APIs, preview-level feature completeness.
+(v0.6.1): stable CLI and library APIs, preview-level feature completeness.
 
 - **Repository**: https://github.com/EffortlessMetrics/copybook-rs
 - **Language / toolchain**: Rust, edition 2024, MSRV 1.95 (enforced in CI and

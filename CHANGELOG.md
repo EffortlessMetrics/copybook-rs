@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-09-14
+
 ### Fixed
 
 - **cli**: `copybook verify --report` now reports the canonical schema
@@ -21,6 +23,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Digest bytes below `0x10` were previously emitted without zero-padding,
   producing variable-length fingerprints that violated the documented
   `^[a-f0-9]{64}$` contract in `schemas/record-format.json`.
+- **cli**: the packaged `copybook-cli` README installation line now names the
+  published version (0.6.1), closing the packaged-documentation drift recorded
+  in #920.
+- **workspace**: crates.io package metadata now describes deterministic
+  fixed-length **and RDW** record conversion instead of only "fixed-record"
+  conversion.
+- **ci**: the fuzz evidence lane is reproducible again: the cargo-fuzz
+  toolchain is pinned (`fuzz/cargo-fuzz-version`, installed with `--locked`
+  and a toolchain-keyed cache) instead of resolving a floating dependency
+  graph (#938).
+- **tests/tooling**: the README exit-code table test parses the table
+  structurally rather than by exact whitespace (#936), and the
+  record-pipeline evidence digest excludes markdown inputs and names its
+  inputs (#937). Lower-level repository corrections; no product behavior
+  change.
 
 ## [0.6.0] — 2026-09-11
 

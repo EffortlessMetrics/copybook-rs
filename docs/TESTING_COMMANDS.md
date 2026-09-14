@@ -492,7 +492,7 @@ cargo fuzz run redefines -- -runs=0 -max_total_time=300
 **How to run locally**:
 ```bash
 # Install cargo-fuzz
-cargo install cargo-fuzz --version 0.13.4
+cargo install cargo-fuzz --locked --version "$(tr -d '[:space:]' < fuzz/cargo-fuzz-version)"
 
 # Run specific fuzzer for 5 minutes
 cargo fuzz run copybook_parse -- -runs=0 -max_total_time=300
@@ -949,7 +949,7 @@ cargo test -p copybook-bdd -- --nocapture
 #### Fuzzing
 ```bash
 # Install cargo-fuzz
-cargo install cargo-fuzz --version 0.13.4
+cargo install cargo-fuzz --locked --version "$(tr -d '[:space:]' < fuzz/cargo-fuzz-version)"
 
 # Run specific fuzzer for 5 minutes
 cargo fuzz run copybook_parse -- -runs=0 -max_total_time=300

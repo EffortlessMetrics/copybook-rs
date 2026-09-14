@@ -1,22 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# cargo-release configuration for copybook-rs workspace
-tag-name = "v{{version}}"
-tag-message = "Release v{{version}}"
-sign-tag = true
-sign-commit = false
+# cargo-release configuration for copybook-rs workspace.
+# Version-bump helper ONLY: it must not tag, push, or publish. Tagging happens
+# exclusively in the reviewed runbook step after changelog and release gates
+# pass (docs/RELEASE_RUNBOOK.md); publication is tag-driven via publish.yml.
+tag = false
+push = false
 publish = false
-push-remote = "origin"
-push = true
+sign-commit = false
 pre-release-commit-message = "chore(release): prepare v{{version}}"
 allow-branch = ["main"]
 dependent-version = "fix"
 shared-version = true
 consolidate-commits = true
-pre-release-hook = [
-  "git-cliff",
-  "--unreleased",
-  "--tag",
-  "v{{version}}",
-  "--output",
-  "CHANGELOG.md",
-]

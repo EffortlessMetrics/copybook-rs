@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Roadmap
 
-**Status**: Engineering Preview (v0.6.0)
+**Status**: Engineering Preview (v0.6.1)
 **Release target**: v1.0.0 after the product-readiness gates below pass; there is no calendar-only release promise.
 **Program tracker**: [#535 — v1 Product Readiness](https://github.com/EffortlessMetrics/copybook-rs/issues/535)
 
@@ -322,7 +322,12 @@ freeze clock before #541–#543 are complete.
 
 ## Planned releases
 
-- **v0.6.0** (current Engineering Preview): workspace convergence release —
+- **v0.6.1** (current Engineering Preview): canonical-fingerprint patch —
+  `verify --report` now emits the same SHA-256 `schema_fingerprint` as codec
+  metadata, canonical fingerprints are fixed-width 64-hex, an additive
+  `source_fingerprint` carries raw-source identity, and packaged
+  README/crates.io metadata were corrected. No new COBOL surface.
+- **v0.6.0**: workspace convergence release —
   retired crates folded into owners, curated `copybook` facade with
   deprecation shims, collapsed feature flags, MSRV Rust 1.95. Migration
   notes live in [migration/0.6.md](migration/0.6.md).

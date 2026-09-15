@@ -1,0 +1,98 @@
+name: Apply bounded CLA governance patch
+
+on:
+  push:
+    branches:
+      - docs/hosted-cla-assistant
+    paths:
+      - .github/workflows/patch-cla-governance.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/hosted-cla-assistant
+          fetch-depth: 0
+
+      - name: Align contributor paths and canonical hashes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
+          import re
+
+          contributing = Path("CONTRIBUTING.md")
+          text = contributing.read_text(encoding="utf-8")
+          replacements = {
+              """8. **Sign the Individual CLA** through the hosted CLA Assistant link when
+             prompted, then wait for `license/cla` to pass""": """8. **Complete the applicable contributor agreement**. Individual contributors
+             use the hosted CLA Assistant link and wait for `license/cla` to pass;
+             entity-owned contributions require the separate Corporate CLA and
+             authorization process before the covered contribution is submitted""",
+              """Contributors must sign the [Individual CLA](CLA.md) through the hosted CLA
+          Assistant integration before a contribution can be accepted.
+
+          After a pull request opens, CLA Assistant comments with the authenticated
+          signing link. Enter the required full legal name and email address, confirm that
+          you are signing in your individual capacity with authority to grant the stated
+          rights, and wait for the `license/cla` status to pass. Do not paste a manual
+          signature, email address, or signing date into the pull request.
+
+          The Individual CLA does not cover contributions made on behalf of an employer.
+          Corporate contributors must contact the maintainers privately before submitting
+          the contribution so a Corporate CLA and authorization process can be
+          established.""": """Every intentionally submitted contribution must be covered by the applicable
+          contributor agreement. Individual contributors sign the [Individual CLA](CLA.md)
+          through the hosted CLA Assistant integration. After a pull request opens, follow
+          the authenticated signing link, provide the required fields, and wait for
+          `license/cla` to pass. Do not paste a manual signature, email address, or signing
+          date into the pull request.
+
+          If an employer or another entity owns or controls the relevant rights, do not use
+          the individual form. Contact the maintainers privately before submitting the
+          covered contribution so the separate Corporate CLA and authorization process can
+          be completed.""",
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f"expected exactly one CONTRIBUTING block: {old[:40]!r}")
+              text = text.replace(old, new)
+          contributing.write_text(text, encoding="utf-8")
+
+          cla_hash = sha256(Path("CLA.md").read_bytes()).hexdigest()
+          metadata_hash = sha256(Path("docs/reference/cla-assistant-metadata.json").read_bytes()).hexdigest()
+          operations = Path("docs/CLA_OPERATIONS.md")
+          ops = operations.read_text(encoding="utf-8")
+          ops, agreement_count = re.subn(
+              r"(\| Agreement \| \[`\.\./CLA\.md`\]\(\.\./CLA\.md\) \| `CLA\.md` \| `)[0-9a-f]{64}(` \|)",
+              rf"\g<1>{cla_hash}\g<2>",
+              ops,
+          )
+          ops, metadata_count = re.subn(
+              r"(\| Signer fields \| \[`reference/cla-assistant-metadata\.json`\]\(reference/cla-assistant-metadata\.json\) \| `metadata` \| `)[0-9a-f]{64}(` \|)",
+              rf"\g<1>{metadata_hash}\g<2>",
+              ops,
+          )
+          if agreement_count != 1 or metadata_count != 1:
+              raise SystemExit(f"unexpected canonical-hash table matches: agreement={agreement_count}, metadata={metadata_count}")
+          operations.write_text(ops, encoding="utf-8")
+
+          Path(".github/workflows/patch-cla-governance.yml").unlink()
+          print(f"CLA_SHA256={cla_hash}")
+          print(f"METADATA_SHA256={metadata_hash}")
+          PY
+
+      - name: Commit the bounded patch and remove this workflow
+        shell: bash
+        run: |
+          git config user.name "EffortlessSteven"
+          git config user.email "git@effortlesssteven.com"
+          git add CONTRIBUTING.md docs/CLA_OPERATIONS.md .github/workflows/patch-cla-governance.yml
+          git commit -m "docs(cla): align agreement paths and hashes"
+          git push origin HEAD:docs/hosted-cla-assistant

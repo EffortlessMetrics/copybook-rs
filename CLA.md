@@ -53,8 +53,9 @@ You agree to notify the Project maintainers if any facts or circumstances change
 
 Open or update a pull request. The hosted
 [CLA Assistant](https://cla-assistant.io/) integration will comment with a link
-to review and sign this Agreement through GitHub authentication. The
-`license/cla` status must pass before the contribution can be accepted.
+to review and sign this Agreement through GitHub authentication after the
+hosted flow has been activated for the repository. The `license/cla` status
+must pass before the contribution can be accepted.
 
 The signing form asks for your full legal name, email address, and a required
 acknowledgement that you are signing this Individual CLA in your individual
@@ -74,21 +75,25 @@ required.
 ## Contributor Privacy Notice
 
 EffortlessMetrics, acting through the copybook-rs maintainers, is the controller
-for the CLA records collected for the Project. We use the hosted CLA Assistant
-service at [cla-assistant.io](https://cla-assistant.io/) to record assent to this
-Agreement and maintain licensing evidence.
+for CLA records collected for the Project. The hosted flow is not treated as
+active until its public Gist, GitHub App linkage, live `license/cla` result, and
+default-branch enforcement are recorded in
+[`docs/CLA_OPERATIONS.md`](docs/CLA_OPERATIONS.md).
 
-The record contains your GitHub identity, full legal name, email address,
-signing time, required individual-capacity acknowledgement, and the CLA version
-you signed. We retain it for as long as reasonably necessary to document the
-licensing status of submitted or accepted Contributions and to establish,
-exercise, or defend legal rights. Removing a Contribution or GitHub account does
-not automatically remove the licensing record.
+Once active, the hosted CLA Assistant service at
+[cla-assistant.io](https://cla-assistant.io/) records assent to this Agreement
+and maintains the operational licensing record. The record contains your GitHub
+identity, full legal name, email address, signing time, required
+individual-capacity acknowledgement, and the CLA version you signed. We retain
+it for as long as reasonably necessary to document the licensing status of
+submitted or accepted Contributions and to establish, exercise, or defend legal
+rights. Removing a Contribution or GitHub account does not automatically remove
+the licensing record.
 
-CLA Assistant processes the signing record for the Project. Project maintainers
-also retain private exports so the hosted service is not the only copy. To
-request access to or correction of a record, use the private email link at
-[EffortlessSteven.com](https://effortlesssteven.com/) and identify the
+CLA Assistant processes the signing record for the Project after activation.
+Project maintainers also retain private exports so the hosted service is not the
+only copy. To request access to or correction of a record, use the private email
+link at [EffortlessSteven.com](https://effortlesssteven.com/) and identify the
 repository and GitHub account. Do not include personal information in a public
 issue.
 

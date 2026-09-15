@@ -3,11 +3,13 @@
 
 ## copybook-rs Individual Contributor License Agreement
 
-Thank you for your interest in contributing to copybook-rs ("the Project"). This Contributor License Agreement ("Agreement") documents the rights granted by contributors to the Project.
+Thank you for your interest in contributing to copybook-rs ("the Project"). This Individual Contributor License Agreement ("Agreement") documents the rights granted by individual contributors to the Project.
+
+You enter this Agreement in your individual capacity. If an employer or another entity owns or controls rights in a Contribution, or must grant the rights itself, do not use the individual signing flow. Contact the maintainers privately about the separate Corporate CLA and authorization process before submitting the covered Contribution.
 
 ### 1. Definitions
 
-**"You"** (or **"Your"**) means the copyright owner or legal entity authorized by the copyright owner that is entering into this Agreement.
+**"You"** (or **"Your"**) means the individual copyright owner entering into this Agreement.
 
 **"Contribution"** means any original work of authorship, including any modifications or additions to an existing work, that is intentionally submitted by You to the Project for inclusion in, or documentation of, the Project.
 
@@ -30,9 +32,10 @@ Subject to the terms and conditions of this Agreement, You hereby grant to the P
 You represent that:
 
 - You are legally entitled to grant the above licenses
-- Each of Your Contributions is Your original creation (or You have rights to submit it)
+- Each of Your Contributions is Your original creation, or You have sufficient rights to submit it under these terms
 - Your Contributions do not violate any third-party rights
 - You have disclosed any third-party licenses or restrictions
+- No employer or other entity owns or controls the rights that You grant under this Agreement. If an employer policy or contingent claim applies without giving the employer ownership or control of those rights, You have obtained any permission or waiver required to contribute in Your individual capacity. If an employer or another entity owns or controls the rights, the Corporate CLA and authorization process is required instead
 
 ### 5. Support and Warranty Disclaimer
 
@@ -57,7 +60,8 @@ The signing form asks for your full legal name, email address, and a required
 acknowledgement that you are signing this Individual CLA in your individual
 capacity and have authority to grant the rights stated in it. GitHub identity,
 signing time, and the CLA version are recorded by the authenticated signing
-event. Do not post those details in the pull request.
+event. A change to the linked Gist Agreement or its signing metadata may require
+re-signing. Do not post those details in the pull request.
 
 **For corporate contributors**: This is an Individual CLA. Do not sign it on
 behalf of an employer. Contact the maintainers through the private email link at

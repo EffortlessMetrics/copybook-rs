@@ -49,9 +49,10 @@ jobs:
           assert Path('.github/dependabot.yml').is_file()
 
           cla = Path('CLA.md').read_text(encoding='utf-8')
-          assert 'individual copyright owner' in cla
-          assert 'Corporate CLA and authorization process is required' in cla
-          assert 'after the hosted flow has been activated' in cla
+          normalized_cla = ' '.join(cla.split())
+          assert 'individual copyright owner' in normalized_cla
+          assert 'Corporate CLA and authorization process is required' in normalized_cla
+          assert 'after the hosted flow has been activated' in normalized_cla
 
           verifier = Path('.github/workflows/verify-cla-migration.yml')
           other_workflows = '\n'.join(

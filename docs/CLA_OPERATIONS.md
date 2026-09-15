@@ -41,6 +41,13 @@ the control is active until the record and observed PR evidence are complete.
 | Individual-flow bot allowlist | `dependabot[bot]` |
 | Last private CSV export | `PENDING` |
 
+The sole bot exemption is evidence-backed. The repository has an active,
+repository-owned [Dependabot configuration](../.github/dependabot.yml) for Cargo
+and GitHub Actions updates and, as of 2026-09-15, GitHub reports 89 Dependabot
+pull requests for this repository. This exemption applies only to
+`dependabot[bot]`; it does not extend to `github-actions[bot]`, collaborators,
+organization members, or other service accounts.
+
 ## Activation sequence
 
 1. Create a public Gist with `CLA.md` and `metadata` copied byte-for-byte from

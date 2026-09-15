@@ -1,0 +1,66 @@
+name: Verify staged CLA migration
+
+on:
+  push:
+    branches:
+      - docs/hosted-cla-assistant
+    paths:
+      - .github/workflows/verify-cla-migration.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/hosted-cla-assistant
+          fetch-depth: 0
+
+      - name: Verify canonical agreement and metadata
+        shell: bash
+        run: |
+          git diff --check origin/main...HEAD
+          python - <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
+          import json, re
+
+          metadata_path = Path('docs/reference/cla-assistant-metadata.json')
+          metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+          assert set(metadata) == {'fullLegalName', 'email', 'individualAuthority'}
+          assert metadata['fullLegalName']['type'] == 'string' and metadata['fullLegalName']['required'] is True
+          assert metadata['email']['type'] == 'string' and metadata['email']['required'] is True
+          assert metadata['individualAuthority']['type'] == 'boolean' and metadata['individualAuthority']['required'] is True
+
+          operations = Path('docs/CLA_OPERATIONS.md').read_text(encoding='utf-8')
+          cla_hash = sha256(Path('CLA.md').read_bytes()).hexdigest()
+          metadata_hash = sha256(metadata_path.read_bytes()).hexdigest()
+          assert cla_hash in operations, (cla_hash, 'missing CLA hash')
+          assert metadata_hash in operations, (metadata_hash, 'missing metadata hash')
+          assert '| Gist URL | `PENDING` |' in operations
+          assert '| Gist revision | `PENDING` |' in operations
+          assert '| Individual-flow bot allowlist | `dependabot[bot]` |' in operations
+          assert 'github-actions[bot]' in operations and 'does not extend to' in operations
+          assert Path('.github/dependabot.yml').is_file()
+
+          cla = Path('CLA.md').read_text(encoding='utf-8')
+          assert 'individual copyright owner' in cla
+          assert 'Corporate CLA and authorization process is required' in cla
+          assert 'after the hosted flow has been activated' in cla
+          assert Path('docs/CLA_OPERATIONS.md').is_file()
+          PY
+          ! git grep -n 'contributor-assistant/github-action' -- .github/workflows
+          ! git grep -n 'pull_request_target' -- .github/workflows | grep -i cla
+
+      - name: Remove verification workflow and preserve receipt in Actions
+        shell: bash
+        run: |
+          rm .github/workflows/verify-cla-migration.yml
+          git config user.name "EffortlessSteven"
+          git config user.email "git@effortlesssteven.com"
+          git add .github/workflows/verify-cla-migration.yml
+          git commit -m "ci: record staged CLA verification"
+          git push origin HEAD:docs/hosted-cla-assistant

@@ -31,10 +31,11 @@ jobs:
 
           metadata_path = Path('docs/reference/cla-assistant-metadata.json')
           metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
-          assert set(metadata) == {'fullLegalName', 'email', 'individualAuthority'}
-          assert metadata['fullLegalName']['type'] == 'string' and metadata['fullLegalName']['required'] is True
+          assert set(metadata) == {'name', 'email', 'individualCapacity'}
+          assert metadata['name']['title'] == 'Full legal name'
+          assert metadata['name']['type'] == 'string' and metadata['name']['required'] is True
           assert metadata['email']['type'] == 'string' and metadata['email']['required'] is True
-          assert metadata['individualAuthority']['type'] == 'boolean' and metadata['individualAuthority']['required'] is True
+          assert metadata['individualCapacity']['type'] == 'boolean' and metadata['individualCapacity']['required'] is True
 
           operations = Path('docs/CLA_OPERATIONS.md').read_text(encoding='utf-8')
           cla_hash = sha256(Path('CLA.md').read_bytes()).hexdigest()

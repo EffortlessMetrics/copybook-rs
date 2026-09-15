@@ -121,8 +121,10 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete reference.
 5. **Update docs** if you changed APIs or CLI commands
 6. **Fill out PR template** completely (see [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md))
 7. **Submit PR** with descriptive title
-8. **Sign the Individual CLA** through the hosted CLA Assistant link when
-   prompted, then wait for `license/cla` to pass
+8. **Complete the applicable contributor agreement**. Individual contributors
+   use the hosted CLA Assistant link and wait for `license/cla` to pass;
+   entity-owned contributions require the separate Corporate CLA and
+   authorization process before the covered contribution is submitted
 
 ### Commit Messages
 
@@ -209,19 +211,17 @@ receipt at `scripts/bench/perf.json`; benchmark methodology remains in
 
 ## Contributor License Agreement
 
-Contributors must sign the [Individual CLA](CLA.md) through the hosted CLA
-Assistant integration before a contribution can be accepted.
+Every intentionally submitted contribution must be covered by the applicable
+contributor agreement. Individual contributors sign the [Individual CLA](CLA.md)
+through the hosted CLA Assistant integration. After a pull request opens, follow
+the authenticated signing link, provide the required fields, and wait for
+`license/cla` to pass. Do not paste a manual signature, email address, or signing
+date into the pull request.
 
-After a pull request opens, CLA Assistant comments with the authenticated
-signing link. Enter the required full legal name and email address, confirm that
-you are signing in your individual capacity with authority to grant the stated
-rights, and wait for the `license/cla` status to pass. Do not paste a manual
-signature, email address, or signing date into the pull request.
-
-The Individual CLA does not cover contributions made on behalf of an employer.
-Corporate contributors must contact the maintainers privately before submitting
-the contribution so a Corporate CLA and authorization process can be
-established.
+If an employer or another entity owns or controls the relevant rights, do not use
+the individual form. Contact the maintainers privately before submitting the
+covered contribution so the separate Corporate CLA and authorization process can
+be completed.
 
 See [CLA Assistant Operations](docs/CLA_OPERATIONS.md) for the service
 configuration, version record, evidence exports, and bot-exemption policy.

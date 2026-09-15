@@ -14,7 +14,7 @@ write-capable repository token, or repository-managed signature storage.
 
 | Material | Canonical repository source | Hosted Gist file | SHA-256 |
 | --- | --- | --- | --- |
-| Agreement | [`../CLA.md`](../CLA.md) | `CLA.md` | `e21b37ed8aa7a82f4fa180e26d56fbc3493de95e5c2b18ea661129b41a988ddf` |
+| Agreement | [`../CLA.md`](../CLA.md) | `CLA.md` | `dda7a161430566b7bb663dd3bb6333b3afff6f401cb43ac5b8db0a2ca2d2e650` |
 | Signer fields | [`reference/cla-assistant-metadata.json`](reference/cla-assistant-metadata.json) | `metadata` | `b26121211321e5d82a37cd0b4da80e15246814f3483f31cf6dfec2ff70f6b00d` |
 
 Copy the canonical bytes into the named Gist files. The hosted files must remain

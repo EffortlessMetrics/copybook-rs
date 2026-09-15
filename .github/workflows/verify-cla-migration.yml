@@ -1,0 +1,89 @@
+name: Verify staged CLA migration
+
+on:
+  push:
+    branches:
+      - docs/hosted-cla-assistant
+    paths:
+      - .github/workflows/verify-cla-migration.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/hosted-cla-assistant
+          fetch-depth: 0
+
+      - name: Reconcile receipts and verify the staged migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check origin/main...HEAD
+          python - <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
+          import json, re
+
+          metadata_path = Path('docs/reference/cla-assistant-metadata.json')
+          operations_path = Path('docs/CLA_OPERATIONS.md')
+          metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+          cla_hash = sha256(Path('CLA.md').read_bytes()).hexdigest()
+          metadata_hash = sha256(metadata_path.read_bytes()).hexdigest()
+
+          operations = operations_path.read_text(encoding='utf-8')
+          operations, agreement_count = re.subn(
+              r"(\| Agreement \| \[`\.\./CLA\.md`\]\(\.\./CLA\.md\) \| `CLA\.md` \| `)[0-9a-f]{64}(` \|)",
+              rf"\g<1>{cla_hash}\g<2>",
+              operations,
+          )
+          operations, metadata_count = re.subn(
+              r"(\| Signer fields \| \[`reference/cla-assistant-metadata\.json`\]\(reference/cla-assistant-metadata\.json\) \| `metadata` \| `)[0-9a-f]{64}(` \|)",
+              rf"\g<1>{metadata_hash}\g<2>",
+              operations,
+          )
+          assert agreement_count == 1 and metadata_count == 1
+          operations_path.write_text(operations, encoding='utf-8')
+
+          assert set(metadata) == {'name', 'email', 'individualCapacity'}
+          assert metadata['name']['title'] == 'Full legal name'
+          assert metadata['name']['type'] == 'string' and metadata['name']['required'] is True
+          assert metadata['email']['type'] == 'string' and metadata['email']['required'] is True
+          assert metadata['individualCapacity']['type'] == 'boolean' and metadata['individualCapacity']['required'] is True
+          assert '| Gist URL | `PENDING` |' in operations
+          assert '| Gist revision | `PENDING` |' in operations
+          assert '| Individual-flow bot allowlist | `dependabot[bot]` |' in operations
+          assert 'github-actions[bot]' in operations and 'does not extend to' in operations
+          assert Path('.github/dependabot.yml').is_file()
+
+          cla = ' '.join(Path('CLA.md').read_text(encoding='utf-8').split())
+          assert 'individual copyright owner' in cla
+          assert 'Corporate CLA and authorization process is required' in cla
+          assert 'after the hosted flow has been activated' in cla
+
+          verifier = Path('.github/workflows/verify-cla-migration.yml')
+          other_workflows = '\n'.join(
+              path.read_text(encoding='utf-8')
+              for path in Path('.github/workflows').glob('*.y*ml')
+              if path != verifier
+          )
+          assert 'contributor-assistant/github-action' not in other_workflows
+          print(f'CLA_SHA256={cla_hash}')
+          print(f'METADATA_SHA256={metadata_hash}')
+          print('staged_cla_migration=verified')
+          PY
+
+      - name: Commit the reconciled receipt and remove this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/verify-cla-migration.yml
+          git config user.name "EffortlessSteven"
+          git config user.email "git@effortlesssteven.com"
+          git add docs/CLA_OPERATIONS.md .github/workflows/verify-cla-migration.yml
+          git commit -m "ci: record staged CLA verification"
+          git push origin HEAD:docs/hosted-cla-assistant

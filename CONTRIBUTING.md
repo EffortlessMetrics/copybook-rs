@@ -121,6 +121,8 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete reference.
 5. **Update docs** if you changed APIs or CLI commands
 6. **Fill out PR template** completely (see [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md))
 7. **Submit PR** with descriptive title
+8. **Sign the Individual CLA** through the hosted CLA Assistant link when
+   prompted, then wait for `license/cla` to pass
 
 ### Commit Messages
 
@@ -207,7 +209,22 @@ receipt at `scripts/bench/perf.json`; benchmark methodology remains in
 
 ## Contributor License Agreement
 
-Contributors must sign a CLA before contributions can be accepted. See [CLA.md](CLA.md) for details.
+Contributors must sign the [Individual CLA](CLA.md) through the hosted CLA
+Assistant integration before a contribution can be accepted.
+
+After a pull request opens, CLA Assistant comments with the authenticated
+signing link. Enter the required full legal name and email address, confirm that
+you are signing in your individual capacity with authority to grant the stated
+rights, and wait for the `license/cla` status to pass. Do not paste a manual
+signature, email address, or signing date into the pull request.
+
+The Individual CLA does not cover contributions made on behalf of an employer.
+Corporate contributors must contact the maintainers privately before submitting
+the contribution so a Corporate CLA and authorization process can be
+established.
+
+See [CLA Assistant Operations](docs/CLA_OPERATIONS.md) for the service
+configuration, version record, evidence exports, and bot-exemption policy.
 
 ## License
 

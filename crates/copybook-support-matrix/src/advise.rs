@@ -376,6 +376,247 @@ fn bound_chars(value: String, max_chars: usize) -> String {
     value.chars().take(max_chars).collect()
 }
 
+// ---------------------------------------------------------------------------
+// Slice B: analysis (constructs plus options become assessments)
+// ---------------------------------------------------------------------------
+
+/// Closed inventory of parsed copybook constructs the analysis understands.
+/// The CLI (Slice C) builds these from the parsed schema; anything else
+/// arrives as [`ConstructKind::Unmapped`] and stays [`AssessmentStatus::Unknown`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ConstructKind {
+    /// `OCCURS ... DEPENDING ON` at the record tail.
+    OccursDepending,
+    /// `OCCURS ... DEPENDING ON` not at the record tail.
+    NonTailOdo,
+    /// Nested `OCCURS DEPENDING ON`.
+    NestedOdo,
+    /// Level-66 `RENAMES`.
+    Renames,
+    /// `REDEFINES` clause.
+    Redefines,
+    /// Level-88 condition names.
+    Level88,
+    /// Edited numeric `PICTURE`.
+    EditedPic,
+    /// `COMP-1` / `COMP-2` floating point.
+    Comp1Comp2,
+    /// `SIGN LEADING/TRAILING SEPARATE`.
+    SignSeparate,
+    /// Construct with no analysis mapping; never rendered as certainty.
+    Unmapped,
+}
+
+/// One parsed construct handed to the analysis.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AdviseConstruct {
+    /// What was found.
+    pub kind: ConstructKind,
+    /// Bounded detail (field name, clause text, never record data).
+    pub detail: String,
+    /// Source line when known.
+    pub line: Option<u32>,
+}
+
+impl AdviseConstruct {
+    /// Build a construct with bounded detail.
+    #[inline]
+    #[must_use]
+    pub fn bounded(kind: ConstructKind, detail: impl Into<String>, line: Option<u32>) -> Self {
+        Self {
+            kind,
+            detail: bound_chars(detail.into(), MAX_SUGGESTION_CHARS),
+            line,
+        }
+    }
+}
+
+/// Caller-provided analysis input. Malformed input is reported as
+/// [`Verdict::InvalidInput`], never fatal: analysis always returns a value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AdviseInput {
+    /// Parsed constructs to evaluate.
+    pub constructs: Vec<AdviseConstruct>,
+    /// Caller-reported parse failure, when the copybook did not parse.
+    pub parse_error: Option<String>,
+    /// Effective options under evaluation.
+    pub options: EffectiveOptions,
+    /// Canonical schema fingerprint when available.
+    pub copybook_fingerprint: Option<String>,
+    /// Byte-level source identity when available.
+    pub source_fingerprint: Option<String>,
+    /// Producing tool and version.
+    pub tool_version: String,
+}
+
+impl AdviseInput {
+    /// Build input with bounded strings.
+    #[inline]
+    #[must_use]
+    pub fn bounded(
+        constructs: Vec<AdviseConstruct>,
+        parse_error: Option<String>,
+        options: EffectiveOptions,
+        tool_version: impl Into<String>,
+    ) -> Self {
+        Self {
+            constructs,
+            parse_error: parse_error.map(|value| bound_chars(value, MAX_SUGGESTION_CHARS)),
+            options,
+            copybook_fingerprint: None,
+            source_fingerprint: None,
+            tool_version: tool_version.into(),
+        }
+    }
+}
+
+/// Map a matrix status onto an assessment outcome.
+#[inline]
+#[must_use]
+pub fn assessment_for_status(status: crate::SupportStatus) -> AssessmentStatus {
+    match status {
+        crate::SupportStatus::Supported => AssessmentStatus::Supported,
+        crate::SupportStatus::Partial => AssessmentStatus::Limited,
+        crate::SupportStatus::Planned => AssessmentStatus::Unknown,
+        crate::SupportStatus::NotPlanned => AssessmentStatus::Rejected,
+    }
+}
+
+/// Analyze parsed constructs under the requested options.
+///
+/// Never fails on user input: an empty construct set yields
+/// [`Verdict::PartialUnknown`], a caller-reported parse failure yields one
+/// `Invalid` assessment, and unmapped constructs yield `Unknown` with
+/// guidance. Scenario IDs are ledger IDs where a row exists, otherwise
+/// `matrix:<feature-id>`.
+#[inline]
+#[must_use]
+pub fn analyze(input: &AdviseInput) -> AdviseResult {
+    let mut assessments = Vec::new();
+    let mut evidence_dropped = 0usize;
+    if let Some(parse_error) = input.parse_error.as_deref() {
+        let mut item = ScenarioAssessment::bounded("unparsed", AssessmentStatus::Invalid, "stable");
+        item.set_next_action(format!(
+            "Fix the reported parse error, then re-run: {parse_error}"
+        ));
+        assessments.push(item);
+    }
+    for construct in &input.constructs {
+        // (scenario ID, matrix feature, fixed outcome, error identity, note).
+        // Fixed outcomes cover distinctions the matrix feature table cannot
+        // express: tail vs non-tail ODO, and REDEFINES, which is unconditional
+        // core behavior with ledger rows but no matrix feature. Each is pinned
+        // by advise tests, which ledger rows may anchor as cli evidence.
+        let (scenario_id, feature_id, fixed, error_identity, note) = match &construct.kind {
+            ConstructKind::OccursDepending => (
+                "struct.odo.tail_fixed",
+                "occurs-depending",
+                Some(AssessmentStatus::Supported),
+                None,
+                "Tail ODO is supported; non-tail and over-REDEFINES variants are rejected.",
+            ),
+            ConstructKind::NonTailOdo => (
+                "struct.odo.not_tail",
+                "occurs-depending",
+                Some(AssessmentStatus::Rejected),
+                Some("CBKP021_ODO_NOT_TAIL"),
+                "Only tail ODO is supported; move the OCCURS to the record tail.",
+            ),
+            ConstructKind::NestedOdo => (
+                "struct.odo.nested",
+                "nested-odo",
+                None,
+                Some("CBKP022_NESTED_ODO"),
+                "O1-O4 nesting is supported; O5/O6 shapes are rejected.",
+            ),
+            ConstructKind::Renames => (
+                "struct.renames.r1_r3",
+                "level-66-renames",
+                None,
+                None,
+                "Same-scope and THRU renames hold; cross-OCCURS and over-REDEFINES are limited.",
+            ),
+            ConstructKind::Redefines => (
+                "struct.redefines.scalar",
+                "none",
+                Some(AssessmentStatus::Supported),
+                None,
+                "Scalar and group REDEFINES hold; encode ambiguity and nested cases are limited.",
+            ),
+            ConstructKind::Level88 => (
+                "struct.level88.single_value",
+                "level-88",
+                None,
+                None,
+                "Condition names are metadata; a mismatch is a failed condition, never a decode error.",
+            ),
+            ConstructKind::EditedPic => ("matrix:edited-pic", "edited-pic", None, None, ""),
+            ConstructKind::Comp1Comp2 => ("matrix:comp-1-comp-2", "comp-1-comp-2", None, None, ""),
+            ConstructKind::SignSeparate => {
+                ("matrix:sign-separate", "sign-separate", None, None, "")
+            }
+            ConstructKind::Unmapped => ("unmapped", "none", None, None, ""),
+        };
+        let mut item = match fixed {
+            Some(status) => ScenarioAssessment::bounded(scenario_id, status, "stable"),
+            None if feature_id == "none" => {
+                ScenarioAssessment::bounded(scenario_id, AssessmentStatus::Unknown, "stable")
+            }
+            None => match crate::find_feature(feature_id) {
+                Some(feature) => ScenarioAssessment::bounded(
+                    scenario_id,
+                    assessment_for_status(feature.status),
+                    stability_for(feature.status),
+                ),
+                None => {
+                    ScenarioAssessment::bounded(scenario_id, AssessmentStatus::Unknown, "stable")
+                }
+            },
+        };
+        item.record_formats = vec![input.options.format.clone()];
+        item.codepages = vec![input.options.codepage.clone()];
+        item.error_identity = error_identity.map(str::to_string);
+        if !note.is_empty() {
+            item.limitation_or_remediation = bound_chars(note.to_string(), MAX_SUGGESTION_CHARS);
+        }
+        if !item.push_evidence(format!("construct:{}", construct.detail)) {
+            evidence_dropped += 1;
+        }
+        item.set_next_action(next_action_for(&construct.kind, scenario_id));
+        assessments.push(item);
+    }
+    let mut result = AdviseResult::bounded(
+        input.options.clone(),
+        assessments,
+        evidence_dropped,
+        RedactionState::locked_down(),
+        input.tool_version.clone(),
+    );
+    result.copybook_fingerprint.clone_from(&input.copybook_fingerprint);
+    result.source_fingerprint.clone_from(&input.source_fingerprint);
+    result
+}
+
+/// Stability label for a matrix status.
+#[inline]
+fn stability_for(status: crate::SupportStatus) -> &'static str {
+    match status {
+        crate::SupportStatus::Supported | crate::SupportStatus::Partial => "stable",
+        crate::SupportStatus::Planned | crate::SupportStatus::NotPlanned => "beta",
+    }
+}
+
+/// Next real action for a construct kind. Names implemented behavior only.
+fn next_action_for(kind: &ConstructKind, scenario_id: &str) -> String {
+    match kind {
+        ConstructKind::Unmapped => {
+            "Run `copybook support --check <feature>` for the construct, or narrow the copybook to inventoried clauses.".to_string()
+        }
+        _ => format!("Scenario evidence: {scenario_id}; re-run with --format and --codepage for the target path."),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -490,5 +731,76 @@ mod tests {
     #[test]
     fn encoding_advise_redaction_locked_down_is_log_safe() {
         assert!(RedactionState::locked_down().is_log_safe());
+    }
+
+    fn input_with(constructs: Vec<AdviseConstruct>, parse_error: Option<String>) -> AdviseInput {
+        AdviseInput::bounded(constructs, parse_error, options(), "copybook 0.7.0")
+    }
+
+    fn construct(kind: ConstructKind) -> AdviseConstruct {
+        AdviseConstruct::bounded(kind, "FIELD-A", Some(3))
+    }
+
+    #[test]
+    fn encoding_advise_analysis_maps_constructs() {
+        let input = input_with(
+            vec![
+                construct(ConstructKind::OccursDepending),
+                construct(ConstructKind::NonTailOdo),
+                construct(ConstructKind::NestedOdo),
+                construct(ConstructKind::Renames),
+                construct(ConstructKind::Redefines),
+                construct(ConstructKind::Level88),
+                construct(ConstructKind::Unmapped),
+            ],
+            None,
+        );
+        let result = analyze(&input);
+        let by_id: std::collections::BTreeMap<&str, AssessmentStatus> = result
+            .scenarios
+            .iter()
+            .map(|item| (item.scenario_id.as_str(), item.status))
+            .collect();
+        assert_eq!(by_id["struct.odo.tail_fixed"], AssessmentStatus::Supported);
+        assert_eq!(by_id["struct.odo.not_tail"], AssessmentStatus::Rejected);
+        assert_eq!(by_id["struct.odo.nested"], AssessmentStatus::Limited);
+        assert_eq!(by_id["struct.renames.r1_r3"], AssessmentStatus::Limited);
+        assert_eq!(
+            by_id["struct.redefines.scalar"],
+            AssessmentStatus::Supported
+        );
+        assert_eq!(
+            by_id["struct.level88.single_value"],
+            AssessmentStatus::Supported
+        );
+        assert_eq!(by_id["unmapped"], AssessmentStatus::Unknown);
+        assert_eq!(result.verdict, Verdict::Rejected);
+        for item in &result.scenarios {
+            assert_eq!(item.record_formats, vec!["fixed".to_string()]);
+            assert_eq!(item.codepages, vec!["ascii".to_string()]);
+        }
+        let nested = result
+            .scenarios
+            .iter()
+            .find(|item| item.scenario_id == "struct.odo.nested")
+            .expect("nested assessment");
+        assert_eq!(nested.error_identity.as_deref(), Some("CBKP022_NESTED_ODO"));
+    }
+
+    #[test]
+    fn encoding_advise_analysis_parse_error_is_invalid_not_fatal() {
+        let input = input_with(vec![], Some("unexpected token at line 2".to_string()));
+        let result = analyze(&input);
+        assert_eq!(result.verdict, Verdict::InvalidInput);
+        assert_eq!(result.scenarios.len(), 1);
+        assert_eq!(result.scenarios[0].scenario_id, "unparsed");
+        assert_eq!(result.scenarios[0].status, AssessmentStatus::Invalid);
+    }
+
+    #[test]
+    fn encoding_advise_analysis_empty_is_unknown() {
+        let result = analyze(&input_with(vec![], None));
+        assert_eq!(result.verdict, Verdict::PartialUnknown);
+        assert!(result.scenarios.is_empty());
     }
 }

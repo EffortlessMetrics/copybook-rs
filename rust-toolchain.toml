@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Pinned developer/CI toolchain so `cargo fmt` (and every other gate) is
+# identical everywhere. MSRV stays 1.95 and is enforced separately by
+# `just check-msrv` (`cargo +1.95.0`), which overrides this pin.
+[toolchain]
+channel = "1.98"
+components = ["rustfmt", "clippy"]

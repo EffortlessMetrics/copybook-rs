@@ -102,10 +102,16 @@ cargo run -p xtask -- publish plan --format json
 
 If any step fails, do not proceed.
 
+Local `just ci` output is pre-push proof only. The release proof is the CI
+output on the exact release commit: record the run IDs or URLs for the
+CI Quick, Changelog validate, and Publish Plan Check runs in the release
+ticket (for example with `gh run list --branch main --limit 5`). A release
+must never cite a local-only gate run as its evidence.
+
 ## 3) Capture release plan and evidence
 
 The runbook uses the xtask-generated publish plan as the single publishable
-crate source of truth. For 0.6 releases, its JSON entries retain package role,
+crate source of truth. Its JSON entries retain package role,
 version, dependency reason, and compatibility status for recovery and audit;
 the workflow publishes the `package` field from each entry. The planner keeps
 the established manifest-driven package set for supported 0.5.x patch and
@@ -121,7 +127,7 @@ wc -l "release-state/${RELEASE_TAG}/publish-plan.json"
 Store the following next to the plan:
 
 - `git rev-parse HEAD`
-- gate command output
+- CI run IDs or URLs for the quick, changelog, and publish-plan gates
 - `git log --oneline -1 HEAD`
 - a link to the release ticket or tag notes draft
 

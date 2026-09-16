@@ -336,6 +336,16 @@ ci:
 pr:
     @just ci
 
+# Local preflight: every sync --check mode in one command.
+# Run this before pushing; it covers the check-mode half of the lanes
+# without the build/test cost of `just ci`.
+preflight:
+    cargo fmt --all -- --check
+    cargo run -p xtask -- docs verify-all
+    cargo run -p xtask -- architecture check
+    cargo run -p xtask -- docs freeze contracts
+    cargo run -p xtask -- publish plan --check
+
 # Scheduled tests - runs scheduled lane tests locally (optional, for validation)
 # Expected runtime: 30-60 minutes (varies by which tests you run)
 # Prerequisites: cargo-nextest, cargo-deny, cargo-mutants
@@ -378,9 +388,9 @@ scheduled:
 clean:
     cargo clean
 
-# Check MSRV compatibility (Rust 1.95)
+# Check MSRV compatibility (Rust 1.98)
 check-msrv:
-    cargo +1.95.0 check --workspace
+    cargo +1.98.0 check --workspace
 
 # Run a specific crate's tests
 test-crate crate:

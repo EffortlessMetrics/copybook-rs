@@ -1,0 +1,5 @@
+kind: changed
+body: '**cli**: `support --advise` contract graduates from beta (`0.7.0-beta.1`)
+  to stable (`1.0`); output shape is unchanged, automation should match
+  `1.0` exactly.'
+time: '2026-09-16T14:00:00Z'

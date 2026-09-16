@@ -317,7 +317,7 @@ copybook support [OPTIONS]
 - `--check <FEATURE_ID>` - Check support for a specific feature ID, e.g. `level-88`, `occurs-depending`, `edited-pic` (exit 0 only if supported)
 - `--status <FILTER>` - Filter by support status: supported, partial, planned, not-planned
 - `--with-governance` - Include governance and feature-flag linkage metadata
-- `--advise <COPYBOOK>` - Advisory diagnostic for a copybook under the evaluated options (beta contract `0.7.0-beta.1`; exit 0 only if the verdict is `supported`, exit 3 otherwise)
+- `--advise <COPYBOOK>` - Advisory diagnostic for a copybook under the evaluated options (stable contract `1.0`; exit 0 only if the verdict is `supported`, exit 3 otherwise)
 - `--record-format <FORMAT>` - Record format under evaluation for `--advise`: fixed, rdw, vb (default: fixed)
 - `--codepage <CP>` - Character encoding under evaluation for `--advise` (default: cp037)
 - `--dialect <N|0|1>` - Dialect lever under evaluation for `--advise` (default: normative)

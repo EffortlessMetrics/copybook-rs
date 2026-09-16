@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://copybook-rs.org/schemas/advise-result.json",
-  "title": "Advisory Diagnostic Result (beta)",
-  "description": "Machine projection of copybook-support-matrix::advise::AdviseResult. Beta for 0.7: automation must match schema_version exactly, never parse human prose.",
+  "title": "Advisory Diagnostic Result (stable)",
+  "description": "Machine projection of copybook-support-matrix::advise::AdviseResult. Stable since 0.7.1 (beta as 0.7.0-beta.1 in 0.7.0): automation must match schema_version exactly, never parse human prose.",
   "type": "object",
   "required": [
     "schema_version",
@@ -17,11 +17,11 @@
   "properties": {
     "schema_version": {
       "type": "string",
-      "const": "0.7.0-beta.1"
+      "const": "1.0"
     },
     "stability_class": {
       "type": "string",
-      "const": "beta"
+      "const": "stable"
     },
     "verdict": {
       "type": "string",

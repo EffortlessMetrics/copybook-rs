@@ -1,0 +1,5 @@
+kind: added
+body: '**lane**: `just preflight` runs every sync --check mode in one local command;
+  the toolchain is pinned to Rust 1.98 via `rust-toolchain.toml`; user-facing
+  PRs without a changie fragment now fail the changelog lane with the rule cited.'
+time: '2026-09-16T22:00:00Z'

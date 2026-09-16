@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-10T01:36:43.957121569+00:00",
+  "generated_at": "2026-09-16T21:44:29.496851427+00:00",
   "generated_by": "cargo run -p xtask -- docs contracts generate",
-  "source_revision": "1e14f8b17b82bf62490469f7278d5a7bad62bea4",
+  "source_revision": "1625b38881c850b5474b1956e52a6c1e94a27107",
   "source_paths": [
     "crates/copybook-cli/src/main.rs",
     "crates/copybook-cli/src/exit_codes.rs",
@@ -23,6 +23,7 @@
       "determinism"
     ],
     "options": [
+      "advise",
       "bwz-encode",
       "check",
       "codepage",
@@ -55,6 +56,7 @@
       "output",
       "preferred-zoned-encoding",
       "preserve-zoned-encoding",
+      "record-format",
       "report",
       "sample",
       "select",
@@ -107,6 +109,10 @@
       "CBKF102_RECORD_LENGTH_INVALID",
       "CBKF104_RDW_SUSPECT_ASCII",
       "CBKF221_RDW_UNDERFLOW",
+      "CBKF222_BDW_LENGTH_INVALID",
+      "CBKF223_BDW_UNDERFLOW",
+      "CBKF224_RDW_BEYOND_BLOCK",
+      "CBKF225_BDW_RESERVED_NONZERO",
       "CBKI001_INVALID_STATE",
       "CBKI002_TOO_MANY_ERRORS",
       "CBKP001_SYNTAX",

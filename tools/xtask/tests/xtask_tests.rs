@@ -463,3 +463,55 @@ fn summarize_last_fails_when_no_receipt_exists() {
     // Should fail because no perf.json exists
     assert!(!output.status.success());
 }
+
+// ====================================================================
+// `just preflight` aggregator coverage
+// ====================================================================
+
+/// Every xtask sync --check mode must be reachable from `just preflight`
+/// so contributors get the full check-mode lane in one local command.
+#[test]
+fn preflight_recipe_covers_every_check_mode() {
+    let justfile = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../justfile");
+    let source = std::fs::read_to_string(&justfile).expect("failed to read workspace justfile");
+    let preflight = source
+        .split("\npreflight:\n")
+        .nth(1)
+        .expect("justfile must define a preflight recipe");
+    // Bound the recipe body at the next top-level recipe (a line starting
+    // at column zero that is not a comment, blank, or indented command).
+    let mut body = String::new();
+    for line in preflight.lines() {
+        if !body.is_empty()
+            && !line.starts_with(char::is_whitespace)
+            && !line.trim().is_empty()
+            && !line.trim_start().starts_with('#')
+        {
+            break;
+        }
+        body.push_str(line);
+        body.push('\n');
+    }
+    for check in [
+        "docs verify-all",
+        "architecture check",
+        "docs freeze contracts",
+        "publish plan --check",
+    ] {
+        assert!(
+            body.contains(check),
+            "just preflight must run `xtask {check}`"
+        );
+    }
+}
+
+/// The pinned toolchain keeps `cargo fmt` identical locally and in CI.
+#[test]
+fn toolchain_pin_matches_fmt_policy() {
+    let pin = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rust-toolchain.toml");
+    let source = std::fs::read_to_string(&pin).expect("failed to read rust-toolchain.toml");
+    assert!(
+        source.contains("channel = \"1.98\""),
+        "rust-toolchain.toml must pin channel 1.98, got:\n{source}"
+    );
+}

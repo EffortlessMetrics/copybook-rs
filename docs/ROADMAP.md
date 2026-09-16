@@ -310,10 +310,11 @@ The #536–#545 reset sequence is complete; what follows is the 0.7.0 cut,
 tracked by the `v0.7.0` milestone under coordinator #948.
 
 1. Actionable test-count gate output (#933)
-2. MSRV 1.95 → 1.98 workspace-wide
+2. MSRV 1.95 → 1.98 workspace-wide — done (#959)
 3. Remove the eight deprecated 0.6 facade aliases; resolve every remaining
-   0.6 deprecation with an explicit remove, re-window, or keep decision
-4. `docs/migration/0.7.md` written from the actual removal diff
+   0.6 deprecation with an explicit remove, re-window, or keep decision —
+   done (#960)
+4. `docs/migration/0.7.md` written from the actual removal diff — done (#961)
 5. Machine-owned scenario ledger contract, then evidence reconciliation
    (numeric, fixed/RDW, codepage, stable errors)
 6. Governed public corpus foundation plus VB/BDW framing with round-trip proof
@@ -330,7 +331,8 @@ freeze clock before the ledger reconciliation (item 5) is complete.
 
 ## Planned releases
 
-- **v0.6.1** (current Engineering Preview): canonical-fingerprint patch —
+- **v0.6.1** (previous Engineering Preview, superseded by the 0.7.0 train
+  above): canonical-fingerprint patch —
   `verify --report` now emits the same SHA-256 `schema_fingerprint` as codec
   metadata, canonical fingerprints are fixed-width 64-hex, an additive
   `source_fingerprint` carries raw-source identity, and packaged
@@ -341,8 +343,9 @@ freeze clock before the ledger reconciliation (item 5) is complete.
   notes live in [migration/0.6.md](migration/0.6.md).
 - **v0.7.0** (planned): Rust 1.98 release (MSRV moves from 1.95 to 1.98;
   a later 1.100 jump buys no present release control and is not a 0.7 gate).
-  Removes the deprecated 0.6 facade aliases (removal promised no
-  earlier than 0.7.0; see [migration/0.6.md](migration/0.6.md)) and delivers
+  Removed the deprecated 0.6 facade aliases (eight flat modules plus the
+  `copybook-codepage`/`copybook-lexer`/`copybook-dialect` shims; see
+  [migration/0.7.md](migration/0.7.md)) and delivers
   the adoption-hardening scope in the immediate execution order above. No
   calendar promise; scope is set by coordinator #948 under the `v0.7.0`
   milestone.

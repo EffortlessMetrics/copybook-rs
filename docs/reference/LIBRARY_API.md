@@ -35,8 +35,9 @@ For direct character conversion, use `copybook::charset`.
 Record-format dispatch is owned by `copybook-codec`. Use
 `copybook::codec::record` or `copybook::codec::file::dispatch`. The 0.6
 compatibility aliases (`copybook::codepage`, `copybook::record_io`, and the
-other flat facade modules) were removed in 0.7; see `docs/migration/0.6.md`
-for the 0.6 window.
+other flat facade modules) were removed in 0.7; see
+`docs/migration/0.7.md` for the alias-to-canonical-path table (the
+`docs/migration/0.6.md` window covers only the 0.6 deprecation period).
 
 The payload-oriented `read_record` helper is suitable for normal codec
 operations. Use `read_rdw_record` when RDW header and reserved bytes must be

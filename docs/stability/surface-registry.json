@@ -37,8 +37,16 @@
         "Benchmarks and parity guarantees are best-effort while the surface is experimental."
       ],
       "graduation_criteria": [
-        "Stability and compatibility evidence for all documented conversion paths are established.",
-        "The CLI and library contracts for Arrow/Parquet are declared in the API/feature registry."
+        "A complete documented COBOL-to-Arrow type mapping exists.",
+        "Decimal precision and scale fidelity is proven by tests.",
+        "Nested groups and fixed OCCURS behavior is specified and tested.",
+        "ODO policy is explicit.",
+        "REDEFINES policy is explicit.",
+        "Null and invalid-record behavior is specified and tested.",
+        "Streaming conversion runs in bounded memory.",
+        "Parquet golden and round-trip fixtures exist.",
+        "Stable error-code integration is proven.",
+        "Schema-evolution and performance evidence is recorded."
       ],
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
@@ -69,8 +77,18 @@
         "Serialization formats may be incompatible across releases."
       ],
       "graduation_criteria": [
-        "Deterministic compatibility evidence for all documented audit paths is established.",
-        "The CLI and library contracts for audit are declared in the API/feature registry."
+        "Versioned event and report schemas are published and tested.",
+        "Evidence generation is deterministic across runs and workers.",
+        "Cryptographic chain verification and tamper tests exist and pass.",
+        "A threat model and security review are recorded.",
+        "An explicit redaction and sensitive-data policy is enforced.",
+        "Append-only storage is pluggable, not hard-wired.",
+        "Retention-policy enforcement is implemented and tested.",
+        "Golden compliance-oriented reports exist (non-certification language).",
+        "Negative security tests cover abuse and bypass paths.",
+        "Processing overhead is measured and documented.",
+        "Broad lint exemptions are removed or individually justified.",
+        "All claims are reviewed for non-certification language."
       ],
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"
@@ -702,8 +720,11 @@
         "No strict freeze guarantees until beta criteria are met."
       ],
       "graduation_criteria": [
-        "Documented mapping between governance, support-matrix, and runtime policy is stable.",
-        "No compatibility regressions and evidence is added through API baseline checks."
+        "Public versus internal responsibility is explicit and documented.",
+        "Feature lifecycle and state transitions are versioned and tested.",
+        "Runtime policy output is deterministic.",
+        "Stable contracts do not depend on experimental audit internals.",
+        "Operational documentation matches actual behavior."
       ],
       "source_of_truth": [
         "docs/STABILITY_GUARANTEES.md"

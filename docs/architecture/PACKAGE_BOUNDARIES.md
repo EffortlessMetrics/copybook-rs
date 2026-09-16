@@ -32,3 +32,25 @@ A retained public package must name an external user story, its invariant, its d
 ## Working primary family for 0.6.0
 
 The current target is `copybook`, `copybook-rs`, `copybook-core`, `copybook-codec`, `copybook-error`, `copybook-charset`, `copybook-cli`, `copybook-arrow`, and `copybook-audit` (experimental enterprise-audit adapter moved out of the stable core per #656 Phase E). `copybook-fixed` is retained as a primary external-format package after the clean-room proof in `examples/copybook-fixed-clean-room`; `copybook-rdw` remains conditional on its own schema-independent direct-use proof. Governance and support-matrix packages remain conditional rather than being promoted by topology alone.
+
+## Audit/governance boundary decision (#553, recorded 0.8.0)
+
+#553 asked for one of: (1) move audit capabilities into the governance family
+and keep `copybook-core` focused, or (2) retain audit in core but exclude it
+from the stable-core contract. The as-built answer is option 1, verified
+rather than assumed:
+
+- `copybook-audit` is a separate crate depending only on stable
+  (`copybook-core`, `copybook-error`); `copybook-governance` likewise depends
+  only on `copybook-core` and `copybook-support-matrix`.
+- `copybook-core` has no dependency on audit, governance, Arrow, codec, or
+  CLI. The `core-upward` rule in `tools/xtask/src/architecture.rs` rejects
+  any such edge, and `architecture check` runs it on every gate.
+- Audit is not re-exported by the `copybook` facade; Arrow is CLI-opt-in
+  only; governance travels with its beta class through `copybook::governance`.
+- Kafka remains workspace-excluded examples, never published crates.
+
+Audit, governance, Arrow/Parquet, and Kafka are therefore excluded from the
+stable-core contract while keeping their current classes (experimental, beta,
+experimental, experimental-examples). Per-surface dispositions and graduation
+evidence live in `docs/stability/surface-registry.json` and #984–#987.

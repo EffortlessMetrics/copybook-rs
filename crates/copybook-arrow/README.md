@@ -1,6 +1,11 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-arrow
 
+> **Experimental, opt-in.** This crate is outside the stable core: its API,
+> schema mapping, and output payloads may change in place. Enable it with
+> `copybook-cli --features arrow`. Graduation criteria are tracked in
+> `docs/stability/surface-registry.json` (#986).
+
 Typed conversion layer between `copybook-rs` schemas/records and Apache Arrow/Parquet.
 
 ## What it does

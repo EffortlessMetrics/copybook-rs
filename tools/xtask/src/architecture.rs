@@ -674,6 +674,7 @@ fn validate_core_direction(
         if dependency == "copybook-codec"
             || dependency == "copybook-cli"
             || dependency == "copybook-arrow"
+            || dependency == "copybook-audit"
             || dependency.starts_with("copybook-governance")
         {
             violations.push(Violation::for_packages(
@@ -1311,5 +1312,34 @@ mod tests {
         );
         assert_eq!(owner_issue("edge-upward:copybook-rdw->copybook-core"), 651);
         assert_eq!(owner_issue("primary-dep:copybook->copybook-utils"), 655);
+    }
+
+    #[test]
+    fn core_direction_rejects_adapter_and_upward_surfaces() {
+        let package = MetadataPackage {
+            id: "copybook-core".into(),
+            name: "copybook-core".into(),
+            publish: None,
+            dependencies: vec![],
+            features: BTreeMap::new(),
+        };
+        // #553 stable-core independence: core must never depend on the
+        // adapter/beta surfaces or on upper layers.
+        for dependency in [
+            "copybook-codec",
+            "copybook-cli",
+            "copybook-arrow",
+            "copybook-audit",
+            "copybook-governance",
+        ] {
+            let mut violations = Vec::new();
+            validate_core_direction(&package, &[dependency.to_string()], &mut violations);
+            assert_eq!(violations.len(), 1, "missing violation for {dependency}");
+            assert!(violations[0].id.contains("core-upward"));
+        }
+        // Ordinary inward deps stay clean.
+        let mut violations = Vec::new();
+        validate_core_direction(&package, &["copybook-error".to_string()], &mut violations);
+        assert!(violations.is_empty());
     }
 }

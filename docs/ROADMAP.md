@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Roadmap
 
-**Status**: Engineering Preview (v0.6.1)
+**Status**: Engineering Preview (v0.7.0)
 **Release target**: v1.0.0 after the product-readiness gates below pass; there is no calendar-only release promise.
 **Program tracker**: [#535 — v1 Product Readiness](https://github.com/EffortlessMetrics/copybook-rs/issues/535)
 
@@ -330,7 +330,7 @@ freeze clock before the ledger reconciliation (item 5) is complete.
 
 ## Planned releases
 
-- **v0.6.1** (current Engineering Preview): canonical-fingerprint patch —
+- **v0.6.1** (current Engineering Preview; 0.7.0 train in progress above): canonical-fingerprint patch —
   `verify --report` now emits the same SHA-256 `schema_fingerprint` as codec
   metadata, canonical fingerprints are fixed-width 64-hex, an additive
   `source_fingerprint` carries raw-source identity, and packaged
@@ -341,8 +341,9 @@ freeze clock before the ledger reconciliation (item 5) is complete.
   notes live in [migration/0.6.md](migration/0.6.md).
 - **v0.7.0** (planned): Rust 1.98 release (MSRV moves from 1.95 to 1.98;
   a later 1.100 jump buys no present release control and is not a 0.7 gate).
-  Removes the deprecated 0.6 facade aliases (removal promised no
-  earlier than 0.7.0; see [migration/0.6.md](migration/0.6.md)) and delivers
+  Removed the deprecated 0.6 facade aliases (eight flat modules plus the
+  `copybook-codepage`/`copybook-lexer`/`copybook-dialect` shims; see
+  [migration/0.7.md](migration/0.7.md)) and delivers
   the adoption-hardening scope in the immediate execution order above. No
   calendar promise; scope is set by coordinator #948 under the `v0.7.0`
   milestone.

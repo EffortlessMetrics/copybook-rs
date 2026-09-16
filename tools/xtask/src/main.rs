@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 use anyhow::{Result, bail};
 use copybook_core::support_matrix;
+use sha2::Digest as _;
 use std::{fs, path::Path};
 use xtask::publish::{PlanFormat, run_plan};
-use xtask::{Counts, architecture, counts, perf};
+use xtask::{Counts, architecture, counts, junit_xml_path, perf};
 
 mod docs_verify;
 mod pr_insights;
@@ -149,9 +150,42 @@ fn sync() -> Result<()> {
     Ok(())
 }
 
+/// Regenerates the `JUnit` receipt `docs verify-tests` reads.
+const JUNIT_RECEIPT_COMMAND: &str =
+    "cargo nextest run --workspace --exclude copybook-bench --exclude copybook-bdd --profile ci";
+
+/// Rewrites the test-status blocks from the current `JUnit` receipt.
+const TEST_STATUS_SYNC_COMMAND: &str = "cargo run -p xtask -- docs sync-tests";
+
+/// Render the actionable failure report for an out-of-sync test-status block.
+///
+/// Prints the expected block plus the exact receipt identity and remedy
+/// commands so a contributor never has to guess the hand-sync (#933).
+fn test_status_mismatch_report(
+    path: &str,
+    expected: &str,
+    receipt: &Path,
+    receipt_sha256: &str,
+) -> String {
+    format!(
+        "{path} test-status out of sync\n\
+         expected block:\n\
+         {expected}\n\
+         receipt: {} (sha256:{receipt_sha256})\n\
+         regenerate the receipt with:\n\
+           {JUNIT_RECEIPT_COMMAND}\n\
+         then sync the docs with:\n\
+           {TEST_STATUS_SYNC_COMMAND}",
+        receipt.display()
+    )
+}
+
 fn verify() -> Result<()> {
     let c = counts()?;
     let expected = block(&c);
+    let receipt = junit_xml_path()?;
+    let receipt_bytes = fs::read(&receipt)?;
+    let receipt_sha256 = format!("{:x}", sha2::Sha256::digest(&receipt_bytes));
 
     for path in TEST_STATUS_PATHS {
         let content = fs::read_to_string(path)?;
@@ -159,7 +193,10 @@ fn verify() -> Result<()> {
             continue;
         }
         if !content.contains(&expected) {
-            bail!("{path} test-status out of sync");
+            bail!(
+                "{}",
+                test_status_mismatch_report(path, &expected, &receipt, &receipt_sha256)
+            );
         }
     }
 
@@ -423,6 +460,29 @@ mod tests {
         assert_eq!(status_marker(SupportStatus::Partial), "⚠️");
         assert_eq!(status_marker(SupportStatus::Planned), "🔄");
         assert_eq!(status_marker(SupportStatus::NotPlanned), "❌");
+    }
+
+    #[test]
+    fn mismatch_report_carries_expected_block_receipt_and_remedy() {
+        let report = test_status_mismatch_report(
+            "docs/REPORT.md",
+            "**conformance:** 9045/9045",
+            Path::new("target/nextest/ci/junit.xml"),
+            "deadbeef",
+        );
+        for needle in [
+            "docs/REPORT.md",
+            "**conformance:** 9045/9045",
+            "target/nextest/ci/junit.xml",
+            "deadbeef",
+            "cargo nextest run --workspace",
+            "cargo run -p xtask -- docs sync-tests",
+        ] {
+            assert!(
+                report.contains(needle),
+                "mismatch report must contain {needle}"
+            );
+        }
     }
 
     #[test]

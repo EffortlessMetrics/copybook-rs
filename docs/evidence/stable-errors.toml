@@ -305,6 +305,26 @@ stability_class = "stable"
 evidence_status = "direct"
 direct_test = "tests/e2e/e2e_error_codes.rs::cbkf221_rdw_underflow"
 [[errors]]
+code = "CBKF222_BDW_LENGTH_INVALID"
+stability_class = "stable"
+evidence_status = "direct"
+direct_test = "crates/copybook-rdw/tests/bdw_block_tests.rs::bdw_zero_block_length_is_invalid"
+[[errors]]
+code = "CBKF223_BDW_UNDERFLOW"
+stability_class = "stable"
+evidence_status = "direct"
+direct_test = "crates/copybook-rdw/tests/bdw_block_tests.rs::bdw_truncated_block_is_underflow"
+[[errors]]
+code = "CBKF224_RDW_BEYOND_BLOCK"
+stability_class = "stable"
+evidence_status = "direct"
+direct_test = "crates/copybook-rdw/tests/bdw_block_tests.rs::vb_rdw_beyond_block_is_rejected"
+[[errors]]
+code = "CBKF225_BDW_RESERVED_NONZERO"
+stability_class = "stable"
+evidence_status = "direct"
+direct_test = "crates/copybook-rdw/tests/bdw_block_tests.rs::bdw_reserved_nonzero_strict_is_rejected"
+[[errors]]
 code = "CBKA001_BASELINE_ERROR"
 stability_class = "stable"
 evidence_status = "direct"

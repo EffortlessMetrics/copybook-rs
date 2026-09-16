@@ -45,6 +45,9 @@ pub fn all_error_codes() -> Vec<ErrorCode> {
         ErrorCode::CBKS702_PROJECTION_UNRESOLVED_ALIAS,
         ErrorCode::CBKS703_PROJECTION_FIELD_NOT_FOUND,
         // CBKR
+        ErrorCode::CBKR101_FIXED_RECORD_ERROR,
+        ErrorCode::CBKR201_RDW_READ_ERROR,
+        ErrorCode::CBKR202_RDW_WRITE_ERROR,
         ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
         // CBKC
         ErrorCode::CBKC201_JSON_WRITE_ERROR,
@@ -77,9 +80,14 @@ pub fn all_error_codes() -> Vec<ErrorCode> {
         ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
         ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW,
         // CBKF
+        ErrorCode::CBKF001_FILE_READ_ERROR,
         ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
         ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
         ErrorCode::CBKF221_RDW_UNDERFLOW,
+        ErrorCode::CBKF222_BDW_LENGTH_INVALID,
+        ErrorCode::CBKF223_BDW_UNDERFLOW,
+        ErrorCode::CBKF224_RDW_BEYOND_BLOCK,
+        ErrorCode::CBKF225_BDW_RESERVED_NONZERO,
         // CBKA
         ErrorCode::CBKA001_BASELINE_ERROR,
         // CBKW

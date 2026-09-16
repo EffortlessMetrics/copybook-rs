@@ -189,9 +189,14 @@ fn cbkc_family_codes_grouped_correctly() {
 #[test]
 fn cbkf_family_codes_grouped_correctly() {
     let cbkf_codes = [
+        ErrorCode::CBKF001_FILE_READ_ERROR,
         ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
         ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
         ErrorCode::CBKF221_RDW_UNDERFLOW,
+        ErrorCode::CBKF222_BDW_LENGTH_INVALID,
+        ErrorCode::CBKF223_BDW_UNDERFLOW,
+        ErrorCode::CBKF224_RDW_BEYOND_BLOCK,
+        ErrorCode::CBKF225_BDW_RESERVED_NONZERO,
     ];
     for code in cbkf_codes {
         assert_eq!(code.family_prefix(), "CBKF", "failed for {code}");

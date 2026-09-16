@@ -370,7 +370,8 @@ impl ErrorReporter {
             ErrorCode::CBKS301_ODO_CLIPPED
             | ErrorCode::CBKS302_ODO_RAISED
             // Record format warnings
-            | ErrorCode::CBKR211_RDW_RESERVED_NONZERO => {
+            | ErrorCode::CBKR211_RDW_RESERVED_NONZERO
+            | ErrorCode::CBKF225_BDW_RESERVED_NONZERO => {
                 if self.mode == ErrorMode::Strict {
                     ErrorSeverity::Fatal
                 } else {
@@ -404,6 +405,9 @@ impl ErrorReporter {
             | ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW
             | ErrorCode::CBKF102_RECORD_LENGTH_INVALID
             | ErrorCode::CBKF221_RDW_UNDERFLOW
+            | ErrorCode::CBKF222_BDW_LENGTH_INVALID
+            | ErrorCode::CBKF223_BDW_UNDERFLOW
+            | ErrorCode::CBKF224_RDW_BEYOND_BLOCK
             | ErrorCode::CBKA001_BASELINE_ERROR
             | ErrorCode::CBKW001_SCHEMA_CONVERSION
             | ErrorCode::CBKW002_TYPE_MAPPING

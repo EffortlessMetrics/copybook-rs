@@ -168,8 +168,8 @@ pub fn run(
                 );
             }
         }
-        RecordFormat::RDW => {
-            // RDW format validation will happen during record iteration
+        RecordFormat::RDW | RecordFormat::Vb => {
+            // RDW and VB/BDW format validation happens during record iteration
         }
     }
 

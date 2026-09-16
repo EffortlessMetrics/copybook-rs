@@ -124,7 +124,16 @@ Comprehensive support for mainframe data formats:
 
 - Fixed-length records with constant LRECL
 - Variable-length RDW (Record Descriptor Word) format
+- Variable-blocked (VB/BDW) framing end to end across decode, encode, and
+  verify paths
 - Multiple EBCDIC codepages (CP037, CP273, CP500, CP1047, CP1140)
+
+### Advisory Diagnostics
+
+- `support --advise` evaluates parsed copybook constructs and reports a
+  closed verdict with remediation guidance, backed by the scenario ledger
+  (`struct.*` scenario IDs) and a stable machine contract
+  (`schemas/advise-result.json`, `1.0`)
 
 ## Known Limitations and Technical Debt
 

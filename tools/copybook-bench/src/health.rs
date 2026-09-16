@@ -7,7 +7,7 @@
 use std::path::Path;
 
 const MSRV_MAJOR: u32 = 1;
-const MSRV_MINOR: u32 = 95;
+const MSRV_MINOR: u32 = 98;
 
 /// Status of an individual health check.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -240,23 +240,23 @@ mod tests {
     #[test]
     fn test_rust_version_check() {
         let check = check_rust_version();
-        // This crate is built under the workspace's Rust 1.95+ contract.
+        // This crate is built under the workspace's Rust 1.98+ contract.
         assert_eq!(check.status, HealthStatus::Pass);
-        assert!(check.message.contains("MSRV 1.95+"));
+        assert!(check.message.contains("MSRV 1.98+"));
     }
 
     #[test]
-    fn rust_1_94_fails_msrv_boundary() {
-        let check = rust_version_health("rustc 1.94.0 (example)");
+    fn rust_1_97_fails_msrv_boundary() {
+        let check = rust_version_health("rustc 1.97.1 (example)");
         assert_eq!(check.status, HealthStatus::Fail);
-        assert!(check.message.contains("requires MSRV 1.95+"));
+        assert!(check.message.contains("requires MSRV 1.98+"));
     }
 
     #[test]
-    fn rust_1_95_passes_msrv_boundary() {
-        let check = rust_version_health("rustc 1.95.0 (example)");
+    fn rust_1_98_passes_msrv_boundary() {
+        let check = rust_version_health("rustc 1.98.0 (example)");
         assert_eq!(check.status, HealthStatus::Pass);
-        assert!(check.message.contains("meets MSRV 1.95+"));
+        assert!(check.message.contains("meets MSRV 1.98+"));
     }
 
     #[test]

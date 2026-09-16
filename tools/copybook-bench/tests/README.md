@@ -327,11 +327,11 @@ cargo clippy --package copybook-bench -- -D warnings -D clippy::pedantic
 
 ### MSRV Compliance
 
-Tests require Rust 1.95+ Edition 2024:
+Tests require Rust 1.98+ Edition 2024:
 
 ```toml
 [package]
-rust-version = "1.95"
+rust-version = "1.98"
 edition = "2024"
 ```
 

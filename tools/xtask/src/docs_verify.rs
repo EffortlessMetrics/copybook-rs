@@ -2044,13 +2044,15 @@ fn verify_facade_invariants() -> Result<()> {
     let readme_module_set = collect_copybook_readme_modules()?;
 
     // The `framing` grouping module forwards directly to its true owners
-    // without a dedicated `copybook-framing` dependency: its children
-    // re-export the fixed/RDW crates. The 0.6 compatibility aliases were
-    // removed in 0.7, so no alias exemption remains.
+    // without a dedicated `copybook-framing` dependency, while the
+    // `copybook-fixed` and `copybook-rdw` dependencies are served through
+    // the nested `framing::{fixed, rdw}` children rather than top-level
+    // modules. The 0.6 flat compatibility aliases were removed in 0.7.
     verify_facade_module_dependency_invariant(
         &lib_module_set,
         &dep_module_set,
         &["framing"],
+        &["fixed", "rdw"],
         &["overflow", "utils"],
     )?;
 
@@ -2068,6 +2070,7 @@ fn verify_facade_module_dependency_invariant(
     lib_module_set: &BTreeSet<String>,
     dep_module_set: &BTreeSet<String>,
     aliases: &[&str],
+    nested: &[&str],
     retired: &[&str],
 ) -> Result<()> {
     // Retired 0.5 paths must stay out of the facade; restoring one fails
@@ -2086,6 +2089,13 @@ fn verify_facade_module_dependency_invariant(
     for alias in aliases {
         if !dep_module_set.contains(*alias) {
             dependency_modules.remove(*alias);
+        }
+    }
+    // Dependencies served through nested facade modules (rather than a
+    // top-level module of the same name) count as present.
+    for module in nested {
+        if dep_module_set.contains(*module) {
+            dependency_modules.insert((*module).to_string());
         }
     }
     let (lib_only, dep_only) = symmetric_diff(&dependency_modules, dep_module_set);
@@ -3226,6 +3236,24 @@ mod tests {
                 &lib_modules,
                 &dependency_modules,
                 &["determinism"],
+                &[],
+                &["overflow"],
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn facade_dependency_invariant_accepts_dependency_served_through_nested_module() {
+        let lib_modules = BTreeSet::from(["codec".to_string(), "framing".to_string()]);
+        let dependency_modules = BTreeSet::from(["codec".to_string(), "fixed".to_string()]);
+
+        assert!(
+            verify_facade_module_dependency_invariant(
+                &lib_modules,
+                &dependency_modules,
+                &["framing"],
+                &["fixed"],
                 &["overflow"],
             )
             .is_ok()
@@ -3246,6 +3274,7 @@ mod tests {
                 &lib_modules,
                 &dependency_modules,
                 &["determinism"],
+                &[],
                 &["overflow"],
             )
             .is_err()
@@ -3260,6 +3289,7 @@ mod tests {
         let err = verify_facade_module_dependency_invariant(
             &lib_modules,
             &dependency_modules,
+            &[],
             &[],
             &["overflow", "utils"],
         )

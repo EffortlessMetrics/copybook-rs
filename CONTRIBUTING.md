@@ -124,7 +124,11 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete reference.
 8. **Complete the applicable contributor agreement**. Individual contributors
    use the hosted CLA Assistant link and wait for `license/cla` to pass;
    entity-owned contributions require the separate Corporate CLA and
-   authorization process before the covered contribution is submitted
+   authorization process before the covered contribution is submitted. A
+   covered corporate pull request remains blocked until maintainers verify the
+   private authorization record and approve the audited, pull-request-only
+   exception on the dedicated CLA ruleset. The contributor is not placed on the
+   CLA Assistant allowlist, and every ordinary review and CI rule still applies.
 
 ### Commit Messages
 
@@ -223,8 +227,16 @@ the individual form. Contact the maintainers privately before submitting the
 covered contribution so the separate Corporate CLA and authorization process can
 be completed.
 
+After a Corporate CLA is executed, the covered pull request remains blocked until
+maintainers verify the private authorization record and approve the audited,
+pull-request-only exception on the dedicated CLA ruleset. Corporate contributors
+are not placed on the CLA Assistant allowlist, and every ordinary review and CI
+rule still applies. Until that exception path is configured and approved for the
+pull request, the contribution cannot merge.
+
 See [CLA Assistant Operations](docs/CLA_OPERATIONS.md) for the service
-configuration, version record, evidence exports, and bot-exemption policy.
+configuration, version record, corporate exception receipt, evidence exports,
+and bot-exemption policy.
 
 ## License
 

@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-09-16
+
+### Changed
+
+- **cli**: `support --advise` contract graduates from beta (`0.7.0-beta.1`) to stable (`1.0`); output shape is unchanged, automation should match `1.0` exactly.
+
 ## [0.7.0] — 2026-09-16
 
 ### Added

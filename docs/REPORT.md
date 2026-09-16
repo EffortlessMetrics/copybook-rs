@@ -3,7 +3,7 @@
 
 ---
 
-**Status**: ⚠️ **Engineering Preview (v0.7.0)** - See
+**Status**: ⚠️ **Engineering Preview (v0.7.1)** - See
 [ROADMAP.md](ROADMAP.md) for adoption guidance
 **Last Updated**: 2026-09-13
 
@@ -276,7 +276,7 @@ environment-specific; validate on your target hardware before production use.
 
 ## Readiness Assessment
 
-### Status: ⚠️ Engineering Preview (v0.7.0) - Cautious Adoption Recommended
+### Status: ⚠️ Engineering Preview (v0.7.1) - Cautious Adoption Recommended
 
 **Official Status**: See [ROADMAP.md](ROADMAP.md) for canonical project status
 and development timeline.

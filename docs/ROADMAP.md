@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Roadmap
 
-**Status**: Engineering Preview (v0.7.0)
+**Status**: Engineering Preview (v0.7.1)
 **Release target**: v1.0.0 after the product-readiness gates below pass; there is no calendar-only release promise.
 **Program tracker**: [#535 — v1 Product Readiness](https://github.com/EffortlessMetrics/copybook-rs/issues/535)
 
@@ -341,7 +341,7 @@ freeze clock before the ledger reconciliation (item 5) is complete.
   retired crates folded into owners, curated `copybook` facade with
   deprecation shims, collapsed feature flags, MSRV Rust 1.95. Migration
   notes live in [migration/0.6.md](migration/0.6.md).
-- **v0.7.0** (planned): Rust 1.98 release (MSRV moves from 1.95 to 1.98;
+- **v0.7.0** (shipped 2026-09-16): Rust 1.98 release (MSRV moves from 1.95 to 1.98;
   a later 1.100 jump buys no present release control and is not a 0.7 gate).
   Removed the deprecated 0.6 facade aliases (eight flat modules plus the
   `copybook-codepage`/`copybook-lexer`/`copybook-dialect` shims; see
@@ -349,6 +349,11 @@ freeze clock before the ledger reconciliation (item 5) is complete.
   the adoption-hardening scope in the immediate execution order above. No
   calendar promise; scope is set by coordinator #948 under the `v0.7.0`
   milestone.
+- **v0.7.1** (planned): strictly non-breaking patch — `support --advise`
+  contract graduates from beta (`0.7.0-beta.1`) to stable (`1.0`) with no
+  shape change, plus the 0.7 status narrative and release-lane devex fixes
+  (truth budget, local evidence policy, changelog curation docs).
+  Coordinated under #975.
 
 ## History
 

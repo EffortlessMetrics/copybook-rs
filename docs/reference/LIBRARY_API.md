@@ -24,7 +24,7 @@ Add the canonical `copybook` facade crate to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-copybook = "0.6"
+copybook = "0.7"
 ```
 
 `copybook-core` and `copybook-codec` remain available for advanced users who need a smaller dependency surface.

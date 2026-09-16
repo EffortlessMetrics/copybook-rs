@@ -5,7 +5,7 @@
 //! Single-crate home for governance since #656 Phase F (the former
 //! `copybook-governance-contracts`, `copybook-governance-grid`, and
 //! `copybook-governance-runtime` packages collapsed here):
-//! - Runtime feature flags and support-matrix rows (`copybook-contracts`,
+//! - Runtime feature flags and support-matrix rows (`copybook-core`,
 //!   `copybook-support-matrix`).
 //! - Static governance bindings between support rows and feature flags
 //!   ([`bindings`]).
@@ -16,9 +16,9 @@ pub mod bindings;
 /// Runtime evaluation of the static governance bindings.
 pub mod runtime;
 
-/// Re-exported feature flag types from the flag contracts.
+/// Re-exported feature flag types from the flag owner.
 pub mod feature_flags {
-    pub use copybook_contracts::feature_flags::*;
+    pub use copybook_core::feature_flags::*;
 }
 
 /// Re-exported support matrix types from the support-matrix contracts.

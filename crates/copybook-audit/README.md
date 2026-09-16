@@ -10,7 +10,7 @@ surface since #656 Phase E). Depend on it explicitly to opt in:
 
 ```toml
 [dependencies]
-copybook-audit = "0.7"
+copybook-audit = "0.8"
 ```
 
 See `docs/audit-api-reference.md` for the API contracts. Experimental APIs may

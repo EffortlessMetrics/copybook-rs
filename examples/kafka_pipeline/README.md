@@ -1,6 +1,9 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Kafka Pipeline Example
 
+> **Experimental example, not a supported connector.** This workspace-excluded
+> example carries no delivery, idempotency, or security promise (#987).
+
 This example demonstrates how to integrate copybook-rs with Apache Kafka to process mainframe COBOL data in a streaming pipeline.
 
 ## Overview

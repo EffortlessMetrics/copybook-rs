@@ -90,3 +90,7 @@ GEMINI.md
 # Python bytecode artifacts
 __pycache__/
 *.py[cod]
+
+# Local release evidence (recovery-point source per RELEASE_RUNBOOK.md;
+# generated at tag time, never committed)
+release-state/

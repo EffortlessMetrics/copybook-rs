@@ -47,7 +47,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Full nextest suite plus receipt regeneration exceeded 5 minutes on
+    # heavier PRs; 10 keeps the lane green without masking real hangs.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:

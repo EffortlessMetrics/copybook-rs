@@ -115,6 +115,8 @@ git diff -- \
 
 Review and, when useful, curate `.changes/v${VERSION}.md` before the final `changie merge`. That version file is the release-note candidate; edits remain explicit and reviewable rather than being regenerated from git history.
 
+When the target version file already exists (for example, a version bump merged ahead of its notes), `changie batch` refuses with "version already exists". In that case, transcribe the pending fragments into the version file in batch format (kind sections in configured order, `- {{.Body}}` bullets), delete the consumed fragment files so `unreleased/` is empty again, and prove the result with `changie merge --dry-run` against `CHANGELOG.md` before merging.
+
 The finished release-preparation PR must leave:
 
 1. the target version file present under `.changes/`;

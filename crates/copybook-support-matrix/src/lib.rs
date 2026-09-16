@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! COBOL feature support matrix registry.
 
+/// Advisory diagnostic domain for `support --advise` (result types, verdict
+/// derivation, redaction posture, deterministic JSON projection).
+pub mod advise;
+
 use serde::{Deserialize, Serialize};
 
 /// Identifier for a COBOL feature tracked in the support matrix.

@@ -13,6 +13,7 @@ use copybook_error::ErrorCode;
 /// Every [`ErrorCode`] variant, grouped by family.
 ///
 /// [`ErrorCode`]: copybook_error::ErrorCode
+#[inline]
 pub fn all_error_codes() -> Vec<ErrorCode> {
     vec![
         // CBKP

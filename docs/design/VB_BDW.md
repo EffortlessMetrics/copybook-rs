@@ -74,13 +74,14 @@ follows the existing `CBKF` family mapping (exit 4).
 
 - Existing raw keys are unchanged. VB records reuse `RecordRDW` semantics
   (RDW header + payload per record).
-- New `RawMode::RecordBlock`: captures the containing block once per record
-  as `block_raw_b64` with `raw_capture: "record+block"`. Block provenance
-  metadata (`block_index`, `block_offset`, `block_len`) is always recorded
-  in VB run summaries regardless of raw mode.
+- Planned (not shipped): `RawMode::RecordBlock` would capture the
+  containing block once per record as `block_raw_b64` with
+  `raw_capture: "record+block"`, plus per-record block provenance metadata
+  (`block_index`, `block_offset`, `block_len`) in VB run summaries. Until
+  implemented across the enum, codec, CLI/API documentation, JSONL schema,
+  and tests, the only VB captures are `record` and `record+rdw`.
 - New machine fields carry explicit beta stability until corpus
-  differential proof; the JSONL schema gains `"record+block"` and
-  `block_raw_b64` additively.
+  differential proof.
 
 ## Stability classification
 
@@ -92,7 +93,7 @@ internal or panic result.
 
 ## Ownership recap
 
-`copybook-rdw` owns schema-independent BDW/VB framing (`bdw.rs`,
-`block.rs`); `copybook-codec::file/vb.rs` owns format selection,
+`copybook-rdw` owns schema-independent BDW/VB framing (`bdw.rs`);
+`copybook-codec::file/vb.rs` owns format selection,
 schema-aware dispatch, and worker execution; `copybook-core` stays out of
 file-container policy; the CLI owns option parsing and rendering.

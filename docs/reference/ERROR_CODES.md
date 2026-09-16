@@ -705,7 +705,7 @@ Minimum required: 120 bytes
 
 #### CBKF222_BDW_LENGTH_INVALID
 **Description**: BDW block length is zero, below the 4-byte header minimum, or above the 32760-byte maximum (beta: VB/BDW framing)
-**Severity**: Fatal
+**Severity**: Error (lenient), Fatal (strict)
 **Context**: Block index, physical byte offset, claimed versus valid block length
 **Resolution**: Check binary transfer mode, verify VB block boundaries, re-run with `--emit-raw` to inspect the truncated block
 
@@ -716,7 +716,7 @@ Block length: 2 bytes (valid 4..=32760)
 
 #### CBKF223_BDW_UNDERFLOW
 **Description**: BDW-declared block content or a nested RDW header is truncated (beta: VB/BDW framing)
-**Severity**: Fatal
+**Severity**: Error (lenient), Fatal (strict)
 **Context**: Block index, physical byte offset, claimed versus available bytes
 **Resolution**: Check data integrity or record format
 
@@ -728,7 +728,7 @@ Available: 17 bytes (file truncated inside VB block)
 
 #### CBKF224_RDW_BEYOND_BLOCK
 **Description**: A nested RDW length extends beyond its containing BDW block (beta: VB/BDW framing)
-**Severity**: Fatal
+**Severity**: Error (lenient), Fatal (strict)
 **Context**: Block index, record index within block, RDW length versus remaining block bytes
 **Resolution**: Check data integrity; the block is corrupt or not a VB block
 
@@ -1040,9 +1040,9 @@ All 70 stable error codes across 10 families:
 | CBKF102 | File | Fatal | RDW length invalid |
 | CBKF104 | File | Warning | RDW suspect ASCII |
 | CBKF221 | File | Fatal | RDW underflow |
-| CBKF222 | File | Fatal | BDW block length invalid (beta) |
-| CBKF223 | File | Fatal | BDW block underflow (beta) |
-| CBKF224 | File | Fatal | Nested RDW escapes BDW block (beta) |
+| CBKF222 | File | Error (lenient), Fatal (strict) | BDW block length invalid (beta) |
+| CBKF223 | File | Error (lenient), Fatal (strict) | BDW block underflow (beta) |
+| CBKF224 | File | Error (lenient), Fatal (strict) | Nested RDW escapes BDW block (beta) |
 | CBKF225 | File | Warning (lenient), Fatal (strict) | BDW reserved bytes non-zero (beta) |
 | CBKA001 | Audit | Error | Performance baseline error |
 | CBKW001 | Arrow/Writer | Error | Arrow schema conversion failed |

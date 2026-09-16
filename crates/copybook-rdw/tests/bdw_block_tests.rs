@@ -260,3 +260,32 @@ fn vb_rdw_reserved_preserved_per_record() {
     assert_eq!(records[0].rdw_reserved, 0xBEEF);
     assert_eq!(records[0].payload, b"data");
 }
+
+#[test]
+fn vb_block_stray_bytes_are_underflow_not_next_block() {
+    // Block 1 declares 15 bytes: one 9-byte record plus 2 stray bytes that
+    // cannot form an RDW. Without the pre-read guard the reader would glue
+    // the strays to block 2's BDW and report CBKF222 instead of CBKF223.
+    let mut data = vec![0x00, 0x0F, 0x00, 0x00];
+    data.extend_from_slice(&[0x00, 0x09, 0x00, 0x00, b'H', b'E', b'L', b'L', b'O']);
+    data.extend_from_slice(&[0xAA, 0xBB]);
+    data.extend_from_slice(&block_bytes(&[b"OK"]));
+    let mut reader = VbBlockReader::new(Cursor::new(data), true);
+    let first = reader.read_record().unwrap().unwrap();
+    assert_eq!(first.payload, b"HELLO");
+    let err = reader.read_record().unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKF223_BDW_UNDERFLOW);
+}
+
+#[test]
+fn bdw_reserved_reports_absolute_offset() {
+    // An empty block (4 bytes) shifts the offending block to offset 4, so
+    // its reserved bytes live at absolute offset 6.
+    let mut data = vec![0x00, 0x04, 0x00, 0x00];
+    data.extend_from_slice(&[0x00, 0x08, 0x12, 0x34, 0x00, 0x04, 0x00, 0x00]);
+    let mut reader = VbBlockReader::new(Cursor::new(data), true);
+    let err = reader.read_record().unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKF225_BDW_RESERVED_NONZERO);
+    let context = err.context.expect("context should be populated");
+    assert_eq!(context.byte_offset, Some(6));
+}

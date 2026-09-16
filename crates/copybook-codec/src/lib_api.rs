@@ -97,6 +97,7 @@ fn captured_raw_record(
     data: &[u8],
     supplied_raw: Option<&[u8]>,
     mode: crate::options::RawMode,
+    format: crate::options::RecordFormat,
 ) -> Result<Option<RawRecord>> {
     let (bytes, capture) = match mode {
         crate::options::RawMode::Off | crate::options::RawMode::Field => return Ok(None),
@@ -108,7 +109,19 @@ fn captured_raw_record(
                     "RawMode::RecordRDW requires an RDW header plus payload",
                 )
             })?;
-            validate_captured_raw_rdw(frame, data)?;
+            // VB captures use the inclusive-length rule; ordinary RDW
+            // captures keep the payload-length rule. The two must not mix.
+            if format == crate::options::RecordFormat::Vb {
+                let (_, raw_payload) = parse_vb_raw_rdw_frame(frame)?;
+                if raw_payload != data {
+                    return Err(Error::new(
+                        ErrorCode::CBKF222_BDW_LENGTH_INVALID,
+                        "Raw VB payload does not match the decoded record payload",
+                    ));
+                }
+            } else {
+                validate_captured_raw_rdw(frame, data)?;
+            }
             (frame, RawCapture::RecordRdw)
         }
     };
@@ -193,7 +206,7 @@ fn decode_record_with_scratch_and_raw(
 
     let mut fields_map = Map::new();
     let mut encoding_acc = Vec::new();
-    let record_raw = captured_raw_record(data, raw_data, options.emit_raw)?;
+    let record_raw = captured_raw_record(data, raw_data, options.emit_raw, options.format)?;
 
     process_fields_recursive_with_scratch(
         &schema.fields,
@@ -254,7 +267,8 @@ fn decode_record_with_raw_data_at_offset(
 
     // Validate whole-record framing before field decoding so a malformed
     // RecordRDW capture cannot be masked by an unrelated field error.
-    let record_raw = captured_raw_record(data, raw_data_with_header, options.emit_raw)?;
+    let record_raw =
+        captured_raw_record(data, raw_data_with_header, options.emit_raw, options.format)?;
 
     let mut fields_map = Map::new();
     let mut scratch_buffers: Option<crate::memory::ScratchBuffers> = None;
@@ -1916,8 +1930,10 @@ fn encode_vb_raw_replay(raw_data: Vec<u8>, capture: Option<RawCapture>) -> Resul
         framed
     } else {
         // Validate framing before replay so a malformed raw frame cannot be
-        // masked by re-framing.
-        parse_raw_rdw_frame(&raw_data)?;
+        // masked by re-framing. VB captures use the inclusive-length rule
+        // (LL counts the RDW header); the payload-length rule of
+        // `parse_raw_rdw_frame` would reject every valid VB capture.
+        parse_vb_raw_rdw_frame(&raw_data)?;
         raw_data
     };
     let block_len = framed.len() + crate::record::BDW_HEADER_LEN;
@@ -1926,6 +1942,47 @@ fn encode_vb_raw_replay(raw_data: Vec<u8>, capture: Option<RawCapture>) -> Resul
     block.extend_from_slice(&header.bytes());
     block.extend_from_slice(&framed);
     Ok(block)
+}
+
+/// Validate one VB-captured RDW frame (`RDW header + payload`) before replay.
+///
+/// Unlike [`parse_raw_rdw_frame`], the length rule is inclusive: the
+/// declared LL counts its own 4-byte header (mainframe convention inside VB
+/// blocks). The original RDW bytes are preserved untouched on success.
+///
+/// # Errors
+/// Returns `CBKF222_BDW_LENGTH_INVALID` when the frame is shorter than a
+/// header or its declared LL disagrees with the available bytes.
+fn parse_vb_raw_rdw_frame(frame: &[u8]) -> Result<(u16, &[u8])> {
+    let (raw_header, raw_payload) = frame.split_at_checked(4).ok_or_else(|| {
+        Error::new(
+            ErrorCode::CBKF222_BDW_LENGTH_INVALID,
+            format!(
+                "Raw VB record is {} bytes; expected at least a 4-byte RDW header",
+                frame.len()
+            ),
+        )
+    })?;
+    let header_bytes: [u8; 4] = raw_header.try_into().map_err(|_| {
+        Error::new(
+            ErrorCode::CBKF222_BDW_LENGTH_INVALID,
+            "Raw VB record does not contain a complete 4-byte RDW header",
+        )
+    })?;
+    let declared_len = usize::from(u16::from_be_bytes([header_bytes[0], header_bytes[1]]));
+    if declared_len < crate::record::RDW_HEADER_LEN
+        || declared_len != raw_payload.len() + crate::record::RDW_HEADER_LEN
+    {
+        return Err(Error::new(
+            ErrorCode::CBKF222_BDW_LENGTH_INVALID,
+            format!(
+                "Raw VB RDW header declares {declared_len} bytes (inclusive), but {} payload bytes follow",
+                raw_payload.len()
+            ),
+        ));
+    }
+    let reserved = u16::from_be_bytes([header_bytes[2], header_bytes[3]]);
+    Ok((reserved, raw_payload))
 }
 
 fn encode_fixed_raw_replay(raw_data: Vec<u8>, capture: Option<RawCapture>) -> Result<Vec<u8>> {
@@ -3566,13 +3623,13 @@ fn process_vb_records<R: Read, W: Write>(
     let mut reader = crate::record::VbBlockReader::new(reader, options.strict_mode);
     let mut scratch = crate::memory::ScratchBuffers::new();
     let mut record_index = 0u64;
-    let mut record_offset = 0u64;
 
     while let Some(vb_record) = reader.read_record()? {
         record_index += 1;
         let record_bytes = vb_record.rdw.len() + vb_record.payload.len();
-        let current_offset = record_offset;
-        record_offset = record_offset.saturating_add(record_bytes as u64);
+        // Absolute stream position: BDW block headers sit between records,
+        // so a framing-bytes accumulator would drift. The reader tracks it.
+        let current_offset = vb_record.physical_offset;
         summary.bytes_processed += record_bytes as u64;
         telemetry::record_read(record_bytes, options);
         if vb_record.rdw_reserved != 0 {
@@ -3654,7 +3711,6 @@ fn process_vb_records_parallel<R: Read, W: Write>(
     let batch_capacity = workers.saturating_mul(4).max(1);
     let mut pool = decode_worker_pool(schema, options);
     let mut record_index = 0_u64;
-    let mut record_offset = 0_u64;
     let mut batch_len = 0_usize;
 
     loop {
@@ -3675,8 +3731,9 @@ fn process_vb_records_parallel<R: Read, W: Write>(
 
         record_index += 1;
         let record_bytes = vb_record.rdw.len() + vb_record.payload.len();
-        let current_offset = record_offset;
-        record_offset = record_offset.saturating_add(record_bytes as u64);
+        // Absolute stream position, matching the sequential path: BDW block
+        // headers sit between records, so a framing-bytes accumulator drifts.
+        let current_offset = vb_record.physical_offset;
         summary.bytes_processed += record_bytes as u64;
         telemetry::record_read(record_bytes, options);
         if vb_record.rdw_reserved != 0 {

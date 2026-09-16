@@ -8,7 +8,7 @@
 //! blocks, and the two compose into a byte-and-value round trip.
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, RecordFormat, decode_file_to_jsonl,
+    Codepage, DecodeOptions, EncodeOptions, RawMode, RecordFormat, decode_file_to_jsonl,
     encode_jsonl_to_file,
 };
 use copybook_core::parse_copybook;
@@ -160,6 +160,60 @@ fn encoding_vb_format_name_round_trip() {
     );
     assert!(RecordFormat::Vb.is_variable());
     assert!(!RecordFormat::Vb.is_fixed());
+}
+
+#[test]
+fn encoding_vb_raw_capture_round_trip_preserves_bytes() {
+    let schema = parse_copybook("01 SIMPLE-RECORD PIC X(5).").unwrap();
+    let input = frame_block(&[b"HELLO", b"WORLD"]);
+
+    let decode_options = DecodeOptions::new()
+        .with_format(RecordFormat::Vb)
+        .with_codepage(Codepage::ASCII)
+        .with_emit_raw(RawMode::RecordRDW);
+    let mut jsonl = Vec::new();
+    decode_file_to_jsonl(&schema, Cursor::new(&input), &mut jsonl, &decode_options)
+        .expect("VB decode with raw capture should succeed");
+    let jsonl_str = String::from_utf8(jsonl).expect("output is UTF-8");
+    assert!(
+        jsonl_str.contains("record+rdw"),
+        "VB RecordRDW capture must label provenance"
+    );
+
+    let encode_options = EncodeOptions {
+        format: RecordFormat::Vb,
+        codepage: Codepage::ASCII,
+        use_raw: true,
+        strict_mode: true,
+        ..EncodeOptions::default()
+    };
+    let mut replayed = Vec::new();
+    encode_jsonl_to_file(
+        &schema,
+        Cursor::new(jsonl_str.as_bytes()),
+        &mut replayed,
+        &encode_options,
+    )
+    .expect("VB raw replay should accept inclusive-length captures");
+    // Each captured record replays as one single-record block.
+    assert_eq!(replayed.len(), 2 * (4 + 4 + 5));
+
+    let mut round_tripped = Vec::new();
+    decode_file_to_jsonl(
+        &schema,
+        Cursor::new(&replayed),
+        &mut round_tripped,
+        &vb_decode_options(true),
+    )
+    .expect("replayed VB blocks should decode");
+    let round_tripped_str = String::from_utf8(round_tripped).expect("output is UTF-8");
+    let values: Vec<Value> = round_tripped_str
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("line is JSON"))
+        .collect();
+    assert_eq!(values.len(), 2);
+    assert_eq!(values[0]["SIMPLE-RECORD"], "HELLO");
+    assert_eq!(values[1]["SIMPLE-RECORD"], "WORLD");
 }
 
 #[test]

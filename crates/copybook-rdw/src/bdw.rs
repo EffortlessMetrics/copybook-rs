@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_error::{Error, ErrorCode, ErrorContext, Result};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufReader, Read, Write};
 use tracing::{debug, warn};
 
 /// Size of a BDW (Block Descriptor Word) header in bytes.
@@ -163,23 +164,41 @@ impl<R: Read> VbBlockReader<R> {
     }
 
     /// Open the next block; `Ok(false)` means clean EOF before any header byte.
+    ///
+    /// The first byte is read alone so a short `fill_buf` result from a
+    /// streaming source is never mistaken for EOF: only zero bytes means
+    /// clean EOF, 1-3 trailing bytes are truncated input.
     fn open_block(&mut self) -> Result<bool> {
-        let available = self.peek_available()?;
-        if available == 0 {
+        let mut first = [0u8; 1];
+        let read = self.input.read(&mut first).map_err(|error| {
+            Error::new(
+                ErrorCode::CBKR201_RDW_READ_ERROR,
+                format!("I/O error probing VB input: {error}"),
+            )
+        })?;
+        if read == 0 {
             debug!("Reached EOF after {} VB blocks", self.block_index);
             return Ok(false);
         }
-        if available < BDW_HEADER_LEN {
-            return self.short_block_header(available);
-        }
         let mut header = [0u8; BDW_HEADER_LEN];
-        self.input.read_exact(&mut header).map_err(|error| {
-            Error::new(
-                ErrorCode::CBKF223_BDW_UNDERFLOW,
-                format!("I/O error reading BDW header: {error}"),
-            )
-            .with_context(self.block_context("Unable to read BDW header"))
-        })?;
+        header[0] = first[0];
+        let mut have = 1usize;
+        while have < BDW_HEADER_LEN {
+            match self.input.read(&mut header[have..]) {
+                Ok(0) => break,
+                Ok(read_now) => have += read_now,
+                Err(error) => {
+                    return Err(Error::new(
+                        ErrorCode::CBKR201_RDW_READ_ERROR,
+                        format!("I/O error reading BDW header: {error}"),
+                    )
+                    .with_context(self.block_context("Unable to read BDW header")));
+                }
+            }
+        }
+        if have < BDW_HEADER_LEN {
+            return self.short_block_header(have);
+        }
         let parsed = BdwHeader::from_bytes(header);
         let block_len = usize::from(parsed.length());
         if !(BDW_HEADER_LEN..=BDW_MAX_BLOCK_LEN).contains(&block_len) {
@@ -211,7 +230,7 @@ impl<R: Read> VbBlockReader<R> {
             )
             .with_context(self.block_context("Trailing bytes after final VB block")));
         }
-        debug!("Ignoring {available} trailing bytes after final VB block");
+        warn!("Ignoring {available} trailing bytes after final VB block");
         Ok(false)
     }
 
@@ -226,7 +245,7 @@ impl<R: Read> VbBlockReader<R> {
         .with_context(ErrorContext {
             record_index: None,
             field_path: None,
-            byte_offset: Some(2),
+            byte_offset: Some(self.physical_offset + 2),
             line_number: None,
             details: Some(format!("Expected 0000, got {reserved:04X}")),
         });
@@ -242,6 +261,19 @@ impl<R: Read> VbBlockReader<R> {
 
     fn read_block_record(&mut self) -> Result<VbRecord> {
         let rdw_offset = self.physical_offset;
+        // A declared block that ends with 1-3 stray bytes holds no RDW
+        // header. Reading here would consume the next block's BDW, so
+        // reject before touching the stream.
+        if self.block_remaining < 4 {
+            return Err(Error::new(
+                ErrorCode::CBKF223_BDW_UNDERFLOW,
+                format!(
+                    "VB block {} ends with {} stray bytes; cannot form an RDW header",
+                    self.block_index, self.block_remaining
+                ),
+            )
+            .with_context(self.record_context("Block ends mid-RDW header")));
+        }
         let mut rdw = [0u8; 4];
         self.input.read_exact(&mut rdw).map_err(|_| {
             Error::new(
@@ -299,15 +331,6 @@ impl<R: Read> VbBlockReader<R> {
             self.block_index += 1;
         }
         Ok(record)
-    }
-
-    fn peek_available(&mut self) -> Result<usize> {
-        self.input.fill_buf().map(<[u8]>::len).map_err(|error| {
-            Error::new(
-                ErrorCode::CBKR201_RDW_READ_ERROR,
-                format!("I/O error probing VB input: {error}"),
-            )
-        })
     }
 
     fn block_context(&self, details: impl Into<String>) -> ErrorContext {

@@ -304,21 +304,29 @@ required for v1 completeness:
 Their rejection behavior, error/scenario identifiers, tests, support-matrix
 status, and remediation guidance **are** required to be complete.
 
-## Immediate execution order
+## Immediate execution order (0.7.0 train)
 
-1. #536 — roadmap reset
-2. #537 — facade-first documentation
-3. #538 — generated complete publish plan
-4. #539 — resumable fix-forward release runbook
-5. #540 — comprehensive truth gate
-6. #541 — stable/beta/experimental classification
-7. #542 — API/contract baselines
-8. #543 — deprecation/migration audit
-9. #551 and #552 — correctness evidence and operator usability
-10. #544 and #545 — freeze and release-candidate proof
+The #536–#545 reset sequence is complete; what follows is the 0.7.0 cut,
+tracked by the `v0.7.0` milestone under coordinator #948.
+
+1. Actionable test-count gate output (#933)
+2. MSRV 1.95 → 1.98 workspace-wide
+3. Remove the eight deprecated 0.6 facade aliases; resolve every remaining
+   0.6 deprecation with an explicit remove, re-window, or keep decision
+4. `docs/migration/0.7.md` written from the actual removal diff
+5. Machine-owned scenario ledger contract, then evidence reconciliation
+   (numeric, fixed/RDW, codepage, stable errors)
+6. Governed public corpus foundation plus VB/BDW framing with round-trip proof
+7. Shared diagnostic verdict domain plus `support --advise`
+8. Feature freeze, release-preparation PR, exact-SHA GO record, tag, publish,
+   registry-only acceptance
+
+Deliberately deferred past 0.7.0: field-driven record lengths, `explain`,
+`doctor`, `compat`, JUnit/SARIF renderers without a consumer, full adapter
+graduation, Kafka/audit/governance expansion, speculative performance work.
 
 Do not begin source-level performance optimization before #546. Do not start the
-freeze clock before #541–#543 are complete.
+freeze clock before the ledger reconciliation (item 5) is complete.
 
 ## Planned releases
 
@@ -331,13 +339,13 @@ freeze clock before #541–#543 are complete.
   retired crates folded into owners, curated `copybook` facade with
   deprecation shims, collapsed feature flags, MSRV Rust 1.95. Migration
   notes live in [migration/0.6.md](migration/0.6.md).
-- **v0.7.0** (planned): Rust 1.98+ release (MSRV moves from 1.95 to 1.98
-  at minimum — expect to jump straight to 1.100 if it is out when we ship
-  0.7.0, since 1.100 adds minimum release age checks).
-  Expected to remove the deprecated 0.6 facade aliases (removal promised no
-  earlier than 0.7.0; see [migration/0.6.md](migration/0.6.md)) and to pick
-  up whatever the phase gates above require next. No calendar promise; scope
-  is set when the 0.7 planning issue lands.
+- **v0.7.0** (planned): Rust 1.98 release (MSRV moves from 1.95 to 1.98;
+  a later 1.100 jump buys no present release control and is not a 0.7 gate).
+  Removes the deprecated 0.6 facade aliases (removal promised no
+  earlier than 0.7.0; see [migration/0.6.md](migration/0.6.md)) and delivers
+  the adoption-hardening scope in the immediate execution order above. No
+  calendar promise; scope is set by coordinator #948 under the `v0.7.0`
+  milestone.
 
 ## History
 

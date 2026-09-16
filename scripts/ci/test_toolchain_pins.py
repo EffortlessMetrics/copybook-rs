@@ -62,6 +62,20 @@ class ToolchainPinTests(unittest.TestCase):
             proc = run_checker(Path(tmp))
         self.assertEqual(proc.returncode, 0, proc.stderr)
 
+    def test_file_env_opt_out_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "night.yml"
+            path.write_text(
+                "env:\n"
+                "  RUSTUP_TOOLCHAIN: nightly\n"
+                "jobs:\n"
+                "  fuzz:\n"
+                "    steps:\n"
+                "      - uses: dtolnay/rust-toolchain@nightly\n"
+            )
+            proc = run_checker(Path(tmp))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+
     def test_stable_step_without_marker_passes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "quick.yml"

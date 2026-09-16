@@ -41,17 +41,23 @@ def step_blocks(path: Path) -> list[tuple[int, list[str]]]:
 def violations_for(workflows: Path) -> list[str]:
     problems: list[str] = []
     for path in sorted(workflows.glob("*.yml")):
+        try:
+            whole = path.read_text()
+        except OSError:
+            continue
+        # A file-level RUSTUP_TOOLCHAIN opt-out covers every step.
+        file_opt_out = "RUSTUP_TOOLCHAIN" in whole
         for start, block in step_blocks(path):
             text = "\n".join(block)
             if "dtolnay/rust-toolchain" not in text:
                 continue
             lowered = text.lower()
             nightly_implied = any(m in lowered for m in NIGHTLY_MARKERS)
-            explicit = "toolchain:" in text
+            explicit = "toolchain:" in text or file_opt_out
             if nightly_implied and not explicit:
                 problems.append(
                     f"{path.name}:{start}: nightly-implied dtolnay step "
-                    "without explicit `toolchain:`"
+                    "without explicit `toolchain:` or RUSTUP_TOOLCHAIN"
                 )
     return problems
 

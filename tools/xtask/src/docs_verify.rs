@@ -20,7 +20,7 @@ use xtask::perf;
 type Verifier = (&'static str, fn() -> Result<()>);
 
 pub(crate) fn run() -> Result<()> {
-    let checks: [Verifier; 18] = [
+    let checks: [Verifier; 19] = [
         (
             "workspace-version-and-msrv",
             verify_workspace_version_and_msrv,
@@ -33,6 +33,7 @@ pub(crate) fn run() -> Result<()> {
         ("error-code-inventory", verify_error_code_inventory),
         ("stable-error-registry", verify_stable_error_registry),
         ("scenario-ledger", verify_scenario_ledger),
+        ("corpus-manifest", verify_corpus),
         ("record-pipeline-evidence", verify_record_pipeline_evidence),
         ("test-status", verify_test_status_if_present),
         ("support-matrix", verify_support_matrix),
@@ -2675,6 +2676,340 @@ fn validate_relationship(
     if !known {
         bail!(
             "scenario `{id}` relationship `{relationship}` names an unknown target | repair: check the owning registry ID"
+        );
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Governed public corpus manifest (#952, 0.7C real-world validation)
+// ---------------------------------------------------------------------------
+
+const CORPUS_MANIFEST_PATH: &str = "fixtures/corpus/manifest.toml";
+
+pub(crate) fn verify_corpus_command() -> Result<()> {
+    verify_corpus()
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CorpusManifest {
+    schema_version: u32,
+    scope: String,
+    #[serde(default)]
+    fixture: Vec<CorpusFixture>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CorpusFixture {
+    fixture_id: String,
+    copybook: String,
+    copybook_sha256: String,
+    #[serde(default)]
+    records: String,
+    #[serde(default)]
+    records_sha256: String,
+    provenance: String,
+    copyright_holder: String,
+    license: String,
+    redistribution: String,
+    origin: String,
+    #[serde(default)]
+    generator: String,
+    #[serde(default)]
+    generator_inputs: Vec<String>,
+    #[serde(default)]
+    transformation: String,
+    #[serde(default)]
+    upstream_attribution: String,
+    record_organization: String,
+    framing_parameters: String,
+    codepage: String,
+    dialect: String,
+    option_assumptions: String,
+    scenario_ids: Vec<String>,
+    expected: String,
+    rejection_identity: String,
+    oracle_kind: String,
+    #[serde(default)]
+    oracle_path: String,
+    oracle_note: String,
+    sensitivity_review: String,
+    last_verified_full_sha: String,
+}
+
+fn verify_corpus() -> Result<()> {
+    let root = workspace_root();
+    let path = root.join(CORPUS_MANIFEST_PATH);
+    let source = fs::read_to_string(&path)
+        .with_context(|| format!("loading corpus manifest {}", path.display()))?;
+    let manifest: CorpusManifest =
+        toml::from_str(&source).with_context(|| format!("parsing {}", path.display()))?;
+    if manifest.schema_version != 1 {
+        bail!(
+            "unsupported corpus manifest schema version {}",
+            manifest.schema_version
+        );
+    }
+    if manifest.scope != "corpus-manifest" {
+        bail!("unexpected corpus manifest scope `{}`", manifest.scope);
+    }
+    if manifest.fixture.is_empty() {
+        bail!("corpus manifest contains no fixtures");
+    }
+
+    // No parallel taxonomy: scenario IDs must resolve to the #951 ledger or
+    // the linked fixed/RDW pipeline registry; rejection identities must
+    // resolve to the stable error registry.
+    let ledger = load_scenario_ledger(&root.join(SCENARIO_LEDGER_PATH))?;
+    let mut known_scenarios: BTreeSet<String> = ledger
+        .scenarios
+        .into_iter()
+        .map(|row| row.scenario_id)
+        .collect();
+    for id in scenario_ledger_pipeline_ids(&root)? {
+        known_scenarios.insert(id);
+    }
+    let error_codes = scenario_ledger_error_identities(&root)?;
+
+    let mut seen = BTreeSet::new();
+    for entry in &manifest.fixture {
+        if !seen.insert(entry.fixture_id.clone()) {
+            bail!("duplicate corpus fixture id `{}`", entry.fixture_id);
+        }
+        validate_corpus_fixture(&root, entry, &known_scenarios, &error_codes)?;
+    }
+    println!("corpus manifest verified: {} fixtures", seen.len());
+    Ok(())
+}
+
+fn validate_corpus_fixture(
+    root: &Path,
+    entry: &CorpusFixture,
+    known_scenarios: &BTreeSet<String>,
+    error_codes: &BTreeMap<String, String>,
+) -> Result<()> {
+    let id = entry.fixture_id.as_str();
+    validate_corpus_identity(entry, id)?;
+    validate_corpus_files(root, entry, id)?;
+    validate_corpus_taxonomy(entry, id, known_scenarios, error_codes)?;
+    validate_corpus_oracle(root, entry, id)?;
+    if entry.last_verified_full_sha.len() != 40
+        || !entry
+            .last_verified_full_sha
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit())
+    {
+        bail!(
+            "corpus fixture `{id}` needs a full 40-hex last_verified_full_sha, found `{}`",
+            entry.last_verified_full_sha
+        );
+    }
+    Ok(())
+}
+
+fn validate_corpus_identity(entry: &CorpusFixture, id: &str) -> Result<()> {
+    if id.is_empty()
+        || !id
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+    {
+        bail!("corpus fixture id `{id}` must be non-empty kebab-case");
+    }
+    if !matches!(
+        entry.origin.as_str(),
+        "original" | "transformed" | "generated"
+    ) {
+        bail!(
+            "corpus fixture `{id}` has unknown origin `{}`; expected original|transformed|generated",
+            entry.origin
+        );
+    }
+    if entry.origin == "generated" && entry.generator.is_empty() {
+        bail!("corpus fixture `{id}` is generated but names no generator");
+    }
+    if entry.origin == "generated" && entry.generator_inputs.is_empty() {
+        bail!("corpus fixture `{id}` is generated but records no generator inputs or seed");
+    }
+    if entry.origin == "transformed"
+        && (entry.transformation.is_empty() || entry.upstream_attribution.is_empty())
+    {
+        bail!(
+            "corpus fixture `{id}` is transformed but lacks transformation or upstream attribution"
+        );
+    }
+    if !matches!(
+        entry.record_organization.as_str(),
+        "fixed" | "rdw" | "vb" | "other"
+    ) {
+        bail!(
+            "corpus fixture `{id}` has unknown record organization `{}`; expected fixed|rdw|vb|other",
+            entry.record_organization
+        );
+    }
+    if !matches!(
+        entry.expected.as_str(),
+        "supported" | "partial" | "beta" | "rejected" | "non_goal"
+    ) {
+        bail!(
+            "corpus fixture `{id}` has unknown expected outcome `{}`; expected supported|partial|beta|rejected|non_goal",
+            entry.expected
+        );
+    }
+    for field in [
+        "provenance",
+        "copyright_holder",
+        "license",
+        "redistribution",
+        "framing_parameters",
+        "codepage",
+        "dialect",
+        "option_assumptions",
+        "oracle_note",
+        "sensitivity_review",
+    ] {
+        let value = match field {
+            "provenance" => &entry.provenance,
+            "copyright_holder" => &entry.copyright_holder,
+            "license" => &entry.license,
+            "redistribution" => &entry.redistribution,
+            "framing_parameters" => &entry.framing_parameters,
+            "codepage" => &entry.codepage,
+            "dialect" => &entry.dialect,
+            "option_assumptions" => &entry.option_assumptions,
+            "oracle_note" => &entry.oracle_note,
+            _ => &entry.sensitivity_review,
+        };
+        if value.trim().is_empty() {
+            bail!("corpus fixture `{id}` is missing required metadata `{field}`");
+        }
+    }
+    Ok(())
+}
+
+fn validate_corpus_files(root: &Path, entry: &CorpusFixture, id: &str) -> Result<()> {
+    verify_corpus_file_hash(
+        root,
+        id,
+        "copybook",
+        &entry.copybook,
+        &entry.copybook_sha256,
+    )?;
+    if entry.records.is_empty() != entry.records_sha256.is_empty() {
+        bail!("corpus fixture `{id}` has contradictory records/records_sha256 presence");
+    }
+    if entry.records.is_empty() {
+        if entry.expected != "rejected" {
+            bail!(
+                "corpus fixture `{id}` has no records but expects `{}`; only rejections may omit records",
+                entry.expected
+            );
+        }
+    } else {
+        verify_corpus_file_hash(root, id, "records", &entry.records, &entry.records_sha256)?;
+    }
+    Ok(())
+}
+
+fn validate_corpus_taxonomy(
+    entry: &CorpusFixture,
+    id: &str,
+    known_scenarios: &BTreeSet<String>,
+    error_codes: &BTreeMap<String, String>,
+) -> Result<()> {
+    if entry.expected == "rejected" {
+        if entry.rejection_identity == "none"
+            || !error_codes.contains_key(&entry.rejection_identity)
+        {
+            bail!(
+                "corpus fixture `{id}` is rejected but names unknown rejection identity `{}`; expected an exact stable-errors code",
+                entry.rejection_identity
+            );
+        }
+    } else if entry.rejection_identity != "none" {
+        bail!(
+            "corpus fixture `{id}` expects `{}` but carries rejection identity `{}`",
+            entry.expected,
+            entry.rejection_identity
+        );
+    }
+
+    if entry.scenario_ids.is_empty() {
+        bail!("corpus fixture `{id}` names no scenario IDs");
+    }
+    for scenario in &entry.scenario_ids {
+        if !known_scenarios.contains(scenario) {
+            bail!(
+                "corpus fixture `{id}` cites unknown scenario `{scenario}`; scenario IDs come from the #951 ledger or pipeline registry, never a parallel taxonomy"
+            );
+        }
+    }
+    Ok(())
+}
+
+fn validate_corpus_oracle(root: &Path, entry: &CorpusFixture, id: &str) -> Result<()> {
+    if !matches!(
+        entry.oracle_kind.as_str(),
+        "round-trip" | "golden" | "rejection"
+    ) {
+        bail!(
+            "corpus fixture `{id}` has unknown oracle kind `{}`; expected round-trip|golden|rejection",
+            entry.oracle_kind
+        );
+    }
+    if entry.oracle_kind == "golden" {
+        if entry.oracle_path.is_empty() {
+            bail!("corpus fixture `{id}` uses a golden oracle but names no oracle path");
+        }
+        let oracle = root.join(&entry.oracle_path);
+        if !oracle.is_file() {
+            bail!(
+                "corpus fixture `{id}` names missing golden oracle `{}`",
+                entry.oracle_path
+            );
+        }
+    } else if !entry.oracle_path.is_empty() {
+        bail!(
+            "corpus fixture `{id}` uses a `{}` oracle but also names oracle path `{}`",
+            entry.oracle_kind,
+            entry.oracle_path
+        );
+    }
+    if entry.oracle_kind == "rejection" && entry.expected != "rejected" {
+        bail!(
+            "corpus fixture `{id}` uses a rejection oracle but expects `{}`",
+            entry.expected
+        );
+    }
+    Ok(())
+}
+
+fn verify_corpus_file_hash(
+    root: &Path,
+    id: &str,
+    role: &str,
+    relative: &str,
+    expected_hex: &str,
+) -> Result<()> {
+    use sha2::Digest as _;
+    use std::fmt::Write as _;
+
+    let path = root.join(relative);
+    let bytes = fs::read(&path).with_context(|| {
+        format!(
+            "corpus fixture `{id}` {role} file missing: {}",
+            path.display()
+        )
+    })?;
+    let digest = sha2::Sha256::digest(&bytes);
+    let mut actual = String::with_capacity(64);
+    for byte in digest {
+        let _ = write!(actual, "{byte:02x}");
+    }
+    if actual != expected_hex.to_ascii_lowercase() {
+        bail!(
+            "corpus fixture `{id}` {role} fingerprint mismatch: manifest records `{expected_hex}`, file computes `{actual}`"
         );
     }
     Ok(())

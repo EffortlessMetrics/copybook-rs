@@ -28,6 +28,7 @@ fn main() -> Result<()> {
         ["docs", "sync-record-pipeline"] => docs_verify::sync_record_pipeline_command(),
         ["docs", "verify-stable-errors"] => docs_verify::verify_stable_error_registry_command(),
         ["docs", "verify-scenario-ledger"] => docs_verify::verify_scenario_ledger_command(),
+        ["docs", "verify-corpus"] => docs_verify::verify_corpus_command(),
         ["docs", "verify-support-matrix"] => verify_support_matrix(),
         ["docs", "freeze", "contracts"] => docs_verify::run_freeze_contract_checks(),
         ["docs", "contracts", "generate"] => docs_verify::run_contracts_command(),
@@ -97,6 +98,7 @@ fn usage() {
          docs verify-scenario-ledger          Verify scenario ledger anchors and row contract\n\
          docs freeze contracts               Verify freeze-sensitive contracts (strict, API surface contract guard)\n\
          docs contracts generate             Regenerate stable contract manifest baseline\n\
+         docs verify-corpus                   Verify governed corpus manifest metadata and fingerprints
          docs verify-support-matrix          Verify support matrix registry -> docs\n\
          perf                                Run perf benchmark runner\n\
          perf --enforce                      Run perf with SLO enforcement\n\

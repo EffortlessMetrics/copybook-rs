@@ -456,3 +456,46 @@ fn encode_capacity_is_measured_after_codepage_encoding() {
         assert_eq!(err.code, ErrorCode::CBKE515_STRING_LENGTH_VIOLATION);
     }
 }
+
+// ===========================================================================
+// Worker plane: thread count must not change decoded output under any
+// supported EBCDIC codepage (#573 worker-configuration determinism).
+// ===========================================================================
+
+#[test]
+fn worker_thread_count_does_not_change_ebcdic_decode() {
+    let schema = parse_copybook(SIG_COPYBOOK).expect("copybook parses");
+
+    for sig in SIGNATURES {
+        let mut outputs = Vec::new();
+        for threads in [1_usize, 4] {
+            let opts = DecodeOptions::new()
+                .with_format(RecordFormat::Fixed)
+                .with_codepage(sig.cp)
+                .with_json_number_mode(JsonNumberMode::Lossless)
+                .with_emit_meta(false)
+                .with_threads(threads);
+            let mut out = Vec::new();
+            decode_file_to_jsonl(
+                &schema,
+                Cursor::new(vec![sig.probe_byte; 32]),
+                &mut out,
+                &opts,
+            )
+            .unwrap_or_else(|e| panic!("decode under {} failed: {e}", sig.cp));
+            outputs.push(out);
+        }
+        assert_eq!(
+            outputs[0], outputs[1],
+            "thread count changed EBCDIC decode under {}",
+            sig.cp
+        );
+        assert_eq!(
+            sig_from_jsonl(&outputs[0]),
+            sig.probe_ch,
+            "worker decode must still yield {:?} under {}",
+            sig.probe_ch,
+            sig.cp
+        );
+    }
+}

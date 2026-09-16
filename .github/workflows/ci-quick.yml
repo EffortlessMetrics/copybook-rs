@@ -37,6 +37,7 @@ jobs:
               - 'Cargo.*'
               - 'rust-toolchain*'
               - 'scripts/ci/**'
+              - '.github/workflows/**'
 
   test:
     if: needs.changes.outputs.rust == 'true'
@@ -56,6 +57,11 @@ jobs:
             ${{ github.event.pull_request.base.sha }}:refs/remotes/origin/base
           echo "BASE_SHA=${{ github.event.pull_request.base.sha }}" >> $GITHUB_ENV
           echo "HEAD_SHA=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
+
+      - name: Verify nightly lanes pin nightly toolchain
+        run: |
+          python3 scripts/ci/check_toolchain_pins.py
+          python3 scripts/ci/test_toolchain_pins.py
 
       - uses: dtolnay/rust-toolchain@stable
         with:

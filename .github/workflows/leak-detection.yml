@@ -19,6 +19,9 @@ concurrency:
 
 env:
   RUST_BACKTRACE: 1
+  # Same rust-toolchain.toml override as fuzzing: this lane installs nightly
+  # and must not inherit the stable 1.98 pin.
+  RUSTUP_TOOLCHAIN: nightly
 
 jobs:
   leak-detection:
@@ -34,6 +37,8 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@nightly
         with:
+          # Explicit nightly: rust-toolchain.toml pins stable 1.98.
+          toolchain: nightly
           components: rust-src
 
       - uses: Swatinem/rust-cache@v2

@@ -52,6 +52,11 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # rust-toolchain.toml pins stable 1.98 for fmt parity; rustup directory
+  # overrides beat the default toolchain, so nightly-only fuzzing must opt
+  # out via the environment (an explicit dtolnay `toolchain:` alone is not
+  # enough inside this checkout).
+  RUSTUP_TOOLCHAIN: nightly
   FUZZ_SECONDS: ${{ github.event_name == 'pull_request' && '30' || inputs.fuzz_seconds || '300' }}
 
 jobs:
@@ -92,7 +97,11 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Install Rust toolchain
+        # Explicit nightly: rust-toolchain.toml pins stable 1.98 for fmt
+        # parity, so nightly-only lanes must not rely on the file default.
         uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly
 
       - name: Read pinned cargo-fuzz version
         id: pins

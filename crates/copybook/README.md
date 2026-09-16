@@ -20,26 +20,19 @@ use copybook::error;
 ```
 
 Each module re-exports the corresponding published component crate.
-Preferred paths are task/domain-shaped; deprecated aliases keep the 0.5
-surface compiling through the 0.6 migration window:
+All paths are task/domain-shaped; the 0.5 retired paths (`overflow`,
+`utils`) and the 0.6 compatibility aliases were removed in 0.7. The
+`docs/migration/` guides record each window:
 
 | Module | Component crate | Status |
 | --- | --- | --- |
 | `charset` | `copybook-charset` | preferred |
 | `codec` | `copybook-codec` | preferred |
-| `codepage` | `copybook-charset` | deprecated, use `charset` |
-| `contracts` | `copybook-core` | deprecated, use `core::feature_flags` |
 | `core` | `copybook-core` | preferred |
-| `determinism` | `copybook-codec` | deprecated, use `codec::determinism` |
 | `error` | `copybook-error` | preferred |
-| `fixed` | `copybook-fixed` | deprecated, use `framing::fixed` |
 | `framing` | `copybook-fixed` | preferred (fixed-length records) |
 | `framing` | `copybook-rdw` | preferred (RDW records) |
 | `governance` | `copybook-governance` | adapter (selected) |
-| `options` | `copybook-codec` | deprecated, use `codec::options` |
-| `overpunch` | `copybook-codec::numeric::overpunch` | deprecated, use `codec::numeric::overpunch` |
-| `rdw` | `copybook-rdw` | deprecated, use `framing::rdw` |
-| `record_io` | `copybook-codec` | deprecated, use `codec::record` |
 | `support_matrix` | `copybook-support-matrix` | contract (selected) |
 
 Retired 0.5 paths (`overflow`, `utils`) are gone: their behavior moved to
@@ -49,13 +42,10 @@ Use the component crates directly when you need the smallest possible dependency
 surface. Use `copybook` when you want the canonical project entrypoint and a
 single dependency over the public crate family.
 
-Use `copybook::charset` for new code. The `copybook::codepage` module remains
-available as a deprecated compatibility alias during the planned 0.6 migration
-window. The `copybook::options` module is also deprecated since 0.6.0; use
-`copybook::codec::options` for codec operation options. Record framing moved
-under `copybook::framing` (`fixed`, `rdw`); the flat modules are deprecated
-aliases. The installation example below uses the currently published 0.6
-release.
+Use `copybook::charset` for character conversion and
+`copybook::codec::options` for codec operation options. Record framing lives
+under `copybook::framing` (`fixed`, `rdw`). The installation example below
+uses the currently published 0.6 release.
 
 Add `copybook` in your `Cargo.toml`:
 

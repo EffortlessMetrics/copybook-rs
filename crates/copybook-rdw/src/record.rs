@@ -34,21 +34,6 @@ impl RDWRecord {
         Ok(Self { header, payload })
     }
 
-    /// Create a new RDW record from payload.
-    ///
-    /// # Panics
-    /// Panics when payload length exceeds `u16::MAX`.
-    #[deprecated(
-        since = "0.4.3",
-        note = "use try_new() instead for fallible construction"
-    )]
-    #[allow(clippy::expect_used)] // Intentional panic for deprecated API
-    #[inline]
-    #[must_use]
-    pub fn new(payload: Vec<u8>) -> Self {
-        Self::try_new(payload).expect("RDW payload exceeds maximum size (65535 bytes)")
-    }
-
     /// Create an RDW record preserving reserved bytes (fallible constructor).
     ///
     /// # Errors
@@ -58,22 +43,6 @@ impl RDWRecord {
     pub fn try_with_reserved(payload: Vec<u8>, reserved: u16) -> Result<Self> {
         let header = RdwHeader::from_payload_len(payload.len(), reserved)?.bytes();
         Ok(Self { header, payload })
-    }
-
-    /// Create an RDW record preserving reserved bytes.
-    ///
-    /// # Panics
-    /// Panics when payload length exceeds `u16::MAX`.
-    #[deprecated(
-        since = "0.4.3",
-        note = "use try_with_reserved() instead for fallible construction"
-    )]
-    #[allow(clippy::expect_used)] // Intentional panic for deprecated API
-    #[inline]
-    #[must_use]
-    pub fn with_reserved(payload: Vec<u8>, reserved: u16) -> Self {
-        Self::try_with_reserved(payload, reserved)
-            .expect("RDW payload exceeds maximum size (65535 bytes)")
     }
 
     /// Get payload length from header.
@@ -99,21 +68,6 @@ impl RDWRecord {
     pub fn try_recompute_length(&mut self) -> Result<()> {
         self.header = RdwHeader::from_payload_len(self.payload.len(), self.reserved())?.bytes();
         Ok(())
-    }
-
-    /// Recompute the header length field from payload length.
-    ///
-    /// # Panics
-    /// Panics when payload length exceeds `u16::MAX`.
-    #[deprecated(
-        since = "0.4.3",
-        note = "use try_recompute_length() instead for fallible operation"
-    )]
-    #[allow(clippy::expect_used)] // Intentional panic for deprecated API
-    #[inline]
-    pub fn recompute_length(&mut self) {
-        self.try_recompute_length()
-            .expect("RDW payload exceeds maximum size (65535 bytes)");
     }
 
     /// Serialize record as `header + payload`.

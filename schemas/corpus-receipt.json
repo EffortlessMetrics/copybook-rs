@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://copybook-rs.org/schemas/corpus-receipt.json",
+  "title": "Private Local Validation Receipt (0.7)",
+  "description": "Payload-free redacted receipt for running copybook-rs against files that cannot be committed (issue #952 Lane B). Hashes identify exact inputs; no record payload, raw field values, filenames, paths, or user identifiers are recorded.",
+  "type": "object",
+  "required": [
+    "receipt_schema_version",
+    "tool_version",
+    "build_commit",
+    "fixture_id",
+    "copybook_sha256",
+    "records_sha256",
+    "record_format",
+    "codepage",
+    "dialect",
+    "record_count",
+    "physical_bytes",
+    "status",
+    "deterministic",
+    "output_sha256",
+    "redaction"
+  ],
+  "properties": {
+    "receipt_schema_version": { "type": "string", "const": "0.7.0" },
+    "tool_version": { "type": "string" },
+    "build_commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "fixture_id": { "type": "string" },
+    "copybook_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "copybook_schema_fingerprint": { "type": ["string", "null"] },
+    "records_sha256": { "type": ["string", "null"] },
+    "record_format": { "type": "string", "enum": ["fixed", "rdw", "vb", "other"] },
+    "codepage": { "type": "string" },
+    "dialect": { "type": "string" },
+    "record_count": { "type": ["integer", "null"], "minimum": 0 },
+    "physical_bytes": { "type": ["integer", "null"], "minimum": 0 },
+    "status": { "type": "string", "enum": ["supported", "rejected", "tool-failure"] },
+    "stable_identity": { "type": ["string", "null"] },
+    "first_failure": { "type": ["string", "null"], "maxLength": 512 },
+    "deterministic": { "type": ["boolean", "null"] },
+    "round_trip": { "type": ["boolean", "null"] },
+    "output_sha256": { "type": ["string", "null"] },
+    "redaction": {
+      "type": "object",
+      "required": ["record_payload_excluded", "paths_redacted"],
+      "properties": {
+        "record_payload_excluded": { "type": "boolean", "const": true },
+        "paths_redacted": { "type": "boolean", "const": true }
+      }
+    },
+    "started_at": { "type": "string" },
+    "completed_at": { "type": "string" }
+  }
+}

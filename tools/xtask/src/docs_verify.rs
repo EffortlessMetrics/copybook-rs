@@ -2303,6 +2303,7 @@ const SCENARIO_LEDGER_LAYERS: [&str; 7] = [
 ];
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ScenarioLedger {
     schema_version: u32,
     scope: String,
@@ -2310,6 +2311,7 @@ struct ScenarioLedger {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ScenarioRow {
     scenario_id: String,
     feature_identity: String,
@@ -2333,6 +2335,7 @@ struct ScenarioRow {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct EvidenceAnchor {
     #[serde(default, rename = "ref")]
     reference: Option<String>,
@@ -2364,13 +2367,16 @@ fn scenario_layer<'a>(row: &'a ScenarioRow, layer: &str) -> &'a [EvidenceAnchor]
     }
 }
 
+fn load_scenario_ledger(path: &Path) -> Result<ScenarioLedger> {
+    let source = fs::read_to_string(path)
+        .with_context(|| format!("loading scenario ledger {}", path.display()))?;
+    toml::from_str(&source).with_context(|| format!("parsing {}", path.display()))
+}
+
 fn verify_scenario_ledger() -> Result<()> {
     let root = workspace_root();
     let path = root.join(SCENARIO_LEDGER_PATH);
-    let source = fs::read_to_string(&path)
-        .with_context(|| format!("loading scenario ledger {}", path.display()))?;
-    let ledger: ScenarioLedger =
-        toml::from_str(&source).with_context(|| format!("parsing {}", path.display()))?;
+    let ledger = load_scenario_ledger(&path)?;
     if ledger.schema_version != 1 {
         bail!(
             "unsupported scenario ledger schema version {}",
@@ -2454,6 +2460,7 @@ fn validate_scenario_row(
 ) -> Result<()> {
     let id = row.scenario_id.as_str();
     validate_scenario_enums(id, row)?;
+    validate_feature_identity(id, &row.feature_identity)?;
     let has_na = validate_scenario_layers(root, id, row)?;
     validate_scenario_metadata(id, row, has_na)?;
     if matches!(row.support_status.as_str(), "rejected" | "non_goal") {
@@ -2528,6 +2535,18 @@ fn validate_scenario_enums(id: &str, row: &ScenarioRow) -> Result<()> {
         bail!(
             "scenario `{id}` has unknown worker applicability `{}`; expected single|parallel|both|not_applicable",
             row.worker_applicability
+        );
+    }
+    Ok(())
+}
+
+fn validate_feature_identity(id: &str, feature_identity: &str) -> Result<()> {
+    if feature_identity == "none" {
+        return Ok(());
+    }
+    if copybook_core::support_matrix::find_feature(feature_identity).is_none() {
+        bail!(
+            "scenario `{id}` names unknown support-matrix feature `{feature_identity}`; expected a support-matrix feature ID or `none` | repair: use a feature ID from crates/copybook-support-matrix or `none` with a reason"
         );
     }
     Ok(())
@@ -4668,7 +4687,7 @@ CBK999_OUTSIDE,
     }
 
     #[test]
-    fn scenario_ledger_accepts_valid_row() {
+    fn parsing_scenario_ledger_accepts_valid_row() {
         let (temp, row) = scenario_row_fixture();
         let (codes, pipeline) = scenario_registries();
         let ids = BTreeSet::from(["test.row".to_string()]);
@@ -4676,7 +4695,7 @@ CBK999_OUTSIDE,
     }
 
     #[test]
-    fn scenario_ledger_rejects_duplicate_ids() {
+    fn parsing_scenario_ledger_rejects_duplicate_ids() {
         let (temp, row) = scenario_row_fixture();
         let second_id = row.scenario_id.clone();
         let ledger = ScenarioLedger {
@@ -4697,7 +4716,7 @@ CBK999_OUTSIDE,
     }
 
     #[test]
-    fn scenario_ledger_rejects_missing_anchor() {
+    fn parsing_scenario_ledger_rejects_missing_anchor() {
         let (temp, mut row) = scenario_row_fixture();
         row.parse_evidence[0].reference = Some("t.rs::absent".to_string());
         let (codes, pipeline) = scenario_registries();
@@ -4708,7 +4727,7 @@ CBK999_OUTSIDE,
     }
 
     #[test]
-    fn scenario_ledger_rejects_empty_layer() {
+    fn parsing_scenario_ledger_rejects_empty_layer() {
         let (temp, mut row) = scenario_row_fixture();
         row.decode_evidence = Vec::new();
         let (codes, pipeline) = scenario_registries();
@@ -4719,7 +4738,7 @@ CBK999_OUTSIDE,
     }
 
     #[test]
-    fn scenario_ledger_rejects_unknown_status() {
+    fn parsing_scenario_ledger_rejects_unknown_status() {
         let (temp, mut row) = scenario_row_fixture();
         row.support_status = "almighty".to_string();
         let (codes, pipeline) = scenario_registries();
@@ -4728,7 +4747,7 @@ CBK999_OUTSIDE,
     }
 
     #[test]
-    fn scenario_ledger_rejects_rejection_without_identity() {
+    fn parsing_scenario_ledger_rejects_rejection_without_identity() {
         let (temp, mut row) = scenario_row_fixture();
         row.support_status = "rejected".to_string();
         let (codes, pipeline) = scenario_registries();
@@ -4739,7 +4758,7 @@ CBK999_OUTSIDE,
     }
 
     #[test]
-    fn scenario_ledger_rejects_bad_sha() {
+    fn parsing_scenario_ledger_rejects_bad_sha() {
         let (temp, mut row) = scenario_row_fixture();
         row.last_verified_full_sha = "2cde1ed".to_string();
         let (codes, pipeline) = scenario_registries();
@@ -4748,11 +4767,67 @@ CBK999_OUTSIDE,
     }
 
     #[test]
-    fn scenario_ledger_rejects_unknown_relationship() {
+    fn parsing_scenario_ledger_rejects_unknown_relationship() {
         let (temp, mut row) = scenario_row_fixture();
         row.shared_evidence_relationships = vec!["ledger:nope".to_string()];
         let (codes, pipeline) = scenario_registries();
         let ids = BTreeSet::from(["test.row".to_string()]);
         assert!(validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline).is_err());
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_unknown_feature_identity() {
+        let (temp, mut row) = scenario_row_fixture();
+        row.feature_identity = "dialect".to_string();
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect_err("unknown feature identity must fail");
+        assert!(
+            err.to_string().contains("unknown support-matrix feature"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_unknown_fields() {
+        let source = r#"
+schema_version = 1
+scope = "scenario-ledger"
+
+[[scenarios]]
+scenario_id = "test.row"
+feature_identity = "none"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["parse"]
+bogus_field = "must be rejected"
+parse_evidence = [{ ref = "t.rs::works", kind = "direct" }]
+layout_evidence = [{ kind = "not_applicable", reason = "x" }]
+decode_evidence = [{ kind = "not_applicable", reason = "x" }]
+encode_evidence = [{ kind = "not_applicable", reason = "x" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "x" }]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "x" }]
+cli_evidence = [{ kind = "not_applicable", reason = "x" }]
+fixed_rdw_vb_applicability = ["fixed"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "fixture"
+shared_evidence_relationships = []
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+"#;
+        let err = toml::from_str::<ScenarioLedger>(source)
+            .expect_err("unknown ledger fields must fail to parse");
+        assert!(err.to_string().contains("bogus_field"), "{err}");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_missing_ledger_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let missing = temp.path().join("absent-ledger.toml");
+        let err =
+            load_scenario_ledger(&missing).expect_err("missing ledger file must fail to load");
+        assert!(err.to_string().contains("loading scenario ledger"), "{err}");
     }
 }

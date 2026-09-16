@@ -93,7 +93,7 @@ fn usage() {
          docs verify-all                     Verify all source-of-truth documentation invariants\n\
          docs verify-record-pipeline         Verify fixed/RDW evidence registry anchors\n\
          docs sync-record-pipeline           Refresh the fixed/RDW evidence content digest\n\
-         docs verify-stable-errors            Verify stable error taxonomy registry\
+         docs verify-stable-errors            Verify stable error taxonomy registry\n\
          docs verify-scenario-ledger          Verify scenario ledger anchors and row contract\n\
          docs freeze contracts               Verify freeze-sensitive contracts (strict, API surface contract guard)\n\
          docs contracts generate             Regenerate stable contract manifest baseline\n\

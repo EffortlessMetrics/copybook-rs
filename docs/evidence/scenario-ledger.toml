@@ -198,7 +198,7 @@ stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "Link row only; behavior detail lives in the dialect lever contract, never duplicated here."
 shared_evidence_relationships = []
 
-last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+last_verified_full_sha = "e1279bf79d5940e57815ee3dc040e5526c9658bd"
 
 [[scenarios]]
 scenario_id = "struct.redefines.scalar"
@@ -569,7 +569,7 @@ stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "Value-mismatch behavior pinned; the exact stable identity for dangling condition references is pending #576."
 shared_evidence_relationships = []
 
-last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+last_verified_full_sha = "e1279bf79d5940e57815ee3dc040e5526c9658bd"
 
 [[scenarios]]
 scenario_id = "struct.level88.projection_alias"

@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   check:
-    name: Rust 1.95 — ${{ matrix.label }}
+    name: Rust 1.98 — ${{ matrix.label }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -58,7 +58,7 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.95.0
+          toolchain: 1.98.0
       - name: Install Kafka system dependencies
         if: matrix.kafka_system_deps
         run: |

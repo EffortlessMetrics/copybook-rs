@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="https://doc.rust-lang.org/cargo/reference/manifest.html#the-rust-version-field"><img src="https://img.shields.io/badge/MSRV-1.95-blue.svg" alt="MSRV 1.95" /></a>
+  <a href="https://doc.rust-lang.org/cargo/reference/manifest.html#the-rust-version-field"><img src="https://img.shields.io/badge/MSRV-1.98-blue.svg" alt="MSRV 1.98" /></a>
   <a href="#license"><img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg" alt="License: AGPL-3.0-or-later" /></a>
 </p>
 
@@ -38,7 +38,7 @@ one copybook
 
 ## Prerequisites
 
-- **Rust ≥ 1.95** (2024 edition). Check with `rustc --version`; update with `rustup update stable`.
+- **Rust ≥ 1.98** (2024 edition). Check with `rustc --version`; update with `rustup update stable`.
 - A COBOL copybook (`.cpy`) and a fixed-length or RDW record file. No mainframe access needed.
 
 ## The first useful run

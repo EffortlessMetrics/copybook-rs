@@ -7,10 +7,10 @@
         "component": "rust_version",
         "status": "pass",
         "icon": "✅",
-        "message": "Rust version: 1.95.0",
+        "message": "Rust version: 1.98.0",
         "details": {
-          "installed": "1.95.0",
-          "required": "1.95.0",
+          "installed": "1.98.0",
+          "required": "1.98.0",
           "toolchain": "stable"
         }
       },

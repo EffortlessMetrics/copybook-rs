@@ -41,7 +41,7 @@ datasets and scheduling require separate #776 follow-up work.
    - Consistent power settings (performance mode recommended)
 
 2. **Required Tools**:
-   - Rust 1.95+ toolchain
+   - Rust 1.98+ toolchain
    - Cargo with release profile configuration
    - Criterion benchmark harness (v0.7+)
    - `bench-report` CLI tool (copybook-bench package)

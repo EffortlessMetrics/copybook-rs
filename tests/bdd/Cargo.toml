@@ -33,6 +33,7 @@ copybook-audit.workspace = true
 copybook-fixed.workspace = true
 copybook-rdw.workspace = true
 copybook-governance.workspace = true
+copybook-support-matrix.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true

@@ -173,3 +173,149 @@ fn support_check_partial_feature_exits_nonzero_nested_odo() {
     assert!(stderr.contains("not fully supported"));
     assert!(stderr.contains("partial"));
 }
+
+fn write_advise_copybook(contents: &str) -> tempfile::NamedTempFile {
+    let file = tempfile::NamedTempFile::with_suffix(".cpy").expect("temp copybook");
+    std::fs::write(file.path(), contents).expect("write temp copybook");
+    file
+}
+
+const TAIL_ODO_COPYBOOK: &str = "       01 TAIL.\n           05 CNT PIC 9(2).\n           05 DATA PIC X(4) OCCURS 0 TO 4 DEPENDING ON CNT.\n";
+const NON_TAIL_ODO_COPYBOOK: &str = "       01 NON-TAIL.\n           05 A PIC X.\n           05 TBL PIC X OCCURS 0 TO 3 DEPENDING ON N.\n           05 B PIC X.\n           05 N PIC 9(2).\n";
+
+#[test]
+fn support_advise_tail_odo_exits_zero() {
+    let copybook = write_advise_copybook(TAIL_ODO_COPYBOOK);
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args(["support", "--advise", &copybook.path().to_string_lossy()])
+        .output()
+        .expect("failed to execute command");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Advisory verdict: supported"));
+    assert!(stdout.contains("struct.odo.tail_fixed"));
+}
+
+#[test]
+fn support_advise_json_invalid_for_non_tail_odo() {
+    // Non-tail ODO never parses (CBKP021), so advise reports invalid input
+    // with the actionable parse identity in `next_action`; the domain-level
+    // `rejected` mapping stays pinned by domain and BDD tests.
+    let copybook = write_advise_copybook(NON_TAIL_ODO_COPYBOOK);
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args([
+            "support",
+            "--advise",
+            &copybook.path().to_string_lossy(),
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("failed to execute command");
+
+    assert_eq!(output.status.code(), Some(3));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .expect("support --advise --format json should emit valid JSON");
+    assert_eq!(value["verdict"], "invalid-input");
+    assert_eq!(value["schema_version"], "0.7.0-beta.1");
+    assert!(
+        value["scenarios"][0]["next_action"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("CBKP021_ODO_NOT_TAIL"),
+        "expected CBKP021 identity in next_action, got: {value}"
+    );
+}
+
+#[test]
+fn support_advise_invalid_copybook_reports_invalid_input() {
+    let copybook = write_advise_copybook("THIS DOES NOT LOOK LIKE\n");
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args([
+            "support",
+            "--advise",
+            &copybook.path().to_string_lossy(),
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("failed to execute command");
+
+    assert_eq!(output.status.code(), Some(3));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .expect("support --advise --format json should emit valid JSON");
+    assert_eq!(value["verdict"], "invalid-input");
+}
+
+#[test]
+fn support_advise_missing_file_is_typed_error() {
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args(["support", "--advise", "/nonexistent/path/no-such.cpy"])
+        .output()
+        .expect("failed to execute command");
+
+    assert_eq!(output.status.code(), Some(4));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("CBKF001"));
+}
+
+#[test]
+fn support_advise_renames_reports_supported_with_limits() {
+    let copybook = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/copybooks/renames_r4_redefines.cpy");
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args([
+            "support",
+            "--advise",
+            &copybook.to_string_lossy(),
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("failed to execute command");
+
+    assert_eq!(output.status.code(), Some(3));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .expect("support --advise --format json should emit valid JSON");
+    assert_eq!(value["verdict"], "supported-with-limits");
+    assert!(
+        value["scenarios"]
+            .as_array()
+            .unwrap_or(&vec![])
+            .iter()
+            .any(|s| s["scenario_id"] == "struct.renames.r1_r3"),
+        "expected renames scenario, got: {value}"
+    );
+}
+
+#[test]
+fn support_advise_vb_format_flows_into_effective_options() {
+    let copybook = write_advise_copybook(TAIL_ODO_COPYBOOK);
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args([
+            "support",
+            "--advise",
+            &copybook.path().to_string_lossy(),
+            "--record-format",
+            "vb",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("failed to execute command");
+
+    assert!(output.status.success());
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .expect("support --advise --format json should emit valid JSON");
+    assert_eq!(value["verdict"], "supported");
+    assert_eq!(value["effective_options"]["format"], "vb");
+    assert!(
+        value["scenarios"]
+            .as_array()
+            .unwrap_or(&vec![])
+            .iter()
+            .all(|s| s["record_formats"] == serde_json::json!(["vb"])),
+        "expected vb record format on every scenario, got: {value}"
+    );
+}

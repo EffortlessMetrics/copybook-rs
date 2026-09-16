@@ -192,3 +192,67 @@ async fn then_runtime_enabled_counts(
         usize::try_from(expected_disabled).expect("Expected disabled count should be non-negative")
     );
 }
+
+#[when(expr = "an advise evaluation runs for {string} construct")]
+async fn advise_runs_for_construct(world: &mut CopybookWorld, construct: String) {
+    use copybook_support_matrix::advise::{
+        AdviseConstruct, AdviseInput, ConstructKind, EffectiveOptions, analyze,
+    };
+    let (constructs, parse_error) = match construct.as_str() {
+        "tail-ODO" => (
+            vec![AdviseConstruct::bounded(
+                ConstructKind::OccursDepending,
+                "DATA OCCURS DEPENDING ON CNT",
+                None,
+            )],
+            None,
+        ),
+        "non-tail-ODO" => (
+            vec![AdviseConstruct::bounded(
+                ConstructKind::NonTailOdo,
+                "TBL OCCURS DEPENDING ON N",
+                None,
+            )],
+            None,
+        ),
+        "level-88" => (
+            vec![AdviseConstruct::bounded(
+                ConstructKind::Level88,
+                "IS-YES VALUE 'Y'",
+                None,
+            )],
+            None,
+        ),
+        "unparsable" => (vec![], Some("syntax error at line 1".to_string())),
+        _ => (
+            vec![AdviseConstruct::bounded(
+                ConstructKind::Unmapped,
+                "future construct",
+                None,
+            )],
+            None,
+        ),
+    };
+    let input = AdviseInput::bounded(
+        constructs,
+        parse_error,
+        EffectiveOptions::bounded("fixed", "ascii", "normative"),
+        "copybook-bdd",
+    );
+    let result = analyze(&input);
+    let verdict = serde_json::to_value(result.verdict)
+        .expect("verdict serializes to JSON")
+        .as_str()
+        .expect("verdict serializes to kebab-case string")
+        .to_owned();
+    world.verify_report = Some(verdict);
+}
+
+#[then(expr = "the advisory verdict should be {string}")]
+async fn advise_verdict(world: &mut CopybookWorld, verdict: String) {
+    let actual = world
+        .verify_report
+        .as_ref()
+        .expect("advise evaluation should have run");
+    assert_eq!(actual, &verdict);
+}

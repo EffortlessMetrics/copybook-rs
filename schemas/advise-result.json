@@ -1,0 +1,138 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://copybook-rs.org/schemas/advise-result.json",
+  "title": "Advisory Diagnostic Result (beta)",
+  "description": "Machine projection of copybook-support-matrix::advise::AdviseResult. Beta for 0.7: automation must match schema_version exactly, never parse human prose.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "stability_class",
+    "verdict",
+    "effective_options",
+    "scenarios",
+    "truncation",
+    "redaction",
+    "tool_version"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.7.0-beta.1"
+    },
+    "stability_class": {
+      "type": "string",
+      "const": "beta"
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "supported-with-limits",
+        "beta",
+        "partial-unknown",
+        "rejected",
+        "invalid-input",
+        "tool-failure"
+      ]
+    },
+    "copybook_fingerprint": {
+      "type": ["string", "null"]
+    },
+    "source_fingerprint": {
+      "type": ["string", "null"]
+    },
+    "effective_options": {
+      "type": "object",
+      "required": ["format", "codepage", "dialect"],
+      "properties": {
+        "format": { "type": "string" },
+        "codepage": { "type": "string" },
+        "dialect": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "scenarios": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "required": [
+          "scenario_id",
+          "status",
+          "stability_class",
+          "affected_layers",
+          "record_formats",
+          "codepages",
+          "evidence_refs",
+          "limitation_or_remediation",
+          "next_action"
+        ],
+        "properties": {
+          "scenario_id": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "limited",
+              "beta",
+              "unknown",
+              "rejected",
+              "invalid",
+              "tool-failure",
+              "not-applicable"
+            ]
+          },
+          "stability_class": { "type": "string" },
+          "affected_layers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["parse", "layout", "decode", "encode", "round-trip", "cli"]
+            }
+          },
+          "record_formats": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "codepages": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "error_identity": {
+            "type": ["string", "null"]
+          },
+          "evidence_refs": {
+            "type": "array",
+            "maxItems": 8,
+            "items": { "type": "string" }
+          },
+          "limitation_or_remediation": { "type": "string" },
+          "next_action": { "type": "string", "maxLength": 512 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "truncation": {
+      "type": "object",
+      "required": ["scenarios_considered", "scenarios_reported", "evidence_dropped"],
+      "properties": {
+        "scenarios_considered": { "type": "integer", "minimum": 0 },
+        "scenarios_reported": { "type": "integer", "minimum": 0 },
+        "evidence_dropped": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "redaction": {
+      "type": "object",
+      "required": ["record_payload_excluded", "source_excerpts_enabled", "paths_redacted"],
+      "properties": {
+        "record_payload_excluded": { "type": "boolean" },
+        "source_excerpts_enabled": { "type": "boolean" },
+        "paths_redacted": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "tool_version": { "type": "string" }
+  },
+  "additionalProperties": false
+}

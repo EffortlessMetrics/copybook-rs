@@ -1,5 +1,0 @@
-kind: added
-body: '**evidence**: EBCDIC worker-determinism test across all supported codepages
-  (#573); codepage support rows now link exact matrix test functions; #946
-  commercial-relicensing audit receipt committed under `docs/reports/`.'
-time: '2026-09-17T03:15:00Z'

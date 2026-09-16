@@ -46,11 +46,11 @@ one copybook
 Install the CLI from crates.io and decode an EBCDIC file to JSON:
 
 ```bash
-cargo install copybook-cli@0.7.1 --locked
+cargo install copybook-cli@0.8.0 --locked
 
 # Fetch the example fixtures (or use your own copybook + data)
-curl -LO https://github.com/EffortlessMetrics/copybook-rs/raw/v0.7.1/fixtures/copybooks/simple.cpy
-curl -LO https://github.com/EffortlessMetrics/copybook-rs/raw/v0.7.1/fixtures/data/simple.bin
+curl -LO https://github.com/EffortlessMetrics/copybook-rs/raw/v0.8.0/fixtures/copybooks/simple.cpy
+curl -LO https://github.com/EffortlessMetrics/copybook-rs/raw/v0.8.0/fixtures/data/simple.bin
 
 # Decode EBCDIC fixture to JSON
 copybook decode simple.cpy simple.bin \
@@ -79,7 +79,7 @@ For Rust library use, depend on the canonical facade:
 
 ```toml
 [dependencies]
-copybook = "=0.7.1"
+copybook = "=0.8.0"
 ```
 
 ```rust
@@ -90,12 +90,12 @@ use copybook::codec::{decode_record, DecodeOptions};
 (`copybook-rs` is a redirect/search alias for the same API; `copybook-core` /
 `copybook-codec` remain available as intentional granular crates.)
 
-To build from source instead, clone the repo, `git checkout v0.7.1`, and
+To build from source instead, clone the repo, `git checkout v0.8.0`, and
 `cargo build --release`; the binary is `./target/release/copybook`.
 
 ## Status
 
-Engineering Preview (v0.7.1). Stable CLI and library APIs; feature completeness
+Engineering Preview (v0.8.0). Stable CLI and library APIs; feature completeness
 is preview-level. See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and
 known limitations.
 

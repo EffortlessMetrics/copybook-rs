@@ -77,7 +77,7 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "copybook-charset"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "copybook-error",
  "serde",
@@ -86,7 +86,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-codec"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "base64",
  "blake3",
@@ -107,7 +107,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-core"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "copybook-error",
  "copybook-support-matrix",
@@ -122,7 +122,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-error"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "serde",
  "thiserror",
@@ -130,7 +130,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-fixed"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "copybook-error",
  "tracing",
@@ -154,7 +154,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-governance"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "copybook-core",
  "copybook-support-matrix",
@@ -163,7 +163,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-rdw"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "copybook-error",
  "tracing",
@@ -171,14 +171,14 @@ dependencies = [
 
 [[package]]
 name = "copybook-record-io"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "copybook-codec",
 ]
 
 [[package]]
 name = "copybook-support-matrix"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "serde",
  "serde_json",

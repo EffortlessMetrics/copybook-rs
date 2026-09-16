@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Roadmap
 
-**Status**: Engineering Preview (v0.7.1)
+**Status**: Engineering Preview (v0.8.0)
 **Release target**: v1.0.0 after the product-readiness gates below pass; there is no calendar-only release promise.
 **Program tracker**: [#535 — v1 Product Readiness](https://github.com/EffortlessMetrics/copybook-rs/issues/535)
 
@@ -331,7 +331,7 @@ freeze clock before the ledger reconciliation (item 5) is complete.
 
 ## Planned releases
 
-- **v0.6.1** (previous Engineering Preview, superseded by the 0.7.0 train
+- **v0.6.1** (previous release, superseded by the 0.7.0 train
   above): canonical-fingerprint patch —
   `verify --report` now emits the same SHA-256 `schema_fingerprint` as codec
   metadata, canonical fingerprints are fixed-width 64-hex, an additive
@@ -349,11 +349,16 @@ freeze clock before the ledger reconciliation (item 5) is complete.
   the adoption-hardening scope in the immediate execution order above. No
   calendar promise; scope is set by coordinator #948 under the `v0.7.0`
   milestone.
-- **v0.7.1** (planned): strictly non-breaking patch — `support --advise`
+- **v0.7.1** (shipped 2026-09-16): strictly non-breaking patch — `support --advise`
   contract graduates from beta (`0.7.0-beta.1`) to stable (`1.0`) with no
   shape change, plus the 0.7 status narrative and release-lane devex fixes
   (truth budget, local evidence policy, changelog curation docs).
   Coordinated under #975.
+- **v0.8.0** (this release): "trust and velocity" — release-lane hill-climbs
+  (`just preflight`, pinned 1.98 toolchain, fragment gate, CI-evidenced
+  runbook), #553 graduation dispositions for audit/governance/Arrow/Kafka,
+  codepage/numeric evidence close-out (#571, #573), and the #946
+  commercial-relicensing audit receipt. Strictly non-breaking.
 
 ## History
 

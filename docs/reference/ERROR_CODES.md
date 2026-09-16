@@ -703,6 +703,52 @@ RDW length: 50 bytes
 Minimum required: 120 bytes
 ```
 
+#### CBKF222_BDW_LENGTH_INVALID
+**Description**: BDW block length is zero, below the 4-byte header minimum, or above the 32760-byte maximum (beta: VB/BDW framing)
+**Severity**: Error (lenient), Fatal (strict)
+**Context**: Block index, physical byte offset, claimed versus valid block length
+**Resolution**: Check binary transfer mode, verify VB block boundaries, re-run with `--emit-raw` to inspect the truncated block
+
+```
+Error: CBKF222_BDW_LENGTH_INVALID at block 3
+Block length: 2 bytes (valid 4..=32760)
+```
+
+#### CBKF223_BDW_UNDERFLOW
+**Description**: BDW-declared block content or a nested RDW header is truncated (beta: VB/BDW framing)
+**Severity**: Error (lenient), Fatal (strict)
+**Context**: Block index, physical byte offset, claimed versus available bytes
+**Resolution**: Check data integrity or record format
+
+```
+Error: CBKF223_BDW_UNDERFLOW at block 3
+Block declares: 200 bytes
+Available: 17 bytes (file truncated inside VB block)
+```
+
+#### CBKF224_RDW_BEYOND_BLOCK
+**Description**: A nested RDW length extends beyond its containing BDW block (beta: VB/BDW framing)
+**Severity**: Error (lenient), Fatal (strict)
+**Context**: Block index, record index within block, RDW length versus remaining block bytes
+**Resolution**: Check data integrity; the block is corrupt or not a VB block
+
+```
+Error: CBKF224_RDW_BEYOND_BLOCK at block 1 record 2
+RDW length: 300 bytes
+Block remaining: 40 bytes
+```
+
+#### CBKF225_BDW_RESERVED_NONZERO
+**Description**: BDW reserved bytes are non-zero (beta: VB/BDW framing)
+**Severity**: Warning (lenient), Fatal (strict)
+**Context**: Block index, physical byte offset, reserved bytes value
+**Resolution**: Check for data corruption or use --emit-raw
+
+```
+Warning: CBKF225_BDW_RESERVED_NONZERO at block 1
+Reserved bytes: 0x1234 (expected 0x0000)
+```
+
 ### Audit Errors (CBKA*)
 
 Errors in performance and compliance audit operations.
@@ -930,7 +976,7 @@ The complete command-level table, including `CBK?` and command-specific
 
 ## Error Code Index
 
-All 66 stable error codes across 10 families:
+All 70 stable error codes across 10 families:
 
 | Code | Category | Severity | Description |
 |------|----------|----------|-------------|
@@ -994,6 +1040,10 @@ All 66 stable error codes across 10 families:
 | CBKF102 | File | Fatal | RDW length invalid |
 | CBKF104 | File | Warning | RDW suspect ASCII |
 | CBKF221 | File | Fatal | RDW underflow |
+| CBKF222 | File | Error (lenient), Fatal (strict) | BDW block length invalid (beta) |
+| CBKF223 | File | Error (lenient), Fatal (strict) | BDW block underflow (beta) |
+| CBKF224 | File | Error (lenient), Fatal (strict) | Nested RDW escapes BDW block (beta) |
+| CBKF225 | File | Warning (lenient), Fatal (strict) | BDW reserved bytes non-zero (beta) |
 | CBKA001 | Audit | Error | Performance baseline error |
 | CBKW001 | Arrow/Writer | Error | Arrow schema conversion failed |
 | CBKW002 | Arrow/Writer | Error | No Arrow type mapping for field kind |

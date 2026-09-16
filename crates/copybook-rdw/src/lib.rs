@@ -9,7 +9,12 @@
 //! (2-byte big-endian payload length + 2 reserved bytes). Use [`RDWRecordReader`]
 //! and [`RDWRecordWriter`] for streaming record I/O, or the lower-level helpers
 //! ([`rdw_read_len`], [`rdw_slice_body`]) for custom framing.
+//!
+//! Variable-blocked (VB) datasets group RDW records into BDW blocks; see
+//! [`VbBlockReader`] and [`VbBlockWriter`]. Inside a block, RDW lengths
+//! include their own header (mainframe LL convention).
 
+mod bdw;
 mod buffer;
 pub mod diagnostics;
 mod header;
@@ -17,6 +22,10 @@ mod reader;
 mod record;
 mod writer;
 
+pub use bdw::{
+    BDW_HEADER_LEN, BDW_MAX_BLOCK_LEN, BdwHeader, VB_MAX_RECORD_LEN, VbBlockReader, VbBlockWriter,
+    VbRecord,
+};
 pub use buffer::{rdw_read_len, rdw_slice_body, rdw_try_peek_len, rdw_validate_and_finish};
 pub use diagnostics::{detect_rdw_ascii_corruption, rdw_is_suspect_ascii_corruption};
 pub use header::{RdwHeader, rdw_payload_len_to_u16};

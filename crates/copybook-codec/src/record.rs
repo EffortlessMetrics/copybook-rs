@@ -6,6 +6,7 @@
 //! facade; the implementation lives in [`crate::file::dispatch`].
 
 pub use crate::file::dispatch::{
-    FixedRecordReader, FixedRecordWriter, RDWRecord, RDWRecordReader, RDWRecordWriter,
-    read_rdw_record, read_record, write_record,
+    BDW_HEADER_LEN, BDW_MAX_BLOCK_LEN, BdwHeader, FixedRecordReader, FixedRecordWriter,
+    RDW_HEADER_LEN, RDWRecord, RDWRecordReader, RDWRecordWriter, VB_MAX_RECORD_LEN, VbBlockReader,
+    VbBlockWriter, VbRecord, read_rdw_record, read_record, write_record,
 };

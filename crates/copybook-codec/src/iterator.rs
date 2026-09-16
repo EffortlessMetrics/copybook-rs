@@ -214,7 +214,7 @@
 use crate::lib_api::decode_record_with_raw_data;
 use crate::options::{DecodeOptions, RecordFormat};
 use copybook_core::{Error, ErrorCode, ErrorContext, Result, Schema};
-use copybook_rdw::RdwHeader;
+use copybook_rdw::{RdwHeader, VbBlockReader};
 use serde_json::Value;
 use std::io::{BufReader, Read};
 
@@ -294,9 +294,17 @@ fn fill_at_record_boundary<R: Read>(
 /// # Ok(())
 /// # }
 /// ```
+/// Byte-source framing for [`RecordIterator`]: a plain buffered stream for
+/// fixed/RDW records, or a bounded VB block reader.
+#[derive(Debug)]
+enum FramingInput<R: Read> {
+    Stream(BufReader<R>),
+    Blocks(VbBlockReader<R>),
+}
+
 pub struct RecordIterator<R: Read> {
-    /// The buffered reader
-    reader: BufReader<R>,
+    /// The buffered reader or VB block reader
+    input: FramingInput<R>,
     /// The schema for decoding records
     schema: Schema,
     /// Decoding options
@@ -325,8 +333,13 @@ impl<R: Read> RecordIterator<R> {
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
+        let input = if options.format == RecordFormat::Vb {
+            FramingInput::Blocks(VbBlockReader::new(reader, options.strict_mode))
+        } else {
+            FramingInput::Stream(BufReader::new(reader))
+        };
         Ok(Self {
-            reader: BufReader::new(reader),
+            input,
             schema: schema.clone(),
             options: options.clone(),
             record_index: 0,
@@ -367,9 +380,9 @@ impl<R: Read> RecordIterator<R> {
         &self.options
     }
 
-    fn next_record_context(&self, details: String) -> ErrorContext {
+    fn record_context_for(record_index: u64, details: String) -> ErrorContext {
         ErrorContext {
-            record_index: Some(self.record_index + 1),
+            record_index: Some(record_index + 1),
             field_path: None,
             byte_offset: None,
             line_number: None,
@@ -377,15 +390,22 @@ impl<R: Read> RecordIterator<R> {
         }
     }
 
-    fn rdw_header_read_error(&self, error: &std::io::Error) -> Error {
+    fn rdw_header_read_error_for(record_index: u64, error: &std::io::Error) -> Error {
         Error::new(
             ErrorCode::CBKR201_RDW_READ_ERROR,
             format!("Failed to read RDW header: {error}"),
         )
-        .with_context(self.next_record_context("I/O failure while reading RDW header".to_string()))
+        .with_context(Self::record_context_for(
+            record_index,
+            "I/O failure while reading RDW header".to_string(),
+        ))
     }
 
-    fn rdw_payload_read_error(&self, error: &std::io::Error, length: usize) -> Error {
+    fn rdw_payload_read_error_for(
+        record_index: u64,
+        error: &std::io::Error,
+        length: usize,
+    ) -> Error {
         let (code, details) = if error.kind() == std::io::ErrorKind::UnexpectedEof {
             (
                 ErrorCode::CBKF221_RDW_UNDERFLOW,
@@ -398,7 +418,7 @@ impl<R: Read> RecordIterator<R> {
             )
         };
         Error::new(code, format!("Failed to read RDW payload: {error}"))
-            .with_context(self.next_record_context(details))
+            .with_context(Self::record_context_for(record_index, details))
     }
 
     /// Read the next record without decoding it
@@ -460,12 +480,25 @@ impl<R: Read> RecordIterator<R> {
         self.buffer.clear();
         self.raw_data_with_header = None;
 
+        if self.options.format == RecordFormat::Vb {
+            return self.read_vb_record();
+        }
+        let reader = match &mut self.input {
+            FramingInput::Stream(reader) => reader,
+            FramingInput::Blocks(_) => {
+                return Err(Error::new(
+                    ErrorCode::CBKI001_INVALID_STATE,
+                    "VB block reader active for fixed/RDW decode",
+                ));
+            }
+        };
+
         let record_data = match self.options.format {
             RecordFormat::Fixed => {
                 let lrecl = crate::file::fixed::lrecl(&self.schema)? as usize;
                 self.buffer.resize(lrecl, 0);
 
-                match fill_at_record_boundary(&mut self.reader, &mut self.buffer) {
+                match fill_at_record_boundary(reader, &mut self.buffer) {
                     Ok(BoundaryRead::Complete) => {
                         self.record_index += 1;
                         Some(self.buffer.clone())
@@ -498,58 +531,112 @@ impl<R: Read> RecordIterator<R> {
                     }
                 }
             }
-            RecordFormat::RDW => {
-                // Read RDW header
-                let mut rdw_header = [0u8; 4];
-                match fill_at_record_boundary(&mut self.reader, &mut rdw_header) {
-                    Ok(BoundaryRead::Complete) => {}
-                    Ok(BoundaryRead::CleanEof) => {
-                        self.eof_reached = true;
-                        return Ok(None);
-                    }
-                    Ok(BoundaryRead::Partial(read)) => {
-                        self.eof_reached = true;
-                        return Err(Error::new(
-                            ErrorCode::CBKF221_RDW_UNDERFLOW,
-                            "Incomplete RDW header at end of file: expected 4 bytes".to_string(),
-                        )
-                        .with_context(ErrorContext {
-                            record_index: Some(self.record_index + 1),
-                            field_path: None,
-                            byte_offset: None,
-                            line_number: None,
-                            details: Some(format!(
-                                "File ends with partial RDW header ({read} of 4 bytes)"
-                            )),
-                        }));
-                    }
-                    Err(e) => {
-                        return Err(self.rdw_header_read_error(&e));
-                    }
-                }
-
-                // Parse length (payload bytes only)
-                let length = usize::from(RdwHeader::from_bytes(rdw_header).length());
-
-                // Read payload
-                self.buffer.resize(length, 0);
-                match self.reader.read_exact(&mut self.buffer) {
-                    Ok(()) => {
-                        let mut raw_data_with_header = Vec::with_capacity(4 + length);
-                        raw_data_with_header.extend_from_slice(&rdw_header);
-                        raw_data_with_header.extend_from_slice(&self.buffer);
-                        self.raw_data_with_header = Some(raw_data_with_header);
-                        self.record_index += 1;
-                        Some(self.buffer.clone())
-                    }
-                    Err(e) => {
-                        return Err(self.rdw_payload_read_error(&e, length));
-                    }
-                }
+            RecordFormat::RDW => Self::read_rdw_raw_record(
+                reader,
+                &mut self.buffer,
+                &mut self.raw_data_with_header,
+                &mut self.record_index,
+                &mut self.eof_reached,
+            )?,
+            RecordFormat::Vb => {
+                return Err(Error::new(
+                    ErrorCode::CBKI001_INVALID_STATE,
+                    "VB format handled by the block reader path",
+                ));
             }
         };
 
         Ok(record_data)
+    }
+
+    /// Read one RDW-framed record payload from the buffered stream.
+    ///
+    /// A free-standing helper (rather than a `&mut self` method) so the
+    /// caller can hold the `FramingInput` borrow across the call.
+    ///
+    /// # Errors
+    /// Returns `CBKF221_RDW_UNDERFLOW` on a truncated header or payload.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    fn read_rdw_raw_record(
+        reader: &mut std::io::BufReader<R>,
+        buffer: &mut Vec<u8>,
+        raw_data_with_header: &mut Option<Vec<u8>>,
+        record_index: &mut u64,
+        eof_reached: &mut bool,
+    ) -> Result<Option<Vec<u8>>> {
+        // Read RDW header
+        let mut rdw_header = [0u8; 4];
+        match fill_at_record_boundary(reader, &mut rdw_header) {
+            Ok(BoundaryRead::Complete) => {}
+            Ok(BoundaryRead::CleanEof) => {
+                *eof_reached = true;
+                return Ok(None);
+            }
+            Ok(BoundaryRead::Partial(read)) => {
+                *eof_reached = true;
+                return Err(Error::new(
+                    ErrorCode::CBKF221_RDW_UNDERFLOW,
+                    "Incomplete RDW header at end of file: expected 4 bytes".to_string(),
+                )
+                .with_context(Self::record_context_for(
+                    *record_index,
+                    format!("File ends with partial RDW header ({read} of 4 bytes)"),
+                )));
+            }
+            Err(error) => {
+                return Err(Self::rdw_header_read_error_for(*record_index, &error));
+            }
+        }
+
+        // Parse length (payload bytes only)
+        let length = usize::from(RdwHeader::from_bytes(rdw_header).length());
+
+        // Read payload
+        buffer.resize(length, 0);
+        match reader.read_exact(buffer) {
+            Ok(()) => {
+                let mut framed = Vec::with_capacity(4 + length);
+                framed.extend_from_slice(&rdw_header);
+                framed.extend_from_slice(buffer);
+                *raw_data_with_header = Some(framed);
+                *record_index += 1;
+                Ok(Some(buffer.clone()))
+            }
+            Err(error) => Err(Self::rdw_payload_read_error_for(
+                *record_index,
+                &error,
+                length,
+            )),
+        }
+    }
+
+    /// Read the next VB-framed record payload.
+    ///
+    /// The `raw_data_with_header` envelope carries the original record RDW
+    /// header plus payload, matching `RawMode::RecordRDW` semantics.
+    fn read_vb_record(&mut self) -> Result<Option<Vec<u8>>> {
+        let FramingInput::Blocks(blocks) = &mut self.input else {
+            return Err(Error::new(
+                ErrorCode::CBKI001_INVALID_STATE,
+                "stream reader active for VB decode",
+            ));
+        };
+        match blocks.read_record()? {
+            None => {
+                self.eof_reached = true;
+                Ok(None)
+            }
+            Some(record) => {
+                let mut raw_data_with_header =
+                    Vec::with_capacity(record.rdw.len() + record.payload.len());
+                raw_data_with_header.extend_from_slice(&record.rdw);
+                raw_data_with_header.extend_from_slice(&record.payload);
+                self.raw_data_with_header = Some(raw_data_with_header);
+                self.record_index += 1;
+                Ok(Some(record.payload))
+            }
+        }
     }
 
     /// Decode the next record to JSON

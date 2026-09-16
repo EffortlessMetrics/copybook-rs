@@ -239,6 +239,8 @@ pub enum RecordFormat {
     Fixed,
     /// Variable-length records with RDW
     RDW,
+    /// Variable-blocked records: RDW records grouped in BDW blocks (beta)
+    Vb,
 }
 
 impl FromStr for RecordFormat {
@@ -248,6 +250,7 @@ impl FromStr for RecordFormat {
         match input.to_ascii_lowercase().as_str() {
             "fixed" => Ok(Self::Fixed),
             "rdw" => Ok(Self::RDW),
+            "vb" => Ok(Self::Vb),
             _ => Err(ParseCodecOptionError::new(
                 CodecOptionKind::RecordFormat,
                 input,
@@ -266,7 +269,7 @@ impl RecordFormat {
     /// Check if this is a variable-length record format
     #[must_use]
     pub const fn is_variable(self) -> bool {
-        matches!(self, Self::RDW)
+        matches!(self, Self::RDW | Self::Vb)
     }
 
     /// Get a human-readable description of the format
@@ -275,6 +278,7 @@ impl RecordFormat {
         match self {
             Self::Fixed => "Fixed-length records",
             Self::RDW => "Variable-length records with Record Descriptor Word",
+            Self::Vb => "Variable-blocked records with BDW blocks (beta)",
         }
     }
 }
@@ -618,6 +622,7 @@ impl fmt::Display for RecordFormat {
         match self {
             Self::Fixed => write!(f, "fixed"),
             Self::RDW => write!(f, "rdw"),
+            Self::Vb => write!(f, "vb"),
         }
     }
 }

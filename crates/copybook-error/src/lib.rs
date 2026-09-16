@@ -258,6 +258,14 @@ pub enum ErrorCode {
     CBKF104_RDW_SUSPECT_ASCII,
     /// CBKF221: RDW length field indicates underflow condition
     CBKF221_RDW_UNDERFLOW,
+    /// CBKF222: BDW length field is zero, undersized, or oversized
+    CBKF222_BDW_LENGTH_INVALID,
+    /// CBKF223: BDW-declared block or nested RDW is truncated
+    CBKF223_BDW_UNDERFLOW,
+    /// CBKF224: nested RDW extends beyond its containing block
+    CBKF224_RDW_BEYOND_BLOCK,
+    /// CBKF225: BDW reserved bytes are nonzero under strict policy
+    CBKF225_BDW_RESERVED_NONZERO,
 
     // =============================================================================
     // Audit Errors (CBKA*) - Performance and compliance audit operations
@@ -346,6 +354,10 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKF102_RECORD_LENGTH_INVALID => "CBKF102_RECORD_LENGTH_INVALID",
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII => "CBKF104_RDW_SUSPECT_ASCII",
             ErrorCode::CBKF221_RDW_UNDERFLOW => "CBKF221_RDW_UNDERFLOW",
+            ErrorCode::CBKF222_BDW_LENGTH_INVALID => "CBKF222_BDW_LENGTH_INVALID",
+            ErrorCode::CBKF223_BDW_UNDERFLOW => "CBKF223_BDW_UNDERFLOW",
+            ErrorCode::CBKF224_RDW_BEYOND_BLOCK => "CBKF224_RDW_BEYOND_BLOCK",
+            ErrorCode::CBKF225_BDW_RESERVED_NONZERO => "CBKF225_BDW_RESERVED_NONZERO",
             ErrorCode::CBKA001_BASELINE_ERROR => "CBKA001_BASELINE_ERROR",
             ErrorCode::CBKW001_SCHEMA_CONVERSION => "CBKW001_SCHEMA_CONVERSION",
             ErrorCode::CBKW002_TYPE_MAPPING => "CBKW002_TYPE_MAPPING",
@@ -420,7 +432,11 @@ impl ErrorCode {
             Self::CBKF001_FILE_READ_ERROR
             | Self::CBKF102_RECORD_LENGTH_INVALID
             | Self::CBKF104_RDW_SUSPECT_ASCII
-            | Self::CBKF221_RDW_UNDERFLOW => "CBKF",
+            | Self::CBKF221_RDW_UNDERFLOW
+            | Self::CBKF222_BDW_LENGTH_INVALID
+            | Self::CBKF223_BDW_UNDERFLOW
+            | Self::CBKF224_RDW_BEYOND_BLOCK
+            | Self::CBKF225_BDW_RESERVED_NONZERO => "CBKF",
             Self::CBKA001_BASELINE_ERROR => "CBKA",
             Self::CBKW001_SCHEMA_CONVERSION
             | Self::CBKW002_TYPE_MAPPING

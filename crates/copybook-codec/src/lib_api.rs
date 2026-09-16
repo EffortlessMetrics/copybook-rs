@@ -97,6 +97,7 @@ fn captured_raw_record(
     data: &[u8],
     supplied_raw: Option<&[u8]>,
     mode: crate::options::RawMode,
+    format: crate::options::RecordFormat,
 ) -> Result<Option<RawRecord>> {
     let (bytes, capture) = match mode {
         crate::options::RawMode::Off | crate::options::RawMode::Field => return Ok(None),
@@ -108,7 +109,19 @@ fn captured_raw_record(
                     "RawMode::RecordRDW requires an RDW header plus payload",
                 )
             })?;
-            validate_captured_raw_rdw(frame, data)?;
+            // VB captures use the inclusive-length rule; ordinary RDW
+            // captures keep the payload-length rule. The two must not mix.
+            if format == crate::options::RecordFormat::Vb {
+                let (_, raw_payload) = parse_vb_raw_rdw_frame(frame)?;
+                if raw_payload != data {
+                    return Err(Error::new(
+                        ErrorCode::CBKF222_BDW_LENGTH_INVALID,
+                        "Raw VB payload does not match the decoded record payload",
+                    ));
+                }
+            } else {
+                validate_captured_raw_rdw(frame, data)?;
+            }
             (frame, RawCapture::RecordRdw)
         }
     };
@@ -193,7 +206,7 @@ fn decode_record_with_scratch_and_raw(
 
     let mut fields_map = Map::new();
     let mut encoding_acc = Vec::new();
-    let record_raw = captured_raw_record(data, raw_data, options.emit_raw)?;
+    let record_raw = captured_raw_record(data, raw_data, options.emit_raw, options.format)?;
 
     process_fields_recursive_with_scratch(
         &schema.fields,
@@ -254,7 +267,8 @@ fn decode_record_with_raw_data_at_offset(
 
     // Validate whole-record framing before field decoding so a malformed
     // RecordRDW capture cannot be masked by an unrelated field error.
-    let record_raw = captured_raw_record(data, raw_data_with_header, options.emit_raw)?;
+    let record_raw =
+        captured_raw_record(data, raw_data_with_header, options.emit_raw, options.format)?;
 
     let mut fields_map = Map::new();
     let mut scratch_buffers: Option<crate::memory::ScratchBuffers> = None;
@@ -651,7 +665,7 @@ fn process_scalar_field_standard(
     let field_start = field.offset as usize;
     let mut field_end = field_start + field.len as usize;
 
-    if options.format == RecordFormat::RDW
+    if options.format.is_variable()
         && field_index + 1 == total_fields
         && matches!(field.kind, copybook_core::FieldKind::Alphanum { .. })
         && data.len() > field_end
@@ -768,7 +782,7 @@ fn process_scalar_field_with_scratch(
         ));
     }
 
-    if options.format == RecordFormat::RDW {
+    if options.format.is_variable() {
         field_end = field_end.min(data.len());
     }
 
@@ -1827,6 +1841,16 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
             result.extend_from_slice(&rdw_record.payload);
             Ok(result)
         }
+        RecordFormat::Vb => {
+            let payload = encode_fields_to_bytes(schema, fields_value, encoding_metadata, options)?;
+
+            // Frame one record inside one BDW block.
+            let mut block = Vec::new();
+            let mut writer = crate::record::VbBlockWriter::new(&mut block);
+            writer.write_record_from_payload(&payload, 0)?;
+            writer.finish()?;
+            Ok(block)
+        }
     }
 }
 
@@ -1879,8 +1903,86 @@ fn encode_raw_replay(
             encoding_metadata,
             options,
         ),
+        RecordFormat::Vb => encode_vb_raw_replay(raw_data, capture),
     }
     .map(Some)
+}
+
+/// Replay captured VB raw bytes into one BDW block.
+///
+/// A `Record` capture holds the bare payload; a `RecordRDW` capture holds the
+/// record RDW plus payload. Either way the replayed bytes are framed as one
+/// single-record block, deterministically.
+fn encode_vb_raw_replay(raw_data: Vec<u8>, capture: Option<RawCapture>) -> Result<Vec<u8>> {
+    let framed = if matches!(capture, Some(RawCapture::Record)) {
+        // Bare payload: frame one RDW (length includes its header) first.
+        let rdw_len = raw_data.len() + crate::record::RDW_HEADER_LEN;
+        let rdw_len = u16::try_from(rdw_len).map_err(|_| {
+            Error::new(
+                ErrorCode::CBKF222_BDW_LENGTH_INVALID,
+                format!("VB raw replay payload too large: {rdw_len} bytes"),
+            )
+        })?;
+        let mut framed = Vec::with_capacity(rdw_len as usize);
+        framed.extend_from_slice(&rdw_len.to_be_bytes());
+        framed.extend_from_slice(&[0, 0]);
+        framed.extend_from_slice(&raw_data);
+        framed
+    } else {
+        // Validate framing before replay so a malformed raw frame cannot be
+        // masked by re-framing. VB captures use the inclusive-length rule
+        // (LL counts the RDW header); the payload-length rule of
+        // `parse_raw_rdw_frame` would reject every valid VB capture.
+        parse_vb_raw_rdw_frame(&raw_data)?;
+        raw_data
+    };
+    let block_len = framed.len() + crate::record::BDW_HEADER_LEN;
+    let header = crate::record::BdwHeader::from_block_len(block_len)?;
+    let mut block = Vec::with_capacity(block_len);
+    block.extend_from_slice(&header.bytes());
+    block.extend_from_slice(&framed);
+    Ok(block)
+}
+
+/// Validate one VB-captured RDW frame (`RDW header + payload`) before replay.
+///
+/// Unlike [`parse_raw_rdw_frame`], the length rule is inclusive: the
+/// declared LL counts its own 4-byte header (mainframe convention inside VB
+/// blocks). The original RDW bytes are preserved untouched on success.
+///
+/// # Errors
+/// Returns `CBKF222_BDW_LENGTH_INVALID` when the frame is shorter than a
+/// header or its declared LL disagrees with the available bytes.
+fn parse_vb_raw_rdw_frame(frame: &[u8]) -> Result<(u16, &[u8])> {
+    let (raw_header, raw_payload) = frame.split_at_checked(4).ok_or_else(|| {
+        Error::new(
+            ErrorCode::CBKF222_BDW_LENGTH_INVALID,
+            format!(
+                "Raw VB record is {} bytes; expected at least a 4-byte RDW header",
+                frame.len()
+            ),
+        )
+    })?;
+    let header_bytes: [u8; 4] = raw_header.try_into().map_err(|_| {
+        Error::new(
+            ErrorCode::CBKF222_BDW_LENGTH_INVALID,
+            "Raw VB record does not contain a complete 4-byte RDW header",
+        )
+    })?;
+    let declared_len = usize::from(u16::from_be_bytes([header_bytes[0], header_bytes[1]]));
+    if declared_len < crate::record::RDW_HEADER_LEN
+        || declared_len != raw_payload.len() + crate::record::RDW_HEADER_LEN
+    {
+        return Err(Error::new(
+            ErrorCode::CBKF222_BDW_LENGTH_INVALID,
+            format!(
+                "Raw VB RDW header declares {declared_len} bytes (inclusive), but {} payload bytes follow",
+                raw_payload.len()
+            ),
+        ));
+    }
+    let reserved = u16::from_be_bytes([header_bytes[2], header_bytes[3]]);
+    Ok((reserved, raw_payload))
 }
 
 fn encode_fixed_raw_replay(raw_data: Vec<u8>, capture: Option<RawCapture>) -> Result<Vec<u8>> {
@@ -2124,7 +2226,7 @@ fn encode_fields_to_bytes(
         // For variable length, estimate based on schema
         schema.fields.iter().map(|f| f.len).sum::<u32>()
     }) as usize;
-    let record_length = if options.format == RecordFormat::RDW {
+    let record_length = if options.format.is_variable() {
         rdw_record_length_for_json(schema, json).unwrap_or(maximum_record_length)
     } else {
         maximum_record_length
@@ -3146,6 +3248,9 @@ pub fn decode_file_to_jsonl(
         RecordFormat::RDW => {
             process_rdw_records(schema, input, &mut output, options, &mut summary)?;
         }
+        RecordFormat::Vb => {
+            process_vb_records(schema, input, &mut output, options, &mut summary)?;
+        }
     }
 
     let elapsed_ms = start_time.elapsed().as_millis();
@@ -3502,6 +3607,206 @@ fn process_rdw_records<R: Read, W: Write>(
     }
 
     Ok(())
+}
+
+fn process_vb_records<R: Read, W: Write>(
+    schema: &Schema,
+    reader: R,
+    output: &mut W,
+    options: &DecodeOptions,
+    summary: &mut RunSummary,
+) -> Result<()> {
+    if options.threads > 1 {
+        return process_vb_records_parallel(schema, reader, output, options, summary);
+    }
+
+    let mut reader = crate::record::VbBlockReader::new(reader, options.strict_mode);
+    let mut scratch = crate::memory::ScratchBuffers::new();
+    let mut record_index = 0u64;
+
+    while let Some(vb_record) = reader.read_record()? {
+        record_index += 1;
+        let record_bytes = vb_record.rdw.len() + vb_record.payload.len();
+        // Absolute stream position: BDW block headers sit between records,
+        // so a framing-bytes accumulator would drift. The reader tracks it.
+        let current_offset = vb_record.physical_offset;
+        summary.bytes_processed += record_bytes as u64;
+        telemetry::record_read(record_bytes, options);
+        if vb_record.rdw_reserved != 0 {
+            increment_warning_counter();
+        }
+
+        // Same fixed-length underflow guard as the RDW path: it only applies
+        // to genuinely fixed-length schemas. For variable-length records
+        // driven by a tail OCCURS DEPENDING ON, `lrecl_fixed` holds the
+        // *maximum* allocation, so a valid record shorter than that maximum
+        // must not be rejected here.
+        if let Some(schema_lrecl) = schema.lrecl_fixed
+            && schema.tail_odo.is_none()
+            && vb_record.payload.len() < schema_lrecl as usize
+        {
+            let error = rdw_underflow_error(schema_lrecl, vb_record.payload.len());
+
+            summary.note_failure(record_index, &error);
+            telemetry::record_error(error.family_prefix());
+            if options.strict_mode {
+                return Err(error);
+            }
+            continue;
+        }
+
+        let full_raw_data = vb_raw_data(&vb_record, options.emit_raw);
+
+        match decode_record_with_scratch_and_raw(
+            schema,
+            &vb_record.payload,
+            options,
+            full_raw_data.as_deref(),
+            record_index,
+            Some(current_offset),
+            &mut scratch,
+        ) {
+            Ok(json_value) => {
+                write_json_record(output, &json_value)?;
+                summary.records_processed += 1;
+            }
+            Err(error) => {
+                summary.note_failure(record_index, &error);
+                telemetry::record_error(error.family_prefix());
+                if options.strict_mode {
+                    return Err(error);
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn vb_raw_data(
+    record: &crate::record::VbRecord,
+    raw_mode: crate::options::RawMode,
+) -> Option<Vec<u8>> {
+    match raw_mode {
+        crate::options::RawMode::RecordRDW => {
+            let mut full_data = Vec::with_capacity(record.rdw.len() + record.payload.len());
+            full_data.extend_from_slice(&record.rdw);
+            full_data.extend_from_slice(&record.payload);
+            Some(full_data)
+        }
+        crate::options::RawMode::Record => Some(record.payload.clone()),
+        _ => None,
+    }
+}
+
+fn process_vb_records_parallel<R: Read, W: Write>(
+    schema: &Schema,
+    reader: R,
+    output: &mut W,
+    options: &DecodeOptions,
+    summary: &mut RunSummary,
+) -> Result<()> {
+    let mut reader = crate::record::VbBlockReader::new(reader, options.strict_mode);
+    let workers = effective_worker_count(options.threads);
+    let batch_capacity = workers.saturating_mul(4).max(1);
+    let mut pool = decode_worker_pool(schema, options);
+    let mut record_index = 0_u64;
+    let mut batch_len = 0_usize;
+
+    loop {
+        let vb_record = match reader.read_record() {
+            Ok(record) => record,
+            Err(error) => {
+                let pending_result = if batch_len > 0 {
+                    process_decode_batch(&mut pool, batch_len, output, options, summary)
+                } else {
+                    Ok(())
+                };
+                let _ = pool.shutdown();
+                pending_result?;
+                return Err(error);
+            }
+        };
+        let Some(vb_record) = vb_record else { break };
+
+        record_index += 1;
+        let record_bytes = vb_record.rdw.len() + vb_record.payload.len();
+        // Absolute stream position, matching the sequential path: BDW block
+        // headers sit between records, so a framing-bytes accumulator drifts.
+        let current_offset = vb_record.physical_offset;
+        summary.bytes_processed += record_bytes as u64;
+        telemetry::record_read(record_bytes, options);
+        if vb_record.rdw_reserved != 0 {
+            increment_warning_counter();
+        }
+
+        if let Some(schema_lrecl) = schema.lrecl_fixed
+            && schema.tail_odo.is_none()
+            && vb_record.payload.len() < schema_lrecl as usize
+        {
+            let error = rdw_underflow_error(schema_lrecl, vb_record.payload.len());
+
+            summary.note_failure(record_index, &error);
+            telemetry::record_error(error.family_prefix());
+            if options.strict_mode {
+                let pending_result = if batch_len > 0 {
+                    process_decode_batch(&mut pool, batch_len, output, options, summary)
+                } else {
+                    Ok(())
+                };
+                let _ = pool.shutdown();
+                pending_result?;
+                return Err(error);
+            }
+            continue;
+        }
+
+        let full_raw_data = vb_raw_data(&vb_record, options.emit_raw);
+
+        if let Err(error) = pool.submit(DecodeWork {
+            payload: vb_record.payload,
+            raw_data: full_raw_data,
+            record_index,
+            record_offset: current_offset,
+        }) {
+            let pending_result = if batch_len > 0 {
+                process_decode_batch(&mut pool, batch_len, output, options, summary)
+            } else {
+                Ok(())
+            };
+            let _ = pool.shutdown();
+            pending_result?;
+            return Err(Error::new(
+                ErrorCode::CBKI001_INVALID_STATE,
+                error.to_string(),
+            ));
+        }
+        batch_len += 1;
+
+        if batch_len == batch_capacity {
+            let result = process_decode_batch(&mut pool, batch_len, output, options, summary);
+            batch_len = 0;
+            if let Err(error) = result {
+                let _ = pool.shutdown();
+                return Err(error);
+            }
+        }
+    }
+
+    if batch_len > 0 {
+        let result = process_decode_batch(&mut pool, batch_len, output, options, summary);
+        if let Err(error) = result {
+            let _ = pool.shutdown();
+            return Err(error);
+        }
+    }
+
+    pool.shutdown().map_err(|error| {
+        Error::new(
+            ErrorCode::CBKI001_INVALID_STATE,
+            format!("decode worker pool shutdown failed: {error}"),
+        )
+    })
 }
 
 fn rdw_underflow_error(schema_lrecl: u32, payload_len: usize) -> Error {

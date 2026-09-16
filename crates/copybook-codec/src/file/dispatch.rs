@@ -10,7 +10,10 @@ use copybook_error::{Error, ErrorCode, Result};
 use std::io::{Read, Write};
 
 pub use copybook_fixed::{FixedRecordReader, FixedRecordWriter};
-pub use copybook_rdw::{RDWRecord, RDWRecordReader, RDWRecordWriter};
+pub use copybook_rdw::{
+    BDW_HEADER_LEN, BDW_MAX_BLOCK_LEN, BdwHeader, RDW_HEADER_LEN, RDWRecord, RDWRecordReader,
+    RDWRecordWriter, VB_MAX_RECORD_LEN, VbBlockReader, VbBlockWriter, VbRecord,
+};
 
 /// Read one record using the selected framing format.
 ///
@@ -28,6 +31,14 @@ pub fn read_record(
         RecordFormat::Fixed => read_fixed_record(input, lrecl),
         RecordFormat::RDW => {
             read_rdw_record(input, false).map(|record| record.map(|record| record.payload))
+        }
+        RecordFormat::Vb => {
+            // Single-shot read: callers needing block iteration across calls
+            // use `VbBlockReader` (or the record iterator) directly.
+            let mut reader = VbBlockReader::new(input, false);
+            reader
+                .read_record()
+                .map(|record| record.map(|record| record.payload))
         }
     }
 }
@@ -73,6 +84,13 @@ pub fn write_record(output: &mut impl Write, data: &[u8], format: RecordFormat) 
         RecordFormat::RDW => {
             let mut writer = RDWRecordWriter::new(output);
             writer.write_record_from_payload(data, None)
+        }
+        RecordFormat::Vb => {
+            // Single-shot write of one block; callers packing multiple
+            // records use `VbBlockWriter` (or the encode path) directly.
+            let mut writer = VbBlockWriter::new(output);
+            writer.write_record_from_payload(data, 0)?;
+            writer.finish()
         }
     }
 }

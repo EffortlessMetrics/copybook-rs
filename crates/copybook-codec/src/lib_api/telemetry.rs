@@ -77,6 +77,7 @@ mod imp {
         match format {
             RecordFormat::Fixed => "fixed",
             RecordFormat::RDW => "rdw",
+            RecordFormat::Vb => "vb",
         }
     }
 

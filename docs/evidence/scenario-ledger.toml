@@ -591,3 +591,61 @@ stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "Beta placeholder reserving the scenario ID; selection/reference behavior must be anchored before any claim."
 shared_evidence_relationships = []
 last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "format.vb.basic"
+feature_identity = "none"
+support_status = "beta"
+stability_class = "beta"
+required_evidence_layers = ["decode", "negative"]
+parse_evidence = [{ kind = "not_applicable", reason = "VB framing is a byte container; copybook parsing is format-independent" }]
+layout_evidence = [{ kind = "not_applicable", reason = "block framing carries no field layout; layout proven at the fixed/RDW plane" }]
+decode_evidence = [
+  { ref = "crates/copybook-codec/tests/encoding_vb_blocks.rs::encoding_vb_decodes_records_across_blocks", kind = "direct" },
+  { ref = "crates/copybook-codec/tests/encoding_vb_blocks.rs::encoding_vb_jsonl_encode_decode_round_trip", kind = "direct" },
+]
+encode_evidence = [
+  { ref = "crates/copybook-codec/tests/encoding_vb_blocks.rs::encoding_vb_jsonl_encode_decode_round_trip", kind = "direct" },
+]
+round_trip_evidence = [
+  { ref = "crates/copybook-codec/tests/encoding_vb_blocks.rs::encoding_vb_jsonl_encode_decode_round_trip", kind = "direct" },
+]
+negative_or_rejection_evidence = [
+  { ref = "crates/copybook-codec/tests/encoding_vb_blocks.rs::encoding_vb_truncated_block_fails_strict", kind = "direct" },
+]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI --format vb selection proven manually; row-level CLI anchor pending corpus proof" }]
+fixed_rdw_vb_applicability = ["vb"]
+codepage_applicability = ["ASCII"]
+worker_applicability = "both"
+stable_error_or_rejection_identity = "CBKF223_BDW_UNDERFLOW"
+known_limitations_or_remediation = "VB/BDW is a record-container format with no matrix COBOL feature ID; beta until corpus differential proof per docs/design/VB_BDW.md. ASCII-only proof; EBCDIC block payloads ride the codepage plane."
+shared_evidence_relationships = ["stable-error:CBKF223_BDW_UNDERFLOW"]
+last_verified_full_sha = "3fec52c727fe633f4b82dbfa213652d41fa0c963"
+
+[[scenarios]]
+scenario_id = "format.vb.block_framing"
+feature_identity = "none"
+support_status = "beta"
+stability_class = "beta"
+required_evidence_layers = ["decode", "negative"]
+parse_evidence = [{ kind = "not_applicable", reason = "VB framing is a byte container; copybook parsing is format-independent" }]
+layout_evidence = [{ kind = "not_applicable", reason = "block framing carries no field layout" }]
+decode_evidence = [
+  { ref = "crates/copybook-rdw/tests/bdw_block_tests.rs::vb_single_block_roundtrip_positions", kind = "direct" },
+]
+encode_evidence = [{ kind = "not_applicable", reason = "writer packing proven inside the decode anchor block" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "round-trip rides the format.vb.basic row" }]
+negative_or_rejection_evidence = [
+  { ref = "crates/copybook-rdw/tests/bdw_block_tests.rs::bdw_zero_block_length_is_invalid", kind = "direct" },
+  { ref = "crates/copybook-rdw/tests/bdw_block_tests.rs::bdw_truncated_block_is_underflow", kind = "direct" },
+  { ref = "crates/copybook-rdw/tests/bdw_block_tests.rs::vb_rdw_beyond_block_is_rejected", kind = "direct" },
+  { ref = "crates/copybook-rdw/tests/bdw_block_tests.rs::bdw_reserved_nonzero_strict_is_rejected", kind = "direct" },
+]
+cli_evidence = [{ kind = "not_applicable", reason = "block framing is below the CLI surface" }]
+fixed_rdw_vb_applicability = ["vb"]
+codepage_applicability = ["all"]
+worker_applicability = "not_applicable"
+stable_error_or_rejection_identity = "CBKF222_BDW_LENGTH_INVALID CBKF223_BDW_UNDERFLOW CBKF224_RDW_BEYOND_BLOCK CBKF225_BDW_RESERVED_NONZERO"
+known_limitations_or_remediation = "Byte-level framing row; schema-aware behavior rides format.vb.basic. Beta until corpus proof."
+shared_evidence_relationships = ["stable-error:CBKF222_BDW_LENGTH_INVALID", "stable-error:CBKF223_BDW_UNDERFLOW", "stable-error:CBKF224_RDW_BEYOND_BLOCK", "stable-error:CBKF225_BDW_RESERVED_NONZERO", "ledger:format.vb.basic"]
+last_verified_full_sha = "3fec52c727fe633f4b82dbfa213652d41fa0c963"

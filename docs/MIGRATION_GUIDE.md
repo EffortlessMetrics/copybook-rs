@@ -6,8 +6,11 @@ Guide for migrating from other COBOL data processing tools to copybook-rs.
 > Upgrading copybook-rs itself from 0.5.x to 0.6.0? See
 > [0.5 to 0.6 migration](migration/0.6.md) (retired crates, deprecated
 > facade paths, removed flags, CLI changes).
+> Upgrading from 0.6.x to 0.7.0? See
+> [0.6 to 0.7 migration](migration/0.7.md) (removed facade aliases and
+> compatibility shims).
 
-## Upcoming 0.6 library API changes
+## 0.6.x library API changes (shipped)
 
 ### Typed codec-option parse errors
 
@@ -253,7 +256,7 @@ Add the canonical `copybook` facade crate:
 
 ```toml
 [dependencies]
-copybook = "0.6"
+copybook = "0.7"
 ```
 
 ```rust

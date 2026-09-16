@@ -93,11 +93,7 @@ fn support_status_copy_and_eq() {
 fn feature_support_fields_are_accessible() {
     let f = find_feature_by_id(FeatureId::Comp1Comp2).unwrap();
     // All public fields must be reachable without accessors.
-    let _id = f.id;
-    let _name = f.name;
-    let _desc = f.description;
-    let _status = f.status;
-    let _doc = f.doc_ref;
+    let _ = (f.id, f.name, f.description, f.status, f.doc_ref);
     assert_eq!(f.id, FeatureId::Comp1Comp2);
 }
 
@@ -216,7 +212,10 @@ fn doc_refs_follow_path_convention() {
             f.id
         );
         assert!(
-            doc.contains('#') || doc.ends_with(".md"),
+            doc.contains('#')
+                || std::path::Path::new(doc)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("md")),
             "{:?} doc_ref should point to a markdown file or section: {doc}",
             f.id
         );

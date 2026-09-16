@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-09-16
+
+### Added
+
+- **docs**: `docs/migration/0.7.md` covers every 0.6.x to 0.7.0 breaking and
+  action-required change, written from the actual removal diff (#961).
+
+### Changed
+
+- **workspace**: MSRV raised from Rust 1.95 to Rust 1.98 workspace-wide
+  (#959).
+
+### Removed
+
+- **facade**: the eight deprecated 0.6 compatibility aliases
+  (`copybook::{codepage, contracts, determinism, fixed, options, overpunch,
+  rdw, record_io}`) now resolve only through their canonical owner paths
+  (#960).
+- **workspace**: the 0.6 compatibility shims in `copybook-codepage`,
+  `copybook-lexer`, and `copybook-dialect` are removed; the crates remain
+  published under their names as empty shells (#960).
+
 ## [0.6.1] — 2026-09-14
 
 ### Fixed

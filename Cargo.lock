@@ -1014,7 +1014,7 @@ dependencies = [
 name = "copybook-governance"
 version = "0.7.0"
 dependencies = [
- "copybook-contracts",
+ "copybook-core",
  "copybook-support-matrix",
  "serde",
  "serde_json",

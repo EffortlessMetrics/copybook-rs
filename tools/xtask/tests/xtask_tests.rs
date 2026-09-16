@@ -473,7 +473,10 @@ fn summarize_last_fails_when_no_receipt_exists() {
 #[test]
 fn preflight_recipe_covers_every_check_mode() {
     let justfile = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../justfile");
-    let source = std::fs::read_to_string(&justfile).expect("failed to read workspace justfile");
+    let raw = std::fs::read_to_string(&justfile).expect("failed to read workspace justfile");
+    // Windows checkouts use CRLF; normalize so recipe parsing is identical
+    // on every platform.
+    let source = raw.replace("\r\n", "\n");
     let preflight = source
         .split("\npreflight:\n")
         .nth(1)

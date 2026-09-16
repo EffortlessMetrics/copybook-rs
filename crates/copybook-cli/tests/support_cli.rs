@@ -218,7 +218,7 @@ fn support_advise_json_invalid_for_non_tail_odo() {
     let value: serde_json::Value = serde_json::from_slice(&output.stdout)
         .expect("support --advise --format json should emit valid JSON");
     assert_eq!(value["verdict"], "invalid-input");
-    assert_eq!(value["schema_version"], "0.7.0-beta.1");
+    assert_eq!(value["schema_version"], "1.0");
     assert!(
         value["scenarios"][0]["next_action"]
             .as_str()
@@ -317,5 +317,58 @@ fn support_advise_vb_format_flows_into_effective_options() {
             .iter()
             .all(|s| s["record_formats"] == serde_json::json!(["vb"])),
         "expected vb record format on every scenario, got: {value}"
+    );
+}
+
+#[test]
+fn support_advise_corpus_nontail_odo_reports_invalid_input() {
+    // The governed corpus fixture must stay in agreement with the inline
+    // rejection contract: non-tail ODO never parses (CBKP021).
+    let copybook = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/corpus/nontail_odo.cpy");
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args([
+            "support",
+            "--advise",
+            &copybook.to_string_lossy(),
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("failed to execute command");
+
+    assert_eq!(output.status.code(), Some(3));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let value: serde_json::Value =
+        serde_json::from_str(&stdout).expect("advise JSON must parse");
+    assert_eq!(value["verdict"], "invalid-input");
+    assert!(
+        value["scenarios"][0]["next_action"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("CBKP021_ODO_NOT_TAIL"),
+        "expected CBKP021 identity in next_action, got: {value}"
+    );
+}
+
+#[test]
+fn support_advise_json_emits_no_filesystem_paths() {
+    // Redaction posture is a boundary invariant: machine output carries
+    // ledger IDs, fingerprints, and bounded diagnostics, never the input
+    // file path, even when the diagnostic text mentions the failure.
+    let copybook = write_advise_copybook("THIS DOES NOT LOOK LIKE\n");
+    let path = copybook.path().to_string_lossy().into_owned();
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args(["support", "--advise", &path, "--format", "json"])
+        .output()
+        .expect("failed to execute command");
+
+    assert_eq!(output.status.code(), Some(3));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let _: serde_json::Value =
+        serde_json::from_str(&stdout).expect("advise JSON must parse");
+    assert!(
+        !stdout.contains(&*path),
+        "machine output must not leak the input path: {stdout}"
     );
 }

@@ -8,8 +8,10 @@
 //! result type owner .............. same module (AdviseResult)
 //! public versus crate-private API  public types; construction is explicit,
 //!                                  no globals, no I/O
-//! schema/stability class ......... beta (ADVISE_STABILITY_CLASS); JSON schema
-//!                                  versioned by ADVISE_RESULT_SCHEMA_VERSION
+//! schema/stability class ......... stable since 0.7.1
+//!                                  (ADVISE_STABILITY_CLASS; beta in 0.7.0);
+//!                                  JSON schema versioned by
+//!                                  ADVISE_RESULT_SCHEMA_VERSION
 //! CLI orchestration boundary ..... CLI parses options, runs analysis via
 //!                                  Slice B/C, renders; no domain logic in
 //!                                  CLI handlers
@@ -32,11 +34,12 @@ use serde::{Deserialize, Serialize};
 
 /// Version of the advisory result JSON contract.
 ///
-/// Beta for 0.7: automation must match this exact string, never parse prose.
-pub const ADVISE_RESULT_SCHEMA_VERSION: &str = "0.7.0-beta.1";
+/// Stable since 0.7.1 (beta as `0.7.0-beta.1` in 0.7.0): automation must
+/// match this exact string, never parse prose.
+pub const ADVISE_RESULT_SCHEMA_VERSION: &str = "1.0";
 
-/// Stability class of the advisory contract for 0.7.
-pub const ADVISE_STABILITY_CLASS: &str = "beta";
+/// Stability class of the advisory contract.
+pub const ADVISE_STABILITY_CLASS: &str = "stable";
 
 /// Maximum scenario assessments carried in one result; excess is dropped and
 /// counted in [`TruncationMeta`].
@@ -370,7 +373,9 @@ impl AdviseResult {
     #[inline]
     pub fn to_canonical_json(&self) -> String {
         serde_json::to_string(self).unwrap_or_else(|_| {
-            "{\"schema_version\":\"0.7.0-beta.1\",\"verdict\":\"tool-failure\"}".to_string()
+            format!(
+                "{{\"schema_version\":\"{ADVISE_RESULT_SCHEMA_VERSION}\",\"verdict\":\"tool-failure\"}}"
+            )
         })
     }
 }

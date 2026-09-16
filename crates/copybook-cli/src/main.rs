@@ -1130,6 +1130,7 @@ mod commands {
     pub mod inspect;
     pub mod parse;
     pub mod support;
+    pub mod support_advise;
     pub mod verify;
     pub mod verify_report;
 }

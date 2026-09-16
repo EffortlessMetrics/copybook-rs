@@ -20,6 +20,22 @@ pub struct SupportArgs {
     #[arg(long)]
     pub check: Option<String>,
 
+    /// Advise on a copybook: evaluate parsed constructs under options (beta)
+    #[arg(long, value_name = "COPYBOOK")]
+    pub advise: Option<std::path::PathBuf>,
+
+    /// Record format under evaluation for --advise
+    #[arg(long, default_value = "fixed")]
+    pub record_format: copybook::codec::RecordFormat,
+
+    /// Character encoding under evaluation for --advise
+    #[arg(long, default_value = "cp037", value_parser = crate::cli_config::parse_codepage)]
+    pub codepage: copybook::codec::Codepage,
+
+    /// Dialect lever under evaluation for --advise (n, 0, 1)
+    #[arg(long)]
+    pub dialect: Option<crate::cli_config::DialectPreference>,
+
     /// Filter by support status
     #[arg(long, value_enum)]
     pub status: Option<StatusFilter>,
@@ -58,6 +74,16 @@ pub fn run(args: &SupportArgs, feature_flags: &FeatureFlags) -> anyhow::Result<E
             &support_features,
             feature_flags,
         ));
+    }
+
+    if let Some(copybook) = &args.advise {
+        return super::support_advise::run_advise(
+            copybook,
+            &args.record_format.to_string(),
+            &args.codepage.to_string(),
+            args.dialect,
+            args.format,
+        );
     }
 
     run_matrix_view(
@@ -156,7 +182,7 @@ fn run_check(
 ///
 /// `println!` panics when the consumer closes the pipe, so `copybook support |
 /// head` printed a panic backtrace before the process exited.
-fn write_stdout(text: &str) {
+pub(crate) fn write_stdout(text: &str) {
     let _ = crate::write_stdout_all(text.as_bytes());
 }
 

@@ -790,6 +790,7 @@ dependencies = [
  "copybook-fixed",
  "copybook-governance",
  "copybook-rdw",
+ "copybook-support-matrix",
  "cucumber",
  "futures",
  "serde",

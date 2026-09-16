@@ -503,88 +503,11 @@ pub fn analyze(input: &AdviseInput) -> AdviseResult {
         assessments.push(item);
     }
     for construct in &input.constructs {
-        // (scenario ID, matrix feature, fixed outcome, error identity, note).
-        // Fixed outcomes cover distinctions the matrix feature table cannot
-        // express: tail vs non-tail ODO, and REDEFINES, which is unconditional
-        // core behavior with ledger rows but no matrix feature. Each is pinned
-        // by advise tests, which ledger rows may anchor as cli evidence.
-        let (scenario_id, feature_id, fixed, error_identity, note) = match &construct.kind {
-            ConstructKind::OccursDepending => (
-                "struct.odo.tail_fixed",
-                "occurs-depending",
-                Some(AssessmentStatus::Supported),
-                None,
-                "Tail ODO is supported; non-tail and over-REDEFINES variants are rejected.",
-            ),
-            ConstructKind::NonTailOdo => (
-                "struct.odo.not_tail",
-                "occurs-depending",
-                Some(AssessmentStatus::Rejected),
-                Some("CBKP021_ODO_NOT_TAIL"),
-                "Only tail ODO is supported; move the OCCURS to the record tail.",
-            ),
-            ConstructKind::NestedOdo => (
-                "struct.odo.nested",
-                "nested-odo",
-                None,
-                Some("CBKP022_NESTED_ODO"),
-                "O1-O4 nesting is supported; O5/O6 shapes are rejected.",
-            ),
-            ConstructKind::Renames => (
-                "struct.renames.r1_r3",
-                "level-66-renames",
-                None,
-                None,
-                "Same-scope and THRU renames hold; cross-OCCURS and over-REDEFINES are limited.",
-            ),
-            ConstructKind::Redefines => (
-                "struct.redefines.scalar",
-                "none",
-                Some(AssessmentStatus::Supported),
-                None,
-                "Scalar and group REDEFINES hold; encode ambiguity and nested cases are limited.",
-            ),
-            ConstructKind::Level88 => (
-                "struct.level88.single_value",
-                "level-88",
-                None,
-                None,
-                "Condition names are metadata; a mismatch is a failed condition, never a decode error.",
-            ),
-            ConstructKind::EditedPic => ("matrix:edited-pic", "edited-pic", None, None, ""),
-            ConstructKind::Comp1Comp2 => ("matrix:comp-1-comp-2", "comp-1-comp-2", None, None, ""),
-            ConstructKind::SignSeparate => {
-                ("matrix:sign-separate", "sign-separate", None, None, "")
-            }
-            ConstructKind::Unmapped => ("unmapped", "none", None, None, ""),
-        };
-        let mut item = match fixed {
-            Some(status) => ScenarioAssessment::bounded(scenario_id, status, "stable"),
-            None if feature_id == "none" => {
-                ScenarioAssessment::bounded(scenario_id, AssessmentStatus::Unknown, "stable")
-            }
-            None => match crate::find_feature(feature_id) {
-                Some(feature) => ScenarioAssessment::bounded(
-                    scenario_id,
-                    assessment_for_status(feature.status),
-                    stability_for(feature.status),
-                ),
-                None => {
-                    ScenarioAssessment::bounded(scenario_id, AssessmentStatus::Unknown, "stable")
-                }
-            },
-        };
-        item.record_formats = vec![input.options.format.clone()];
-        item.codepages = vec![input.options.codepage.clone()];
-        item.error_identity = error_identity.map(str::to_string);
-        if !note.is_empty() {
-            item.limitation_or_remediation = bound_chars(note.to_string(), MAX_SUGGESTION_CHARS);
-        }
-        if !item.push_evidence(format!("construct:{}", construct.detail)) {
-            evidence_dropped += 1;
-        }
-        item.set_next_action(next_action_for(&construct.kind, scenario_id));
-        assessments.push(item);
+        assessments.push(assess_construct(
+            construct,
+            &input.options,
+            &mut evidence_dropped,
+        ));
     }
     let mut result = AdviseResult::bounded(
         input.options.clone(),
@@ -593,9 +516,111 @@ pub fn analyze(input: &AdviseInput) -> AdviseResult {
         RedactionState::locked_down(),
         input.tool_version.clone(),
     );
-    result.copybook_fingerprint.clone_from(&input.copybook_fingerprint);
-    result.source_fingerprint.clone_from(&input.source_fingerprint);
     result
+        .copybook_fingerprint
+        .clone_from(&input.copybook_fingerprint);
+    result
+        .source_fingerprint
+        .clone_from(&input.source_fingerprint);
+    result
+}
+
+/// Build one scenario assessment for a parsed construct.
+fn assess_construct(
+    construct: &AdviseConstruct,
+    options: &EffectiveOptions,
+    evidence_dropped: &mut usize,
+) -> ScenarioAssessment {
+    let (scenario_id, feature_id, fixed, error_identity, note) = construct_plan(&construct.kind);
+    let mut item = match fixed {
+        Some(status) => ScenarioAssessment::bounded(scenario_id, status, "stable"),
+        None if feature_id == "none" => {
+            ScenarioAssessment::bounded(scenario_id, AssessmentStatus::Unknown, "stable")
+        }
+        None => match crate::find_feature(feature_id) {
+            Some(feature) => ScenarioAssessment::bounded(
+                scenario_id,
+                assessment_for_status(feature.status),
+                stability_for(feature.status),
+            ),
+            None => ScenarioAssessment::bounded(scenario_id, AssessmentStatus::Unknown, "stable"),
+        },
+    };
+    item.record_formats = vec![options.format.clone()];
+    item.codepages = vec![options.codepage.clone()];
+    item.error_identity = error_identity.map(str::to_string);
+    if !note.is_empty() {
+        item.limitation_or_remediation = bound_chars(note.to_string(), MAX_SUGGESTION_CHARS);
+    }
+    if !item.push_evidence(format!("construct:{}", construct.detail)) {
+        *evidence_dropped += 1;
+    }
+    item.set_next_action(next_action_for(&construct.kind, scenario_id));
+    item
+}
+
+/// (scenario ID, matrix feature, fixed outcome, error identity, note).
+/// Fixed outcomes cover distinctions the matrix feature table cannot
+/// express: tail vs non-tail ODO, and REDEFINES, which is unconditional
+/// core behavior with ledger rows but no matrix feature. Each is pinned
+/// by advise tests, which ledger rows may anchor as cli evidence.
+fn construct_plan(
+    kind: &ConstructKind,
+) -> (
+    &'static str,
+    &'static str,
+    Option<AssessmentStatus>,
+    Option<&'static str>,
+    &'static str,
+) {
+    match kind {
+        ConstructKind::OccursDepending => (
+            "struct.odo.tail_fixed",
+            "occurs-depending",
+            Some(AssessmentStatus::Supported),
+            None,
+            "Tail ODO is supported; non-tail and over-REDEFINES variants are rejected.",
+        ),
+        ConstructKind::NonTailOdo => (
+            "struct.odo.not_tail",
+            "occurs-depending",
+            Some(AssessmentStatus::Rejected),
+            Some("CBKP021_ODO_NOT_TAIL"),
+            "Only tail ODO is supported; move the OCCURS to the record tail.",
+        ),
+        ConstructKind::NestedOdo => (
+            "struct.odo.nested",
+            "nested-odo",
+            None,
+            Some("CBKP022_NESTED_ODO"),
+            "O1-O4 nesting is supported; O5/O6 shapes are rejected.",
+        ),
+        ConstructKind::Renames => (
+            "struct.renames.r1_r3",
+            "level-66-renames",
+            None,
+            None,
+            "Same-scope and THRU renames hold; cross-OCCURS and over-REDEFINES are limited.",
+        ),
+        ConstructKind::Redefines => (
+            "struct.redefines.scalar",
+            "none",
+            Some(AssessmentStatus::Supported),
+            None,
+            "Scalar and group REDEFINES hold; encode ambiguity and nested cases are limited.",
+        ),
+        ConstructKind::Level88 => (
+            "struct.level88.single_value",
+            "level-88",
+            None,
+            None,
+            "Condition names are metadata; a mismatch is a failed condition, never a decode error.",
+        ),
+        ConstructKind::EditedPic => ("matrix:edited-pic", "edited-pic", None, None, ""),
+        ConstructKind::Comp1Comp2 => ("matrix:comp-1-comp-2", "comp-1-comp-2", None, None, ""),
+        ConstructKind::SignSeparate => ("matrix:sign-separate", "sign-separate", None, None, ""),
+        ConstructKind::Unmapped => ("unmapped", "none", None, None, ""),
+    }
 }
 
 /// Stability label for a matrix status.

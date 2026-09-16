@@ -476,13 +476,13 @@ fn worker_thread_count_does_not_change_ebcdic_decode() {
                 .with_emit_meta(false)
                 .with_threads(threads);
             let mut out = Vec::new();
-            decode_file_to_jsonl(
+            let status = decode_file_to_jsonl(
                 &schema,
                 Cursor::new(vec![sig.probe_byte; 32]),
                 &mut out,
                 &opts,
-            )
-            .unwrap_or_else(|e| panic!("decode under {} failed: {e}", sig.cp));
+            );
+            assert!(status.is_ok(), "decode under {} failed", sig.cp);
             outputs.push(out);
         }
         assert_eq!(

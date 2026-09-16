@@ -92,7 +92,11 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Install Rust toolchain
+        # Explicit nightly: rust-toolchain.toml pins stable 1.98 for fmt
+        # parity, so nightly-only lanes must not rely on the file default.
         uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly
 
       - name: Read pinned cargo-fuzz version
         id: pins

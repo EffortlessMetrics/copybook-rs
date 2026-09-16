@@ -1,0 +1,593 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Scenario ledger for issue #951: one machine-owned source for scenario
+# evidence behind support claims. Contract: docs/design/SCENARIO_LEDGER.md.
+# Seed: structural rows imported from closed #574 with final policy preserved.
+# Anchors use `path::test_fn`; shared IDs link linked registries, never copies.
+schema_version = 1
+scope = "scenario-ledger"
+
+[[scenarios]]
+scenario_id = "struct.odo.tail_fixed"
+feature_identity = "occurs-depending"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["parse", "layout", "decode", "encode", "negative"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/odo_tail_validation.rs::odo_tail_ok_with_children_but_no_sibling_after", kind = "direct" },
+]
+layout_evidence = [
+  { ref = "crates/copybook-core/tests/golden_fixtures_odo.rs::golden_simple_odo_with_nesting_passes", kind = "direct" },
+]
+decode_evidence = [
+  { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_valid_odo_configuration", kind = "direct" },
+]
+encode_evidence = [
+  { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_encode_counter_array_match_accepted", kind = "direct" },
+]
+round_trip_evidence = [{ kind = "not_applicable", reason = "no dedicated ODO round-trip test; encode and decode pinned separately" }]
+negative_or_rejection_evidence = [
+  { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_encode_counter_array_mismatch_rejected", kind = "direct" },
+]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "Round-trip and CLI layers ride the format plane (see relationships); row-level anchors pending."
+shared_evidence_relationships = ["fixed-rdw:format.fixed.basic"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.odo.tail_rdw_variable"
+feature_identity = "occurs-depending"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["parse", "decode", "encode", "negative"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/golden_fixtures_odo.rs::golden_child_inside_odo_passes", kind = "direct" },
+]
+layout_evidence = [{ kind = "not_applicable", reason = "variable payload layout proven through decode length assertions" }]
+decode_evidence = [
+  { ref = "crates/copybook-codec/tests/structural_evidence_matrix.rs::odo_variable_length_decodes_through_rdw", kind = "direct" },
+  { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_payload_length_correctness", kind = "direct" },
+]
+encode_evidence = [
+  { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_encode_counter_array_match_accepted", kind = "direct" },
+]
+round_trip_evidence = [{ kind = "not_applicable", reason = "variable-length round-trip pinned at the format plane" }]
+negative_or_rejection_evidence = [
+  { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_encode_counter_array_mismatch_rejected", kind = "direct" },
+]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "both"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "Parallel proof is decode-side; layout and CLI ride linked plane rows."
+shared_evidence_relationships = ["fixed-rdw:format.rdw.odo_variable"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.odo.counter_array_consistency"
+feature_identity = "occurs-depending"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["parse", "encode", "negative"]
+parse_evidence = [
+  { ref = "crates/copybook-codec/tests/structural_evidence_matrix.rs::odo_counter_drives_array_length", kind = "direct" },
+]
+layout_evidence = [{ kind = "not_applicable", reason = "counter-driven sizing proven through parse and encode agreement" }]
+decode_evidence = [{ kind = "not_applicable", reason = "consistency is an encode-time agreement property" }]
+encode_evidence = [
+  { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_encode_counter_array_match_accepted", kind = "direct" },
+]
+round_trip_evidence = [{ kind = "not_applicable", reason = "agreement property, not a byte round-trip" }]
+negative_or_rejection_evidence = [
+  { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_encode_counter_array_mismatch_rejected", kind = "direct" },
+]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "Exact mismatch rejection code to be linked during #576 reconciliation."
+shared_evidence_relationships = ["fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.odo_variable"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.odo.not_tail"
+feature_identity = "occurs-depending"
+support_status = "rejected"
+stability_class = "stable"
+required_evidence_layers = ["parse", "negative"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/odo_tail_validation.rs::odo_tail_fails_when_storage_sibling_follows", kind = "direct" },
+]
+layout_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches layout" }]
+decode_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches decode" }]
+encode_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches encode" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "rejected input never round-trips" }]
+negative_or_rejection_evidence = [
+  { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_not_at_tail_rejection", kind = "direct" },
+  { ref = "crates/copybook-codec/tests/structural_evidence_matrix.rs::odo_non_tail_is_rejected", kind = "direct" },
+]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "not_applicable"
+stable_error_or_rejection_identity = "CBKP021_ODO_NOT_TAIL"
+known_limitations_or_remediation = "Place OCCURS DEPENDING ON last in its group; the dialect lever only tunes the minimum count, never the tail rule."
+shared_evidence_relationships = ["stable-error:CBKP021_ODO_NOT_TAIL"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.odo.nested"
+feature_identity = "nested-odo"
+support_status = "rejected"
+stability_class = "stable"
+required_evidence_layers = ["parse", "negative"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/nested_odo_negative_tests.rs::test_o5_nested_odo_basic_rejection", kind = "direct" },
+]
+layout_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches layout" }]
+decode_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches decode" }]
+encode_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches encode" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "rejected input never round-trips" }]
+negative_or_rejection_evidence = [
+  { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_nested_odo_rejection", kind = "direct" },
+]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "not_applicable"
+stable_error_or_rejection_identity = "CBKP022_NESTED_ODO"
+known_limitations_or_remediation = "O5/O6 nesting is rejected by design; the supported O1-O4 subset needs its own row before any partial claim."
+shared_evidence_relationships = ["stable-error:CBKP022_NESTED_ODO"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.odo.over_redefines"
+feature_identity = "nested-odo"
+support_status = "rejected"
+stability_class = "stable"
+required_evidence_layers = ["parse", "negative"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/nested_odo_negative_tests.rs::test_o6_odo_over_redefines_basic", kind = "direct" },
+]
+layout_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches layout" }]
+decode_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches decode" }]
+encode_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches encode" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "rejected input never round-trips" }]
+negative_or_rejection_evidence = [
+  { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_driver_in_redefines_rejection", kind = "direct" },
+]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "not_applicable"
+stable_error_or_rejection_identity = "CBKP023_ODO_REDEFINES"
+known_limitations_or_remediation = "Restructure so the ODO driver does not overlay a REDEFINES group; no flag or dialect escape exists."
+shared_evidence_relationships = ["stable-error:CBKP023_ODO_REDEFINES"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.odo.dialect_minimum"
+feature_identity = "dialect"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["parse"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/dialect_d1_tests.rs::test_dialect_default_is_normative", kind = "direct" },
+]
+layout_evidence = [{ kind = "not_applicable", reason = "minimum-count policy owned by the dialect lever contract" }]
+decode_evidence = [{ kind = "not_applicable", reason = "minimum-count policy owned by the dialect lever contract" }]
+encode_evidence = [{ kind = "not_applicable", reason = "minimum-count policy owned by the dialect lever contract" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "minimum-count policy owned by the dialect lever contract" }]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "this row links policy; rejection rows own their negatives" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI --dialect flag owned by the dialect lever contract" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "not_applicable"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "Link row only; behavior detail lives in the dialect lever contract, never duplicated here."
+shared_evidence_relationships = []
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.redefines.scalar"
+feature_identity = "none"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["decode", "encode", "round_trip", "negative"]
+parse_evidence = [{ kind = "not_applicable", reason = "core parse coverage exists; row-level anchor pending" }]
+layout_evidence = [{ kind = "not_applicable", reason = "scalar overlay bounds pinned by the short_equal_long row" }]
+decode_evidence = [
+  { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_decode_all_views", kind = "direct" },
+]
+encode_evidence = [
+  { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_encode_single_view_allowed", kind = "direct" },
+]
+round_trip_evidence = [
+  { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_round_trip_preservation", kind = "direct" },
+]
+negative_or_rejection_evidence = [
+  { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_encode_ambiguity_error", kind = "direct" },
+]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "No support-matrix feature ID exists for REDEFINES; this row owns structural status directly."
+shared_evidence_relationships = ["fixed-rdw:format.fixed.basic"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.redefines.group"
+feature_identity = "none"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["layout", "decode", "round_trip"]
+parse_evidence = [{ kind = "not_applicable", reason = "core parse coverage exists; row-level anchor pending" }]
+layout_evidence = [
+  { ref = "crates/copybook-codec/tests/structural_evidence_matrix.rs::redefines_group_overlays_original", kind = "direct" },
+]
+decode_evidence = [
+  { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_decode_all_views", kind = "direct" },
+]
+encode_evidence = [{ kind = "not_applicable", reason = "group-view encode policy rides the scalar row" }]
+round_trip_evidence = [
+  { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_round_trip_preservation", kind = "direct" },
+]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "group overlay has no dedicated rejection path" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "Declaration-order and named-view contract asserted by the decode anchor; see the support matrix structural note."
+shared_evidence_relationships = ["fixed-rdw:format.fixed.basic"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.redefines.short_equal_long"
+feature_identity = "none"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["decode"]
+parse_evidence = [{ kind = "not_applicable", reason = "overlay bounds are a decode-time property" }]
+layout_evidence = [{ kind = "not_applicable", reason = "overlay bounds are a decode-time property" }]
+decode_evidence = [
+  { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_shorter_overlay", kind = "direct" },
+  { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_equal_overlay", kind = "direct" },
+  { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_longer_overlay", kind = "direct" },
+]
+encode_evidence = [{ kind = "not_applicable", reason = "bounds pinned at decode; encode rides the scalar row" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "bounds pinned at decode; round-trip rides the scalar row" }]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "all three bound shapes are accepted" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "Longer-overlay truncation policy asserted inside the longer-overlay anchor."
+shared_evidence_relationships = ["ledger:struct.redefines.scalar"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.redefines.encode_ambiguity"
+feature_identity = "none"
+support_status = "partial"
+stability_class = "stable"
+required_evidence_layers = ["encode", "negative"]
+parse_evidence = [{ kind = "not_applicable", reason = "ambiguity is an encode-time policy" }]
+layout_evidence = [{ kind = "not_applicable", reason = "ambiguity is an encode-time policy" }]
+decode_evidence = [{ kind = "not_applicable", reason = "ambiguity is an encode-time policy" }]
+encode_evidence = [
+  { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_encode_ambiguity_error", kind = "direct" },
+  { ref = "crates/copybook-codec/tests/structural_evidence_matrix.rs::redefines_encode_ambiguity_is_rejected", kind = "direct" },
+]
+round_trip_evidence = [{ kind = "not_applicable", reason = "ambiguous views never round-trip" }]
+negative_or_rejection_evidence = [
+  { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_encode_ambiguity_error", kind = "direct" },
+]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "Ambiguous multi-view encode is refused; the exact stable identity is pending #576 reconciliation."
+shared_evidence_relationships = ["ledger:struct.redefines.scalar"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.redefines.nested_supported"
+feature_identity = "none"
+support_status = "partial"
+stability_class = "stable"
+required_evidence_layers = ["decode"]
+parse_evidence = [{ kind = "not_applicable", reason = "supported combinations proven at decode, not parse" }]
+layout_evidence = [{ kind = "not_applicable", reason = "nested-cluster layout pinned inside the sibling-advance anchor" }]
+decode_evidence = [
+  { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_nested_redefines_groups", kind = "direct" },
+  { ref = "crates/copybook-codec/tests/structural_evidence_matrix.rs::redefines_nested_local_cluster_advances_sibling", kind = "direct" },
+]
+encode_evidence = [{ kind = "not_applicable", reason = "nested combinations have no encode contract yet" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "nested combinations have no round-trip contract yet" }]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "covered combinations do not reject" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "Only the explicitly anchored combinations are supported; every other nesting shape stays rejected until anchored."
+shared_evidence_relationships = ["ledger:struct.redefines.group"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.redefines.policy_limited"
+feature_identity = "none"
+support_status = "partial"
+stability_class = "stable"
+required_evidence_layers = ["decode"]
+parse_evidence = [{ kind = "not_applicable", reason = "policy limits are proven at decode" }]
+layout_evidence = [{ kind = "not_applicable", reason = "policy limits are proven at decode" }]
+decode_evidence = [
+  { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_raw_data_precedence", kind = "direct" },
+]
+encode_evidence = [{ kind = "not_applicable", reason = "no encode contract for policy-limited shapes" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "no round-trip contract for policy-limited shapes" }]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "raw precedence accepts; interaction rejections live in dedicated rows" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "Raw-data precedence is the pinned policy; unsupported interaction shapes reject in their own rows."
+shared_evidence_relationships = ["ledger:struct.redefines.scalar"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.renames.r1_r3"
+feature_identity = "level-66-renames"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["parse", "decode", "encode", "negative"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/renames_comprehensive.rs::r1_same_scope_elementary_fields", kind = "direct" },
+  { ref = "crates/copybook-core/tests/renames_comprehensive.rs::r2_group_alias_preserves_structure", kind = "direct" },
+  { ref = "crates/copybook-core/tests/renames_comprehensive.rs::r3_nested_group_fields", kind = "direct" },
+]
+layout_evidence = [{ kind = "not_applicable", reason = "alias resolution proven at parse and decode" }]
+decode_evidence = [
+  { ref = "crates/copybook-codec/tests/renames_codec_tests.rs::test_renames_r1_simple_decode", kind = "direct" },
+  { ref = "crates/copybook-codec/tests/renames_codec_tests.rs::test_renames_r2_group_decode", kind = "direct" },
+]
+encode_evidence = [
+  { ref = "crates/copybook-codec/tests/renames_codec_tests.rs::test_renames_encode_skips_alias", kind = "direct" },
+]
+round_trip_evidence = [{ kind = "not_applicable", reason = "alias-skipping encode has no byte round-trip contract" }]
+negative_or_rejection_evidence = [
+  { ref = "crates/copybook-codec/tests/renames_codec_tests.rs::test_renames_missing_metadata_error", kind = "direct" },
+]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "R1-R3 only; R4-R6 and interaction shapes live in dedicated rows."
+shared_evidence_relationships = ["fixed-rdw:format.fixed.basic"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.renames.cross_occurs"
+feature_identity = "level-66-renames"
+support_status = "rejected"
+stability_class = "stable"
+required_evidence_layers = ["parse", "negative"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/renames_resolver_negative_tests.rs::renames_crosses_occurs_boundary", kind = "direct" },
+]
+layout_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches layout" }]
+decode_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches decode" }]
+encode_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches encode" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "rejected input never round-trips" }]
+negative_or_rejection_evidence = [
+  { ref = "crates/copybook-core/tests/renames_resolver_negative_tests.rs::renames_crosses_occurs_boundary", kind = "direct" },
+]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "not_applicable"
+stable_error_or_rejection_identity = "CBKS607_RENAME_CROSSES_OCCURS"
+known_limitations_or_remediation = "Keep RENAMES ranges inside one OCCURS table; spanning names stay rejected."
+shared_evidence_relationships = ["stable-error:CBKS607_RENAME_CROSSES_OCCURS"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.renames.over_redefines"
+feature_identity = "level-66-renames"
+support_status = "partial"
+stability_class = "stable"
+required_evidence_layers = ["parse"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/renames_r4_r6_feature_enabled_tests.rs::test_r4_single_redefines_renames_accepted_with_feature_flag", kind = "direct" },
+]
+layout_evidence = [{ kind = "not_applicable", reason = "gated policy has no layout contract yet" }]
+decode_evidence = [{ kind = "not_applicable", reason = "gated policy has no decode contract yet" }]
+encode_evidence = [{ kind = "not_applicable", reason = "gated policy has no encode contract yet" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "gated policy has no round-trip contract yet" }]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "unflagged-path rejection anchor pending" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "not_applicable"
+stable_error_or_rejection_identity = "CBKS609_RENAME_OVER_REDEFINES"
+known_limitations_or_remediation = "R4 accepted only under the RenamesR4R6 flag; the unflagged path rejects with CBKS609 and needs its own negative anchor."
+shared_evidence_relationships = ["stable-error:CBKS609_RENAME_OVER_REDEFINES"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.renames.invalid_range"
+feature_identity = "level-66-renames"
+support_status = "rejected"
+stability_class = "stable"
+required_evidence_layers = ["parse", "negative"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/renames_resolver_negative_tests.rs::renames_reversed_range", kind = "direct" },
+]
+layout_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches layout" }]
+decode_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches decode" }]
+encode_evidence = [{ kind = "not_applicable", reason = "rejected input never reaches encode" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "rejected input never round-trips" }]
+negative_or_rejection_evidence = [
+  { ref = "crates/copybook-codec/tests/structural_evidence_matrix.rs::renames_reversed_range_is_rejected", kind = "direct" },
+]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "not_applicable"
+stable_error_or_rejection_identity = "CBKS604_RENAME_REVERSED_RANGE"
+known_limitations_or_remediation = "Order THRU after FROM within one scope; reversed or cross-scope ranges stay rejected."
+shared_evidence_relationships = ["stable-error:CBKS604_RENAME_REVERSED_RANGE"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.level88.single_value"
+feature_identity = "level-88"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["parse", "layout", "decode"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/test_level88_comma_support.rs::test_level88_single_value_no_comma", kind = "direct" },
+]
+layout_evidence = [
+  { ref = "crates/copybook-codec/tests/structural_evidence_matrix.rs::level88_is_non_storage", kind = "direct" },
+]
+decode_evidence = [
+  { ref = "crates/copybook-core/tests/golden_fixtures_ac2_level88_after_odo.rs::test_ac2_basic_level88_after_odo_pass", kind = "direct" },
+]
+encode_evidence = [{ kind = "not_applicable", reason = "condition names never encode to record bytes" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "condition names never round-trip through record bytes" }]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "single values do not reject" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "Non-storage semantic asserted by the layout anchor; value evaluation rides the parent field."
+shared_evidence_relationships = ["fixed-rdw:format.fixed.basic"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.level88.value_list_range"
+feature_identity = "level-88"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["parse"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/test_level88_comma_support.rs::test_level88_comma_separated_string_values", kind = "direct" },
+  { ref = "crates/copybook-core/tests/test_level88_comma_support.rs::test_level88_comma_with_ranges", kind = "direct" },
+]
+layout_evidence = [{ kind = "not_applicable", reason = "list/range syntax rides the single-value layout row" }]
+decode_evidence = [{ kind = "not_applicable", reason = "list/range evaluation rides the single-value decode row" }]
+encode_evidence = [{ kind = "not_applicable", reason = "condition names never encode to record bytes" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "condition names never round-trip through record bytes" }]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "list/range syntax does not reject" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "Syntax row only; evaluation semantics ride struct.level88.single_value."
+shared_evidence_relationships = ["ledger:struct.level88.single_value"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.level88.codec_context"
+feature_identity = "level-88"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["decode"]
+parse_evidence = [{ kind = "not_applicable", reason = "context behavior proven at decode" }]
+layout_evidence = [{ kind = "not_applicable", reason = "context behavior proven at decode" }]
+decode_evidence = [
+  { ref = "crates/copybook-core/tests/golden_fixtures_ac2_level88_after_odo.rs::test_ac2_basic_level88_after_odo_pass", kind = "direct" },
+  { ref = "crates/copybook-core/tests/golden_fixtures_ac5_redefines_level88_interactions.rs::test_ac5_basic_level88_with_redefines_pass", kind = "direct" },
+]
+encode_evidence = [{ kind = "not_applicable", reason = "condition names never encode to record bytes" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "condition names never round-trip through record bytes" }]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "parent-field context does not reject" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "Parent-field value relationship asserted inside the golden anchors."
+shared_evidence_relationships = ["ledger:struct.level88.single_value"]
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.level88.invalid_reference"
+feature_identity = "level-88"
+support_status = "partial"
+stability_class = "stable"
+required_evidence_layers = ["negative"]
+parse_evidence = [{ kind = "not_applicable", reason = "mismatch surfaces at evaluation, not parse" }]
+layout_evidence = [{ kind = "not_applicable", reason = "mismatch surfaces at evaluation, not layout" }]
+decode_evidence = [{ kind = "not_applicable", reason = "mismatch surfaces as a failed condition, not a decode error" }]
+encode_evidence = [{ kind = "not_applicable", reason = "condition names never encode to record bytes" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "condition names never round-trip through record bytes" }]
+negative_or_rejection_evidence = [
+  { ref = "crates/copybook-core/tests/bdd_error_handling_scenarios.rs::bdd_scenario_level_88_value_mismatch", kind = "direct" },
+]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "Value-mismatch behavior pinned; the exact stable identity for dangling condition references is pending #576."
+shared_evidence_relationships = []
+
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+
+[[scenarios]]
+scenario_id = "struct.level88.projection_alias"
+feature_identity = "level-88"
+support_status = "beta"
+stability_class = "beta"
+required_evidence_layers = []
+parse_evidence = [{ kind = "not_applicable", reason = "projection-alias behavior unindexed; anchor pending" }]
+layout_evidence = [{ kind = "not_applicable", reason = "projection-alias behavior unindexed; anchor pending" }]
+decode_evidence = [{ kind = "not_applicable", reason = "projection-alias behavior unindexed; anchor pending" }]
+encode_evidence = [{ kind = "not_applicable", reason = "projection-alias behavior unindexed; anchor pending" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "projection-alias behavior unindexed; anchor pending" }]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "projection-alias behavior unindexed; anchor pending" }]
+cli_evidence = [{ kind = "not_applicable", reason = "projection-alias behavior unindexed; anchor pending" }]
+fixed_rdw_vb_applicability = []
+codepage_applicability = []
+worker_applicability = "not_applicable"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "Beta placeholder reserving the scenario ID; selection/reference behavior must be anchored before any claim."
+shared_evidence_relationships = []
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"

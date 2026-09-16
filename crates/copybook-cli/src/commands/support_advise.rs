@@ -63,6 +63,9 @@ pub fn run_advise(
         Err(error) => (None, Some(error.to_string())),
     };
 
+    // Redaction precondition (`AdviseInput::bounded`): construct detail carries
+    // schema field paths only, and the parse error is an in-memory diagnostic
+    // string; neither ever carries filesystem paths or record payload.
     let constructs = schema.as_ref().map(extract_constructs).unwrap_or_default();
     let mut input = AdviseInput::bounded(
         constructs,

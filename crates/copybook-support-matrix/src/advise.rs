@@ -317,8 +317,10 @@ impl AdviseResult {
     /// Build a result; scenarios are sorted by ID and capped at
     /// [`MAX_SCENARIOS`] with counts preserved. The verdict is derived from
     /// the *reported* assessments only when nothing was dropped; a dropped
-    /// scenario of unknown severity forces [`Verdict::PartialUnknown`] so a
-    /// bound can never manufacture certainty.
+    /// scenario of unknown severity downgrades any non-negative verdict
+    /// ([`Verdict::Supported`], [`Verdict::SupportedWithLimits`], or
+    /// [`Verdict::Beta`]) to [`Verdict::PartialUnknown`] so a bound can
+    /// never manufacture certainty. Already-negative verdicts are preserved.
     #[must_use]
     #[inline]
     pub fn bounded(
@@ -335,7 +337,12 @@ impl AdviseResult {
         let reported_statuses: Vec<AssessmentStatus> =
             scenarios.iter().map(|item| item.status).collect();
         let mut verdict = derive_verdict(&reported_statuses);
-        if reported < considered && verdict == Verdict::Supported {
+        if reported < considered
+            && matches!(
+                verdict,
+                Verdict::Supported | Verdict::SupportedWithLimits | Verdict::Beta
+            )
+        {
             verdict = Verdict::PartialUnknown;
         }
         let copybook_fingerprint = None;
@@ -452,6 +459,13 @@ pub struct AdviseInput {
 
 impl AdviseInput {
     /// Build input with bounded strings.
+    ///
+    /// Caller precondition: `parse_error` and each construct `detail` must
+    /// carry schema text only (field names, clause spellings, diagnostic
+    /// identities) — never filesystem paths, record payload, or user
+    /// identifiers. Analysis copies caller text verbatim into evidence and
+    /// next actions, so the emitted [`RedactionState::paths_redacted`] claim
+    /// holds only when callers meet this precondition.
     #[inline]
     #[must_use]
     pub fn bounded(
@@ -717,6 +731,56 @@ mod tests {
         assert_eq!(result.truncation.scenarios_considered, MAX_SCENARIOS + 4);
         assert_eq!(result.truncation.scenarios_reported, MAX_SCENARIOS);
         assert_eq!(result.verdict, Verdict::PartialUnknown);
+    }
+
+    #[test]
+    fn encoding_advise_dropped_scenarios_downgrade_limited_and_beta() {
+        for status in [AssessmentStatus::Limited, AssessmentStatus::Beta] {
+            let scenarios: Vec<ScenarioAssessment> = (0..MAX_SCENARIOS + 2)
+                .map(|index| {
+                    let item_status = if index == 0 {
+                        status
+                    } else {
+                        AssessmentStatus::Supported
+                    };
+                    assessment(&format!("row.{index:03}"), item_status)
+                })
+                .collect();
+            let result = AdviseResult::bounded(
+                options(),
+                scenarios,
+                0,
+                RedactionState::locked_down(),
+                "copybook 0.7.0",
+            );
+            assert_eq!(
+                result.verdict,
+                Verdict::PartialUnknown,
+                "dropped scenarios must not leave a {status:?} certainty"
+            );
+        }
+    }
+
+    #[test]
+    fn encoding_advise_dropped_scenarios_preserve_rejection() {
+        let scenarios: Vec<ScenarioAssessment> = (0..MAX_SCENARIOS + 2)
+            .map(|index| {
+                let item_status = if index == 0 {
+                    AssessmentStatus::Rejected
+                } else {
+                    AssessmentStatus::Supported
+                };
+                assessment(&format!("row.{index:03}"), item_status)
+            })
+            .collect();
+        let result = AdviseResult::bounded(
+            options(),
+            scenarios,
+            0,
+            RedactionState::locked_down(),
+            "copybook 0.7.0",
+        );
+        assert_eq!(result.verdict, Verdict::Rejected);
     }
 
     #[test]

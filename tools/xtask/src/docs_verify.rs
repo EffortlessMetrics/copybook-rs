@@ -2889,6 +2889,11 @@ fn validate_corpus_identity(entry: &CorpusFixture, id: &str) -> Result<()> {
 }
 
 fn validate_corpus_files(root: &Path, entry: &CorpusFixture, id: &str) -> Result<()> {
+    for input in &entry.generator_inputs {
+        if input.contains('/') && !root.join(input).is_file() {
+            bail!("corpus fixture `{id}` names missing generator input `{input}`");
+        }
+    }
     verify_corpus_file_hash(
         root,
         id,

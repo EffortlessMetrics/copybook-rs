@@ -20,7 +20,7 @@ use xtask::perf;
 type Verifier = (&'static str, fn() -> Result<()>);
 
 pub(crate) fn run() -> Result<()> {
-    let checks: [Verifier; 17] = [
+    let checks: [Verifier; 18] = [
         (
             "workspace-version-and-msrv",
             verify_workspace_version_and_msrv,
@@ -32,6 +32,7 @@ pub(crate) fn run() -> Result<()> {
         ),
         ("error-code-inventory", verify_error_code_inventory),
         ("stable-error-registry", verify_stable_error_registry),
+        ("scenario-ledger", verify_scenario_ledger),
         ("record-pipeline-evidence", verify_record_pipeline_evidence),
         ("test-status", verify_test_status_if_present),
         ("support-matrix", verify_support_matrix),
@@ -153,6 +154,10 @@ fn update_record_pipeline_registry(source: &str, digest: &str) -> Result<String>
 
 pub(crate) fn verify_stable_error_registry_command() -> Result<()> {
     verify_stable_error_registry()
+}
+
+pub(crate) fn verify_scenario_ledger_command() -> Result<()> {
+    verify_scenario_ledger()
 }
 
 pub(crate) fn run_freeze_contract_checks() -> Result<()> {
@@ -2286,6 +2291,395 @@ fn verify_stable_error_anchors(root: &Path, registry: &StableErrorRegistry) -> R
     Ok(())
 }
 
+const SCENARIO_LEDGER_PATH: &str = "docs/evidence/scenario-ledger.toml";
+const SCENARIO_LEDGER_LAYERS: [&str; 7] = [
+    "parse",
+    "layout",
+    "decode",
+    "encode",
+    "round_trip",
+    "negative",
+    "cli",
+];
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ScenarioLedger {
+    schema_version: u32,
+    scope: String,
+    scenarios: Vec<ScenarioRow>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ScenarioRow {
+    scenario_id: String,
+    feature_identity: String,
+    support_status: String,
+    stability_class: String,
+    required_evidence_layers: Vec<String>,
+    parse_evidence: Vec<EvidenceAnchor>,
+    layout_evidence: Vec<EvidenceAnchor>,
+    decode_evidence: Vec<EvidenceAnchor>,
+    encode_evidence: Vec<EvidenceAnchor>,
+    round_trip_evidence: Vec<EvidenceAnchor>,
+    negative_or_rejection_evidence: Vec<EvidenceAnchor>,
+    cli_evidence: Vec<EvidenceAnchor>,
+    fixed_rdw_vb_applicability: Vec<String>,
+    codepage_applicability: Vec<String>,
+    worker_applicability: String,
+    stable_error_or_rejection_identity: String,
+    known_limitations_or_remediation: String,
+    shared_evidence_relationships: Vec<String>,
+    last_verified_full_sha: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct EvidenceAnchor {
+    #[serde(default, rename = "ref")]
+    reference: Option<String>,
+    kind: String,
+    #[serde(default)]
+    reason: Option<String>,
+}
+
+impl EvidenceAnchor {
+    fn direct_refs(&self) -> Option<&str> {
+        if self.kind == "direct" {
+            self.reference.as_deref()
+        } else {
+            None
+        }
+    }
+}
+
+fn scenario_layer<'a>(row: &'a ScenarioRow, layer: &str) -> &'a [EvidenceAnchor] {
+    match layer {
+        "parse" => &row.parse_evidence,
+        "layout" => &row.layout_evidence,
+        "decode" => &row.decode_evidence,
+        "encode" => &row.encode_evidence,
+        "round_trip" => &row.round_trip_evidence,
+        "negative" => &row.negative_or_rejection_evidence,
+        "cli" => &row.cli_evidence,
+        _ => &[],
+    }
+}
+
+fn load_scenario_ledger(path: &Path) -> Result<ScenarioLedger> {
+    let source = fs::read_to_string(path)
+        .with_context(|| format!("loading scenario ledger {}", path.display()))?;
+    toml::from_str(&source).with_context(|| format!("parsing {}", path.display()))
+}
+
+fn verify_scenario_ledger() -> Result<()> {
+    let root = workspace_root();
+    let path = root.join(SCENARIO_LEDGER_PATH);
+    let ledger = load_scenario_ledger(&path)?;
+    if ledger.schema_version != 1 {
+        bail!(
+            "unsupported scenario ledger schema version {}",
+            ledger.schema_version
+        );
+    }
+    if ledger.scope != "scenario-ledger" {
+        bail!("unexpected scenario ledger scope `{}`", ledger.scope);
+    }
+    if ledger.scenarios.is_empty() {
+        bail!("scenario ledger contains no scenarios");
+    }
+
+    let error_codes = scenario_ledger_error_identities(&root)?;
+    let pipeline_ids = scenario_ledger_pipeline_ids(&root)?;
+    validate_scenario_ledger(&root, &ledger, &error_codes, &pipeline_ids)?;
+    let supported = ledger
+        .scenarios
+        .iter()
+        .filter(|row| row.support_status == "supported")
+        .count();
+    println!(
+        "scenario ledger verified: {} scenarios ({} supported)",
+        ledger.scenarios.len(),
+        supported
+    );
+    Ok(())
+}
+
+fn scenario_ledger_error_identities(root: &Path) -> Result<BTreeMap<String, String>> {
+    let path = root.join(STABLE_ERROR_REGISTRY_PATH);
+    let source = fs::read_to_string(&path)
+        .with_context(|| format!("loading stable error registry {}", path.display()))?;
+    let registry: StableErrorRegistry =
+        toml::from_str(&source).with_context(|| format!("parsing {}", path.display()))?;
+    Ok(registry
+        .errors
+        .into_iter()
+        .map(|entry| (entry.code, entry.stability_class))
+        .collect())
+}
+
+fn scenario_ledger_pipeline_ids(root: &Path) -> Result<BTreeSet<String>> {
+    let path = root.join(RECORD_PIPELINE_EVIDENCE_PATH);
+    let source = fs::read_to_string(&path)
+        .with_context(|| format!("loading fixed/RDW evidence registry {}", path.display()))?;
+    let registry: RecordPipelineEvidence =
+        toml::from_str(&source).with_context(|| format!("parsing {}", path.display()))?;
+    Ok(registry
+        .scenarios
+        .into_iter()
+        .map(|scenario| scenario.id)
+        .collect())
+}
+
+fn validate_scenario_ledger(
+    root: &Path,
+    ledger: &ScenarioLedger,
+    error_codes: &BTreeMap<String, String>,
+    pipeline_ids: &BTreeSet<String>,
+) -> Result<()> {
+    let mut seen = BTreeSet::new();
+    for row in &ledger.scenarios {
+        if !seen.insert(row.scenario_id.clone()) {
+            bail!("duplicate scenario ledger id `{}`", row.scenario_id);
+        }
+    }
+    let ids = seen;
+    for row in &ledger.scenarios {
+        validate_scenario_row(root, row, &ids, error_codes, pipeline_ids)?;
+    }
+    Ok(())
+}
+
+fn validate_scenario_row(
+    root: &Path,
+    row: &ScenarioRow,
+    ids: &BTreeSet<String>,
+    error_codes: &BTreeMap<String, String>,
+    pipeline_ids: &BTreeSet<String>,
+) -> Result<()> {
+    let id = row.scenario_id.as_str();
+    validate_scenario_enums(id, row)?;
+    validate_feature_identity(id, &row.feature_identity)?;
+    let has_na = validate_scenario_layers(root, id, row)?;
+    validate_scenario_metadata(id, row, has_na)?;
+    if matches!(row.support_status.as_str(), "rejected" | "non_goal") {
+        validate_rejection_identity(id, row, error_codes)?;
+    } else if row.stable_error_or_rejection_identity != "none" {
+        validate_error_identity(
+            id,
+            &row.stable_error_or_rejection_identity,
+            &row.stability_class,
+            error_codes,
+        )?;
+    }
+    for relationship in &row.shared_evidence_relationships {
+        validate_relationship(id, relationship, ids, error_codes, pipeline_ids)?;
+    }
+    if row.last_verified_full_sha.len() != 40
+        || !row
+            .last_verified_full_sha
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit())
+    {
+        bail!(
+            "scenario `{id}` needs a full 40-hex last_verified_full_sha, found `{}`",
+            row.last_verified_full_sha
+        );
+    }
+    Ok(())
+}
+
+fn validate_scenario_enums(id: &str, row: &ScenarioRow) -> Result<()> {
+    if !matches!(
+        row.support_status.as_str(),
+        "supported" | "partial" | "beta" | "rejected" | "non_goal"
+    ) {
+        bail!(
+            "scenario `{id}` has unknown support status `{}`; expected supported|partial|beta|rejected|non_goal | repair: set a closed-enum status",
+            row.support_status
+        );
+    }
+    if !matches!(row.stability_class.as_str(), "stable" | "beta" | "reserved") {
+        bail!(
+            "scenario `{id}` has unknown stability class `{}`; expected stable|beta|reserved",
+            row.stability_class
+        );
+    }
+    for layer in &row.required_evidence_layers {
+        if !SCENARIO_LEDGER_LAYERS.contains(&layer.as_str()) {
+            bail!(
+                "scenario `{id}` requires unknown evidence layer `{layer}`; expected one of parse|layout|decode|encode|round_trip|negative|cli"
+            );
+        }
+    }
+    for format in &row.fixed_rdw_vb_applicability {
+        if !matches!(format.as_str(), "fixed" | "rdw" | "vb") {
+            bail!("scenario `{id}` has unknown record format `{format}`; expected fixed|rdw|vb");
+        }
+    }
+    for codepage in &row.codepage_applicability {
+        if !matches!(
+            codepage.as_str(),
+            "all" | "ASCII" | "CP037" | "CP273" | "CP500" | "CP1047" | "CP1140"
+        ) {
+            bail!(
+                "scenario `{id}` has unknown codepage `{codepage}`; expected all|ASCII|CP037|CP273|CP500|CP1047|CP1140"
+            );
+        }
+    }
+    if !matches!(
+        row.worker_applicability.as_str(),
+        "single" | "parallel" | "both" | "not_applicable"
+    ) {
+        bail!(
+            "scenario `{id}` has unknown worker applicability `{}`; expected single|parallel|both|not_applicable",
+            row.worker_applicability
+        );
+    }
+    Ok(())
+}
+
+fn validate_feature_identity(id: &str, feature_identity: &str) -> Result<()> {
+    if feature_identity == "none" {
+        return Ok(());
+    }
+    if copybook_core::support_matrix::find_feature(feature_identity).is_none() {
+        bail!(
+            "scenario `{id}` names unknown support-matrix feature `{feature_identity}`; expected a support-matrix feature ID or `none` | repair: use a feature ID from crates/copybook-support-matrix or `none` with a reason"
+        );
+    }
+    Ok(())
+}
+
+fn validate_scenario_layers(root: &Path, id: &str, row: &ScenarioRow) -> Result<bool> {
+    let mut has_na = false;
+    for layer in SCENARIO_LEDGER_LAYERS {
+        let anchors = scenario_layer(row, layer);
+        if anchors.is_empty() {
+            bail!(
+                "scenario `{id}` layer `{layer}` is empty; add a direct anchor or one not_applicable entry with reason | repair: cargo run -p xtask -- docs verify-scenario-ledger"
+            );
+        }
+        for anchor in anchors {
+            if anchor.kind == "direct" {
+                let Some(reference) = anchor.direct_refs() else {
+                    bail!("scenario `{id}` layer `{layer}` direct anchor is missing its ref");
+                };
+                verify_test_anchor(root, reference, id)?;
+            } else if anchor.kind == "not_applicable" {
+                if anchor.reason.as_deref().is_none_or(str::is_empty) {
+                    bail!("scenario `{id}` layer `{layer}` not_applicable entry needs a reason");
+                }
+                has_na = true;
+            } else {
+                bail!(
+                    "scenario `{id}` layer `{layer}` has unknown anchor kind `{}`; expected direct|not_applicable",
+                    anchor.kind
+                );
+            }
+        }
+        if row.required_evidence_layers.contains(&layer.to_string())
+            && !anchors.iter().any(|anchor| anchor.kind == "direct")
+        {
+            bail!("scenario `{id}` requires layer `{layer}` but has no direct anchor");
+        }
+    }
+    Ok(has_na)
+}
+
+fn validate_scenario_metadata(id: &str, row: &ScenarioRow, has_na: bool) -> Result<()> {
+    if row.feature_identity == "none" && row.known_limitations_or_remediation.is_empty() {
+        bail!(
+            "scenario `{id}` has no feature identity; explain why in known_limitations_or_remediation"
+        );
+    }
+    if (has_na || row.support_status != "supported")
+        && row.known_limitations_or_remediation.is_empty()
+    {
+        bail!(
+            "scenario `{id}` needs known_limitations_or_remediation: it has N/A layers or is not supported"
+        );
+    }
+    Ok(())
+}
+
+fn validate_rejection_identity(
+    id: &str,
+    row: &ScenarioRow,
+    error_codes: &BTreeMap<String, String>,
+) -> Result<()> {
+    if row.stable_error_or_rejection_identity == "none" {
+        bail!(
+            "scenario `{id}` is {} but names no stable error identity; rejections need an exact code and remediation",
+            row.support_status
+        );
+    }
+    validate_error_identity(
+        id,
+        &row.stable_error_or_rejection_identity,
+        &row.stability_class,
+        error_codes,
+    )?;
+    if row.known_limitations_or_remediation.is_empty() {
+        bail!(
+            "scenario `{id}` is {} but has no remediation",
+            row.support_status
+        );
+    }
+    Ok(())
+}
+
+fn validate_error_identity(
+    id: &str,
+    identity: &str,
+    stability_class: &str,
+    error_codes: &BTreeMap<String, String>,
+) -> Result<()> {
+    for code in identity.split([',', ' ']).filter(|token| !token.is_empty()) {
+        if let Some(class) = error_codes.get(code) {
+            if stability_class == "stable" && class == "reserved" {
+                bail!("scenario `{id}` is stable but cites reserved error `{code}`");
+            }
+        } else if !code.starts_with("reserved:") {
+            bail!(
+                "scenario `{id}` cites unknown error identity `{code}`; expected a stable-errors code, reserved:<name>, or none"
+            );
+        }
+    }
+    Ok(())
+}
+
+fn validate_relationship(
+    id: &str,
+    relationship: &str,
+    ids: &BTreeSet<String>,
+    error_codes: &BTreeMap<String, String>,
+    pipeline_ids: &BTreeSet<String>,
+) -> Result<()> {
+    let Some((namespace, target)) = relationship.split_once(':') else {
+        bail!(
+            "scenario `{id}` relationship `{relationship}` needs a namespace: fixed-rdw:<id>|stable-error:<CODE>|ledger:<scenario_id>"
+        );
+    };
+    let known = match namespace {
+        "fixed-rdw" => pipeline_ids.contains(target),
+        "stable-error" => error_codes.contains_key(target),
+        "ledger" => target != id && ids.contains(target),
+        _ => {
+            bail!(
+                "scenario `{id}` relationship `{relationship}` has unknown namespace `{namespace}`"
+            );
+        }
+    };
+    if !known {
+        bail!(
+            "scenario `{id}` relationship `{relationship}` names an unknown target | repair: check the owning registry ID"
+        );
+    }
+    Ok(())
+}
+
 fn verify_performance_floor_and_receipt() -> Result<()> {
     let policy_text = fs::read_to_string("docs/PERFORMANCE_GOVERNANCE.md")
         .context("loading docs/PERFORMANCE_GOVERNANCE.md")?;
@@ -4246,5 +4640,194 @@ CBK999_OUTSIDE,
     #[test]
     fn verify_surface_deprecation_audit_check_passes() {
         verify_surface_deprecation_audit().expect("surface deprecation audit check failed");
+    }
+
+    fn scenario_row_fixture() -> (tempfile::TempDir, ScenarioRow) {
+        let temp = tempfile::tempdir().unwrap();
+        std::fs::write(temp.path().join("t.rs"), "fn works() {}\n").unwrap();
+        let direct = || EvidenceAnchor {
+            reference: Some("t.rs::works".to_string()),
+            kind: "direct".to_string(),
+            reason: None,
+        };
+        let na = || EvidenceAnchor {
+            reference: None,
+            kind: "not_applicable".to_string(),
+            reason: Some("not needed for this fixture".to_string()),
+        };
+        let row = ScenarioRow {
+            scenario_id: "test.row".to_string(),
+            feature_identity: "none".to_string(),
+            support_status: "supported".to_string(),
+            stability_class: "stable".to_string(),
+            required_evidence_layers: vec!["parse".to_string()],
+            parse_evidence: vec![direct()],
+            layout_evidence: vec![na()],
+            decode_evidence: vec![na()],
+            encode_evidence: vec![na()],
+            round_trip_evidence: vec![na()],
+            negative_or_rejection_evidence: vec![na()],
+            cli_evidence: vec![na()],
+            fixed_rdw_vb_applicability: vec!["fixed".to_string()],
+            codepage_applicability: vec!["all".to_string()],
+            worker_applicability: "single".to_string(),
+            stable_error_or_rejection_identity: "none".to_string(),
+            known_limitations_or_remediation: "fixture limitation".to_string(),
+            shared_evidence_relationships: Vec::new(),
+            last_verified_full_sha: "2cde1ed1aa699fca10c41ee6298670a5458e98f3".to_string(),
+        };
+        (temp, row)
+    }
+
+    fn scenario_registries() -> (BTreeMap<String, String>, BTreeSet<String>) {
+        (
+            BTreeMap::from([("CBKP001_SYNTAX".to_string(), "stable".to_string())]),
+            BTreeSet::from(["fixed-rdw-target".to_string()]),
+        )
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_accepts_valid_row() {
+        let (temp, row) = scenario_row_fixture();
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline).unwrap();
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_duplicate_ids() {
+        let (temp, row) = scenario_row_fixture();
+        let second_id = row.scenario_id.clone();
+        let ledger = ScenarioLedger {
+            schema_version: 1,
+            scope: "scenario-ledger".to_string(),
+            scenarios: vec![
+                row,
+                ScenarioRow {
+                    scenario_id: second_id,
+                    ..scenario_row_fixture().1
+                },
+            ],
+        };
+        let (codes, pipeline) = scenario_registries();
+        let err = validate_scenario_ledger(temp.path(), &ledger, &codes, &pipeline)
+            .expect_err("duplicate IDs must fail");
+        assert!(err.to_string().contains("duplicate"), "{err}");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_missing_anchor() {
+        let (temp, mut row) = scenario_row_fixture();
+        row.parse_evidence[0].reference = Some("t.rs::absent".to_string());
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect_err("missing anchor must fail");
+        assert!(err.to_string().contains("absent"), "{err}");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_empty_layer() {
+        let (temp, mut row) = scenario_row_fixture();
+        row.decode_evidence = Vec::new();
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect_err("empty layer must fail");
+        assert!(err.to_string().contains("decode"), "{err}");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_unknown_status() {
+        let (temp, mut row) = scenario_row_fixture();
+        row.support_status = "almighty".to_string();
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        assert!(validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline).is_err());
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_rejection_without_identity() {
+        let (temp, mut row) = scenario_row_fixture();
+        row.support_status = "rejected".to_string();
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect_err("rejection without identity must fail");
+        assert!(err.to_string().contains("identity"), "{err}");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_bad_sha() {
+        let (temp, mut row) = scenario_row_fixture();
+        row.last_verified_full_sha = "2cde1ed".to_string();
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        assert!(validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline).is_err());
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_unknown_relationship() {
+        let (temp, mut row) = scenario_row_fixture();
+        row.shared_evidence_relationships = vec!["ledger:nope".to_string()];
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        assert!(validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline).is_err());
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_unknown_feature_identity() {
+        let (temp, mut row) = scenario_row_fixture();
+        row.feature_identity = "dialect".to_string();
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect_err("unknown feature identity must fail");
+        assert!(
+            err.to_string().contains("unknown support-matrix feature"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_unknown_fields() {
+        let source = r#"
+schema_version = 1
+scope = "scenario-ledger"
+
+[[scenarios]]
+scenario_id = "test.row"
+feature_identity = "none"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["parse"]
+bogus_field = "must be rejected"
+parse_evidence = [{ ref = "t.rs::works", kind = "direct" }]
+layout_evidence = [{ kind = "not_applicable", reason = "x" }]
+decode_evidence = [{ kind = "not_applicable", reason = "x" }]
+encode_evidence = [{ kind = "not_applicable", reason = "x" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "x" }]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "x" }]
+cli_evidence = [{ kind = "not_applicable", reason = "x" }]
+fixed_rdw_vb_applicability = ["fixed"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "fixture"
+shared_evidence_relationships = []
+last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+"#;
+        let err = toml::from_str::<ScenarioLedger>(source)
+            .expect_err("unknown ledger fields must fail to parse");
+        assert!(err.to_string().contains("bogus_field"), "{err}");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_missing_ledger_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let missing = temp.path().join("absent-ledger.toml");
+        let err =
+            load_scenario_ledger(&missing).expect_err("missing ledger file must fail to load");
+        assert!(err.to_string().contains("loading scenario ledger"), "{err}");
     }
 }

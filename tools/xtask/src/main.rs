@@ -6,6 +6,7 @@ use std::{fs, path::Path};
 use xtask::publish::{PlanFormat, run_plan};
 use xtask::{Counts, architecture, counts, junit_xml_path, perf};
 
+mod corpus;
 mod docs_verify;
 mod pr_insights;
 
@@ -29,6 +30,7 @@ fn main() -> Result<()> {
         ["docs", "verify-stable-errors"] => docs_verify::verify_stable_error_registry_command(),
         ["docs", "verify-scenario-ledger"] => docs_verify::verify_scenario_ledger_command(),
         ["docs", "verify-corpus"] => docs_verify::verify_corpus_command(),
+        ["corpus", "receipt", rest @ ..] => corpus::run_receipt(rest),
         ["docs", "verify-support-matrix"] => verify_support_matrix(),
         ["docs", "freeze", "contracts"] => docs_verify::run_freeze_contract_checks(),
         ["docs", "contracts", "generate"] => docs_verify::run_contracts_command(),
@@ -99,6 +101,7 @@ fn usage() {
          docs freeze contracts               Verify freeze-sensitive contracts (strict, API surface contract guard)\n\
          docs contracts generate             Regenerate stable contract manifest baseline\n\
          docs verify-corpus                   Verify governed corpus manifest metadata and fingerprints
+         corpus receipt --fixture <id> --out <path>   Write a payload-free local validation receipt
          docs verify-support-matrix          Verify support matrix registry -> docs\n\
          perf                                Run perf benchmark runner\n\
          perf --enforce                      Run perf with SLO enforcement\n\

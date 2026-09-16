@@ -38,6 +38,8 @@ the control is active until the record and observed PR evidence are complete.
 | Gist revision | `a77a8975c0eca2d5adbf9b0c7d3180a265413455` |
 | Required status context | `license/cla` |
 | Expected status source | CLA Assistant GitHub App |
+| Baseline ruleset | `main` (`13361843`), unchanged and without bypass actors |
+| Dedicated CLA ruleset | `PENDING` |
 | Individual-flow bot allowlist | `dependabot[bot]` |
 | Last private CSV export | `PENDING` |
 
@@ -46,7 +48,7 @@ repository-owned [Dependabot configuration](../.github/dependabot.yml) for Cargo
 and GitHub Actions updates and, as of 2026-09-15, GitHub reports 89 Dependabot
 pull requests for this repository. This exemption applies only to
 `dependabot[bot]`; it does not extend to `github-actions[bot]`, collaborators,
-organization members, or other service accounts.
+organization members, corporate contributors, or other service accounts.
 
 ## Activation sequence
 
@@ -56,29 +58,50 @@ organization members, or other service accounts.
 3. Install the hosted CLA Assistant GitHub App only on `copybook-rs`, then link
    the repository to that Gist.
 4. Import only `dependabot[bot]` as an individual-flow exemption. Do not exempt
-   collaborators, organization members, or service accounts that do not create
-   controlled project-attributable contributions.
+   collaborators, organization members, corporate contributors, or service
+   accounts that do not create controlled project-attributable contributions.
 5. Use the activation pull request as the test PR. Verify that CLA Assistant
    comments, an unsigned user receives a non-successful `license/cla` status,
    signing changes it to success, and the recorded fields match the metadata
    source.
-6. Add `license/cla` to the existing `main` ruleset as a required status check.
-   Select the CLA Assistant GitHub App as the expected source. Preserve the
-   existing pull-request, deletion, non-fast-forward, and no-bypass rules.
-7. Export the signature register to private, access-controlled storage and
+6. Create a dedicated default-branch CLA ruleset whose required check is
+   `license/cla`, with the CLA Assistant GitHub App selected as the expected
+   source. Preserve the existing `main` ruleset, including its pull-request,
+   deletion, non-fast-forward, and no-bypass posture.
+7. Leave the CLA ruleset bypass list empty unless the corporate process below
+   is activated. If it is activated, add only the dedicated corporate-approval
+   team in `pull_request` bypass mode.
+8. Export the signature register to private, access-controlled storage and
    record the export date above.
-8. Merge the documentation pull request only after the hosted flow and
-   source-pinned ruleset gate are both observed on that pull request.
+9. Merge the documentation pull request only after the hosted flow and
+   source-pinned CLA ruleset gate are both observed on that pull request.
 
 ## Corporate contributions
 
-The bot flow is limited to the Individual CLA. Do not add an “on behalf of my
-employer” option, and do not use a general exemption to simulate corporate
-assent.
+The hosted bot flow is limited to the Individual CLA. Do not add an “on behalf
+of my employer” option, import a corporate contributor as though they signed the
+Individual CLA, or place a human account or employer organization on the CLA
+Assistant allowlist.
 
 A corporate contribution remains blocked until the maintainers have adopted a
-Corporate CLA, verified the representative's authority, and created a separate
-authorization record.
+Corporate CLA, verified the representative's authority, and created a private
+authorization record identifying the entity, agreement version, covered GitHub
+usernames, scope, and effective date.
+
+The corporate merge path is an audited exception to the CLA rule only:
+
+1. enforce the App-pinned `license/cla` check in the dedicated CLA ruleset,
+   separate from the baseline `main` ruleset;
+2. make a dedicated `cla-corporate-approvers` team the only
+   `pull_request`-mode bypass actor on that CLA-only ruleset;
+3. require an approver to verify the private Corporate CLA record before
+   bypassing the CLA ruleset for a specific pull request; and
+4. retain a private receipt containing the entity, agreement version, covered
+   usernames, pull request, approver, timestamp, and reason.
+
+All ordinary pull-request, review, CI, deletion, and non-fast-forward rules
+remain enforced. Until the Corporate CLA and this narrowly scoped exception path
+are both configured, an entity-owned contribution cannot merge.
 
 ## Evidence retention
 

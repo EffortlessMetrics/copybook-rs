@@ -26,7 +26,7 @@
 //! and serves the `support` command. This module adds only owned data plus
 //! pure derivation; it performs no I/O, reads no record payload, and never
 //! shells out. Uncertainty stays local: anything heuristic is
-//! [`AssessmentStatus::Unknown`], never rendered as certainty.
+//! [`crate::advise::AssessmentStatus::Unknown`], never rendered as certainty.
 
 use serde::{Deserialize, Serialize};
 

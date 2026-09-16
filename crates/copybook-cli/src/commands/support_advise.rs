@@ -2,8 +2,8 @@
 //! `support --advise` orchestration (Slice C).
 //!
 //! Thin by design: read the copybook, parse it, extract the construct
-//! inventory, run [`advise::analyze`], and project the same
-//! [`advise::AdviseResult`] value through the human and JSON renderers.
+//! inventory, run [`analyze`], and project the same [`AdviseResult`] value
+//! through the human and JSON renderers.
 //! Verdict content lives in the domain; this module adds no verdict of its
 //! own. Exit mapping mirrors `support --check`: only `Supported` exits 0,
 //! any other verdict exits `Encode`, and hard tool failures propagate as

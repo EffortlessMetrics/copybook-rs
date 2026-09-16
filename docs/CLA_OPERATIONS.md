@@ -34,8 +34,8 @@ the control is active until the record and observed PR evidence are complete.
 | Repository | `EffortlessMetrics/copybook-rs` |
 | Service | Hosted CLA Assistant (`cla-assistant.io`) |
 | GitHub App scope | `copybook-rs` only |
-| Gist URL | `PENDING` |
-| Gist revision | `PENDING` |
+| Gist URL | `https://gist.github.com/EffortlessSteven/a98e159067c095688afcbd88ab105484` |
+| Gist revision | `a77a8975c0eca2d5adbf9b0c7d3180a265413455` |
 | Required status context | `license/cla` |
 | Expected status source | CLA Assistant GitHub App |
 | Individual-flow bot allowlist | `dependabot[bot]` |

@@ -310,10 +310,11 @@ The #536–#545 reset sequence is complete; what follows is the 0.7.0 cut,
 tracked by the `v0.7.0` milestone under coordinator #948.
 
 1. Actionable test-count gate output (#933)
-2. MSRV 1.95 → 1.98 workspace-wide
+2. MSRV 1.95 → 1.98 workspace-wide — done (#959)
 3. Remove the eight deprecated 0.6 facade aliases; resolve every remaining
-   0.6 deprecation with an explicit remove, re-window, or keep decision
-4. `docs/migration/0.7.md` written from the actual removal diff
+   0.6 deprecation with an explicit remove, re-window, or keep decision —
+   done (#960)
+4. `docs/migration/0.7.md` written from the actual removal diff — done (#961)
 5. Machine-owned scenario ledger contract, then evidence reconciliation
    (numeric, fixed/RDW, codepage, stable errors)
 6. Governed public corpus foundation plus VB/BDW framing with round-trip proof
@@ -330,7 +331,8 @@ freeze clock before the ledger reconciliation (item 5) is complete.
 
 ## Planned releases
 
-- **v0.6.1** (current Engineering Preview; 0.7.0 train in progress above): canonical-fingerprint patch —
+- **v0.6.1** (previous Engineering Preview, superseded by the 0.7.0 train
+  above): canonical-fingerprint patch —
   `verify --report` now emits the same SHA-256 `schema_fingerprint` as codec
   metadata, canonical fingerprints are fixed-width 64-hex, an additive
   `source_fingerprint` carries raw-source identity, and packaged

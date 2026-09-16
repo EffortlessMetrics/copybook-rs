@@ -24,6 +24,7 @@ Start with **[START_HERE.md](START_HERE.md)** for the hand-maintained navigation
 - [Performance Governance](PERFORMANCE_GOVERNANCE.md) -- baseline and policy
 - [Release Process](RELEASE_PROCESS.md) -- release workflow
 - [Migration 0.5 to 0.6](migration/0.6.md) -- breaking changes and package moves
+- [Migration 0.6 to 0.7](migration/0.7.md) -- removed facade aliases and shims
 
 ### Architecture
 - [Architecture Decision Records](adr/) -- ADRs for significant decisions

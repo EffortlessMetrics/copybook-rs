@@ -339,8 +339,7 @@ fn support_advise_corpus_nontail_odo_reports_invalid_input() {
 
     assert_eq!(output.status.code(), Some(3));
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let value: serde_json::Value =
-        serde_json::from_str(&stdout).expect("advise JSON must parse");
+    let value: serde_json::Value = serde_json::from_str(&stdout).expect("advise JSON must parse");
     assert_eq!(value["verdict"], "invalid-input");
     assert!(
         value["scenarios"][0]["next_action"]
@@ -365,8 +364,7 @@ fn support_advise_json_emits_no_filesystem_paths() {
 
     assert_eq!(output.status.code(), Some(3));
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let _: serde_json::Value =
-        serde_json::from_str(&stdout).expect("advise JSON must parse");
+    let _: serde_json::Value = serde_json::from_str(&stdout).expect("advise JSON must parse");
     assert!(
         !stdout.contains(&*path),
         "machine output must not leak the input path: {stdout}"

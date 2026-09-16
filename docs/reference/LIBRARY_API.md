@@ -28,15 +28,15 @@ copybook = "0.6"
 ```
 
 `copybook-core` and `copybook-codec` remain available for advanced users who need a smaller dependency surface.
-For direct character conversion, use `copybook::charset`; the older
-`copybook::codepage` path is retained only as a deprecated migration alias.
+For direct character conversion, use `copybook::charset`.
 
 ### Record-format dispatch ownership
 
-Record-format dispatch is owned by `copybook-codec`. New callers should use
-`copybook::codec::record` or `copybook::codec::file::dispatch`; the
-`copybook::record_io` facade and `copybook-record-io` package are compatibility
-forwarders for the 0.5 surface.
+Record-format dispatch is owned by `copybook-codec`. Use
+`copybook::codec::record` or `copybook::codec::file::dispatch`. The 0.6
+compatibility aliases (`copybook::codepage`, `copybook::record_io`, and the
+other flat facade modules) were removed in 0.7; see `docs/migration/0.6.md`
+for the 0.6 window.
 
 The payload-oriented `read_record` helper is suitable for normal codec
 operations. Use `read_rdw_record` when RDW header and reserved bytes must be

@@ -2043,22 +2043,14 @@ fn verify_facade_invariants() -> Result<()> {
     let dep_module_set = collect_copybook_dependency_modules()?;
     let readme_module_set = collect_copybook_readme_modules()?;
 
-    // These facade modules forward directly to their true owners without a
-    // dedicated compatibility-crate dependency: deprecated aliases (so the
-    // facade does not reintroduce an old ownership edge) and the `framing`
-    // grouping module (whose children re-export the fixed/RDW crates).
+    // The `framing` grouping module forwards directly to its true owners
+    // without a dedicated `copybook-framing` dependency: its children
+    // re-export the fixed/RDW crates. The 0.6 compatibility aliases were
+    // removed in 0.7, so no alias exemption remains.
     verify_facade_module_dependency_invariant(
         &lib_module_set,
         &dep_module_set,
-        &[
-            "codepage",
-            "contracts",
-            "determinism",
-            "framing",
-            "options",
-            "overpunch",
-            "record_io",
-        ],
+        &["framing"],
         &["overflow", "utils"],
     )?;
 
@@ -3990,10 +3982,13 @@ CBK999_OUTSIDE,
     fn verify_deprecation_audit_coverage() {
         let discovered =
             collect_deprecated_api_inventory().expect("collect deprecated declarations");
-        assert!(
-            discovered.len() >= 9,
-            "expected at least existing deprecated declarations, found {}",
-            discovered.len()
+        // The 0.6 facade aliases, the 0.6 crate shims, and the 0.4.3 RDW
+        // constructors were removed in 0.7; only the retained 0.5.0 Arrow
+        // legacy surface remains deprecated.
+        assert_eq!(
+            discovered.len(),
+            6,
+            "deprecated inventory changed; update the pinned set below",
         );
         let discovered_keys: BTreeSet<String> = discovered
             .iter()
@@ -4023,18 +4018,6 @@ CBK999_OUTSIDE,
         assert!(
             discovered_keys.contains("crates/copybook-arrow/src/legacy.rs:LegacyParquetFileWriter"),
             "missing LegacyParquetFileWriter"
-        );
-        assert!(
-            discovered_keys.contains("crates/copybook-rdw/src/record.rs:new"),
-            "missing RDWRecord::new"
-        );
-        assert!(
-            discovered_keys.contains("crates/copybook-rdw/src/record.rs:with_reserved"),
-            "missing RDWRecord::with_reserved"
-        );
-        assert!(
-            discovered_keys.contains("crates/copybook-rdw/src/record.rs:recompute_length"),
-            "missing RDWRecord::recompute_length"
         );
     }
 

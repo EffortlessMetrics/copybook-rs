@@ -309,14 +309,6 @@ mod tests {
         assert!(err.message.contains("RDW payload too large"));
     }
 
-    #[test]
-    #[should_panic(expected = "RDW payload exceeds maximum size")]
-    #[allow(deprecated)]
-    fn rdw_record_new_panics_on_oversize_payload() {
-        let payload = vec![0u8; usize::from(u16::MAX) + 1];
-        let _ = RDWRecord::new(payload);
-    }
-
     proptest! {
         #[test]
         fn prop_header_payload_len_roundtrip(payload_len in 0u16..=u16::MAX, reserved in any::<u16>()) {

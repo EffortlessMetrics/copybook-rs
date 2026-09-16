@@ -253,7 +253,7 @@ Add the canonical `copybook` facade crate:
 
 ```toml
 [dependencies]
-copybook = "0.6"
+copybook = "0.7"
 ```
 
 ```rust

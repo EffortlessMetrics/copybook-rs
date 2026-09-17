@@ -1,0 +1,13 @@
+kind: fixed
+body: '**release**: durable acceptance evidence (slice B of #988). New
+  `registry-docs` publish job checks docs.rs availability from the publish
+  plan (`scripts/ci/docs_availability.py` with `test_docs_availability.py`,
+  wired into `ci-quick.yml`): crate page versus built-docs URL per
+  package@version with a measured redirect discriminator, binary-only
+  crates as not-applicable, pending/timeout as resumable incomplete (never
+  republish/retag/yank), and only a contradicted publish blocking. The
+  smoke job persists the acceptance receipt outside the run directory,
+  asserts registry-only execution, and uploads it; `github-release` embeds
+  both states in the notes and attaches both receipts as durable release
+  assets. Runbook documents retrieval independent of Actions retention.'
+time: '2026-09-17T10:00:00Z'

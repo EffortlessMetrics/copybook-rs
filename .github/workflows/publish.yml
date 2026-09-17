@@ -358,6 +358,46 @@ jobs:
         path: ${{ github.workspace }}/acceptance-receipt-${{ env.RELEASE_TAG }}.json
         retention-days: 90
 
+  registry-docs:
+    # Bounded docs.rs availability from the publish plan (#988). Pending or
+    # unknown discovery records an incomplete receipt without failing the
+    # release; only a contradicted publish (crate page missing) blocks.
+    # Never triggers republishing, retagging, or a yank.
+    runs-on: ubuntu-latest
+    needs: publish
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+        ref: ${{ env.RELEASE_TAG }}
+    - name: Download publish plan
+      uses: actions/download-artifact@v8
+      with:
+        name: publish-plan-${{ env.RELEASE_TAG }}
+        path: ${{ runner.temp }}
+    - name: Check docs.rs availability
+      run: |
+        set -euo pipefail
+        PLAN_JSON="${{ runner.temp }}/publish-plan.json"
+        DOCS_JSON="${{ github.workspace }}/docs-availability-${{ env.RELEASE_TAG }}.json"
+        rc=0
+        python3 scripts/ci/docs_availability.py --plan "${PLAN_JSON}" \
+          --out "${DOCS_JSON}" || rc="$?"
+        if [ "${rc}" -eq 1 ]; then
+          echo "docs availability FAILED: crate page missing after publish" >&2
+          exit 1
+        fi
+        exit 0
+
+    - name: Upload docs availability (transport)
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: docs-availability-${{ env.RELEASE_TAG }}
+        path: ${{ github.workspace }}/docs-availability-${{ env.RELEASE_TAG }}.json
+        retention-days: 90
+
   smoke-test-experimental:
     # Advisory only: Arrow and other experimental adapters are not part of the
     # v0.6 stable-core promise. A failure here must produce a follow-up issue,
@@ -382,7 +422,7 @@ jobs:
     # the blocking stable-core registry smoke have both succeeded. crates.io
     # publication is irreversible; the GitHub release is not, so it comes last.
     runs-on: ubuntu-latest
-    needs: [publish, smoke-test]
+    needs: [publish, smoke-test, registry-docs]
     steps:
     - uses: actions/checkout@v7
       with:
@@ -393,6 +433,16 @@ jobs:
       with:
         name: publish-plan-${{ env.RELEASE_TAG }}
         path: ${{ runner.temp }}
+    - name: Download acceptance evidence (transport artifacts)
+      uses: actions/download-artifact@v8
+      with:
+        name: acceptance-receipt-${{ env.RELEASE_TAG }}
+        path: ${{ runner.temp }}/evidence
+    - name: Download docs availability (transport artifact)
+      uses: actions/download-artifact@v8
+      with:
+        name: docs-availability-${{ env.RELEASE_TAG }}
+        path: ${{ runner.temp }}/evidence
     - name: Create GitHub Release
       env:
         GH_TOKEN: ${{ github.token }}
@@ -404,14 +454,22 @@ jobs:
         repo_url="https://github.com/${{ github.repository }}"
 
         PLAN_JSON="${{ runner.temp }}/publish-plan.json"
-        python - "${PLAN_JSON}" "${version}" "${repo_url}" "${tag}" <<'PY' > release-notes.md
+        EVIDENCE_DIR="${{ runner.temp }}/evidence"
+        RECEIPT_JSON="${EVIDENCE_DIR}/acceptance-receipt-${RELEASE_TAG}.json"
+        DOCS_JSON="${EVIDENCE_DIR}/docs-availability-${RELEASE_TAG}.json"
+        python - "${PLAN_JSON}" "${RECEIPT_JSON}" "${DOCS_JSON}" \
+          "${version}" "${repo_url}" "${tag}" <<'PY' > release-notes.md
         import json
         import sys
 
-        plan_path, version, repo_url, tag = sys.argv[1:]
+        plan_path, receipt_path, docs_path, version, repo_url, tag = sys.argv[1:]
 
         with open(plan_path, encoding="utf-8") as handle:
             crates = json.load(handle)
+        with open(receipt_path, encoding="utf-8") as handle:
+            receipt = json.load(handle)
+        with open(docs_path, encoding="utf-8") as handle:
+            docs = json.load(handle)
 
         print(f"## copybook-rs {version}")
         print("")
@@ -428,6 +486,18 @@ jobs:
             package = crate["package"]
             print(f"| {package} | [{version}](https://crates.io/crates/{package}/{version}) | [docs](https://docs.rs/{package}/{version}) |")
         print("")
+        # Completion audit states (#988): published, accepted, docs
+        # available, and archived are distinct — each recorded, none inferred.
+        print("**Release acceptance:**")
+        print("")
+        print(f"- Registry acceptance: {receipt.get('status')} "
+              f"({receipt.get('execution_kind')}, "
+              f"{len(receipt.get('probes', []))} probes, "
+              f"{len(receipt.get('comparisons', []))} comparisons)")
+        print(f"- Docs availability: {docs.get('overall')}")
+        print(f"- Evidence assets: acceptance receipt and docs availability "
+              f"attached below (durable; independent of Actions retention)")
+        print("")
         print(f"See [CHANGELOG.md]({repo_url}/blob/{tag}/CHANGELOG.md) for details.")
         PY
 
@@ -442,14 +512,15 @@ jobs:
           echo "Created release ${tag}"
         fi
 
-    - name: Print docs.rs links (informational)
-      run: |
-        VERSION="${RELEASE_TAG#v}"
-
-        echo "docs.rs builds asynchronously; links below become valid as builds complete."
-        for crate in copybook copybook-rs copybook-core copybook-codec copybook-arrow copybook-cli; do
-          echo "https://docs.rs/${crate}/${VERSION}"
-        done
+        # Durable archive (#988): the acceptance receipt and docs
+        # availability leave Actions retention and live on the release.
+        gh release upload "${tag}" \
+          "${EVIDENCE_DIR}/acceptance-receipt-${RELEASE_TAG}.json" \
+          "${EVIDENCE_DIR}/docs-availability-${RELEASE_TAG}.json" \
+          --clobber
+        echo "Uploaded acceptance evidence assets to release ${tag}"
+        sha256sum "${EVIDENCE_DIR}/acceptance-receipt-${RELEASE_TAG}.json" \
+          "${EVIDENCE_DIR}/docs-availability-${RELEASE_TAG}.json"
 
   notify-success:
     runs-on: ubuntu-latest

@@ -97,6 +97,9 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     strategy:
+      # Independent legs surface together instead of cancelling on the
+      # first failure (#992); matches the extended lanes.
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         rust:
@@ -186,6 +189,9 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     strategy:
+      # Independent legs surface together instead of cancelling on the
+      # first failure (#992); matches the extended lanes.
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         rust:
@@ -422,6 +428,9 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: stable
     strategy:
+      # Independent legs surface together instead of cancelling on the
+      # first failure (#992); matches the extended lanes.
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:

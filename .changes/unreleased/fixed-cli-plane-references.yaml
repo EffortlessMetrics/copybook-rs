@@ -1,0 +1,8 @@
+kind: fixed
+body: '**evidence**: name the exact plane behind CLI shared proof (#983).
+  All 17 `cli_evidence` rows that said only `covered at the format
+  plane` now cite the row''s own `fixed-rdw:` plane scenario IDs; the
+  five rows with no plane link gain the IDs matching their
+  applicability. No anchor copying; the verifier resolves every new
+  target.'
+time: '2026-09-17T14:26:39Z'

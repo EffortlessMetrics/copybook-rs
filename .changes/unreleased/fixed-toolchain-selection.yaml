@@ -1,0 +1,9 @@
+kind: fixed
+body: '**lane**: matrix and moving-stable CI jobs now execute their intended
+  compiler instead of silently inheriting the 1.98 repository pin — job-level
+  `RUSTUP_TOOLCHAIN` plus a `witness_toolchain.sh` step that fails closed
+  unless rustup reports the env-var override (distinct even when channels
+  resolve to the same release). Formatting stays deliberately pinned to
+  1.98.0. The pins checker now also requires the witness wherever a job sets
+  `RUSTUP_TOOLCHAIN`, and its declaration-only claim is corrected.'
+time: '2026-09-17T05:40:00Z'

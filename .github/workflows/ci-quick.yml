@@ -68,6 +68,7 @@ jobs:
         run: |
           python3 scripts/ci/check_toolchain_pins.py
           python3 scripts/ci/test_toolchain_pins.py
+          python3 scripts/ci/test_witness_toolchain.py
           python3 scripts/ci/test_panic_policy_baseline.py
 
       - uses: dtolnay/rust-toolchain@stable

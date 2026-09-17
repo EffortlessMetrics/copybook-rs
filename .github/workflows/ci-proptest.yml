@@ -25,6 +25,9 @@ jobs:
   proptest-core:
     name: Property Tests - Core
     runs-on: ${{ matrix.os }}
+    # Each matrix leg must execute its own selector (#991).
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     strategy:
       fail-fast: false
       matrix:
@@ -35,6 +38,8 @@ jobs:
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
+    - name: Witness effective toolchain
+      run: bash scripts/ci/witness_toolchain.sh "${{ matrix.rust }}"
     - uses: Swatinem/rust-cache@v2
     - name: Pre-fetch dependencies
       run: cargo fetch
@@ -55,6 +60,9 @@ jobs:
   proptest-codec:
     name: Property Tests - Codec
     runs-on: ${{ matrix.os }}
+    # Each matrix leg must execute its own selector (#991).
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     strategy:
       fail-fast: false
       matrix:
@@ -66,6 +74,8 @@ jobs:
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
+    - name: Witness effective toolchain
+      run: bash scripts/ci/witness_toolchain.sh "${{ matrix.rust }}"
     - uses: Swatinem/rust-cache@v2
       with:
         key: ${{ matrix.features }}
@@ -95,6 +105,9 @@ jobs:
   proptest-integration:
     name: Property Tests - Integration
     runs-on: ubuntu-latest
+    # Each matrix leg must execute its own selector (#991).
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     strategy:
       fail-fast: false
       matrix:
@@ -104,6 +117,8 @@ jobs:
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
+    - name: Witness effective toolchain
+      run: bash scripts/ci/witness_toolchain.sh "${{ matrix.rust }}"
     - uses: Swatinem/rust-cache@v2
     - name: Pre-fetch dependencies
       run: cargo fetch

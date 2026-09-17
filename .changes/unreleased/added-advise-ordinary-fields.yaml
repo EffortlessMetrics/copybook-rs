@@ -1,0 +1,10 @@
+kind: added
+body: '**advise**: assess ordinary `PIC X` alphanumeric and unsigned `PIC 9`
+  display-numeric fields (#980 first family) against two new reconciled
+  scenario rows (`struct.field.alphanumeric`, `struct.field.display_numeric`)
+  with direct parse/layout/decode/encode/round-trip evidence. The ordinary
+  two-field shape now yields nonempty supported results stating the
+  copybook-only limit explicitly; signed, scaled, and separate-sign zoned
+  fields keep their existing mappings, and formats without a row stay
+  unknown. No schema change.'
+time: '2026-09-17T11:10:00Z'

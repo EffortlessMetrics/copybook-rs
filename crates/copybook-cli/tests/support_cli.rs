@@ -379,12 +379,15 @@ fn support_advise_vb_format_flows_into_effective_options() {
     assert_eq!(value["verdict"], "partial-unknown");
     assert_eq!(value["effective_options"]["format"], "vb");
     let scenarios = value["scenarios"].as_array().cloned().unwrap_or_default();
-    assert_eq!(scenarios.len(), 1);
-    assert_eq!(scenarios[0]["scenario_id"], "matrix:occurs-depending");
-    assert_eq!(scenarios[0]["status"], "unknown");
-    assert_eq!(scenarios[0]["record_formats"], serde_json::json!(["vb"]));
+    // #980: ordinary fields sort before the ODO row; find it by ID.
+    let row = scenarios
+        .iter()
+        .find(|s| s["scenario_id"] == "matrix:occurs-depending")
+        .expect("VB ODO row");
+    assert_eq!(row["status"], "unknown");
+    assert_eq!(row["record_formats"], serde_json::json!(["vb"]));
     assert!(
-        scenarios[0]["limitation_or_remediation"]
+        row["limitation_or_remediation"]
             .as_str()
             .unwrap_or_default()
             .contains("vb"),
@@ -415,12 +418,16 @@ fn support_advise_rdw_tail_odo_resolves_rdw_row() {
         .expect("support --advise --format json should emit valid JSON");
     assert_eq!(value["verdict"], "supported");
     let scenarios = value["scenarios"].as_array().cloned().unwrap_or_default();
-    assert_eq!(scenarios.len(), 1);
-    assert_eq!(scenarios[0]["scenario_id"], "struct.odo.tail_rdw_variable");
-    assert_eq!(scenarios[0]["status"], "supported");
-    assert_eq!(scenarios[0]["record_formats"], serde_json::json!(["rdw"]));
+    // #980: the copybook's ordinary counter field is accounted for too; find
+    // the ODO row by ID instead of assuming it is alone.
+    let row = scenarios
+        .iter()
+        .find(|s| s["scenario_id"] == "struct.odo.tail_rdw_variable")
+        .expect("RDW tail-ODO row");
+    assert_eq!(row["status"], "supported");
+    assert_eq!(row["record_formats"], serde_json::json!(["rdw"]));
     assert!(
-        scenarios[0]["affected_layers"]
+        row["affected_layers"]
             .as_array()
             .unwrap_or(&vec![])
             .iter()
@@ -428,7 +435,7 @@ fn support_advise_rdw_tail_odo_resolves_rdw_row() {
         "RDW row must carry ledger layers, got: {value}"
     );
     assert!(
-        scenarios[0]["evidence_refs"]
+        row["evidence_refs"]
             .as_array()
             .unwrap_or(&vec![])
             .iter()
@@ -438,6 +445,60 @@ fn support_advise_rdw_tail_odo_resolves_rdw_row() {
                 .contains("odo_variable_length_decodes_through_rdw")),
         "RDW row must carry ledger evidence, got: {value}"
     );
+}
+
+#[test]
+fn support_advise_ordinary_two_field_copybook_is_supported() {
+    // #980 acceptance: the ordinary `PIC 9(5)` plus `PIC X(5)` shape (also
+    // the release-smoke shape) yields nonempty, evidence-backed results
+    // instead of the historical empty assessment. Pre-fix this returned no
+    // scenarios with a partial-unknown verdict.
+    const TWO_FIELD_COPYBOOK: &str =
+        "       01 REC.\n           05 NUM PIC 9(5).\n           05 NAME PIC X(5).\n";
+    let copybook = write_advise_copybook(TWO_FIELD_COPYBOOK);
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args([
+            "support",
+            "--advise",
+            &copybook.path().to_string_lossy(),
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("failed to execute command");
+
+    assert!(output.status.success());
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .expect("support --advise --format json should emit valid JSON");
+    assert_eq!(value["verdict"], "supported");
+    let scenarios = value["scenarios"].as_array().cloned().unwrap_or_default();
+    assert_eq!(scenarios.len(), 2);
+    let ids: Vec<&str> = scenarios
+        .iter()
+        .map(|s| s["scenario_id"].as_str().unwrap_or_default())
+        .collect();
+    assert!(ids.contains(&"struct.field.alphanumeric"), "got: {ids:?}");
+    assert!(
+        ids.contains(&"struct.field.display_numeric"),
+        "got: {ids:?}"
+    );
+    for scenario in &scenarios {
+        assert_eq!(scenario["status"], "supported");
+        assert!(
+            !scenario["evidence_refs"]
+                .as_array()
+                .unwrap_or(&vec![])
+                .is_empty(),
+            "ordinary rows must carry evidence, got: {scenario}"
+        );
+        assert!(
+            scenario["limitation_or_remediation"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("never validates unseen record payloads"),
+            "copybook-only limit must be explicit, got: {scenario}"
+        );
+    }
 }
 
 #[test]

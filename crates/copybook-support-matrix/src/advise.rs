@@ -424,6 +424,12 @@ pub enum ConstructKind {
     Comp1Comp2,
     /// `SIGN LEADING/TRAILING SEPARATE`.
     SignSeparate,
+    /// Plain alphanumeric field (`PIC X`, #980 first family).
+    Alphanumeric,
+    /// Unsigned display numeric without scale (`PIC 9`, #980 first family).
+    /// Signed, scaled, and `SIGN SEPARATE` zoned fields keep their existing
+    /// mappings; the ledger row covers unsigned display only.
+    DisplayNumeric,
     /// Construct with no analysis mapping; never rendered as certainty.
     Unmapped,
 }
@@ -660,6 +666,18 @@ fn resolve_assessment(kind: &ConstructKind, options: &EffectiveOptions) -> Resol
         ConstructKind::NestedOdo => {
             row_assessment("struct.odo.nested", Some("CBKP022_NESTED_ODO"), None)
         }
+        ConstructKind::Alphanumeric => row_for_format(
+            "struct.field.alphanumeric",
+            "matrix:alphanumeric",
+            "alphanumeric fields",
+            options,
+        ),
+        ConstructKind::DisplayNumeric => row_for_format(
+            "struct.field.display_numeric",
+            "matrix:display-numeric",
+            "unsigned display numerics",
+            options,
+        ),
         ConstructKind::Renames
         | ConstructKind::Redefines
         | ConstructKind::Level88
@@ -689,6 +707,35 @@ fn resolve_assessment(kind: &ConstructKind, options: &EffectiveOptions) -> Resol
                 note: Cow::Borrowed(note),
             }
         }
+    }
+}
+
+/// Resolve one ledger row for the requested format (#980). The row applies
+/// only when the format is inside the row's applicability; any other format
+/// stays [`AssessmentStatus::Unknown`] under an explicit `matrix:` ID with
+/// an unevaluated-format limitation, never relabelled row evidence.
+fn row_for_format(
+    id: &'static str,
+    fallback_id: &'static str,
+    family: &'static str,
+    options: &EffectiveOptions,
+) -> ResolvedAssessment {
+    let applicable =
+        projection_for(id).is_some_and(|row| row.formats.contains(&options.format.as_str()));
+    if applicable {
+        return row_assessment(id, None, None);
+    }
+    ResolvedAssessment {
+        scenario_id: fallback_id,
+        status: AssessmentStatus::Unknown,
+        stability: "stable",
+        layers: &[],
+        evidence: &[],
+        error_identity: None,
+        note: Cow::Owned(format!(
+            "No ledger evidence for {family} under record format `{}`; codepage and dialect dimensions are not separately evaluated for this construct.",
+            options.format
+        )),
     }
 }
 
@@ -743,12 +790,15 @@ fn construct_plan(
     &'static str,
 ) {
     match kind {
-        // ODO kinds resolve in `resolve_assessment` against the ledger
-        // projection and never reach this table; this arm fails
-        // conservatively if that ever changes.
-        ConstructKind::OccursDepending | ConstructKind::NonTailOdo | ConstructKind::NestedOdo => {
-            ("unmapped", "none", None, None, "")
-        }
+        // ODO and ordinary-field kinds resolve in `resolve_assessment`
+        // against the ledger projection and never reach this table; they
+        // share the conservative unmapped row if that ever changes.
+        ConstructKind::OccursDepending
+        | ConstructKind::NonTailOdo
+        | ConstructKind::NestedOdo
+        | ConstructKind::Alphanumeric
+        | ConstructKind::DisplayNumeric
+        | ConstructKind::Unmapped => ("unmapped", "none", None, None, ""),
         ConstructKind::Renames => (
             "struct.renames.r1_r3",
             "level-66-renames",
@@ -773,7 +823,6 @@ fn construct_plan(
         ConstructKind::EditedPic => ("matrix:edited-pic", "edited-pic", None, None, ""),
         ConstructKind::Comp1Comp2 => ("matrix:comp-1-comp-2", "comp-1-comp-2", None, None, ""),
         ConstructKind::SignSeparate => ("matrix:sign-separate", "sign-separate", None, None, ""),
-        ConstructKind::Unmapped => ("unmapped", "none", None, None, ""),
     }
 }
 
@@ -1237,12 +1286,76 @@ mod tests {
             "struct.odo.tail_rdw_variable",
             "struct.odo.not_tail",
             "struct.odo.nested",
+            "struct.field.alphanumeric",
+            "struct.field.display_numeric",
         ] {
             assert!(
                 crate::ledger_projection::projection_for(id).is_some(),
                 "projection must carry row {id}"
             );
         }
+    }
+
+    #[test]
+    fn encoding_advise_ordinary_fields_resolve_with_evidence() {
+        // #980 first family: ordinary fields resolve to applicable rows
+        // with real layers and evidence, and state the copybook-only limit.
+        let alpha = single_scenario("fixed", ConstructKind::Alphanumeric);
+        assert_eq!(alpha.scenario_id, "struct.field.alphanumeric");
+        assert_eq!(alpha.status, AssessmentStatus::Supported);
+        assert_eq!(
+            alpha.affected_layers,
+            vec![
+                AffectedLayer::Parse,
+                AffectedLayer::Layout,
+                AffectedLayer::Decode,
+                AffectedLayer::Encode,
+                AffectedLayer::RoundTrip,
+            ]
+        );
+        assert!(
+            alpha.evidence_refs.contains(
+                &"crates/copybook-core/tests/parser_comprehensive.rs::test_pic_alphanumeric"
+                    .to_string()
+            )
+        );
+        assert!(
+            alpha
+                .limitation_or_remediation
+                .contains("never validates unseen record payloads"),
+            "copybook-only limit must be explicit, got: {}",
+            alpha.limitation_or_remediation
+        );
+
+        let numeric = single_scenario("rdw", ConstructKind::DisplayNumeric);
+        assert_eq!(numeric.scenario_id, "struct.field.display_numeric");
+        assert_eq!(numeric.status, AssessmentStatus::Supported);
+        assert_eq!(numeric.record_formats, vec!["rdw".to_string()]);
+        assert!(
+            numeric
+                .evidence_refs
+                .contains(&"crates/copybook-codec/tests/codec_roundtrip_exhaustive.rs::roundtrip_ascii_zoned_unsigned".to_string())
+        );
+    }
+
+    #[test]
+    fn encoding_advise_ordinary_fields_stay_unknown_without_row() {
+        // #980: VB has no ordinary-field row; the assessment stays unknown
+        // under an explicit matrix ID instead of borrowing fixed evidence.
+        let alpha = single_scenario("vb", ConstructKind::Alphanumeric);
+        assert_eq!(alpha.scenario_id, "matrix:alphanumeric");
+        assert_eq!(alpha.status, AssessmentStatus::Unknown);
+        assert!(
+            alpha
+                .evidence_refs
+                .iter()
+                .all(|reference| reference.starts_with("construct:")),
+            "unevaluated path carries location only, got: {:?}",
+            alpha.evidence_refs
+        );
+        let numeric = single_scenario("vb", ConstructKind::DisplayNumeric);
+        assert_eq!(numeric.scenario_id, "matrix:display-numeric");
+        assert_eq!(numeric.status, AssessmentStatus::Unknown);
     }
 
     #[test]

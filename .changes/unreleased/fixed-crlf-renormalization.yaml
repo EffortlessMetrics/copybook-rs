@@ -1,0 +1,8 @@
+kind: fixed
+body: '**hygiene**: normalized CRLF line endings to LF in 115 tracked text
+  files (109 topology-map `claude.md` files plus `examples/README.md`, five
+  `.rs` sources/tests, one `.cpy` fixture; byte-identical modulo line
+  endings), pinned `*.md`/`*.rs`/`*.cpy` to `text eol=lf`, marked the two
+  CRLF-bearing `test-data` binaries as binary, and re-synced the fixed/RDW
+  evidence digest for the re-anchored blobs.'
+time: '2026-09-17T09:40:00Z'

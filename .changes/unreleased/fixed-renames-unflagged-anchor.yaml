@@ -1,0 +1,7 @@
+kind: fixed
+body: '**evidence**: anchor the RENAMES-over-REDEFINES unflagged rejection (#983).
+  The `struct.renames.over_redefines` negative layer claimed coverage exists
+  but left a pending N/A; it now cites
+  `renames_r4_r6_bdd_tests.rs::test_r4_renames_over_redefines_rejected_when_flag_disabled`
+  directly, which asserts the CBKS609 rejection with the flag disabled.'
+time: '2026-09-17T17:30:00Z'

@@ -9,27 +9,35 @@ on:
 
 jobs:
   changes:
-    name: Detect user-facing changes
+    name: Classify changelog requirement
     runs-on: ubuntu-latest
-    outputs:
-      userfacing: ${{ steps.filter.outputs.userfacing }}
-      fragment: ${{ steps.filter.outputs.fragment }}
     steps:
       - uses: actions/checkout@v7
         with:
+          # Push events compare HEAD against its parent; PR events fetch the
+          # exact base/head SHAs below instead of assuming depth.
           fetch-depth: 2
 
-      - uses: dorny/paths-filter@v4
-        id: filter
-        with:
-          filters: |
-            userfacing:
-              - 'crates/**'
-              - 'schemas/**'
-              - 'Cargo.toml'
-            fragment:
-              - '.changes/unreleased/**'
-              - '.changes/v*.md'
+      - name: Fetch PR endpoints
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin \
+            ${{ github.event.pull_request.base.sha }} \
+            ${{ github.event.pull_request.head.sha }}
+
+      - name: Classify changed paths
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE='${{ github.event.pull_request.base.sha }}'
+            HEAD='${{ github.event.pull_request.head.sha }}'
+          else
+            BASE='HEAD~1'
+            HEAD='HEAD'
+          fi
+          git diff --name-status --find-renames "$BASE" "$HEAD" -- . ':!.git' \
+            | python3 scripts/ci/changelog_gate.py
 
   validate:
     name: Validate Changie
@@ -43,14 +51,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Require changie fragment for user-facing changes
-        run: >-
-          bash scripts/ci/require-changie-fragment.sh
-          '${{ needs.changes.outputs.userfacing }}'
-          '${{ needs.changes.outputs.fragment }}'
-
-      - name: Test fragment gate
-        run: python3 scripts/ci/test_require_fragment.py
+      - name: Test changelog classifier
+        run: python3 scripts/ci/test_changelog_gate.py
 
       - name: Install Changie
         # changie-action v3.0.1; installs the Changie binary pinned below

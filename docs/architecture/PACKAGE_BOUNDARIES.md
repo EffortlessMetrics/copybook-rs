@@ -54,3 +54,10 @@ Audit, governance, Arrow/Parquet, and Kafka are therefore excluded from the
 stable-core contract while keeping their current classes (experimental, beta,
 experimental, experimental-examples). Per-surface dispositions and graduation
 evidence live in `docs/stability/surface-registry.json` and #984–#987.
+
+Stable-envelope exception (#985): the `support --advise` machine envelope
+(`schemas/advise-result.json`, `schema_version` `1.0`, stable since 0.7.1) is
+not part of the beta governance/support-matrix classification. A beta family
+label authorizes no incompatible change to that envelope, and a stable child
+schema is not erased by its package's beta status. Automation must match
+`schema_version` exactly and never parse human prose.

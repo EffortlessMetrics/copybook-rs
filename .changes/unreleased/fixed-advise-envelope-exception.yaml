@@ -1,0 +1,8 @@
+kind: fixed
+body: '**governance**: record the stable advise-envelope exception (#985)
+  alongside the beta disposition. The `support --advise` machine envelope
+  (`schemas/advise-result.json`, `schema_version` 1.0, stable since 0.7.1)
+  sits outside the beta classification of `copybook-governance` and
+  `copybook-support-matrix`; neither freeze disclaimer authorizes an
+  incompatible envelope change. No code change.'
+time: '2026-09-17T12:40:27Z'

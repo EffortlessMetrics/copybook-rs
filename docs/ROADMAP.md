@@ -2,7 +2,7 @@
 # Roadmap
 
 **Status**: Engineering Preview (v0.8.1)
-**Release target**: v1.0.0 after the product-readiness gates below pass; there is no calendar-only release promise.
+**Release target**: v0.9.0 next, then v0.10.0; there is no calendar-only release promise. v1.0.0 numbering is deferred — the Phase 7 freeze/RC discipline below applies to the stabilization cut when it is scheduled, not to an imminent v1.
 **Program tracker**: [#535 — v1 Product Readiness](https://github.com/EffortlessMetrics/copybook-rs/issues/535)
 
 This document is the canonical roadmap. Current feature truth lives in
@@ -360,10 +360,20 @@ freeze clock before the ledger reconciliation (item 5) is complete.
   audit/governance/Arrow/Kafka, codepage/numeric evidence close-out (#571,
   #573), and the #946 commercial-relicensing audit receipt. Strictly
   non-breaking.
-- **v0.8.1** (this release): correctness patch — six wrong EBCDIC slots
+- **v0.8.1** (shipped 2026-09-17): correctness patch — six wrong EBCDIC slots
   corrected against independent references (CP1140 Euro `0xFF`→`0x9F`, CP273
   `~/ß`, CP1047 `^`/`¬`), with pinned oracle fixtures, a release-smoke
   installed-binary witness, and byte-output migration notes. No API change.
+- **v0.9.0** (next): operator diagnostics and evidence completion — the
+  `support --advise` defect cluster (#977–#983), the deferred #552 surfaces
+  (`explain`, `compat`, `doctor`), remaining evidence coordinators (#572
+  fixed/RDW pipeline, #576 stable-error/rejection), governance beta criteria
+  (#985), and release/devex hardening (#988, #990–#996, #1000). Completing
+  this release finishes #551/#552, which unblocks the freeze clock.
+- **v0.10.0** (after 0.9.0): stabilization cut — the four-week freeze (#544),
+  registry-only release-candidate proof (#545), and the #189 go/no-go record
+  run under 0.x numbering. Performance (#188) and adapter graduation (#553)
+  stay parallel, per-surface, non-blocking tracks throughout.
 
 ## History
 

@@ -100,7 +100,13 @@ Rules:
 ## Verification SHAs
 
 `last_verified_full_sha` is the full 40-hex SHA of the commit whose tree the
-row's anchors were proven against. Abbreviated SHAs are rejected. The
+row's anchors were proven against. Abbreviated SHAs are rejected, and the
+SHA must resolve to a commit object in history: a well-formed SHA naming no
+commit fails verification. Record a mainline commit, never a branch head
+that squash-merge will orphan. Ancestry is not required, so equivalent
+content survives squash/rebase without treating topology as behavior. In a
+shallow checkout without that history the row reports explicitly unavailable
+and skips freshness checks instead of counting as verified. The
 freshness policy is explicit re-verification: touching a row's anchors
 without updating its SHA fails the verifier only when the referenced content
 moved (relationship targets are content-pinned by their own registries).
@@ -119,7 +125,9 @@ moved (relationship targets are content-pinned by their own registries).
 - a `shared_evidence_relationships` target outside the known
   `fixed-rdw:`, `stable-error:`, `ledger:` namespaces or naming an unknown ID;
 - an empty evidence layer (N/A reason required instead);
-- a malformed or abbreviated verification SHA.
+- a malformed or abbreviated verification SHA;
+- a well-formed verification SHA that resolves to no commit object
+  (or to a non-commit object).
 
 Failures print `scenario_id`, field, expected shape, actual reference, and
 the repair command (`docs verify-scenario-ledger`, relevant sync, or the

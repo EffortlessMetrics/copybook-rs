@@ -1,0 +1,9 @@
+kind: fixed
+body: '**codec tests**: `test_performance_regression_preserve_zoned_encoding`
+  no longer gates on a single-sample `Instant` ratio with a `CI`-dependent
+  threshold; the ordinary suite now asserts deterministic zoned-preservation
+  behavior (policy flags, exact decoded values, `_encoding_metadata`
+  presence/absence, byte-identical round-trip), and the mode-cost comparison
+  moves to the criterion benchmark `decode_zoned_preserve` with repeated
+  measurements under the governed noise/budget policy.'
+time: '2026-09-17T04:10:00Z'

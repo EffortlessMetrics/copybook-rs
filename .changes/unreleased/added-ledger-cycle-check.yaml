@@ -1,0 +1,7 @@
+kind: added
+body: '**evidence**: reject `ledger:` shared-evidence cycles (#983). The
+  scenario-ledger validator now fails rows that certify each other
+  through a link cycle, with a deterministic diagnostic naming the
+  path; a diamond-sharing test pins no false positives. Red-proven:
+  the cycle test fails with the check disabled.'
+time: '2026-09-17T15:00:49Z'

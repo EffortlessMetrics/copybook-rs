@@ -2666,6 +2666,51 @@ fn validate_scenario_ledger(
     for row in &ledger.scenarios {
         validate_scenario_row(root, row, &ids, error_codes, pipeline_ids)?;
     }
+    validate_ledger_relationship_cycles(&ledger.scenarios)?;
+    Ok(())
+}
+
+/// Reject `ledger:` shared-evidence cycles (#983): a row must not certify
+/// itself through another row that links back. Iteration is sorted so the
+/// reported cycle is deterministic.
+fn validate_ledger_relationship_cycles(rows: &[ScenarioRow]) -> Result<()> {
+    let mut edges: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for row in rows {
+        let targets = row
+            .shared_evidence_relationships
+            .iter()
+            .filter_map(|relationship| relationship.strip_prefix("ledger:"));
+        edges.insert(row.scenario_id.as_str(), targets.collect());
+    }
+    let mut visited: BTreeSet<&str> = BTreeSet::new();
+    let mut on_path: Vec<&str> = Vec::new();
+    for start in edges.keys() {
+        visit_ledger_link(start, &edges, &mut visited, &mut on_path)?;
+    }
+    Ok(())
+}
+
+fn visit_ledger_link<'a>(
+    node: &'a str,
+    edges: &BTreeMap<&'a str, Vec<&'a str>>,
+    visited: &mut BTreeSet<&'a str>,
+    on_path: &mut Vec<&'a str>,
+) -> Result<()> {
+    if on_path.contains(&node) {
+        on_path.push(node);
+        bail!(
+            "scenario ledger `ledger:` cycle detected: {} | repair: remove one direction of the shared-evidence link",
+            on_path.join(" -> ")
+        );
+    }
+    if !visited.insert(node) {
+        return Ok(());
+    }
+    on_path.push(node);
+    for next in edges.get(node).cloned().unwrap_or_default() {
+        visit_ledger_link(next, edges, visited, on_path)?;
+    }
+    on_path.pop();
     Ok(())
 }
 
@@ -5354,6 +5399,55 @@ CBK999_OUTSIDE,
         let (codes, pipeline) = scenario_registries();
         let ids = BTreeSet::from(["test.row".to_string()]);
         assert!(validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline).is_err());
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_relationship_cycle() {
+        // #983: a row must not certify itself through a row that links
+        // back; unresolved cycles cannot certify either direction.
+        let (temp, first) = scenario_row_fixture();
+        let mut second = scenario_row_fixture().1;
+        second.scenario_id = "test.other".to_string();
+        let mut first = first;
+        first.shared_evidence_relationships = vec!["ledger:test.other".to_string()];
+        second.shared_evidence_relationships = vec!["ledger:test.row".to_string()];
+        let ledger = ScenarioLedger {
+            schema_version: 1,
+            scope: "scenario-ledger".to_string(),
+            scenarios: vec![first, second],
+        };
+        let (codes, pipeline) = scenario_registries();
+        let err = validate_scenario_ledger(temp.path(), &ledger, &codes, &pipeline)
+            .expect_err("ledger cycle must fail");
+        let message = err.to_string();
+        assert!(message.contains("cycle"), "{message}");
+        assert!(message.contains("test.row"), "{message}");
+        assert!(message.contains("test.other"), "{message}");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_accepts_shared_diamond() {
+        // #983: shared references that converge without linking back are
+        // legitimate; the cycle check must not fire on diamonds.
+        let (temp, first) = scenario_row_fixture();
+        let mut second = scenario_row_fixture().1;
+        second.scenario_id = "test.other".to_string();
+        let mut third = scenario_row_fixture().1;
+        third.scenario_id = "test.leaf".to_string();
+        let mut first = first;
+        first.shared_evidence_relationships = vec![
+            "ledger:test.other".to_string(),
+            "ledger:test.leaf".to_string(),
+        ];
+        second.shared_evidence_relationships = vec!["ledger:test.leaf".to_string()];
+        let ledger = ScenarioLedger {
+            schema_version: 1,
+            scope: "scenario-ledger".to_string(),
+            scenarios: vec![first, second, third],
+        };
+        let (codes, pipeline) = scenario_registries();
+        validate_scenario_ledger(temp.path(), &ledger, &codes, &pipeline)
+            .expect("shared diamond must pass");
     }
 
     #[test]

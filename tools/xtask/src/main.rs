@@ -29,6 +29,7 @@ fn main() -> Result<()> {
         ["docs", "sync-record-pipeline"] => docs_verify::sync_record_pipeline_command(),
         ["docs", "verify-stable-errors"] => docs_verify::verify_stable_error_registry_command(),
         ["docs", "verify-scenario-ledger"] => docs_verify::verify_scenario_ledger_command(),
+        ["advise", "sync-projection"] => docs_verify::sync_advise_projection_command(),
         ["docs", "verify-corpus"] => docs_verify::verify_corpus_command(),
         ["corpus", "receipt", rest @ ..] => corpus::run_receipt(rest),
         ["docs", "verify-support-matrix"] => verify_support_matrix(),

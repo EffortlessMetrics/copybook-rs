@@ -30,7 +30,11 @@
 //! shells out. Uncertainty stays local: anything heuristic is
 //! [`crate::advise::AssessmentStatus::Unknown`], never rendered as certainty.
 
+use std::borrow::Cow;
+
 use serde::{Deserialize, Serialize};
+
+use crate::ledger_projection::{LedgerProjection, projection_for};
 
 /// Version of the advisory result JSON contract.
 ///
@@ -548,45 +552,166 @@ pub fn analyze(input: &AdviseInput) -> AdviseResult {
     result
 }
 
-/// Build one scenario assessment for a parsed construct.
+/// Assessment resolved against the ledger projection (#978): the requested
+/// format selects the applicable row, and row evidence is never relabelled
+/// onto another path.
+struct ResolvedAssessment {
+    scenario_id: &'static str,
+    status: AssessmentStatus,
+    stability: &'static str,
+    layers: &'static [AffectedLayer],
+    evidence: &'static [&'static str],
+    error_identity: Option<&'static str>,
+    note: Cow<'static, str>,
+}
+
+/// Build one scenario assessment for a parsed construct under the requested
+/// options. Construct location (`construct:<detail>`) is preserved separately
+/// from evidence authority (ledger `path::test` refs): a field name is never
+/// emitted as proof.
 fn assess_construct(
     construct: &AdviseConstruct,
     options: &EffectiveOptions,
     evidence_dropped: &mut usize,
 ) -> ScenarioAssessment {
-    let (scenario_id, feature_id, fixed, error_identity, note) = construct_plan(&construct.kind);
-    let mut item = match fixed {
-        Some(status) => ScenarioAssessment::bounded(scenario_id, status, "stable"),
-        None if feature_id == "none" => {
-            ScenarioAssessment::bounded(scenario_id, AssessmentStatus::Unknown, "stable")
-        }
-        None => match crate::find_feature(feature_id) {
-            Some(feature) => ScenarioAssessment::bounded(
-                scenario_id,
-                assessment_for_status(feature.status),
-                stability_for(feature.status),
-            ),
-            None => ScenarioAssessment::bounded(scenario_id, AssessmentStatus::Unknown, "stable"),
-        },
-    };
+    let resolved = resolve_assessment(&construct.kind, options);
+    let mut item =
+        ScenarioAssessment::bounded(resolved.scenario_id, resolved.status, resolved.stability);
     item.record_formats = vec![options.format.clone()];
     item.codepages = vec![options.codepage.clone()];
-    item.error_identity = error_identity.map(str::to_string);
-    if !note.is_empty() {
-        item.limitation_or_remediation = bound_chars(note.to_string(), MAX_SUGGESTION_CHARS);
+    item.affected_layers = resolved.layers.to_vec();
+    item.error_identity = resolved.error_identity.map(str::to_string);
+    if !resolved.note.is_empty() {
+        item.limitation_or_remediation =
+            bound_chars(resolved.note.into_owned(), MAX_SUGGESTION_CHARS);
+    }
+    for reference in resolved.evidence {
+        if !item.push_evidence((*reference).to_string()) {
+            *evidence_dropped += 1;
+        }
     }
     if !item.push_evidence(format!("construct:{}", construct.detail)) {
         *evidence_dropped += 1;
     }
-    item.set_next_action(next_action_for(&construct.kind, scenario_id));
+    item.set_next_action(next_action_for(&construct.kind, resolved.scenario_id));
     item
 }
 
+/// Resolve a construct plus requested options against the ledger projection.
+/// A positive claim resolves only to a row evidencing the requested format;
+/// formats without a row stay [`AssessmentStatus::Unknown`] with an explicit
+/// unevaluated-format limitation. Rejections are format-independent by
+/// design (the tail rule and nesting bans hold on every path), so rejected
+/// rows resolve regardless of format. A missing projection row fails
+/// conservatively to `Unknown` under the intended row ID, never to a
+/// neighboring row's evidence.
+fn resolve_assessment(kind: &ConstructKind, options: &EffectiveOptions) -> ResolvedAssessment {
+    match kind {
+        ConstructKind::OccursDepending => match options.format.as_str() {
+            "fixed" => row_assessment(
+                "struct.odo.tail_fixed",
+                None,
+                Some("Tail ODO is supported; non-tail and over-REDEFINES variants are rejected."),
+            ),
+            "rdw" => row_assessment(
+                "struct.odo.tail_rdw_variable",
+                None,
+                Some(
+                    "Tail ODO on RDW is supported via variable-length records; non-tail and over-REDEFINES variants are rejected.",
+                ),
+            ),
+            _ => ResolvedAssessment {
+                scenario_id: "matrix:occurs-depending",
+                status: AssessmentStatus::Unknown,
+                stability: "stable",
+                layers: &[],
+                evidence: &[],
+                error_identity: None,
+                note: Cow::Owned(format!(
+                    "No ledger evidence for tail ODO under record format `{}`; fixed and RDW paths are evidenced separately, and codepage and dialect dimensions are not separately evaluated for this construct.",
+                    options.format
+                )),
+            },
+        },
+        ConstructKind::NonTailOdo => {
+            row_assessment("struct.odo.not_tail", Some("CBKP021_ODO_NOT_TAIL"), None)
+        }
+        ConstructKind::NestedOdo => {
+            row_assessment("struct.odo.nested", Some("CBKP022_NESTED_ODO"), None)
+        }
+        ConstructKind::Renames
+        | ConstructKind::Redefines
+        | ConstructKind::Level88
+        | ConstructKind::EditedPic
+        | ConstructKind::Comp1Comp2
+        | ConstructKind::SignSeparate
+        | ConstructKind::Unmapped => {
+            let (scenario_id, feature_id, fixed, error_identity, note) = construct_plan(kind);
+            let (status, stability) = match fixed {
+                Some(status) => (status, "stable"),
+                None if feature_id == "none" => (AssessmentStatus::Unknown, "stable"),
+                None => match crate::find_feature(feature_id) {
+                    Some(feature) => (
+                        assessment_for_status(feature.status),
+                        stability_for(feature.status),
+                    ),
+                    None => (AssessmentStatus::Unknown, "stable"),
+                },
+            };
+            ResolvedAssessment {
+                scenario_id,
+                status,
+                stability,
+                layers: &[],
+                evidence: &[],
+                error_identity,
+                note: Cow::Borrowed(note),
+            }
+        }
+    }
+}
+
+/// Resolve one ledger row by ID, carrying its outcome, stability, layers,
+/// and evidence. `note_override` replaces the row limitations text when the
+/// caller needs path-specific prose; otherwise the row speaks for itself.
+fn row_assessment(
+    id: &'static str,
+    error_identity: Option<&'static str>,
+    note_override: Option<&'static str>,
+) -> ResolvedAssessment {
+    match projection_for(id) {
+        Some(row) => {
+            let row: &LedgerProjection = row;
+            ResolvedAssessment {
+                scenario_id: row.id,
+                status: row.status,
+                stability: row.stability,
+                layers: row.layers,
+                evidence: row.evidence,
+                error_identity,
+                note: Cow::Borrowed(note_override.unwrap_or(row.limitations)),
+            }
+        }
+        None => ResolvedAssessment {
+            scenario_id: id,
+            status: AssessmentStatus::Unknown,
+            stability: "stable",
+            layers: &[],
+            evidence: &[],
+            error_identity,
+            note: Cow::Owned(format!(
+                "Scenario authority has no row for `{id}`; failing conservatively instead of substituting a neighboring row."
+            )),
+        },
+    }
+}
+
 /// (scenario ID, matrix feature, fixed outcome, error identity, note).
-/// Fixed outcomes cover distinctions the matrix feature table cannot
-/// express: tail vs non-tail ODO, and REDEFINES, which is unconditional
-/// core behavior with ledger rows but no matrix feature. Each is pinned
-/// by advise tests, which ledger rows may anchor as cli evidence.
+/// ODO kinds resolve in [`resolve_assessment`] against the ledger projection
+/// (format-selected rows, scenario authority over the coarse matrix); the
+/// remaining arms cover distinctions the matrix feature table cannot express,
+/// such as REDEFINES, which is unconditional core behavior with ledger rows
+/// but no matrix feature.
 fn construct_plan(
     kind: &ConstructKind,
 ) -> (
@@ -597,27 +722,12 @@ fn construct_plan(
     &'static str,
 ) {
     match kind {
-        ConstructKind::OccursDepending => (
-            "struct.odo.tail_fixed",
-            "occurs-depending",
-            Some(AssessmentStatus::Supported),
-            None,
-            "Tail ODO is supported; non-tail and over-REDEFINES variants are rejected.",
-        ),
-        ConstructKind::NonTailOdo => (
-            "struct.odo.not_tail",
-            "occurs-depending",
-            Some(AssessmentStatus::Rejected),
-            Some("CBKP021_ODO_NOT_TAIL"),
-            "Only tail ODO is supported; move the OCCURS to the record tail.",
-        ),
-        ConstructKind::NestedOdo => (
-            "struct.odo.nested",
-            "nested-odo",
-            None,
-            Some("CBKP022_NESTED_ODO"),
-            "O1-O4 nesting is supported; O5/O6 shapes are rejected.",
-        ),
+        // ODO kinds resolve in `resolve_assessment` against the ledger
+        // projection and never reach this table; this arm fails
+        // conservatively if that ever changes.
+        ConstructKind::OccursDepending | ConstructKind::NonTailOdo | ConstructKind::NestedOdo => {
+            ("unmapped", "none", None, None, "")
+        }
         ConstructKind::Renames => (
             "struct.renames.r1_r3",
             "level-66-renames",
@@ -938,7 +1048,10 @@ mod tests {
             .collect();
         assert_eq!(by_id["struct.odo.tail_fixed"], AssessmentStatus::Supported);
         assert_eq!(by_id["struct.odo.not_tail"], AssessmentStatus::Rejected);
-        assert_eq!(by_id["struct.odo.nested"], AssessmentStatus::Limited);
+        // #978: the ledger rejects nested ODO by design (the supported O1-O4
+        // subset has no row), so scenario authority overrides the coarse
+        // matrix Partial that previously rendered as Limited.
+        assert_eq!(by_id["struct.odo.nested"], AssessmentStatus::Rejected);
         assert_eq!(by_id["struct.renames.r1_r3"], AssessmentStatus::Limited);
         assert_eq!(
             by_id["struct.redefines.scalar"],
@@ -960,6 +1073,148 @@ mod tests {
             .find(|item| item.scenario_id == "struct.odo.nested")
             .expect("nested assessment");
         assert_eq!(nested.error_identity.as_deref(), Some("CBKP022_NESTED_ODO"));
+    }
+
+    fn input_with_options(
+        constructs: Vec<AdviseConstruct>,
+        parse_error: Option<String>,
+        format: &str,
+        codepage: &str,
+    ) -> AdviseInput {
+        AdviseInput::bounded(
+            constructs,
+            parse_error,
+            EffectiveOptions::bounded(format, codepage, "normative"),
+            "copybook 0.7.0",
+        )
+    }
+
+    fn single_scenario(format: &str, kind: ConstructKind) -> ScenarioAssessment {
+        let input = input_with_options(
+            vec![AdviseConstruct::bounded(kind, "DATA", None)],
+            None,
+            format,
+            "ascii",
+        );
+        let result = analyze(&input);
+        assert_eq!(result.scenarios.len(), 1);
+        assert_eq!(result.truncation.scenarios_considered, 1);
+        assert_eq!(result.truncation.scenarios_reported, 1);
+        result.scenarios.into_iter().next().expect("one scenario")
+    }
+
+    #[test]
+    fn encoding_advise_tail_odo_resolves_per_format() {
+        // #978 acceptance: the same tail-ODO construct resolves to the
+        // applicable ledger row per format; fixed-only evidence is never
+        // relabelled as RDW/VB evidence.
+        let fixed = single_scenario("fixed", ConstructKind::OccursDepending);
+        assert_eq!(fixed.scenario_id, "struct.odo.tail_fixed");
+        assert_eq!(fixed.status, AssessmentStatus::Supported);
+        assert_eq!(fixed.record_formats, vec!["fixed".to_string()]);
+
+        let rdw = single_scenario("rdw", ConstructKind::OccursDepending);
+        assert_eq!(rdw.scenario_id, "struct.odo.tail_rdw_variable");
+        assert_eq!(rdw.status, AssessmentStatus::Supported);
+        assert_eq!(rdw.record_formats, vec!["rdw".to_string()]);
+
+        let vb = single_scenario("vb", ConstructKind::OccursDepending);
+        assert_eq!(vb.scenario_id, "matrix:occurs-depending");
+        assert_eq!(vb.status, AssessmentStatus::Unknown);
+        assert_eq!(vb.record_formats, vec!["vb".to_string()]);
+        assert!(
+            vb.limitation_or_remediation.contains("vb"),
+            "VB must name the unevaluated format, got: {}",
+            vb.limitation_or_remediation
+        );
+        assert!(
+            vb.evidence_refs
+                .iter()
+                .all(|reference| reference.starts_with("construct:")),
+            "unevaluated path carries location only, never row evidence"
+        );
+    }
+
+    #[test]
+    fn encoding_advise_tail_odo_verdict_follows_format() {
+        for (format, expected) in [
+            ("fixed", Verdict::Supported),
+            ("rdw", Verdict::Supported),
+            ("vb", Verdict::PartialUnknown),
+        ] {
+            let input = input_with_options(
+                vec![AdviseConstruct::bounded(
+                    ConstructKind::OccursDepending,
+                    "DATA",
+                    None,
+                )],
+                None,
+                format,
+                "ascii",
+            );
+            assert_eq!(analyze(&input).verdict, expected, "format {format}");
+        }
+    }
+
+    #[test]
+    fn encoding_advise_resolved_rows_carry_layers_and_ledger_evidence() {
+        // #978: applicable layers and real evidence refs within bounds;
+        // construct location stays separate from evidence authority.
+        let fixed = single_scenario("fixed", ConstructKind::OccursDepending);
+        assert_eq!(
+            fixed.affected_layers,
+            vec![
+                AffectedLayer::Parse,
+                AffectedLayer::Layout,
+                AffectedLayer::Decode,
+                AffectedLayer::Encode,
+            ]
+        );
+        assert!(
+            fixed
+                .evidence_refs
+                .contains(&"crates/copybook-core/tests/odo_tail_validation.rs::odo_tail_ok_with_children_but_no_sibling_after".to_string())
+        );
+        assert!(
+            fixed
+                .evidence_refs
+                .iter()
+                .any(|reference| reference.starts_with("construct:"))
+        );
+        assert!(fixed.evidence_refs.len() <= MAX_EVIDENCE_REFS);
+        assert_eq!(fixed.codepages, vec!["ascii".to_string()]);
+
+        let nested = single_scenario("fixed", ConstructKind::NestedOdo);
+        assert_eq!(nested.status, AssessmentStatus::Rejected);
+        assert_eq!(nested.affected_layers, vec![AffectedLayer::Parse]);
+        assert!(
+            nested
+                .evidence_refs
+                .contains(&"crates/copybook-core/tests/nested_odo_negative_tests.rs::test_o5_nested_odo_basic_rejection".to_string())
+        );
+        assert_eq!(nested.error_identity.as_deref(), Some("CBKP022_NESTED_ODO"));
+        assert!(
+            nested.limitation_or_remediation.contains("O1-O4"),
+            "nested note must carry the ledger caveat, got: {}",
+            nested.limitation_or_remediation
+        );
+    }
+
+    #[test]
+    fn encoding_advise_projection_covers_resolved_rows() {
+        // The rows assessment resolves by ID must exist in the compiled
+        // projection; a missing row would fail conservatively to Unknown.
+        for id in [
+            "struct.odo.tail_fixed",
+            "struct.odo.tail_rdw_variable",
+            "struct.odo.not_tail",
+            "struct.odo.nested",
+        ] {
+            assert!(
+                crate::ledger_projection::projection_for(id).is_some(),
+                "projection must carry row {id}"
+            );
+        }
     }
 
     #[test]

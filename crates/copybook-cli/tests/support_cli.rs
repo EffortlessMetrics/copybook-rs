@@ -291,6 +291,11 @@ fn support_advise_renames_reports_supported_with_limits() {
 
 #[test]
 fn support_advise_vb_format_flows_into_effective_options() {
+    // #978: the VB path has no tail-ODO ledger row, so the requested format
+    // still echoes into `effective_options`/`record_formats` but the verdict
+    // is partial-unknown (exit 3), never fixed-evidence certainty. The old
+    // expectation (`supported`) certified the VB path from fixed-only
+    // evidence and was the reported defect.
     let copybook = write_advise_copybook(TAIL_ODO_COPYBOOK);
     let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
         .args([
@@ -305,18 +310,70 @@ fn support_advise_vb_format_flows_into_effective_options() {
         .output()
         .expect("failed to execute command");
 
+    assert_eq!(output.status.code(), Some(3));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .expect("support --advise --format json should emit valid JSON");
+    assert_eq!(value["verdict"], "partial-unknown");
+    assert_eq!(value["effective_options"]["format"], "vb");
+    let scenarios = value["scenarios"].as_array().cloned().unwrap_or_default();
+    assert_eq!(scenarios.len(), 1);
+    assert_eq!(scenarios[0]["scenario_id"], "matrix:occurs-depending");
+    assert_eq!(scenarios[0]["status"], "unknown");
+    assert_eq!(scenarios[0]["record_formats"], serde_json::json!(["vb"]));
+    assert!(
+        scenarios[0]["limitation_or_remediation"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("vb"),
+        "VB must name the unevaluated format, got: {value}"
+    );
+}
+
+#[test]
+fn support_advise_rdw_tail_odo_resolves_rdw_row() {
+    // #978 acceptance: the same tail-ODO copybook under RDW resolves to the
+    // RDW ledger row with real evidence, still exiting 0.
+    let copybook = write_advise_copybook(TAIL_ODO_COPYBOOK);
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args([
+            "support",
+            "--advise",
+            &copybook.path().to_string_lossy(),
+            "--record-format",
+            "rdw",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("failed to execute command");
+
     assert!(output.status.success());
     let value: serde_json::Value = serde_json::from_slice(&output.stdout)
         .expect("support --advise --format json should emit valid JSON");
     assert_eq!(value["verdict"], "supported");
-    assert_eq!(value["effective_options"]["format"], "vb");
+    let scenarios = value["scenarios"].as_array().cloned().unwrap_or_default();
+    assert_eq!(scenarios.len(), 1);
+    assert_eq!(scenarios[0]["scenario_id"], "struct.odo.tail_rdw_variable");
+    assert_eq!(scenarios[0]["status"], "supported");
+    assert_eq!(scenarios[0]["record_formats"], serde_json::json!(["rdw"]));
     assert!(
-        value["scenarios"]
+        scenarios[0]["affected_layers"]
             .as_array()
             .unwrap_or(&vec![])
             .iter()
-            .all(|s| s["record_formats"] == serde_json::json!(["vb"])),
-        "expected vb record format on every scenario, got: {value}"
+            .any(|layer| layer == "decode"),
+        "RDW row must carry ledger layers, got: {value}"
+    );
+    assert!(
+        scenarios[0]["evidence_refs"]
+            .as_array()
+            .unwrap_or(&vec![])
+            .iter()
+            .any(|reference| reference
+                .as_str()
+                .unwrap_or_default()
+                .contains("odo_variable_length_decodes_through_rdw")),
+        "RDW row must carry ledger evidence, got: {value}"
     );
 }
 

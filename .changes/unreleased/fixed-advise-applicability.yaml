@@ -1,0 +1,11 @@
+kind: fixed
+body: '**advise**: resolve `support --advise` assessments against a generated,
+  compiled-in projection of the scenario ledger (`advise sync-projection`,
+  freshness enforced by `docs verify-all`) instead of echoing requested
+  options onto fixed-path verdicts. Tail ODO now resolves per format
+  (`struct.odo.tail_fixed` for fixed, `struct.odo.tail_rdw_variable` for RDW,
+  explicit unknown for unevaluated formats such as VB); nested ODO takes the
+  ledger rejection over the coarse matrix partial; resolved rows carry
+  applicable layers and direct evidence refs with construct location kept
+  separate. No schema change.'
+time: '2026-09-17T10:30:00Z'

@@ -345,6 +345,7 @@ preflight:
     cargo run -p xtask -- architecture check
     cargo run -p xtask -- docs freeze contracts
     cargo run -p xtask -- publish plan --check
+    @echo "preflight is static-only (fmt, inventory, contracts): it establishes no test-execution evidence; run 'cargo nextest run --workspace --exclude copybook-bench --exclude copybook-bdd --profile ci' plus 'cargo run -p xtask -- docs sync-tests' for that."
 
 # Scheduled tests - runs scheduled lane tests locally (optional, for validation)
 # Expected runtime: 30-60 minutes (varies by which tests you run)

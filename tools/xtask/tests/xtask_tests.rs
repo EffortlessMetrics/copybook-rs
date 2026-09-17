@@ -508,6 +508,32 @@ fn preflight_recipe_covers_every_check_mode() {
     }
 }
 
+/// A static-only `just preflight` must name exactly what execution
+/// evidence it has not established (#992): a green preflight is not
+/// test-execution proof.
+#[test]
+fn preflight_recipe_names_unestablished_execution_evidence() {
+    let justfile = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../justfile");
+    let raw = std::fs::read_to_string(&justfile).expect("failed to read workspace justfile");
+    let source = raw.replace("\r\n", "\n");
+    let preflight = source
+        .split("\npreflight:\n")
+        .nth(1)
+        .expect("justfile must define a preflight recipe");
+    assert!(
+        preflight.contains("static-only"),
+        "preflight must declare its static-only scope"
+    );
+    assert!(
+        preflight.contains("no test-execution evidence"),
+        "preflight must state it establishes no test-execution evidence"
+    );
+    assert!(
+        preflight.contains("cargo nextest run"),
+        "preflight must name the command that produces test-execution evidence"
+    );
+}
+
 /// The pinned toolchain keeps `cargo fmt` identical locally and in CI.
 #[test]
 fn toolchain_pin_matches_fmt_policy() {

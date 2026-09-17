@@ -1,0 +1,6 @@
+kind: added
+body: '**devex**: `just preflight` declares its static-only scope (#992).
+  The recipe now states it establishes no test-execution evidence and
+  names the nextest plus sync-tests commands that do; a recipe test
+  pins the wording.'
+time: '2026-09-17T16:50:28Z'

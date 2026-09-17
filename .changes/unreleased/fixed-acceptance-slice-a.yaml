@@ -5,9 +5,12 @@ body: '**release**: extended the stable-core acceptance runner (`release_smoke.s
   round-trip excluding BDW framing) and advise probes (supported exit 0,
   stable JSON envelope validation, VB effective options, invalid-input exit
   3 with CBKP021 identity, governed-corpus agreement, honest
-  partial-unknown literal, wrong-value refutations). Every section is timed,
-  and a bounded sanitized acceptance receipt (hashes/outcomes only, no
-  record payload, ephemeral paths relativized) is emitted on success and on
-  failure via trap. Docs.rs checks and durable release-asset archiving
-  follow in slice B.'
-time: '2026-09-17T08:30:00Z'
+  partial-unknown literal, wrong-value refutations). Split timing markers
+  keep payloads under active errexit (a wrapper would mask intermediate
+  failures); every section is timed, and a bounded sanitized acceptance
+  receipt (hashes/outcomes only, ephemeral paths relativized) is emitted on
+  success and on failure via trap. The blocking smoke job persists the
+  receipt outside the run directory, uploads it as a transport artifact,
+  and rejects non-registry-only execution. Docs.rs checks and durable
+  release-asset archiving follow in slice B.'
+time: '2026-09-17T09:00:00Z'

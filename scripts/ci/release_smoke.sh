@@ -89,17 +89,24 @@ sha256_file() {
   sha256sum -- "$1" | cut -d' ' -f1
 }
 
-# timed_step <name> -- <command...>: run, record wall time and rc, propagate rc.
-timed_step() {
-  local name="$1"
-  shift
-  if [ "${1:-}" = "--" ]; then shift; fi
-  local start end rc=0
-  start="$(date -u +%s)"
-  "$@" || rc="$?"
+# Split timing markers. A single wrapper (timed_step) cannot work here: any
+# `"$@" || rc=$?` / `if "$@"` / subshell form runs the payload in a context
+# where bash ignores errexit *inside* function bodies, so an intermediate
+# failure followed by a later success returns 0 (false-positive acceptance).
+# Markers keep the payload a plain command with errexit fully active: an
+# inner failure aborts loudly at the failing command and never records a
+# passing row.
+time_start() {
+  TIME_START_NAME="$1"
+  TIME_START_EPOCH="$(date -u +%s)"
+}
+
+time_end() {
+  local rc="$?"
+  local end
   end="$(date -u +%s)"
   printf '%s start=%s end=%s duration_s=%s rc=%s\n' \
-    "${name}" "${start}" "${end}" "$((end - start))" "${rc}" >> "${TIMINGS_FILE}"
+    "${TIME_START_NAME}" "${TIME_START_EPOCH}" "${end}" "$((end - TIME_START_EPOCH))" "${rc}" >> "${TIMINGS_FILE}"
   return "${rc}"
 }
 
@@ -417,9 +424,11 @@ run_vb_probes() {
   # Beta positive case: two framed records decode with checked values.
   # VB stays beta: this probe accepts current beta behavior, it does not
   # graduate the format.
-  timed_step "vb-decode" -- "${copybook_cli}" decode "${dir}/vb.cpy" "${dir}/vb_ok.bin" \
+  time_start "vb-decode"
+  "${copybook_cli}" decode "${dir}/vb.cpy" "${dir}/vb_ok.bin" \
     --format vb --codepage ascii --threads 1 \
     --output "${dir}/vb_decode.jsonl" > /dev/null
+  time_end
   "${PYTHON_BIN}" - "${dir}/vb_decode.jsonl" <<'PY'
 import json
 import sys
@@ -442,12 +451,16 @@ PY
 
   # Semantic round-trip: decode -> encode -> decode, JSONL compared because
   # encoded BDW framing is not byte-stable by design.
-  timed_step "vb-roundtrip" -- "${copybook_cli}" encode "${dir}/vb.cpy" "${dir}/vb_decode.jsonl" \
+  time_start "vb-roundtrip"
+  "${copybook_cli}" encode "${dir}/vb.cpy" "${dir}/vb_decode.jsonl" \
     --format vb --codepage ascii --threads 1 \
     --output "${dir}/vb_reencode.bin" > /dev/null
-  timed_step "vb-redecode" -- "${copybook_cli}" decode "${dir}/vb.cpy" "${dir}/vb_reencode.bin" \
+  time_end
+  time_start "vb-redecode"
+  "${copybook_cli}" decode "${dir}/vb.cpy" "${dir}/vb_reencode.bin" \
     --format vb --codepage ascii --threads 1 \
     --output "${dir}/vb_roundtrip.jsonl" > /dev/null
+  time_end
   compare_bytes "${dir}/vb_decode.jsonl" "${dir}/vb_roundtrip.jsonl"
 }
 
@@ -525,7 +538,7 @@ emit_acceptance_receipt() {
   exe_sha="$([ -n "${COPYBOOK_CLI_BIN:-}" ] && sha256_file "${COPYBOOK_CLI_BIN}" || echo unknown)"
   rustc_v="$(rustc -vV 2>/dev/null | tr '\n' ';' || echo unknown)"
   plan_digest="not-computed"
-  if [ "${SMOKE_MODE:-registry}" = "local" ] || [ -n "${COPYBOOK_CLI_BIN:-}" ]; then
+  if [ "${OPERATOR_BIN:-0}" = "1" ] || [ "${SMOKE_MODE:-registry}" = "local" ]; then
     plan_digest="not-applicable (workspace-assisted execution)"
   elif (cargo run -q -p xtask -- publish plan --format json > "${RUN_DIR}/plan.json" 2>/dev/null); then
     plan_digest="$(sha256_file "${RUN_DIR}/plan.json")"
@@ -572,7 +585,7 @@ receipt = {
     },
     "mode": os.environ.get("SMOKE_MODE", "registry"),
     "execution_kind": ("workspace-assisted (operator COPYBOOK_CLI_BIN)"
-                       if os.environ.get("COPYBOOK_CLI_BIN") else "registry-only"),
+                       if os.environ.get("OPERATOR_BIN") == "1" else "registry-only"),
     "toolchain": os.environ["RECEIPT_RUSTC"],
     "executable": {
         "path": durable(os.environ.get("COPYBOOK_CLI_BIN", "registry-installed")),
@@ -645,6 +658,7 @@ if [ "${RELEASE_SMOKE_ADVISORY:-0}" = "1" ]; then
 fi
 
 if [ -n "${COPYBOOK_CLI_BIN:-}" ]; then
+  OPERATOR_BIN=1
   COPYBOOK_CLI_BIN="$(readlink_f "${COPYBOOK_CLI_BIN}")"
   if [ ! -x "${COPYBOOK_CLI_BIN}" ]; then
     echo "COPYBOOK_CLI_BIN is set but not executable: ${COPYBOOK_CLI_BIN}" >&2
@@ -652,13 +666,17 @@ if [ -n "${COPYBOOK_CLI_BIN:-}" ]; then
   fi
   echo "Using local copybook CLI: ${COPYBOOK_CLI_BIN}"
 else
+  OPERATOR_BIN=0
   INSTALL_DEFAULT="${RUN_DIR}/copybook-default"
 
   echo "Installing copybook-cli@${VERSION} (default features)"
   install_copybook_cli "" "${INSTALL_DEFAULT}"
   COPYBOOK_CLI_BIN="${INSTALL_DEFAULT}/bin/copybook"
 fi
-export COPYBOOK_CLI_BIN
+# OPERATOR_BIN records whether the operator supplied the binary *before*
+# resolution: after this point COPYBOOK_CLI_BIN is always populated, so the
+# receipt must not infer the execution kind from its presence.
+export COPYBOOK_CLI_BIN OPERATOR_BIN
 
 "${COPYBOOK_CLI_BIN}" --version
 "${COPYBOOK_CLI_BIN}" --help >/dev/null
@@ -699,13 +717,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 EOF
 
 echo "Building and running clean-room facade smoke project"
-timed_step "facade-smoke" -- cargo run --manifest-path "${PROJECT_DIR}/Cargo.toml"
+time_start "facade-smoke"
+cargo run --manifest-path "${PROJECT_DIR}/Cargo.toml"
+time_end
 
 echo "Running smoke fixed workflow (single worker)"
-timed_step "fixed-t1" -- run_with_binary "${COPYBOOK_CLI_BIN}" fixed "${FIXTURE_COPYBOOK}" "${FIXTURE_FIXED}" fixed "${FIXTURE_DIR}/fixed/t1" 1
+time_start "fixed-t1"
+run_with_binary "${COPYBOOK_CLI_BIN}" fixed "${FIXTURE_COPYBOOK}" "${FIXTURE_FIXED}" fixed "${FIXTURE_DIR}/fixed/t1" 1
+time_end
 
 echo "Running smoke fixed workflow (multi-worker)"
-timed_step "fixed-t4" -- run_with_binary "${COPYBOOK_CLI_BIN}" fixed "${FIXTURE_COPYBOOK}" "${FIXTURE_FIXED}" fixed "${FIXTURE_DIR}/fixed/t4" 4
+time_start "fixed-t4"
+run_with_binary "${COPYBOOK_CLI_BIN}" fixed "${FIXTURE_COPYBOOK}" "${FIXTURE_FIXED}" fixed "${FIXTURE_DIR}/fixed/t4" 4
+time_end
 
 echo "Comparing fixed output across worker settings"
 compare_bytes "${FIXTURE_DIR}/fixed/t1/decode.jsonl" "${FIXTURE_DIR}/fixed/t4/decode.jsonl"
@@ -715,23 +739,33 @@ RDW_FIXTURE="${FIXTURE_DIR}/simple.rdw.bin"
 make_rdw_fixture "${FIXTURE_FIXED}" "${RDW_FIXTURE}"
 
 echo "Running smoke RDW workflow (single worker)"
-timed_step "rdw-t1" -- run_with_binary "${COPYBOOK_CLI_BIN}" rdw "${FIXTURE_COPYBOOK}" "${RDW_FIXTURE}" rdw "${FIXTURE_DIR}/rdw/t1" 1
+time_start "rdw-t1"
+run_with_binary "${COPYBOOK_CLI_BIN}" rdw "${FIXTURE_COPYBOOK}" "${RDW_FIXTURE}" rdw "${FIXTURE_DIR}/rdw/t1" 1
+time_end
 
 echo "Running smoke RDW workflow (multi-worker)"
-timed_step "rdw-t4" -- run_with_binary "${COPYBOOK_CLI_BIN}" rdw "${FIXTURE_COPYBOOK}" "${RDW_FIXTURE}" rdw "${FIXTURE_DIR}/rdw/t4" 4
+time_start "rdw-t4"
+run_with_binary "${COPYBOOK_CLI_BIN}" rdw "${FIXTURE_COPYBOOK}" "${RDW_FIXTURE}" rdw "${FIXTURE_DIR}/rdw/t4" 4
+time_end
 
 echo "Comparing RDW output across worker settings"
 compare_bytes "${FIXTURE_DIR}/rdw/t1/decode.jsonl" "${FIXTURE_DIR}/rdw/t4/decode.jsonl"
 compare_bytes "${FIXTURE_DIR}/rdw/t1/encode.bin" "${FIXTURE_DIR}/rdw/t4/encode.bin"
 
 echo "Running codepage-correction witness (installed binary, independent pairs)"
-timed_step "codepage-witness" -- codepage_correction_witness "${COPYBOOK_CLI_BIN}" "${FIXTURE_DIR}/codepage"
+time_start "codepage-witness"
+codepage_correction_witness "${COPYBOOK_CLI_BIN}" "${FIXTURE_DIR}/codepage"
+time_end
 
 echo "Running VB framing probes (beta positive plus malformed cases)"
-timed_step "vb-probes" -- run_vb_probes "${COPYBOOK_CLI_BIN}" "${FIXTURE_DIR}/vb"
+time_start "vb-probes"
+run_vb_probes "${COPYBOOK_CLI_BIN}" "${FIXTURE_DIR}/vb"
+time_end
 
 echo "Running advise probes (stable JSON, schema, identities, honest literals)"
-timed_step "advise-probes" -- run_advise_probes "${COPYBOOK_CLI_BIN}" "${FIXTURE_DIR}/advise"
+time_start "advise-probes"
+run_advise_probes "${COPYBOOK_CLI_BIN}" "${FIXTURE_DIR}/advise"
+time_end
 
 emit_acceptance_receipt "completed"
 

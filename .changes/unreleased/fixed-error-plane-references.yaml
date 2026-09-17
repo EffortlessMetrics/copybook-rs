@@ -1,0 +1,7 @@
+kind: fixed
+body: '**evidence**: name the exact error behind CLI exit ownership (#983).
+  All 8 `cli_evidence` rows that said only `tracked at the error plane`
+  now cite their own `stable-error:` identity; the two rows whose exact
+  identity is pending #576 say so with the owner instead of a bare
+  `anchor pending`.'
+time: '2026-09-17T14:42:57Z'

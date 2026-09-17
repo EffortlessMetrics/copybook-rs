@@ -116,7 +116,7 @@ negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_not_at_tail_rejection", kind = "direct" },
   { ref = "crates/copybook-codec/tests/structural_evidence_matrix.rs::odo_non_tail_is_rejected", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane by stable-error:CBKP021_ODO_NOT_TAIL" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "not_applicable"
@@ -142,7 +142,7 @@ round_trip_evidence = [{ kind = "not_applicable", reason = "rejected input never
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_nested_odo_rejection", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane by stable-error:CBKP022_NESTED_ODO" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "not_applicable"
@@ -168,7 +168,7 @@ round_trip_evidence = [{ kind = "not_applicable", reason = "rejected input never
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_driver_in_redefines_rejection", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane by stable-error:CBKP023_ODO_REDEFINES" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "not_applicable"
@@ -307,7 +307,7 @@ round_trip_evidence = [{ kind = "not_applicable", reason = "ambiguous views neve
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_encode_ambiguity_error", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; exact identity pending #576 reconciliation (see limitations)" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
@@ -415,7 +415,7 @@ round_trip_evidence = [{ kind = "not_applicable", reason = "rejected input never
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-core/tests/renames_resolver_negative_tests.rs::renames_crosses_occurs_boundary", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane by stable-error:CBKS607_RENAME_CROSSES_OCCURS" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "not_applicable"
@@ -439,7 +439,7 @@ decode_evidence = [{ kind = "not_applicable", reason = "gated policy has no deco
 encode_evidence = [{ kind = "not_applicable", reason = "gated policy has no encode contract yet" }]
 round_trip_evidence = [{ kind = "not_applicable", reason = "gated policy has no round-trip contract yet" }]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "unflagged-path rejection anchor pending" }]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane by stable-error:CBKS609_RENAME_OVER_REDEFINES" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "not_applicable"
@@ -465,7 +465,7 @@ round_trip_evidence = [{ kind = "not_applicable", reason = "rejected input never
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/structural_evidence_matrix.rs::renames_reversed_range_is_rejected", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane by stable-error:CBKS604_RENAME_REVERSED_RANGE" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "not_applicable"
@@ -567,7 +567,7 @@ round_trip_evidence = [{ kind = "not_applicable", reason = "condition names neve
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/enterprise_level88_mismatch.rs::enterprise_level88_value_mismatch_decodes_without_error", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; row-level anchor pending" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; exact identity pending #576 reconciliation (see limitations)" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"

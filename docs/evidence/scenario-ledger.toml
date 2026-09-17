@@ -11,7 +11,7 @@ scenario_id = "struct.odo.tail_fixed"
 feature_identity = "occurs-depending"
 support_status = "supported"
 stability_class = "stable"
-required_evidence_layers = ["parse", "layout", "decode", "encode", "negative"]
+required_evidence_layers = ["parse", "layout", "decode", "encode", "round_trip", "negative"]
 parse_evidence = [
   { ref = "crates/copybook-core/tests/odo_tail_validation.rs::odo_tail_ok_with_children_but_no_sibling_after", kind = "direct" },
 ]
@@ -24,7 +24,9 @@ decode_evidence = [
 encode_evidence = [
   { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_encode_counter_array_match_accepted", kind = "direct" },
 ]
-round_trip_evidence = [{ kind = "not_applicable", reason = "no dedicated ODO round-trip test; encode and decode pinned separately" }]
+round_trip_evidence = [
+  { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_tail_odo_record_roundtrip_identity", kind = "direct" },
+]
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_encode_counter_array_mismatch_rejected", kind = "direct" },
 ]
@@ -33,7 +35,7 @@ fixed_rdw_vb_applicability = ["fixed"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
 stable_error_or_rejection_identity = "none"
-known_limitations_or_remediation = "Round-trip and CLI layers ride the format plane (see relationships); row-level anchors pending."
+known_limitations_or_remediation = "CLI layer rides the format plane (see relationships); row-level CLI anchors pending. Round-trip is directly evidenced; unseen-payload counter validity is out of scope."
 shared_evidence_relationships = ["fixed-rdw:format.fixed.basic"]
 
 last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"

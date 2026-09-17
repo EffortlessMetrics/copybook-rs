@@ -411,6 +411,63 @@ fn test_odo_encode_counter_array_match_accepted() {
 }
 
 #[test]
+fn test_tail_odo_record_roundtrip_identity() {
+    // #983: tail ODO had separate encode/decode pins but no dedicated
+    // record round-trip proof. Encode a JSONL record, decode the bytes,
+    // and require full value identity across the variable-length array.
+    let copybook = r#"
+01 RECORD-LAYOUT.
+   05 ITEM-COUNT PIC 9(3).
+   05 ITEMS PIC X(10) OCCURS 0 TO 5 TIMES DEPENDING ON ITEM-COUNT.
+"#;
+
+    let schema = parse_copybook(copybook).unwrap();
+
+    let items = ["ITEM1     ", "ITEM2     ", "ITEM3     "];
+    let json_data = json!({
+        "ITEM-COUNT": "003",
+        "ITEMS": items,
+    });
+    let jsonl_data = format!("{json_data}\n");
+
+    let encode_options = EncodeOptions {
+        codepage: Codepage::ASCII,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
+        ..EncodeOptions::default()
+    };
+    let mut output = Vec::new();
+    let summary = copybook_codec::encode_jsonl_to_file(
+        &schema,
+        Cursor::new(jsonl_data.as_bytes()),
+        &mut output,
+        &encode_options,
+    )
+    .unwrap();
+    assert_eq!(summary.records_with_errors, 0);
+
+    let decode_options = DecodeOptions {
+        format: RecordFormat::Fixed,
+        codepage: Codepage::ASCII,
+        json_number_mode: JsonNumberMode::Lossless,
+        emit_filler: false,
+        emit_meta: false,
+        emit_raw: RawMode::Off,
+        strict_mode: false,
+        max_errors: None,
+        on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
+        threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
+    };
+    let json_record = copybook_codec::decode_record(&schema, &output, &decode_options).unwrap();
+
+    assert_eq!(json_record["ITEM-COUNT"], json_data["ITEM-COUNT"]);
+    assert_eq!(json_record["ITEMS"], json_data["ITEMS"]);
+}
+
+#[test]
 fn test_odo_array_length_out_of_bounds_encode() {
     let copybook = r#"
 01 RECORD-LAYOUT.

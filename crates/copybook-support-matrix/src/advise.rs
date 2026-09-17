@@ -1270,6 +1270,8 @@ mod tests {
     fn encoding_advise_resolved_rows_carry_layers_and_ledger_evidence() {
         // #978: applicable layers and real evidence refs within bounds;
         // construct location stays separate from evidence authority.
+        // #983: tail ODO round-trip is directly evidenced, so the row
+        // carries the RoundTrip layer.
         let fixed = single_scenario("fixed", ConstructKind::OccursDepending);
         assert_eq!(
             fixed.affected_layers,
@@ -1278,6 +1280,7 @@ mod tests {
                 AffectedLayer::Layout,
                 AffectedLayer::Decode,
                 AffectedLayer::Encode,
+                AffectedLayer::RoundTrip,
             ]
         );
         assert!(

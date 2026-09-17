@@ -198,7 +198,7 @@ jobs:
           comment += 'Coverage analysis has been run for this PR.\n\n';
           comment += 'Please check the Coverage job for detailed results.\n\n';
           comment += 'Coverage reports are available as artifacts.';
-          
+
           github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,

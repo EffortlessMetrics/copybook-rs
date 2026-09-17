@@ -91,11 +91,11 @@ jobs:
           python - <<'PY'
           import json
           import os
-          
+
           changed_files = os.environ.get("CHANGED_FILES", "")
-          
+
           files = [line.strip() for line in changed_files.splitlines() if line.strip()]
-          
+
           stable_packages = []
           stable_package_file = ".api-baseline/stable-packages.txt"
           if os.path.exists(stable_package_file):
@@ -110,10 +110,10 @@ jobs:
               for entry in registry.get("packages", []):
                   if entry.get("class") == "stable" and entry.get("name"):
                       stable_packages.append(entry["name"])
-          
+
           with open("docs/contracts/stable-surface-contract.json", "r", encoding="utf-8") as handle:
               manifest = json.load(handle)
-          
+
           contract_paths = set(manifest.get("source_paths", []))
           contract_paths.update(
               {
@@ -135,7 +135,7 @@ jobs:
               contract_paths.add(f"crates/{package}/")
               contract_paths.add(f"crates/{package}/src/")
               contract_paths.add(f"crates/{package}/Cargo.toml")
-          
+
           allowed_prefixes = [
               "docs/",
               "tests/",
@@ -153,22 +153,22 @@ jobs:
               ".gitignore",
               "CODEOWNERS",
           }
-          
-          
+
+
           def is_allowed_non_contract(path: str) -> bool:
               if path in allowed_files:
                   return True
               if any(path.startswith(prefix) for prefix in allowed_prefixes):
                   return True
               return False
-          
-          
+
+
           def is_contract_relevant(path: str) -> bool:
               if path in contract_paths:
                   return True
               return any(path.startswith(prefix) for prefix in contract_paths if prefix.endswith("/"))
-          
-          
+
+
           contract_relevant_files = []
           non_allowed_non_contract = []
           for path in files:
@@ -176,9 +176,9 @@ jobs:
                   contract_relevant_files.append(path)
               elif not is_allowed_non_contract(path):
                   non_allowed_non_contract.append(path)
-          
+
           needs_contract_checks = bool(contract_relevant_files or non_allowed_non_contract)
-          
+
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
               out.write(f"needs_contract_checks={'true' if needs_contract_checks else 'false'}\n")
               out.write(f"has_contract_files={'true' if contract_relevant_files else 'false'}\n")
@@ -186,7 +186,7 @@ jobs:
               out.write("contract_relevant_files=" + "|".join(contract_relevant_files) + "\n")
               out.write("non_allowed_non_contract_files=" + "|".join(non_allowed_non_contract) + "\n")
           PY
-          
+
       - name: Generate baseline for current version
         if: steps.freeze-check.outputs.freeze_active == 'false'
         run: |

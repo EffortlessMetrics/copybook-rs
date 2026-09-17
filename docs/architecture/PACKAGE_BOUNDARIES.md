@@ -71,3 +71,21 @@ mapping, and the `--advise` path never receives governance state at all:
 advise output is byte-identical with and without the flag (pinned by
 `support_advise_ignores_governance_flag_on_stable_path`). Dependency
 presence therefore proves linkage, never default policy execution.
+
+Exercised governance behavior with exact results (#985): `support --format
+json --with-governance` emits a 7-row governed matrix carrying
+`runtime_enabled`, `required_feature_flags`, and `missing_feature_flags`
+per row (pinned by `support_json_with_governance_outputs_runtime_fields`
+and `support_check_with_governance_includes_runtime_flags`); that output
+is byte-identical across runs and carries no filesystem paths (pinned by
+`support_governance_output_is_deterministic_and_path_free`). The
+`core-upward` rule in `tools/xtask/src/architecture.rs` rejects
+`copybook-core` edges to codec, CLI, Arrow, audit, and governance, and
+`architecture check` runs it on every gate.
+
+Explicitly unverified, with next actions: the measured runtime cost of
+the governance path is unproven (next: trace under `copybook-bench`
+before any cost claim); per-criterion lifecycle/state-transition
+graduation proof beyond the current runtime suite is unproven (next:
+link one test per graduation criterion under #553). Neither gap blocks
+the beta disposition recorded above.

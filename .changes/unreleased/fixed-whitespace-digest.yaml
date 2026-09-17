@@ -1,0 +1,6 @@
+kind: fixed
+body: '**hygiene**: stripped whitespace-only lines repo-wide (LF files only;
+  CRLF files, byte-exact fixtures, and the intentional Gherkin whitespace
+  fixture excluded) and re-anchored the fixed/RDW evidence digest for the
+  two covered sources (single registry line, no behavior change).'
+time: '2026-09-17T10:30:00Z'

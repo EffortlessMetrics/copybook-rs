@@ -1,0 +1,9 @@
+kind: fixed
+body: '**evidence**: validate linked ledger rows transitively (#981). A
+  `ledger:` link certifies the target row''s current proof, not its name:
+  linked rows are now validated through the link, so a stale target fails
+  the linker with shared-evidence context naming both rows instead of the
+  linker passing on reference existence alone. Cycle rejection moved ahead
+  of row validation so link-following always terminates. Covered by
+  stale-link rejection and fresh-link acceptance regressions.'
+time: '2026-09-17T23:00:00Z'

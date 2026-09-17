@@ -28,7 +28,21 @@ fn policy_expected(raw: u32) -> char {
     if raw < 0x20 && raw != 0x09 && raw != 0x0A && raw != 0x0D {
         return '\u{FFFD}';
     }
-    char::from_u32(raw).unwrap_or_else(|| panic!("oracle holds invalid scalar U+{raw:04X}"))
+    // The oracle-validity test below proves every fixture value is a scalar,
+    // so this unwrap cannot fire on the pinned data.
+    char::from_u32(raw).unwrap()
+}
+
+#[test]
+fn oracle_holds_only_valid_scalars() {
+    for (cp, table) in PAGES {
+        for (byte, &raw) in table.iter().enumerate() {
+            assert!(
+                char::from_u32(raw).is_some(),
+                "{cp}: oracle byte 0x{byte:02X} holds invalid scalar U+{raw:04X}"
+            );
+        }
+    }
 }
 
 #[test]
@@ -53,8 +67,8 @@ fn oracle_encode_matches_last_wins_reverse() {
     for (cp, table) in PAGES {
         let mut expected_reverse: HashMap<char, u8> = HashMap::new();
         for (byte, &raw) in table.iter().enumerate() {
-            let ch = char::from_u32(raw)
-                .unwrap_or_else(|| panic!("oracle holds invalid scalar U+{raw:04X}"));
+            // Validity is proven by `oracle_holds_only_valid_scalars`.
+            let ch = char::from_u32(raw).unwrap();
             expected_reverse.insert(ch, byte as u8);
         }
         for (&ch, &byte) in &expected_reverse {

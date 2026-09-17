@@ -492,9 +492,10 @@ fn worker_thread_count_does_not_change_ebcdic_decode() {
                 .with_emit_meta(false)
                 .with_threads(threads);
             let mut out = Vec::new();
-            let summary =
-                decode_file_to_jsonl(&schema, Cursor::new(payload.clone()), &mut out, &opts)
-                    .unwrap_or_else(|e| panic!("decode under {} failed: {e}", sig.cp));
+            let result =
+                decode_file_to_jsonl(&schema, Cursor::new(payload.clone()), &mut out, &opts);
+            assert!(result.is_ok(), "decode under {} must succeed", sig.cp);
+            let summary = result.unwrap();
             assert_eq!(
                 summary.records_processed, 33,
                 "worker decode must account all 33 records under {} (threads={threads})",

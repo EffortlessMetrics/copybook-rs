@@ -213,7 +213,43 @@ dependencies from the workspace checkouts. Set `RELEASE_SMOKE_PYTHON` to
 `python3` or `python` if your shell requires a specific binary name.
 
 Validate public visibility from `publish-plan.json` (all crates listed there, including `copybook` and
-`copybook-rs`) on both crates.io and docs.rs.
+`copybook-rs`) on both crates.io and docs.rs. Docs availability is checked
+from the plan by the `registry-docs` publish job
+(`scripts/ci/docs_availability.py`): crate page versus built-docs URL per
+package@version, with binary-only crates recorded as not-applicable and
+pending builds as pending — never pass, never proven failure.
+
+## 6b) Acceptance evidence, durable archive, and retrieval
+
+The blocking smoke job writes a bounded sanitized acceptance receipt
+(`copybook-acceptance-receipt/1`: probe/comparison outcomes, step timings,
+fixture/toolchain/executable identities as hashes — no record payload) to
+`RECEIPT_OUT`, asserts registry-only completed execution, and uploads the
+receipt as a 90-day transport artifact. The `registry-docs` job uploads the
+docs-availability receipt the same way. The `github-release` job attaches
+both as release assets: the release is the durable archive, independent of
+Actions retention.
+
+Completion states are distinct — published, accepted, docs available,
+archived, closed — and each is recorded, none inferred. The release notes
+embed the acceptance and docs states (see the `github-release` job).
+
+Retrieve the record after the local run directory is gone and after
+Actions retention expires:
+
+```bash
+TAG="vX.Y.Z"
+gh release download "${TAG}" \
+  --pattern 'acceptance-receipt-*.json' \
+  --pattern 'docs-availability-*.json'
+python3 -c "import json,glob; [print(f, json.load(open(f))['status' if f.startswith('acceptance') else 'overall']) for f in sorted(glob.glob('acceptance-*.json') + glob.glob('docs-availability-*.json'))]"
+```
+
+A simulated unavailable Actions artifact does not destroy the release
+record: re-download from the release above. A docs timeout yields a
+resumable incomplete receipt (re-run the `registry-docs` job by re-running
+the publish workflow's failed jobs); it never triggers republishing,
+retagging, or a yank.
 
 ---
 

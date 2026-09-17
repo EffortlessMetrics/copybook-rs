@@ -383,6 +383,58 @@ fn bench_parallel_scaling(c: &mut Criterion) {
     group.finish();
 }
 
+/// Zoned-preservation decode cost comparison (#990).
+///
+/// Relocated from a single-sample `Instant` ratio in the ordinary test suite:
+/// criterion supplies repeated measurements and variance, and the governed
+/// noise/budget policy in `bench-report gate` applies. Both modes decode the
+/// same 5×S9(9) record; outputs are verified once up front so the benchmark
+/// measures conversion cost, not divergent behavior.
+fn bench_decode_zoned_preserve(c: &mut Criterion) {
+    const ZONED_COPYBOOK: &str = r"
+       01  ZONED-RECORD.
+           05  FIELD-01            PIC S9(9).
+           05  FIELD-02            PIC S9(9).
+           05  FIELD-03            PIC S9(9).
+           05  FIELD-04            PIC S9(9).
+           05  FIELD-05            PIC S9(9).
+";
+    let schema = parse_copybook(ZONED_COPYBOOK).expect("zoned copybook parses");
+    let mut data = Vec::new();
+    for _field in 0..5 {
+        for i in 0..8 {
+            data.push(0xF0 + (i % 10) as u8);
+        }
+        data.push(0xF0);
+    }
+
+    let default_opts = DecodeOptions::default();
+    let preserve_opts = DecodeOptions::default().with_preserve_zoned_encoding(true);
+    let default_json = decode_record(&schema, &data, &default_opts).expect("default decodes");
+    let preserve_json = decode_record(&schema, &data, &preserve_opts).expect("preserve decodes");
+    assert_eq!(
+        default_json.get("fields"),
+        preserve_json.get("fields"),
+        "preservation must not alter decoded values"
+    );
+    assert!(
+        preserve_json.get("_encoding_metadata").is_some(),
+        "preserve mode must emit zoned-encoding metadata"
+    );
+
+    let mut group = c.benchmark_group("decode_zoned_preserve");
+    group.throughput(Throughput::Bytes(data.len() as u64));
+    for (id, opts) in [("default", default_opts), ("preserve", preserve_opts)] {
+        group.bench_with_input(BenchmarkId::new("mode", id), &opts, |b, opts| {
+            b.iter(|| {
+                let result = decode_record(black_box(&schema), black_box(&data), black_box(opts));
+                let _ = black_box(result);
+            });
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_decode_display_heavy,
@@ -390,7 +442,8 @@ criterion_group!(
     bench_decode_binary_heavy,
     bench_parse_copybook,
     bench_throughput_slo_validation,
-    bench_parallel_scaling
+    bench_parallel_scaling,
+    bench_decode_zoned_preserve
 );
 
 criterion_main!(benches);

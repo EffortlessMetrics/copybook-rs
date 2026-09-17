@@ -1,0 +1,9 @@
+kind: fixed
+body: '**test**: stop enforcing the wall-clock variance floor on shared
+  runners (#1061). The `test_performance_regression_detection` max/min
+  bound flaked on a bursty macOS runner and passed on retry with identical
+  code. The variance is still measured and printed, but enforced only with
+  `COPYBOOK_TEST_PERF_ASSERT=1`, like every other timing floor in that
+  file. The named replacement signal is the canonical bench-report gate
+  per `docs/PERFORMANCE_GOVERNANCE.md`.'
+time: '2026-09-18T03:00:00Z'

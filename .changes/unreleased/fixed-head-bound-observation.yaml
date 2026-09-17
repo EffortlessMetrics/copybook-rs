@@ -1,0 +1,14 @@
+kind: fixed
+body: '**devex**: CI status is now head-bound and reproducible. New read-only
+  helper `scripts/ci/pr_head_status.py` (with `test_pr_head_status.py`, wired
+  into `ci-quick.yml`) binds one assessment to the current PR head SHA from
+  captured check-runs evidence: pass/fail/pending/canceled/skipped/advisory
+  stay distinct, attempts resolve latest-wins, unmapped checks block a ready
+  verdict until classified, and hosted ruleset contents are recorded as
+  unknown rather than assumed. `docs/CI_GATING_POLICY.md` now inventories
+  the actual PR checks instead of the retired lint/test/proptest-smoke job
+  names, and `docs/design/AGENTIC_PR_OPERATIONS.md` documents the
+  current-head observation procedure. Also normalized
+  `.github/workflows/api-freeze.yml` to LF and pinned `*.yml`/`*.yaml` to
+  LF in `.gitattributes`.'
+time: '2026-09-17T07:30:00Z'

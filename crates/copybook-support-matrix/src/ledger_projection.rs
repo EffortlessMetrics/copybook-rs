@@ -45,8 +45,9 @@ pub const LEDGER_PROJECTION: &[LedgerProjection] = &[
             "crates/copybook-codec/tests/encoding_vb_blocks.rs::encoding_vb_jsonl_encode_decode_round_trip",
             "crates/copybook-codec/tests/encoding_vb_blocks.rs::encoding_vb_jsonl_encode_decode_round_trip",
             "crates/copybook-codec/tests/encoding_vb_blocks.rs::encoding_vb_truncated_block_fails_strict",
+            "crates/copybook-cli/tests/cli_golden_fixtures.rs::test_cli_decode_vb_matches_fixed_corpus",
         ],
-        limitations: "VB/BDW is a record-container format with no matrix COBOL feature ID; beta until corpus differential proof per docs/design/VB_BDW.md. ASCII-only proof; EBCDIC block payloads ride the codepage plane.",
+        limitations: "VB/BDW is a record-container format with no matrix COBOL feature ID; beta until corpus differential proof per docs/design/VB_BDW.md. ASCII-only proof; EBCDIC block payloads ride the codepage plane. CLI selection proven by corpus differential decode against fixed.",
     },
     LedgerProjection {
         id: "format.vb.block_framing",

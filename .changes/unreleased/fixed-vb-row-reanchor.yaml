@@ -1,0 +1,7 @@
+kind: fixed
+body: '**evidence**: anchor the `format.vb.basic` CLI layer to the corpus
+  differential test (#983). The manual-proof N/A becomes a direct anchor to
+  `test_cli_decode_vb_matches_fixed_corpus`, and the row SHA moves to the
+  mainline merge that carries the executed proof. Generated ledger
+  projection synced; row stays beta.'
+time: '2026-09-18T02:00:00Z'

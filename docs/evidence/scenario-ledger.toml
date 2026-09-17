@@ -623,14 +623,16 @@ round_trip_evidence = [
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/encoding_vb_blocks.rs::encoding_vb_truncated_block_fails_strict", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI --format vb selection proven manually; row-level CLI anchor pending corpus proof" }]
+cli_evidence = [
+  { ref = "crates/copybook-cli/tests/cli_golden_fixtures.rs::test_cli_decode_vb_matches_fixed_corpus", kind = "direct" },
+]
 fixed_rdw_vb_applicability = ["vb"]
 codepage_applicability = ["ASCII"]
 worker_applicability = "both"
 stable_error_or_rejection_identity = "CBKF223_BDW_UNDERFLOW"
-known_limitations_or_remediation = "VB/BDW is a record-container format with no matrix COBOL feature ID; beta until corpus differential proof per docs/design/VB_BDW.md. ASCII-only proof; EBCDIC block payloads ride the codepage plane."
+known_limitations_or_remediation = "VB/BDW is a record-container format with no matrix COBOL feature ID; beta until corpus differential proof per docs/design/VB_BDW.md. ASCII-only proof; EBCDIC block payloads ride the codepage plane. CLI selection proven by corpus differential decode against fixed."
 shared_evidence_relationships = ["stable-error:CBKF223_BDW_UNDERFLOW"]
-last_verified_full_sha = "3fec52c727fe633f4b82dbfa213652d41fa0c963"
+last_verified_full_sha = "d64c673dc77ae103eb29733e60f80fbf90b80bfb"
 
 [[scenarios]]
 scenario_id = "format.vb.block_framing"

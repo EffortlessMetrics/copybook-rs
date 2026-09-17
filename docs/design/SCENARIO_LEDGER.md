@@ -119,7 +119,10 @@ its matching close brace) must be byte-identical in the claimed commit and
 the working tree. A retained name with changed assertions fails the row,
 while prose edits and new tests elsewhere in the anchor file leave it
 valid. Identical bodies survive squash/rebase without treating topology as
-behavior.
+behavior. This command is inventory validation only: it resolves anchors
+against their claimed commits but never executes the anchored tests. A
+passing verification is not an execution receipt; execution evidence comes
+from running the owning test suites.
 
 ## Verifier failure catalog
 

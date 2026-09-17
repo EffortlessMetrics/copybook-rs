@@ -175,6 +175,24 @@ fn multiple_unknown_args_no_panic() {
     assert!(output.status.success());
 }
 
+/// `docs verify-scenario-ledger` records that it performs inventory
+/// validation, not test execution (#981).
+#[test]
+fn scenario_ledger_verify_states_inventory_only() {
+    let output = std::process::Command::new(xtask_bin())
+        .args(["docs", "verify-scenario-ledger"])
+        .output()
+        .expect("failed to run xtask");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("scenario ledger verified"));
+    assert!(
+        stdout.contains("inventory validation only"),
+        "verify output must record the inventory-vs-execution distinction, got: {stdout}"
+    );
+}
+
 // ====================================================================
 // Perf receipt parsing — flat format
 // ====================================================================

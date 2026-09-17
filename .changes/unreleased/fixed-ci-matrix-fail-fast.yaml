@@ -1,0 +1,6 @@
+kind: fixed
+body: '**ci**: matrix legs fail independently without cancelling siblings
+  (#992). The main CI test, examples, and exit-code matrices now set
+  `fail-fast: false`, matching the extended lanes, so independent
+  failures surface together. Failing PRs consume more runner minutes.'
+time: '2026-09-17T17:20:52Z'

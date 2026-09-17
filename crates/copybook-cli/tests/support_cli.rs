@@ -149,6 +149,32 @@ fn support_json_with_governance_outputs_runtime_fields() {
 }
 
 #[test]
+fn support_governance_output_is_deterministic_and_path_free() {
+    // #985: the governed matrix output is machine metadata, so it must be
+    // byte-stable across runs and carry no filesystem paths.
+    let run = || {
+        Command::new(env!("CARGO_BIN_EXE_copybook"))
+            .args(["support", "--format", "json", "--with-governance"])
+            .output()
+            .expect("failed to execute command")
+    };
+    let first = run();
+    let second = run();
+
+    assert!(first.status.success());
+    assert_eq!(first.stdout, second.stdout);
+    let stdout = String::from_utf8_lossy(&first.stdout);
+    let _: Vec<serde_json::Value> =
+        serde_json::from_str(&stdout).expect("governance output must be a JSON array");
+    for marker in ["/home/", "/tmp/", "/root/"] {
+        assert!(
+            !stdout.contains(marker),
+            "governance output must not leak paths, found {marker}"
+        );
+    }
+}
+
+#[test]
 fn support_check_with_governance_includes_runtime_flags() {
     let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
         .args(["support", "--check", "level-88", "--with-governance"])

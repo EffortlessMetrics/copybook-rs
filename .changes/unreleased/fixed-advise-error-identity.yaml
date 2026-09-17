@@ -1,0 +1,9 @@
+kind: fixed
+body: '**advise**: carry the typed parse/layout error code in the `unparsed`
+  assessment `error_identity` machine field via an additive
+  `AdviseInput::with_parse_error_identity` entry point (CLI passes
+  `error.code()`, never regex over `Display`), and emit valid recovery
+  commands naming `--record-format` for framing with the evaluated values,
+  checked against the real CLI parser. No prose consumer extracts codes;
+  exit and schema contracts unchanged.'
+time: '2026-09-17T10:50:00Z'

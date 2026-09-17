@@ -338,14 +338,23 @@ pr:
 
 # Local preflight: every sync --check mode in one command.
 # Run this before pushing; it covers the check-mode half of the lanes
-# without the build/test cost of `just ci`.
+# without the build/test cost of `just ci`. Independent steps aggregate:
+# every failure is reported in one run with a nonzero exit (#992).
 preflight:
-    cargo fmt --all -- --check
-    cargo run -p xtask -- docs verify-all
-    cargo run -p xtask -- architecture check
-    cargo run -p xtask -- docs freeze contracts
-    cargo run -p xtask -- publish plan --check
-    @echo "preflight is static-only (fmt, inventory, contracts): it establishes no test-execution evidence; run 'cargo nextest run --workspace --exclude copybook-bench --exclude copybook-bdd --profile ci' plus 'cargo run -p xtask -- docs sync-tests' for that."
+    #!/usr/bin/env bash
+    set -uo pipefail
+    failures=()
+    cargo fmt --all -- --check || failures+=("fmt")
+    cargo run -p xtask -- docs verify-all || failures+=("docs verify-all")
+    cargo run -p xtask -- architecture check || failures+=("architecture check")
+    cargo run -p xtask -- docs freeze contracts || failures+=("docs freeze contracts")
+    cargo run -p xtask -- publish plan --check || failures+=("publish plan --check")
+    if [ "${#failures[@]}" -ne 0 ]; then
+        echo "preflight failures:"
+        printf '  - %s\n' "${failures[@]}"
+        exit 1
+    fi
+    echo "preflight is static-only (fmt, inventory, contracts): it establishes no test-execution evidence; run 'cargo nextest run --workspace --exclude copybook-bench --exclude copybook-bdd --profile ci' plus 'cargo run -p xtask -- docs sync-tests' for that."
 
 # Scheduled tests - runs scheduled lane tests locally (optional, for validation)
 # Expected runtime: 30-60 minutes (varies by which tests you run)

@@ -552,6 +552,27 @@ fn preflight_recipe_names_unestablished_execution_evidence() {
     );
 }
 
+/// `just preflight` must report every independent failure in one run
+/// instead of stopping at the first (#992).
+#[test]
+fn preflight_recipe_aggregates_failures() {
+    let justfile = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../justfile");
+    let raw = std::fs::read_to_string(&justfile).expect("failed to read workspace justfile");
+    let source = raw.replace("\r\n", "\n");
+    let preflight = source
+        .split("\npreflight:\n")
+        .nth(1)
+        .expect("justfile must define a preflight recipe");
+    assert!(
+        preflight.contains("failures+=("),
+        "preflight must collect failures instead of stopping at the first"
+    );
+    assert!(
+        preflight.contains("exit 1"),
+        "preflight must exit nonzero when any step fails"
+    );
+}
+
 /// The pinned toolchain keeps `cargo fmt` identical locally and in CI.
 #[test]
 fn toolchain_pin_matches_fmt_policy() {

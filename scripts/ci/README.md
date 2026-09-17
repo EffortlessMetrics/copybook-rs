@@ -163,7 +163,7 @@ export HEAD_SHA=$(git rev-parse HEAD)
 
 ### Required Tools
 - `just` (install: `cargo install just` or https://github.com/casey/just)
-- `cargo` (Rust 1.95+ / MSRV)
+- `cargo` (Rust 1.98+ / MSRV)
 - `cargo-nextest` (install: `cargo install nextest`)
 - `cargo-deny` (install via CI or `cargo install cargo-deny`)
 

@@ -88,6 +88,9 @@ POLICY: list[tuple[str, str, str, str]] = [
     (r"Publish Plan Check", "required", "conditional",
      "publish-plan-check.yml (trigger path filter)"),
     (r"Performance gate", "required", "conditional", "perf-gate.yml (trigger path filter)"),
+    (r"perf", "required", "conditional",
+     "perf.yml job perf (PR trigger path filter; no job-level if/CoE; "
+     "fails on >5% regression when it runs)"),
     (r"Benchmark \+ Comment", "required", "conditional",
      "pr-bench-comment.yml (conditional poster)"),
     (r"pedantic-diff", "required", "conditional", "pedantic-diff.yml (trigger path filter)"),

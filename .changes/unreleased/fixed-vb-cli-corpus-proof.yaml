@@ -1,0 +1,8 @@
+kind: fixed
+body: '**evidence**: add an executable CLI proof for VB record selection
+  (#983). `test_cli_decode_vb_matches_fixed_corpus` decodes the governed
+  `mini-vb-ascii` corpus through `copybook decode --format vb` and requires
+  byte-identical JSONL to the fixed-framing decode, replacing the manual
+  proof the `format.vb.basic` row cited. Row re-anchoring follows once this
+  lands on mainline.'
+time: '2026-09-18T01:00:00Z'

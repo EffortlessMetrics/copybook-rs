@@ -378,6 +378,43 @@ fn test_cli_decode_comp3_roundtrip() -> TestResult<()> {
     Ok(())
 }
 
+/// VB CLI selection proof: `--format vb` decodes the governed corpus to the
+/// same records as `--format fixed` (#983).
+#[test]
+fn test_cli_decode_vb_matches_fixed_corpus() -> TestResult<()> {
+    let temp_dir = TempDir::new()?;
+    let vb_output = temp_dir.path().join("vb.jsonl");
+    let fixed_output = temp_dir.path().join("fixed.jsonl");
+
+    let copybook = fixture_path("corpus/mini.cpy")?;
+    let vb_records = fixture_path("corpus/mini_vb.bin")?;
+    let fixed_records = fixture_path("corpus/mini_fixed.bin")?;
+
+    for (records, format, out) in [
+        (&vb_records, "vb", &vb_output),
+        (&fixed_records, "fixed", &fixed_output),
+    ] {
+        let mut cmd = cargo_bin_cmd!("copybook");
+        cmd.arg("decode")
+            .arg(&copybook)
+            .arg(records)
+            .arg("--output")
+            .arg(out)
+            .arg("--format")
+            .arg(format)
+            .arg("--codepage")
+            .arg("ascii");
+        cmd.assert().success();
+    }
+
+    assert_eq!(fs::read(&vb_output)?, fs::read(&fixed_output)?);
+    let decoded = fs::read_to_string(&vb_output)?;
+    assert!(decoded.contains("\"REC-ID\":\"0001\""));
+    assert!(decoded.contains("ALPHA"));
+
+    Ok(())
+}
+
 /// Test encode fail-fast behavior
 #[test]
 fn test_cli_encode_fail_fast() -> TestResult<()> {

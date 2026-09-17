@@ -1,0 +1,7 @@
+kind: fixed
+body: '**evidence**: anchor the REDEFINES group parse layer (#983).
+  The `struct.redefines.group` parse layer claimed core coverage exists
+  while leaving a pending N/A; it now cites
+  `parser_comprehensive.rs::test_redefines_nested` directly, which asserts
+  group-level `REDEFINES` linkage, group kind, and child shape at parse.'
+time: '2026-09-17T18:00:00Z'

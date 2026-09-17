@@ -242,7 +242,9 @@ feature_identity = "none"
 support_status = "supported"
 stability_class = "stable"
 required_evidence_layers = ["layout", "decode", "round_trip"]
-parse_evidence = [{ kind = "not_applicable", reason = "core parse coverage exists; row-level anchor pending" }]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/parser_comprehensive.rs::test_redefines_nested", kind = "direct" },
+]
 layout_evidence = [
   { ref = "crates/copybook-codec/tests/structural_evidence_matrix.rs::redefines_group_overlays_original", kind = "direct" },
 ]

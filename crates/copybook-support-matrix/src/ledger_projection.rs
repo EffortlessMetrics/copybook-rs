@@ -375,6 +375,7 @@ pub const LEDGER_PROJECTION: &[LedgerProjection] = &[
             AffectedLayer::RoundTrip,
         ],
         evidence: &[
+            "crates/copybook-core/tests/parser_comprehensive.rs::test_redefines_nested",
             "crates/copybook-codec/tests/structural_evidence_matrix.rs::redefines_group_overlays_original",
             "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_decode_all_views",
             "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_round_trip_preservation",

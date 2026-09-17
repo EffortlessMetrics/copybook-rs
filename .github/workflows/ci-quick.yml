@@ -71,6 +71,7 @@ jobs:
           python3 scripts/ci/test_witness_toolchain.py
           python3 scripts/ci/test_crates_index_ready.py
           python3 scripts/ci/test_panic_policy_baseline.py
+          python3 scripts/ci/test_pr_head_status.py
 
       - uses: dtolnay/rust-toolchain@stable
         with:

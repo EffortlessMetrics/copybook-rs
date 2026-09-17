@@ -87,6 +87,25 @@ Generates `target/perf.json` with performance receipts. **Not run by default** o
 **Expected time**: 10-15 minutes
 **Trigger in CI**: Add `perf:run` label or manual dispatch
 
+### `pr_head_status.py` — Head-Bound PR Assessment (Read-Only)
+
+Produces one CI verdict bound to a single PR head SHA from captured GitHub
+API documents. Pure reporter: no network, no subprocess, no mutation.
+Unit-tested with inline API fixtures (`test_pr_head_status.py`, wired into
+`ci-quick.yml`).
+
+```bash
+# Capture (read-only gh commands; re-read the head before assessing)
+HEAD_SHA=$(gh pr view <PR> --json headRefOid --jq .headRefOid)
+gh pr view <PR> --json number,headRefOid,mergeStateStatus,mergeable > pr.json
+gh api --paginate "repos/<owner>/<repo>/commits/$HEAD_SHA/check-runs?per_page=100" \
+    > pages.json
+jq -s '[.[].check_runs[]]' pages.json > check-runs.json
+
+python3 scripts/ci/pr_head_status.py --pr pr.json --check-runs check-runs.json
+# Exit: 0 = ready, 1 = blocked/incomplete, 2 = unknown (no/head-changed/bad input)
+```
+
 ## Local CI Gate Entrypoint
 
 ### `just ci` — Canonical PR Gate (Recommended)

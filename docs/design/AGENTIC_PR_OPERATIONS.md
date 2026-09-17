@@ -62,6 +62,45 @@ The agent must distinguish local proof, remote publication, and merged state.
 An old green check, a local-only test, or a bot rate-limit notice does not
 prove that the current PR is ready to merge.
 
+## Current-head CI observation procedure
+
+Aggregate tallies (`gh pr checks` summaries, green percentages, merge-button
+availability) are not merge evidence: they mix old runs, hide which head ran,
+and count canceled or advisory jobs as product signal. Every assessment binds
+one observation to repository, PR, current head SHA, workflow/check identity,
+and run/attempt before presenting it.
+
+1. Re-read the PR head first and last. Capture `headRefOid`, assess, then
+   re-read it; a changed SHA invalidates the assessment (new push) instead
+   of being averaged in.
+2. Query check runs by exact commit SHA
+   (`repos/<owner>/<repo>/commits/<head>/check-runs`, paginated), not by PR
+   number alone. Merge-queue or merge-ref runs belong to different SHAs and
+   are recorded separately, never treated as head evidence.
+3. Keep pass, fail, pending, canceled, skipped, advisory, and unavailable
+   states distinct. A canceled sibling of a failed fail-fast root is
+   canceled, not a failure and not a pass. An old success never replaces a
+   newer failed attempt; select attempts by latest timestamp.
+4. Map every check name to the required/advisory policy in
+   `docs/CI_GATING_POLICY.md`, executed by
+   `scripts/ci/pr_head_status.py`. Unmapped names block a ready verdict
+   until classified. Conditional non-applicability comes from workflow
+   policy (trigger paths, changes-gates, schedule scope), not from a
+   check's absence. Hosted ruleset contents are not visible to read-only
+   tokens: record that as unknown, not as proof of no protection.
+5. Report actionable review disposition separately from CI. A prior clean
+   review never suppresses new findings; a bot comment is evaluated on its
+   merits. An unresolved review count is not a correctness analysis.
+6. For waits, watch one exact run with a bounded watcher
+   (`gh run watch --exit-status` on the selected run id), emitting state
+   changes, failed-job details, and the next actionable task — not repeated
+   same-state totals. Reconcile a new push explicitly as a new head.
+7. Measure queue, execution, registry propagation, and observation delay
+   from their own timestamps. Polling overhead is not build time.
+8. The helper and the commands above are read-only: no merge, rerun,
+   branch/ruleset change, thread resolution, tag, or publication. Any
+   actual settings change remains a separate maintainer decision.
+
 ## Review-bot handling contract
 
 | Bot result | Agent action |

@@ -10,48 +10,89 @@ This document describes the two-lane CI gating strategy for copybook-rs. The CI 
 
 ## PR Lane (Deterministic Gate)
 
-The PR lane runs on every pull request to `main` and `develop` branches. All jobs in this lane must pass for a PR to be mergeable.
+The PR lane runs on `pull_request` to `main`. Most PR workflows also trigger
+on `push`, `schedule`, or `workflow_dispatch`; the table below records what
+actually runs on PRs. Jobs without job-level `continue-on-error` must pass.
+The required/advisory mapping is executable in
+`scripts/ci/pr_head_status.py` (`POLICY`), which binds one assessment to the
+current PR head SHA. Hosted branch-protection contents are not visible to
+read-only tokens and are recorded as unknown by the helper, never assumed.
 
-### Jobs
+### Jobs (workflow evidence as of #994)
 
-| Job | Description | Runtime |
-|-----|-------------|---------|
-| `lint` | `cargo fmt --check` + `cargo clippy --workspace --all-targets` | ~2 min |
-| `test` | `cargo nextest run --workspace` | ~3 min |
-| `proptest-smoke` | Bounded proptest (256 cases, seed "copybook-rs-proptest") | ~2 min |
-| `determinism` | Determinism smoke test (advisory) | ~1 min |
-| `security` | `cargo deny check` + `cargo audit` | ~1 min |
+Unconditional checks run on every PR; conditional checks run when their
+trigger paths or changes-gate select them, and are required when present.
+Skipped checks (e.g. schedule-scoped jobs evaluated on a PR) are recorded,
+never counted as passes.
+
+| Check (as reported) | Workflow / job | Lane | Presence |
+|-----|-----|-----|-----|
+| `Rustfmt` | `ci.yml` / `fmt` | required | expected |
+| `Clippy` | `ci.yml` / `clippy` | required | expected |
+| `Test Suite (…)` | `ci.yml` / `test` (OS × toolchain × features matrix) | required | expected |
+| `Build Examples (…)` | `ci.yml` / `examples` | required | expected |
+| `Security Checks` | `ci.yml` / `security` (`cargo deny`; audit only if `Cargo.lock` changed) | required | expected |
+| `Determinism Smoke` | `ci.yml` / `determinism-smoke` | required | expected |
+| `Governance + BDD Smoke` | `ci.yml` / `bdd-tests` | required | expected |
+| `RDW iterator tests` | `ci.yml` / `rdw-iterator-tests` | required | expected |
+| `Exit code mapping (…)` | `ci.yml` / `exit-code-matrix` | required | expected |
+| `Code Coverage` | `ci.yml` / `coverage` | required | expected |
+| `Documentation` | `ci.yml` / `docs` | required | expected |
+| `Strict Comments Mode` | `ci.yml` / `strict-comments` | required | expected |
+| `Result Docs Advisory` | `ci.yml` / `result-docs-advisory` (job-level `continue-on-error`) | advisory | conditional |
+| `Validate PR Title` | `commit-lint.yml` | required | expected |
+| `API Freeze Check` | `api-freeze.yml` | required | expected |
+| `Determinism smoke (codec + CLI)` | `determinism-smoke.yml` | required | expected |
+| `validate-receipt`, `check-governance` | `perf-validation.yml` | required | expected |
+| `Property Tests - Core/Codec/Integration (…)` | `ci-proptest.yml` (OS × toolchain matrix) | required | expected |
+| `Property Test Summary` | `ci-proptest.yml` / `proptest-summary` | required | expected |
+| `insights` | `pr-insights.yml` (same-repo PRs; forks record a skip) | required | expected |
+| `truth` | `docs-truth.yml` (docs changes-gate) | required | conditional |
+| `Classify changelog requirement`, `Validate Changie` | `changelog.yml` (changes-gate) | required | conditional |
+| `changes`, `test (…)`, `testExpected` | `ci-quick.yml` / `feature-flags.yml` (changes-gates) | required | conditional |
+| `test-features-module`, `test-cli-integration` | `feature-flags.yml` (changes-gate) | required | conditional |
+| `Publish Plan Check` | `publish-plan-check.yml` (trigger path filter) | required | conditional |
+| `Performance gate` | `perf-gate.yml` (trigger path filter) | required | conditional |
+| `Memory Leak Detection (LSAN)` | `leak-detection.yml` (see #1000 for analyzer truthfulness) | required | conditional |
+| `RIPR test-oracle pilot (advisory)` | `ripr.yml` (job-level `continue-on-error`) | advisory | conditional |
+| `Coverage Diff` | `ci-coverage.yml` (job-level `continue-on-error`) | advisory | conditional |
+| `codecov/*` | external coverage reporter | advisory | conditional |
+
+Note: an earlier revision of this document described `lint`, `test`,
+`proptest-smoke`, `determinism` (advisory), and `security` jobs and claimed
+the determinism smoke lane was advisory via `continue-on-error`. The current
+`ci.yml` has no job-level `continue-on-error` on `determinism-smoke`, so the
+helper maps `Determinism Smoke` as required per workflow evidence. If the
+maintainers intend that lane to be advisory, the workflow (not this prose)
+must change, and the helper policy with it.
 
 ### Expected Total Runtime
 
-- **Cold cache**: 8-10 minutes
-- **Warm cache**: 4-6 minutes
+- **Cold cache**: 8-10 minutes for the fast gates; full matrix longer
+- **Warm cache**: 4-6 minutes for the fast gates
 
 ### Job Details
 
-#### `lint` Job
+#### Format and clippy gates
 - Runs `cargo fmt --all -- --check` to verify formatting
 - Runs `cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -W clippy::pedantic`
 - Runs `cargo clippy --workspace --tests --all-features -- -D warnings` with relaxed test lints
 - Enforces panic prevention lints on shipped targets
 
-#### `test` Job
-- Runs `cargo nextest run --workspace --exclude copybook-bench --profile ci`
+#### `Test Suite` matrix
+- Runs `cargo nextest run --workspace --exclude copybook-bench --exclude copybook-bdd --profile ci`
 - Runs on Ubuntu, macOS, and Windows
 - Tests against MSRV (1.98.0), stable, and beta Rust versions
 - Tests with various feature combinations
 
-#### `proptest-smoke` Job
-- Runs property tests with bounded cases (256)
-- Uses fixed seed "copybook-rs-proptest" for determinism
-- Tests core and codec packages across multiple OS and Rust versions
+#### Property tests
+- `ci-proptest.yml` runs core, codec, and integration property suites across the OS and toolchain matrix on every PR
+- Bounded cases with fixed seeds for determinism; extended runs stay scheduled
 
-#### `determinism` Job (Advisory)
-- Runs determinism smoke tests
-- Uses `continue-on-error: true` so failures don't block merge
-- Provides early warning for potential non-deterministic behavior
+#### Determinism smoke lanes
+- `ci.yml` / `determinism-smoke` and `determinism-smoke.yml` both report on PRs with no job-level `continue-on-error`; both are required per workflow evidence (see the note above if advisory was intended)
 
-#### `security` Job
+#### `Security Checks`
 - Runs `cargo deny check` on all PRs
 - Runs `cargo audit` only when `Cargo.lock` changes
 - Checks for known security vulnerabilities in dependencies
@@ -158,30 +199,63 @@ just mutants
 
 | Workflow | Lane | Events |
 |----------|------|--------|
-| `.github/workflows/ci.yml` | PR + Scheduled | `push`, `pull_request`, `schedule`, `workflow_dispatch` |
-| `.github/workflows/ci-proptest.yml` | PR + Scheduled | `push`, `pull_request`, `schedule`, `workflow_dispatch` |
-| `.github/workflows/ci-fuzz.yml` | Scheduled | `workflow_dispatch` |
+| `.github/workflows/ci.yml` | PR (+ scheduled) | `push`, `pull_request`, `schedule`, `workflow_dispatch` |
+| `.github/workflows/ci-proptest.yml` | PR (+ scheduled) | `push`, `pull_request`, `schedule`, `workflow_dispatch` |
+| `.github/workflows/ci-quick.yml` | PR (changes-gated) | `pull_request`, `workflow_dispatch` |
+| `.github/workflows/feature-flags.yml` | PR (changes-gated) | `pull_request`, `workflow_dispatch` |
+| `.github/workflows/changelog.yml` | PR (changes-gated) | `pull_request`, `workflow_dispatch` |
+| `.github/workflows/docs-truth.yml` | PR (docs changes-gate) | `pull_request`, `workflow_dispatch` |
+| `.github/workflows/commit-lint.yml` | PR | `pull_request` |
+| `.github/workflows/api-freeze.yml` | PR | `pull_request`, `workflow_dispatch` |
+| `.github/workflows/publish-plan-check.yml` | PR (trigger path filter) | `pull_request`, `workflow_dispatch` |
+| `.github/workflows/coverage.yml` | PR (trigger path filter) | `pull_request`, `workflow_dispatch` |
+| `.github/workflows/determinism-smoke.yml` | PR | `push`, `pull_request`, `workflow_dispatch` |
+| `.github/workflows/perf-validation.yml` | PR | `pull_request` |
+| `.github/workflows/perf-gate.yml` | PR (trigger path filter) | `pull_request`, `workflow_dispatch` |
+| `.github/workflows/pr-insights.yml` | PR (same-repo only) | `pull_request` |
+| `.github/workflows/leak-detection.yml` | PR (+ scheduled) | `pull_request`, `schedule`, `workflow_dispatch` |
+| `.github/workflows/msrv-standalone.yml` | PR (trigger path filter) | `pull_request`, `workflow_dispatch` |
+| `.github/workflows/ripr.yml` | PR pilot, explicitly advisory | `pull_request`, `schedule`, `workflow_dispatch` |
+| `.github/workflows/ci-comprehensive.yml` | PR (skips outside scope) + scheduled | `pull_request`, `schedule`, `workflow_dispatch` |
+| `.github/workflows/fuzz-integration.yml` | PR (+ scheduled) | `pull_request`, `schedule`, `workflow_dispatch` |
+| `.github/workflows/ci-coverage.yml` | PR (+ scheduled) | `pull_request`, `schedule`, `workflow_dispatch` |
+| `.github/workflows/ci-fuzz.yml` | Dispatch-only | `workflow_dispatch` |
+| `.github/workflows/ci-security.yml` | Scheduled | `schedule`, `workflow_dispatch` |
+| `.github/workflows/perf-bench.yml`, `perf.yml`, `soak.yml`, `benchmark.yml` | Scheduled | `schedule`, `workflow_dispatch` |
 | _(mutation testing has no CI workflow; local-only via `just mutants`)_ | — | — |
-| `.github/workflows/perf.yml` | Scheduled | `schedule`, `workflow_dispatch` |
-| `.github/workflows/soak.yml` | Scheduled | `schedule`, `workflow_dispatch` |
-| `.github/workflows/determinism-smoke.yml` | PR (advisory) | `push`, `pull_request`, `workflow_dispatch` |
 
 ## CI Status Checks
 
+The executable form of this section is `scripts/ci/pr_head_status.py`
+(`POLICY`): one assessment bound to the current PR head SHA.
+
 ### Required for Merge
 
-- `lint` job must pass
-- `test` job must pass
-- `proptest-smoke` job must pass
-- `security` job must pass
+- Every unconditional PR check listed as required/expected in the Jobs table
+  must pass on the current head.
+- Every conditional required check that ran on the current head must pass.
+- No unmapped (unclassified) non-skipped check may remain: classify it in
+  the helper policy first.
 
 ### Advisory Only
 
-- `determinism` job failures should be investigated but don't block merge
+- `Result Docs Advisory` (job-level `continue-on-error`), `Coverage Diff`,
+  and the `RIPR test-oracle pilot (advisory)` are recorded but never block.
+- External reporters (`codecov/*`, secret-scanner and review-bot checks) are
+  informational; review-bot findings are still evaluated on their merits per
+  `docs/design/AGENTIC_PR_OPERATIONS.md`.
 
 ### Non-Blocking
 
-- All scheduled lane jobs provide quality signals but don't block merge
+- All scheduled and dispatch-only lane jobs provide quality signals but don't block merge.
+- A skipped check is recorded as skipped, never as a pass.
+
+### Hosted protection visibility
+
+The hosted branch ruleset contents are not visible to read-only tokens, so
+this policy cannot confirm which checks GitHub itself requires. That gap is
+recorded as unknown by the helper rather than assumed. Any actual
+ruleset change remains a separate maintainer decision.
 
 ## Troubleshooting
 

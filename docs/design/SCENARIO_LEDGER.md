@@ -26,6 +26,9 @@ plane evidence through `shared_evidence_relationships` using the other
 registry's scenario or error IDs (e.g. `fixed-rdw:format.fixed.basic`,
 `stable-error:CBKD301_RECORD_TOO_SHORT`). Copying their anchors into the
 ledger is forbidden; the verifier rejects unknown relationship targets.
+A `ledger:` link certifies the target row's current proof, not its name:
+linked rows are validated transitively, so a stale target fails the linker
+with link context. Cycles are rejected before links are followed.
 
 `COBOL_SUPPORT_MATRIX.md` remains a human rendering. Step 5 of #951 makes it
 generated-from or verified-against the ledger; until then the ledger links
@@ -144,7 +147,9 @@ from running the owning test suites.
 - a direct anchor whose file is absent from the claimed commit's tree, or
   whose symbol that tree's file does not declare;
 - a direct anchor whose symbol body differs between the claimed commit and
-  the working tree (changed assertions fail; unrelated edits pass).
+  the working tree (changed assertions fail; unrelated edits pass);
+- a `ledger:` link whose target row fails its own verification (the linker
+  fails with shared-evidence context naming both rows).
 
 Failures print `scenario_id`, field, expected shape, actual reference, and
 the repair command (`docs verify-scenario-ledger`, relevant sync, or the

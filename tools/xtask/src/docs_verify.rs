@@ -2891,10 +2891,72 @@ fn validate_scenario_ledger(
         }
     }
     let ids = seen;
-    for row in &ledger.scenarios {
-        validate_scenario_row(root, row, &ids, error_codes, pipeline_ids)?;
-    }
+    // #981: reject link cycles before following `ledger:` references so
+    // linked-row validation always terminates on a DAG.
     validate_ledger_relationship_cycles(&ledger.scenarios)?;
+    let by_id: BTreeMap<&str, &ScenarioRow> = ledger
+        .scenarios
+        .iter()
+        .map(|row| (row.scenario_id.as_str(), row))
+        .collect();
+    let mut validated: BTreeSet<&str> = BTreeSet::new();
+    for row in &ledger.scenarios {
+        validate_row_closure(
+            root,
+            &by_id,
+            &ids,
+            error_codes,
+            pipeline_ids,
+            row.scenario_id.as_str(),
+            &mut validated,
+        )?;
+    }
+    Ok(())
+}
+
+/// Validate a row and, transitively, the `ledger:` rows it cites (#981).
+/// A link certifies the target's current proof, so a stale target fails the
+/// linker with link context instead of the linker passing on a name alone.
+/// Targets are memoized; cycles cannot reach here (rejected above).
+fn validate_row_closure<'a>(
+    root: &Path,
+    by_id: &BTreeMap<&'a str, &'a ScenarioRow>,
+    ids: &BTreeSet<String>,
+    error_codes: &BTreeMap<String, String>,
+    pipeline_ids: &BTreeSet<String>,
+    id: &'a str,
+    validated: &mut BTreeSet<&'a str>,
+) -> Result<()> {
+    if validated.contains(id) {
+        return Ok(());
+    }
+    // Unreachable: callers only pass ids present in `by_id` (top-level rows
+    // come from the same ledger; recursion is guarded by `contains_key`),
+    // and unknown link targets keep the existing relationship diagnostic
+    // raised by the row's own validation below.
+    let Some(row) = by_id.get(id) else {
+        bail!("scenario ledger link names unknown scenario `{id}`");
+    };
+    for relationship in &row.shared_evidence_relationships {
+        if let Some(target) = relationship.strip_prefix("ledger:")
+            && by_id.contains_key(target)
+        {
+            validate_row_closure(
+                root,
+                by_id,
+                ids,
+                error_codes,
+                pipeline_ids,
+                target,
+                validated,
+            )
+            .with_context(|| {
+                format!("scenario `{id}` shared evidence `{relationship}` is stale")
+            })?;
+        }
+    }
+    validate_scenario_row(root, row, ids, error_codes, pipeline_ids)?;
+    validated.insert(id);
     Ok(())
 }
 
@@ -5891,6 +5953,53 @@ CBK999_OUTSIDE,
         row.last_verified_full_sha = "0000000000000000000000000000000000000000".to_string();
         validate_scenario_row(dst.path(), &row, &ids, &codes, &pipeline)
             .expect("shallow checkout without history must skip, not fail");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_stale_linked_row() {
+        // #981: a `ledger:` link certifies the target's current proof. When
+        // the linked row's own SHA resolves nowhere, the linker must fail
+        // with link context instead of passing on the name alone.
+        let (temp, mut first) = scenario_row_fixture();
+        let mut second = scenario_row_fixture().1;
+        second.scenario_id = "test.other".to_string();
+        let sha = scaffold_git_repo_with_commit(temp.path());
+        first.last_verified_full_sha = sha;
+        first.shared_evidence_relationships = vec!["ledger:test.other".to_string()];
+        second.last_verified_full_sha = "0000000000000000000000000000000000000000".to_string();
+        let ledger = ScenarioLedger {
+            schema_version: 1,
+            scope: "scenario-ledger".to_string(),
+            scenarios: vec![first, second],
+        };
+        let (codes, pipeline) = scenario_registries();
+        let err = validate_scenario_ledger(temp.path(), &ledger, &codes, &pipeline)
+            .expect_err("stale linked row must fail the linker");
+        let message = err.to_string();
+        assert!(message.contains("shared evidence"), "{message}");
+        assert!(message.contains("test.row"), "{message}");
+        assert!(message.contains("test.other"), "{message}");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_accepts_fresh_linked_row() {
+        // #981: link-following must not reject a linked row whose own proof
+        // is current.
+        let (temp, mut first) = scenario_row_fixture();
+        let mut second = scenario_row_fixture().1;
+        second.scenario_id = "test.other".to_string();
+        let sha = scaffold_git_repo_with_commit(temp.path());
+        first.last_verified_full_sha = sha.clone();
+        second.last_verified_full_sha = sha;
+        first.shared_evidence_relationships = vec!["ledger:test.other".to_string()];
+        let ledger = ScenarioLedger {
+            schema_version: 1,
+            scope: "scenario-ledger".to_string(),
+            scenarios: vec![first, second],
+        };
+        let (codes, pipeline) = scenario_registries();
+        validate_scenario_ledger(temp.path(), &ledger, &codes, &pipeline)
+            .expect("fresh linked row must pass");
     }
 
     #[test]

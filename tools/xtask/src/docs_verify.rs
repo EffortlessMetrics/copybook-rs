@@ -278,12 +278,24 @@ fn verify_stable_contract_inventory_strict() -> Result<()> {
 }
 
 fn run_checks(checks: &[Verifier]) -> Result<()> {
+    // #992: independent checks aggregate instead of stopping at the first
+    // failure, so one invocation reports every broken invariant. Execution
+    // stays sequential, preserving deterministic check order.
+    let mut failures: Vec<String> = Vec::new();
     for (name, check) in checks {
-        check().map_err(|err| anyhow::anyhow!("{name} failed: {err}"))?;
+        if let Err(err) = check() {
+            failures.push(format!("{name} failed: {err}"));
+        }
     }
-
-    println!("docs verify-all completed");
-    Ok(())
+    if failures.is_empty() {
+        println!("docs verify-all completed");
+        return Ok(());
+    }
+    bail!(
+        "{} check(s) failed:\n{}",
+        failures.len(),
+        failures.join("\n")
+    )
 }
 
 fn workspace_root() -> PathBuf {
@@ -4710,6 +4722,22 @@ mod tests {
 
     fn order_charlie() -> Result<()> {
         record_order("charlie")
+    }
+
+    #[test]
+    fn run_checks_reports_all_failures() {
+        // #992: independent failures must aggregate in one invocation
+        // instead of stopping at the first.
+        let checks: [Verifier; 3] = [
+            ("ok", ok),
+            ("failing-step", failing),
+            ("also-failing", failing),
+        ];
+        let err = run_checks(&checks).expect_err("failing checks must fail");
+        let message = err.to_string();
+        assert!(message.contains("failing-step"), "{message}");
+        assert!(message.contains("also-failing"), "{message}");
+        assert!(message.contains("2 check(s) failed"), "{message}");
     }
 
     #[test]

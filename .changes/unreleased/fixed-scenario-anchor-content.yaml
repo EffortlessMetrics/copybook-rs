@@ -1,0 +1,10 @@
+kind: fixed
+body: '**evidence**: scope ledger anchor freshness to the anchored symbol body
+  (#981). A retained test name with changed assertions no longer passes: the
+  verifier extracts each direct anchor''s function item and requires it
+  byte-identical between the claimed commit and the working tree. Prose edits
+  and additive tests elsewhere in the anchor file leave the row valid, and
+  identical bodies survive squash/rebase. No live rows changed: the one
+  drifted anchor file since slice 2 grew additively, so all 29 scenarios
+  still verify.'
+time: '2026-09-17T21:00:00Z'

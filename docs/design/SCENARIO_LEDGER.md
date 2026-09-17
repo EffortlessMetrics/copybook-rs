@@ -113,7 +113,13 @@ moved (relationship targets are content-pinned by their own registries).
 Every direct anchor is proven twice: against the working tree (fast local
 signal) and against the claimed commit's tree (the SHA must contain the
 anchor file and the anchored symbol there). A test added after the claimed
-commit proves nothing about that commit.
+commit proves nothing about that commit. The freshness contract is scoped
+to the anchored symbol's body: the extracted function item (`fn` through
+its matching close brace) must be byte-identical in the claimed commit and
+the working tree. A retained name with changed assertions fails the row,
+while prose edits and new tests elsewhere in the anchor file leave it
+valid. Identical bodies survive squash/rebase without treating topology as
+behavior.
 
 ## Verifier failure catalog
 
@@ -133,7 +139,9 @@ commit proves nothing about that commit.
 - a well-formed verification SHA that resolves to no commit object
   (or to a non-commit object);
 - a direct anchor whose file is absent from the claimed commit's tree, or
-  whose symbol that tree's file does not declare.
+  whose symbol that tree's file does not declare;
+- a direct anchor whose symbol body differs between the claimed commit and
+  the working tree (changed assertions fail; unrelated edits pass).
 
 Failures print `scenario_id`, field, expected shape, actual reference, and
 the repair command (`docs verify-scenario-ledger`, relevant sync, or the

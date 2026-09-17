@@ -187,12 +187,12 @@ required_evidence_layers = ["parse"]
 parse_evidence = [
   { ref = "crates/copybook-core/tests/redefines_odo_deep.rs::odo_min_count_zero_tolerant", kind = "direct" },
 ]
-layout_evidence = [{ kind = "not_applicable", reason = "minimum-count policy owned by the dialect lever contract" }]
-decode_evidence = [{ kind = "not_applicable", reason = "minimum-count policy owned by the dialect lever contract" }]
-encode_evidence = [{ kind = "not_applicable", reason = "minimum-count policy owned by the dialect lever contract" }]
-round_trip_evidence = [{ kind = "not_applicable", reason = "minimum-count policy owned by the dialect lever contract" }]
+layout_evidence = [{ kind = "not_applicable", reason = "minimum-count policy owned by docs/internal/features/d0_dialect_lever_contract.md (link row; detail never duplicated here)" }]
+decode_evidence = [{ kind = "not_applicable", reason = "minimum-count policy owned by docs/internal/features/d0_dialect_lever_contract.md (link row; detail never duplicated here)" }]
+encode_evidence = [{ kind = "not_applicable", reason = "minimum-count policy owned by docs/internal/features/d0_dialect_lever_contract.md (link row; detail never duplicated here)" }]
+round_trip_evidence = [{ kind = "not_applicable", reason = "minimum-count policy owned by docs/internal/features/d0_dialect_lever_contract.md (link row; detail never duplicated here)" }]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "this row links policy; rejection rows own their negatives" }]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI --dialect flag owned by the dialect lever contract" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI --dialect flag owned by docs/internal/features/d0_dialect_lever_contract.md (link row; detail never duplicated here)" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "not_applicable"

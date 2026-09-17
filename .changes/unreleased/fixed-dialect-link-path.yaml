@@ -1,0 +1,7 @@
+kind: fixed
+body: '**evidence**: point the dialect link-row at its contract (#983).
+  The `struct.odo.dialect_minimum` N/A reasons named `the dialect lever
+  contract` without a path; each now cites
+  `docs/internal/features/d0_dialect_lever_contract.md` explicitly so
+  the shared reference resolves.'
+time: '2026-09-17T16:33:24Z'

@@ -1,0 +1,13 @@
+kind: fixed
+body: '**release**: extended the stable-core acceptance runner (`release_smoke.sh`,
+  slice A of #988). New VB framing probes (beta positive with checked values,
+  truncated/over-claimed blocks rejected with CBKF exit 4, semantic JSONL
+  round-trip excluding BDW framing) and advise probes (supported exit 0,
+  stable JSON envelope validation, VB effective options, invalid-input exit
+  3 with CBKP021 identity, governed-corpus agreement, honest
+  partial-unknown literal, wrong-value refutations). Every section is timed,
+  and a bounded sanitized acceptance receipt (hashes/outcomes only, no
+  record payload, ephemeral paths relativized) is emitted on success and on
+  failure via trap. Docs.rs checks and durable release-asset archiving
+  follow in slice B.'
+time: '2026-09-17T08:30:00Z'

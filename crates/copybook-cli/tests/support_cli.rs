@@ -657,3 +657,27 @@ fn support_advise_json_emits_no_filesystem_paths() {
         "machine output must not leak the input path: {stdout}"
     );
 }
+
+#[test]
+fn support_advise_ignores_governance_flag_on_stable_path() {
+    // #985: the CLI links `copybook-governance` as a normal dependency, but
+    // the documented stable advise path never evaluates governance policy:
+    // `--with-governance` must leave advise output byte-identical.
+    const COPYBOOK: &str =
+        "       01 REC.\n           05 NAME PIC X(10).\n           05 COUNT PIC 9(5).\n";
+    let copybook = write_advise_copybook(COPYBOOK);
+    let path = copybook.path().to_string_lossy().into_owned();
+    let mut plain = vec!["support", "--advise", path.as_str(), "--format", "json"];
+    let plain_out = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args(&plain)
+        .output()
+        .expect("failed to execute command");
+    plain.push("--with-governance");
+    let flagged_out = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args(&plain)
+        .output()
+        .expect("failed to execute command");
+
+    assert!(plain_out.status.success());
+    assert_eq!(plain_out.stdout, flagged_out.stdout);
+}

@@ -61,3 +61,13 @@ not part of the beta governance/support-matrix classification. A beta family
 label authorizes no incompatible change to that envelope, and a stable child
 schema is not erased by its package's beta status. Automation must match
 `schema_version` exactly and never parse human prose.
+
+Dependency presence versus runtime use (#985): the CLI links
+`copybook-governance` as a normal dependency, but governance *policy*
+(`governance_states`, bindings plus feature-flag evaluation) executes only
+under the explicit opt-in `--with-governance` flag. The default path uses
+`support_states`, documented as support rows *without* runtime governance
+mapping, and the `--advise` path never receives governance state at all:
+advise output is byte-identical with and without the flag (pinned by
+`support_advise_ignores_governance_flag_on_stable_path`). Dependency
+presence therefore proves linkage, never default policy execution.

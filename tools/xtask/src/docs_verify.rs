@@ -776,14 +776,170 @@ fn verify_record_pipeline_scenarios(
     Ok(())
 }
 
-fn source_declares_function(source: &str, symbol: &str) -> bool {
+fn find_function_start(source: &str, symbol: &str) -> Option<usize> {
     let function_anchor = format!("fn {symbol}");
-    source.match_indices(&function_anchor).any(|(index, _)| {
-        source[index + function_anchor.len()..]
-            .chars()
-            .next()
-            .is_none_or(|next| !next.is_alphanumeric() && next != '_')
-    })
+    source
+        .match_indices(&function_anchor)
+        .find_map(|(index, _)| {
+            source[index + function_anchor.len()..]
+                .chars()
+                .next()
+                .is_none_or(|next| !next.is_alphanumeric() && next != '_')
+                .then_some(index)
+        })
+}
+
+fn source_declares_function(source: &str, symbol: &str) -> bool {
+    find_function_start(source, symbol).is_some()
+}
+
+/// Extract the anchored function item (`fn` through its matching close
+/// brace) so the verifier can compare referenced content, not just the
+/// symbol name. The scan skips line/block comments, cooked and raw string
+/// literals, and char literals so braces inside them never end the item.
+fn declared_function_body<'a>(source: &'a str, symbol: &str) -> Option<&'a str> {
+    let start = find_function_start(source, symbol)?;
+    let bytes = source.as_bytes();
+    let mut open = start + "fn ".len() + symbol.len();
+    while bytes.get(open).is_some_and(|byte| *byte != b'{') {
+        open += 1;
+    }
+    if bytes.get(open) != Some(&b'{') {
+        return None;
+    }
+    let end = match_brace_close(bytes, open)?;
+    source.get(start..=end)
+}
+
+fn match_brace_close(bytes: &[u8], open: usize) -> Option<usize> {
+    let mut depth = 0_usize;
+    let mut index = open;
+    while let Some(byte) = bytes.get(index) {
+        match byte {
+            b'/' if bytes.get(index + 1) == Some(&b'/') => {
+                index += 2;
+                while bytes.get(index).is_some_and(|next| *next != b'\n') {
+                    index += 1;
+                }
+            }
+            b'/' if bytes.get(index + 1) == Some(&b'*') => {
+                let mut nested = 1_usize;
+                index += 2;
+                while nested > 0 {
+                    match (bytes.get(index), bytes.get(index + 1)) {
+                        (Some(b'/'), Some(b'*')) => {
+                            nested += 1;
+                            index += 2;
+                        }
+                        (Some(b'*'), Some(b'/')) => {
+                            nested -= 1;
+                            index += 2;
+                        }
+                        (Some(_), _) => {
+                            index += 1;
+                        }
+                        (None, _) => {
+                            return None;
+                        }
+                    }
+                }
+            }
+            b'"' => {
+                index = skip_cooked_string(bytes, index)?;
+            }
+            b'r' => {
+                if let Some(next) = skip_raw_string(bytes, index) {
+                    index = next;
+                } else {
+                    index += 1;
+                }
+            }
+            b'\'' => {
+                index = skip_char_or_lifetime(bytes, index);
+            }
+            b'{' => {
+                depth += 1;
+                index += 1;
+            }
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(index);
+                }
+                index += 1;
+            }
+            _ => {
+                index += 1;
+            }
+        }
+    }
+    None
+}
+
+fn skip_cooked_string(bytes: &[u8], quote: usize) -> Option<usize> {
+    let mut index = quote + 1;
+    while let Some(byte) = bytes.get(index) {
+        match byte {
+            b'\\' => {
+                index += 2;
+            }
+            b'"' => {
+                return Some(index + 1);
+            }
+            _ => {
+                index += 1;
+            }
+        }
+    }
+    None
+}
+
+fn skip_raw_string(bytes: &[u8], start: usize) -> Option<usize> {
+    let mut index = start + 1;
+    let mut hashes = 0_usize;
+    while bytes.get(index) == Some(&b'#') {
+        hashes += 1;
+        index += 1;
+    }
+    if bytes.get(index) != Some(&b'"') {
+        return None;
+    }
+    index += 1;
+    while let Some(byte) = bytes.get(index) {
+        if *byte == b'"' {
+            let mut end = index + 1;
+            let mut seen = 0_usize;
+            while seen < hashes && bytes.get(end) == Some(&b'#') {
+                seen += 1;
+                end += 1;
+            }
+            if seen == hashes {
+                return Some(end);
+            }
+        }
+        index += 1;
+    }
+    None
+}
+
+fn skip_char_or_lifetime(bytes: &[u8], quote: usize) -> usize {
+    // A `'` opens a char literal only for `'<char>'` or an escape; otherwise
+    // it is a lifetime label whose bytes need no special handling.
+    let is_char = bytes.get(quote + 1) == Some(&b'\\') || bytes.get(quote + 2) == Some(&b'\'');
+    if !is_char {
+        return quote + 1;
+    }
+    let mut index = quote + 1;
+    while let Some(byte) = bytes.get(index) {
+        if *byte == b'\\' {
+            index += 2;
+        } else if *byte == b'\'' {
+            return index + 1;
+        } else {
+            index += 1;
+        }
+    }
+    index
 }
 
 fn verify_test_anchor(root: &Path, anchor: &str, scenario_id: &str) -> Result<()> {
@@ -836,9 +992,29 @@ fn verify_anchor_at_commit(root: &Path, sha: &str, anchor: &str, scenario_id: &s
             String::from_utf8_lossy(&show.stderr).trim()
         );
     }
-    if !source_declares_function(&String::from_utf8_lossy(&show.stdout), symbol) {
+    let claimed_source = String::from_utf8_lossy(&show.stdout).into_owned();
+    if !source_declares_function(&claimed_source, symbol) {
         bail!(
             "scenario `{scenario_id}` anchor `{anchor}` names no function in claimed commit `{sha}`; re-verify the row and record the proving commit, do not blanket-sync | repair: cargo run -p xtask -- docs verify-scenario-ledger"
+        );
+    }
+    // #981: the anchored symbol's body must be identical in the claimed
+    // commit and the working tree. A retained name with changed assertions
+    // proves nothing about the current proof. Unrelated edits elsewhere in
+    // the file (prose, new tests) leave the row valid.
+    let current_source = fs::read_to_string(root.join(path))
+        .with_context(|| format!("loading test anchor `{anchor}` for scenario `{scenario_id}`"))?;
+    let bodies_match = match (
+        declared_function_body(&claimed_source, symbol),
+        declared_function_body(&current_source, symbol),
+    ) {
+        (Some(claimed), Some(current)) => claimed == current,
+        (None, None) => true,
+        _ => false,
+    };
+    if !bodies_match {
+        bail!(
+            "scenario `{scenario_id}` anchor `{anchor}` content changed since claimed commit `{sha}`; re-verify the row and record the proving commit, do not blanket-sync | repair: cargo run -p xtask -- docs verify-scenario-ledger"
         );
     }
     Ok(())
@@ -5610,6 +5786,86 @@ CBK999_OUTSIDE,
                 .contains("names no function in claimed commit"),
             "{err}"
         );
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_anchor_body_changed_since_claimed_commit() {
+        // #981: a claimed commit whose anchored symbol carries different
+        // assertions proves nothing about the current proof, even though the
+        // symbol name still exists in both trees.
+        let (temp, mut row) = scenario_row_fixture();
+        std::fs::write(
+            temp.path().join("t.rs"),
+            "fn works() { assert_eq!(1, 1); }\n",
+        )
+        .unwrap();
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
+        std::fs::write(
+            temp.path().join("t.rs"),
+            "fn works() { assert_eq!(1, 2); }\n",
+        )
+        .unwrap();
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect_err("changed anchor body must fail");
+        assert!(
+            err.to_string()
+                .contains("content changed since claimed commit"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_accepts_anchor_body_untouched_by_unrelated_edit() {
+        // #981: prose edits and additive test changes elsewhere in the anchor
+        // file do not invalidate the row; the freshness contract is scoped to
+        // the anchored symbol's body.
+        let (temp, mut row) = scenario_row_fixture();
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
+        std::fs::write(temp.path().join("README.md"), "# docs-only change\n").unwrap();
+        std::fs::write(temp.path().join("t.rs"), "fn works() {}\nfn extra() {}\n").unwrap();
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect("unrelated edits must not invalidate the row");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_accepts_identical_anchor_across_history_rewrite() {
+        // #981: equivalent content survives squash/rebase; a newer commit
+        // with an identical anchored body does not invalidate the older
+        // claimed commit.
+        let (temp, mut row) = scenario_row_fixture();
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
+        std::fs::write(temp.path().join("other.txt"), "unrelated\n").unwrap();
+        git_in(temp.path(), &["add", "--", "other.txt"]);
+        git_in(
+            temp.path(),
+            &["commit", "--quiet", "--message", "rewritten"],
+        );
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect("identical anchor content across commits must pass");
+    }
+
+    #[test]
+    fn declared_function_body_extracts_nested_braces() {
+        let source = "fn works() {\n    let f = |x: usize| {\n        x + 1 // }\n    };\n    assert_eq!(f(1), 2);\n}\n";
+        assert_eq!(
+            declared_function_body(source, "works"),
+            Some(source.trim_end_matches('\n'))
+        );
+    }
+
+    #[test]
+    fn declared_function_body_ignores_braces_in_strings_and_comments() {
+        let source = "fn works() {\n    let open = \"{\";\n    /* block } comment */\n    let tick = '}';\n}\nfn works_extra() {}\n";
+        let body = declared_function_body(source, "works").unwrap();
+        assert!(body.ends_with('}'));
+        assert!(!body.contains("works_extra"));
+        assert!(declared_function_body(source, "absent").is_none());
     }
 
     #[test]

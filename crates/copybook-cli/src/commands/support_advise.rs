@@ -157,6 +157,25 @@ fn walk_field(
         ));
     }
     match &field.kind {
+        // #980 first family: ordinary fields the wildcard used to swallow.
+        // Only unsigned, unscaled display without SIGN SEPARATE resolves to
+        // the ledger row; signed, scaled, and separate-sign zoned fields
+        // keep their existing mappings.
+        FieldKind::Alphanum { .. } => constructs.push(AdviseConstruct::bounded(
+            ConstructKind::Alphanumeric,
+            field.path.clone(),
+            None,
+        )),
+        FieldKind::ZonedDecimal {
+            signed: false,
+            scale: 0,
+            sign_separate: None,
+            ..
+        } => constructs.push(AdviseConstruct::bounded(
+            ConstructKind::DisplayNumeric,
+            field.path.clone(),
+            None,
+        )),
         FieldKind::Condition { .. } => constructs.push(AdviseConstruct::bounded(
             ConstructKind::Level88,
             field.path.clone(),

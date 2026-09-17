@@ -649,3 +649,65 @@ stable_error_or_rejection_identity = "CBKF222_BDW_LENGTH_INVALID CBKF223_BDW_UND
 known_limitations_or_remediation = "Byte-level framing row; schema-aware behavior rides format.vb.basic. Beta until corpus proof."
 shared_evidence_relationships = ["stable-error:CBKF222_BDW_LENGTH_INVALID", "stable-error:CBKF223_BDW_UNDERFLOW", "stable-error:CBKF224_RDW_BEYOND_BLOCK", "stable-error:CBKF225_BDW_RESERVED_NONZERO", "ledger:format.vb.basic"]
 last_verified_full_sha = "3fec52c727fe633f4b82dbfa213652d41fa0c963"
+
+[[scenarios]]
+scenario_id = "struct.field.alphanumeric"
+feature_identity = "none"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["parse", "layout", "decode", "encode", "round_trip"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/parser_comprehensive.rs::test_pic_alphanumeric", kind = "direct" },
+]
+layout_evidence = [
+  { ref = "crates/copybook-core/tests/layout_resolution.rs::test_size_pic_x", kind = "direct" },
+]
+decode_evidence = [
+  { ref = "crates/copybook-codec/tests/alpha_field_edge_cases.rs::test_alpha_full_width_5_chars", kind = "direct" },
+]
+encode_evidence = [
+  { ref = "crates/copybook-codec/tests/alpha_field_edge_cases.rs::test_alpha_encode_short_value_pads_right", kind = "direct" },
+]
+round_trip_evidence = [
+  { ref = "crates/copybook-codec/tests/roundtrip_fidelity.rs::rt_long_alphanumeric_with_padding", kind = "direct" },
+]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "alphanumeric fields have no rejection path; truncation and padding ride the cited round-trip proof" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "No support-matrix feature covers plain alphanumeric fields, so feature_identity is none by rule. Layout and representation only: this row never validates unseen record payloads."
+shared_evidence_relationships = ["fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.basic"]
+last_verified_full_sha = "69115be83230e3d3db870f3383b269d5e232cc96"
+
+[[scenarios]]
+scenario_id = "struct.field.display_numeric"
+feature_identity = "none"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["parse", "layout", "decode", "encode", "round_trip"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/parser_comprehensive.rs::test_pic_numeric_unsigned", kind = "direct" },
+]
+layout_evidence = [
+  { ref = "crates/copybook-core/tests/layout_resolution.rs::test_size_pic_9", kind = "direct" },
+]
+decode_evidence = [
+  { ref = "crates/copybook-codec/tests/codec_roundtrip_exhaustive.rs::roundtrip_ascii_zoned_unsigned", kind = "direct" },
+]
+encode_evidence = [
+  { ref = "crates/copybook-codec/tests/binary_roundtrip_fidelity_tests.rs::test_ascii_zoned_roundtrip_byte_identical", kind = "direct" },
+]
+round_trip_evidence = [
+  { ref = "crates/copybook-codec/tests/codec_roundtrip_exhaustive.rs::roundtrip_ascii_zoned_unsigned", kind = "direct" },
+]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "unsigned display numerics have no rejection path; digit validity of unseen payloads is out of scope (see limitations)" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "No support-matrix feature covers plain display numerics, so feature_identity is none by rule. Covers unsigned display (PIC 9) layout and representation only; signed overpunch, scale handling, and unseen-payload digit validity are out of scope. This row never validates unseen record payloads."
+shared_evidence_relationships = ["fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.basic"]
+last_verified_full_sha = "69115be83230e3d3db870f3383b269d5e232cc96"

@@ -198,13 +198,16 @@ fn cp037_vs_cp1047_bracket_positions_differ() {
 
 #[test]
 fn cp1140_euro_vs_cp037_control_at_0xff() {
-    // CP1140: 0xFF = € (U+20AC); CP037: 0xFF = control (U+009F)
+    // CP1140 and CP037 both map 0xFF to U+009F per IBM1140/IBM037 (#998); the
+    // pages differ at 0x9F instead (€ vs ¤).
     let cp1140 = ebcdic_to_utf8(&[0xFF], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
-    assert_eq!(cp1140, "€");
-    // CP037 0xFF maps to U+009F which is a control char < 0x20 range (actually 0x9F > 0x20,
-    // but it's handled by the char mapping). Let's just check it's different.
+    assert_eq!(cp1140, "\u{9f}", "CP1140 0xFF is U+009F");
     let cp037 = ebcdic_to_utf8(&[0xFF], Codepage::CP037, UnmappablePolicy::Replace).unwrap();
-    assert_ne!(cp037, "€", "CP037 0xFF must not be €");
+    assert_eq!(cp037, "\u{9f}", "CP037 0xFF is U+009F");
+    let cp1140_9f = ebcdic_to_utf8(&[0x9F], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
+    let cp037_9f = ebcdic_to_utf8(&[0x9F], Codepage::CP037, UnmappablePolicy::Error).unwrap();
+    assert_eq!(cp1140_9f, "€", "CP1140 0x9F is €");
+    assert_eq!(cp037_9f, "¤", "CP037 0x9F is ¤");
 }
 
 #[test]

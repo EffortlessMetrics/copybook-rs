@@ -419,9 +419,9 @@ fn low_value_0x00_handling_all_codepages() {
 #[test]
 fn high_value_0xff_handling_all_codepages() {
     for cp in ALL_EBCDIC {
-        // 0xFF maps to different things per codepage:
-        //   CP1140: € (U+20AC) — mappable
-        //   Others: control char 0x009F or ÿ — depends on table
+        // 0xFF maps to U+009F on all five codepages (decodable control,
+        // re-encodable to 0xFF). The € discriminator lives at 0x9F on
+        // CP1140, not 0xFF (#998).
         let decoded = ebcdic_to_utf8(&[0xFF], cp, UnmappablePolicy::Replace).unwrap();
         assert!(
             !decoded.is_empty(),
@@ -441,14 +441,14 @@ fn high_value_0xff_handling_all_codepages() {
 }
 
 #[test]
-fn cp1140_0xff_is_euro_sign() {
-    let decoded = ebcdic_to_utf8(&[0xFF], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
+fn cp1140_0x9f_is_euro_sign() {
+    let decoded = ebcdic_to_utf8(&[0x9F], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
     assert_eq!(
-        decoded, "\u{20AC}",
-        "CP1140: 0xFF must decode to € (U+20AC)"
+        decoded, "€",
+        "CP1140: 0x9F must decode to € (U+20AC) per IBM1140 (#998)"
     );
-    let reencoded = utf8_to_ebcdic("\u{20AC}", Codepage::CP1140).unwrap();
-    assert_eq!(reencoded, vec![0xFF], "CP1140: € must encode to 0xFF");
+    let reencoded = utf8_to_ebcdic("€", Codepage::CP1140).unwrap();
+    assert_eq!(reencoded, vec![0x9F], "CP1140: € must encode to 0x9F");
 }
 
 #[test]

@@ -84,8 +84,44 @@ fn cli_decode_cp1047_signature() {
 
 #[test]
 fn cli_decode_cp1140_signature() {
-    // CP1140 0xFF = € (Euro), the single byte that differs from CP037.
-    assert_eq!(decode_sig(0xFF, Some("cp1140")), "€");
+    // CP1140 0x9F = € (Euro), the single byte that differs from CP037 (#998).
+    assert_eq!(decode_sig(0x9F, Some("cp1140")), "€");
+}
+
+/// Encode a single `SIG` value through `copybook encode` and return the raw
+/// output bytes.
+fn encode_sig(symbol: &str, codepage: &str) -> Vec<u8> {
+    let dir = assert_fs::TempDir::new().unwrap();
+    let cpy = dir.child("sig.cpy");
+    cpy.write_str(SIG_CPY).unwrap();
+    let jsonl = dir.child("sig.jsonl");
+    jsonl
+        .write_str(&format!("{{\"SIG\":\"{symbol}\"}}\n"))
+        .unwrap();
+    let out = dir.child("out.bin");
+
+    let mut cmd = bin();
+    cmd.args([
+        "encode",
+        &path_str(cpy.path()),
+        &path_str(jsonl.path()),
+        "--output",
+        &path_str(out.path()),
+        "--format",
+        "fixed",
+        "--codepage",
+        codepage,
+    ]);
+    cmd.assert().success();
+
+    std::fs::read(out.path()).unwrap()
+}
+
+#[test]
+fn cli_encode_cp1140_euro() {
+    // € must encode to the independently specified byte 0x9F (#998), proving
+    // the CLI encode direction against external data rather than a round-trip.
+    assert_eq!(encode_sig("€", "cp1140"), vec![0x9F]);
 }
 
 // ====================================================================

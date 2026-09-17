@@ -111,8 +111,8 @@ static CP273_TO_UNICODE: [u32; 256] = [
     0x0021, // 48-4F (ç, ñ, Ä, ., <, (, +, !)
     0x0026, 0x00E9, 0x00EA, 0x00EB, 0x00E8, 0x00ED, 0x00EE,
     0x00EF, // 50-57 (&, é, ê, ë, è, í, î, ï)
-    0x00EC, 0x00DF, 0x00DC, 0x0024, 0x002A, 0x0029, 0x003B,
-    0x005E, // 58-5F (ì, ß, Ü, $, *, ), ;, ^)
+    0x00EC, 0x007E, 0x00DC, 0x0024, 0x002A, 0x0029, 0x003B,
+    0x005E, // 58-5F (ì, ~, Ü, $, *, ), ;, ^) — #999: 0x59 is ~ per IBM273
     0x002D, 0x002F, 0x00C2, 0x005B, 0x00C0, 0x00C1, 0x00C3,
     0x00C5, // 60-67 (-, /, Â, [, À, Á, Ã, Å)
     0x00C7, 0x00D1, 0x00F6, 0x002C, 0x0025, 0x005F, 0x003E,
@@ -127,7 +127,7 @@ static CP273_TO_UNICODE: [u32; 256] = [
     0x00B0, 0x006A, 0x006B, 0x006C, 0x006D, 0x006E, 0x006F, 0x0070, // 90-97 (°, j-p)
     0x0071, 0x0072, 0x00AA, 0x00BA, 0x00E6, 0x00B8, 0x00C6,
     0x00A4, // 98-9F (q, r, ª, º, æ, ¸, Æ, ¤)
-    0x00B5, 0x007E, 0x0073, 0x0074, 0x0075, 0x0076, 0x0077, 0x0078, // A0-A7 (µ, ~, s-x)
+    0x00B5, 0x00DF, 0x0073, 0x0074, 0x0075, 0x0076, 0x0077, 0x0078, // A0-A7 (µ, ß, s-x)
     0x0079, 0x007A, 0x00A1, 0x00BF, 0x00D0, 0x00DD, 0x00DE,
     0x00AE, // A8-AF (y, z, ¡, ¿, Ð, Ý, Þ, ®)
     0x00A2, 0x00A3, 0x00A5, 0x00B7, 0x00A9, 0x0040, 0x00B6,
@@ -218,7 +218,7 @@ static CP1047_TO_UNICODE: [u32; 256] = [
     0x0026, 0x00E9, 0x00EA, 0x00EB, 0x00E8, 0x00ED, 0x00EE,
     0x00EF, // 50-57 (&, é, ê, ë, è, í, î, ï)
     0x00EC, 0x00DF, 0x0021, 0x0024, 0x002A, 0x0029, 0x003B,
-    0x00AC, // 58-5F (ì, ß, !, $, *, ), ;, ¬)
+    0x005E, // 58-5F (ì, ß, !, $, *, ), ;, ^) — #999: 0x5F is ^ per IBM1047
     0x002D, 0x002F, 0x00C2, 0x00C4, 0x00C0, 0x00C1, 0x00C3,
     0x00C5, // 60-67 (-, /, Â, Ä, À, Á, Ã, Å)
     0x00C7, 0x00D1, 0x00A6, 0x002C, 0x0025, 0x005F, 0x003E,
@@ -236,8 +236,8 @@ static CP1047_TO_UNICODE: [u32; 256] = [
     0x00B5, 0x007E, 0x0073, 0x0074, 0x0075, 0x0076, 0x0077, 0x0078, // A0-A7 (µ, ~, s-x)
     0x0079, 0x007A, 0x00A1, 0x00BF, 0x00D0, 0x005B, 0x00DE,
     0x00AE, // A8-AF (y, z, ¡, ¿, Ð, [, Þ, ®)
-    0x005E, 0x00A3, 0x00A5, 0x00B7, 0x00A9, 0x00A7, 0x00B6,
-    0x00BC, // B0-B7 (^, £, ¥, ·, ©, §, ¶, ¼)
+    0x00AC, 0x00A3, 0x00A5, 0x00B7, 0x00A9, 0x00A7, 0x00B6,
+    0x00BC, // B0-B7 (¬, £, ¥, ·, ©, §, ¶, ¼) — #999: 0xB0 is ¬ per IBM1047
     0x00BD, 0x00BE, 0x00DD, 0x00A8, 0x00AF, 0x005D, 0x00B4,
     0x00D7, // B8-BF (½, ¾, Ý, ¨, ¯, ], ´, ×)
     0x007B, 0x0041, 0x0042, 0x0043, 0x0044, 0x0045, 0x0046, 0x0047, // C0-C7 ({, A-G)
@@ -285,7 +285,7 @@ static CP1140_TO_UNICODE: [u32; 256] = [
     0x00B1, // 88-8F (h, i, «, », ð, ý, þ, ±)
     0x00B0, 0x006A, 0x006B, 0x006C, 0x006D, 0x006E, 0x006F, 0x0070, // 90-97 (°, j-p)
     0x0071, 0x0072, 0x00AA, 0x00BA, 0x00E6, 0x00B8, 0x00C6,
-    0x00A4, // 98-9F (q, r, ª, º, æ, ¸, Æ, ¤)
+    0x20AC, // 98-9F (q, r, ª, º, æ, ¸, Æ, €) — #998: 0x9F is € per IBM1140
     0x00B5, 0x007E, 0x0073, 0x0074, 0x0075, 0x0076, 0x0077, 0x0078, // A0-A7 (µ, ~, s-x)
     0x0079, 0x007A, 0x00A1, 0x00BF, 0x00D0, 0x00DD, 0x00DE,
     0x00AE, // A8-AF (y, z, ¡, ¿, Ð, Ý, Þ, ®)
@@ -304,7 +304,7 @@ static CP1140_TO_UNICODE: [u32; 256] = [
     0x00D5, // E8-EF (Y, Z, ², Ô, Ö, Ò, Ó, Õ)
     0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037, // F0-F7 (0-7)
     0x0038, 0x0039, 0x00B3, 0x00DB, 0x00DC, 0x00D9, 0x00DA,
-    0x20AC, // F8-FF (8, 9, ³, Û, Ü, Ù, Ú, €)
+    0x009F, // F8-FF (8, 9, ³, Û, Ü, Ù, Ú, control) — #998: 0xFF is U+009F per IBM1140
 ];
 
 /// Get the appropriate lookup table for the given codepage
@@ -621,8 +621,8 @@ mod tests {
 
     #[test]
     fn test_ebcdic_to_utf8_cp1140_euro_sign() {
-        // CP1140 maps 0x9F to € (U+20AC) — unlike CP037 which maps it to a control char
-        let data: &[u8] = &[0xFF];
+        // CP1140 maps 0x9F to € (U+20AC) — unlike CP037 which maps it to ¤ (#998)
+        let data: &[u8] = &[0x9F];
         let result = ebcdic_to_utf8(data, Codepage::CP1140, UnmappablePolicy::Error).unwrap();
         assert_eq!(result, "€");
     }
@@ -770,11 +770,11 @@ mod tests {
 
     #[test]
     fn test_cp1140_euro_sign_roundtrip() {
-        // CP1140 byte 0xFF maps to U+20AC (€)
-        let decoded = ebcdic_to_utf8(&[0xFF], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
+        // CP1140 byte 0x9F maps to U+20AC (€) per IBM1140 (#998)
+        let decoded = ebcdic_to_utf8(&[0x9F], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
         assert_eq!(decoded, "€");
         let encoded = utf8_to_ebcdic("€", Codepage::CP1140).unwrap();
-        assert_eq!(encoded, &[0xFF]);
+        assert_eq!(encoded, &[0x9F]);
     }
 
     #[test]
@@ -798,15 +798,20 @@ mod tests {
 
     #[test]
     fn test_cp1140_vs_cp037_difference() {
-        // CP1140 is identical to CP037 except at byte 0x9F:
+        // CP1140 is identical to CP037 except at byte 0x9F (#998):
         //   CP037  0x9F -> U+00A4 (¤)
-        //   CP1140 byte 0x9F -> U+00A4 (¤) as well, but 0xFF differs:
-        //   CP037  0xFF -> U+009F (control)
-        //   CP1140 0xFF -> U+20AC (€)
+        //   CP1140 0x9F -> U+20AC (€)
+        // Both map 0xFF to U+009F (control) per IBM037/IBM1140.
+        let cp037_9f = ebcdic_to_utf8(&[0x9F], Codepage::CP037, UnmappablePolicy::Error).unwrap();
+        let cp1140_9f = ebcdic_to_utf8(&[0x9F], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
+        assert_ne!(cp037_9f, cp1140_9f, "CP037 and CP1140 must differ at 0x9F");
+        assert_eq!(cp037_9f, "¤");
+        assert_eq!(cp1140_9f, "€");
         let cp037_ff = ebcdic_to_utf8(&[0xFF], Codepage::CP037, UnmappablePolicy::Replace).unwrap();
-        let cp1140_ff = ebcdic_to_utf8(&[0xFF], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
-        assert_ne!(cp037_ff, cp1140_ff, "CP037 and CP1140 must differ at 0xFF");
-        assert_eq!(cp1140_ff, "€");
+        let cp1140_ff =
+            ebcdic_to_utf8(&[0xFF], Codepage::CP1140, UnmappablePolicy::Replace).unwrap();
+        assert_eq!(cp037_ff, "\u{9f}", "CP037 0xFF is U+009F");
+        assert_eq!(cp1140_ff, "\u{9f}", "CP1140 0xFF is U+009F");
     }
 
     // --- 3. Control characters ---

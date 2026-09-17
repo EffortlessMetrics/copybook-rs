@@ -198,8 +198,12 @@ fn pound_sign_roundtrip_all_codepages() {
 
 #[test]
 fn euro_sign_only_available_on_cp1140() {
-    // € (U+20AC) — CP1140 has it at 0xFF, other codepages do not have it.
-    assert!(utf8_to_ebcdic("€", Codepage::CP1140).is_ok());
+    // € (U+20AC) — CP1140 has it at 0x9F per IBM1140 (#998); others lack it.
+    assert_eq!(
+        utf8_to_ebcdic("€", Codepage::CP1140).unwrap(),
+        vec![0x9F],
+        "CP1140: € must encode to 0x9F"
+    );
     for cp in [
         Codepage::CP037,
         Codepage::CP273,
@@ -215,12 +219,25 @@ fn euro_sign_only_available_on_cp1140() {
 
 #[test]
 fn currency_sign_general_roundtrip_all_codepages() {
-    // ¤ (U+00A4 — generic currency sign) exists on all codepages.
-    for cp in ALL_EBCDIC {
+    // ¤ (U+00A4 — generic currency sign) exists at 0x9F on every codepage
+    // except CP1140, where 0x9F is € per IBM1140 (#998).
+    for cp in [
+        Codepage::CP037,
+        Codepage::CP273,
+        Codepage::CP500,
+        Codepage::CP1047,
+    ] {
         let enc = utf8_to_ebcdic("¤", cp).unwrap();
+        assert_eq!(enc, vec![0x9F], "{cp}: ¤ must encode to 0x9F");
         let dec = ebcdic_to_utf8(&enc, cp, UnmappablePolicy::Error).unwrap();
         assert_eq!(dec, "¤", "{cp}: ¤ round-trip");
     }
+    let err = utf8_to_ebcdic("¤", Codepage::CP1140).unwrap_err();
+    assert_eq!(
+        err.code,
+        ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+        "CP1140: ¤ has no mapping and must be rejected"
+    );
 }
 
 // ============================================================================
@@ -308,8 +325,8 @@ fn all_zeros_buffer_all_policies() {
 fn all_0xff_buffer_decode() {
     let ff_buf = vec![0xFFu8; 8];
     for cp in ALL_EBCDIC {
-        // 0xFF always maps to something (€ on CP1140, control on others).
-        // Replace should never fail.
+        // 0xFF maps to U+009F on every codepage (control, >= 0x20, always
+        // decodable). Replace should never fail.
         let result = ebcdic_to_utf8(&ff_buf, cp, UnmappablePolicy::Replace).unwrap();
         assert_eq!(
             result.chars().count(),
@@ -317,9 +334,9 @@ fn all_0xff_buffer_decode() {
             "{cp}: all-0xFF should decode to 8 chars"
         );
     }
-    // CP1140: all-0xFF should be 8 euro signs.
+    // CP1140: all-0xFF is 8 control chars (U+009F), not euros (#998).
     let cp1140_result = ebcdic_to_utf8(&ff_buf, Codepage::CP1140, UnmappablePolicy::Error).unwrap();
-    assert_eq!(cp1140_result, "€€€€€€€€");
+    assert_eq!(cp1140_result, "\u{9f}".repeat(8));
 }
 
 // ============================================================================
@@ -503,10 +520,18 @@ fn cp273_german_umlauts_in_sentence() {
 
 #[test]
 fn cp273_eszett_roundtrip() {
-    // ß (U+00DF, sharp-s) — present on all codepages at 0x59.
-    for cp in ALL_EBCDIC {
+    // ß (U+00DF, sharp-s) — at 0x59 on every codepage except CP273, where it
+    // lives at 0xA1 and 0x59 is ~ per IBM273 (#999).
+    let expected: [(Codepage, u8); 5] = [
+        (Codepage::CP037, 0x59),
+        (Codepage::CP273, 0xA1),
+        (Codepage::CP500, 0x59),
+        (Codepage::CP1047, 0x59),
+        (Codepage::CP1140, 0x59),
+    ];
+    for (cp, byte) in expected {
         let enc = utf8_to_ebcdic("ß", cp).unwrap();
-        assert_eq!(enc, vec![0x59], "{cp}: ß should be at 0x59");
+        assert_eq!(enc, vec![byte], "{cp}: ß should be at 0x{byte:02X}");
         let dec = ebcdic_to_utf8(&enc, cp, UnmappablePolicy::Error).unwrap();
         assert_eq!(dec, "ß", "{cp}: ß round-trip");
     }

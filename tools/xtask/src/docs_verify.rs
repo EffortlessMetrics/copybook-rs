@@ -2843,6 +2843,12 @@ fn verify_scenario_ledger() -> Result<()> {
         ledger.scenarios.len(),
         supported
     );
+    // #981: inventory validation resolves anchors against their claimed
+    // commits; it never executes the anchored tests. Execution receipts come
+    // from the owning suites, never from this command.
+    println!(
+        "inventory validation only: anchors resolved, not executed; run the owning test suites for execution receipts"
+    );
     Ok(())
 }
 

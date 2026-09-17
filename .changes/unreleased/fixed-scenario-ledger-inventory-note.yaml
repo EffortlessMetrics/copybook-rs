@@ -1,0 +1,8 @@
+kind: fixed
+body: '**evidence**: record the inventory-vs-execution distinction in ledger
+  output and contract (#981). `docs verify-scenario-ledger` now states on
+  success that it performs inventory validation only: anchors resolved
+  against their claimed commits, never executed. Execution receipts come
+  from the owning test suites. Covered by an output-asserting integration
+  test.'
+time: '2026-09-17T22:00:00Z'

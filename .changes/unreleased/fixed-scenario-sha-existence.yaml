@@ -1,0 +1,9 @@
+kind: fixed
+body: '**evidence**: scenario-ledger SHAs must resolve to commits (#981).
+  `last_verified_full_sha` was syntax-checked only, so an invented SHA
+  passed and three numeric rows cited a squash-orphaned branch head. The
+  verifier now resolves each SHA to a commit object (existence only, never
+  ancestry, so equivalent content survives squash/rebase), reports
+  explicitly unavailable in shallow checkouts instead of silently passing,
+  and the three dead rows were re-verified anchor-by-anchor against main.'
+time: '2026-09-17T19:30:00Z'

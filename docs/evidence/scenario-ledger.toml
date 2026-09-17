@@ -751,7 +751,7 @@ worker_applicability = "single"
 stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "No support-matrix feature covers COMP binary fields, so feature_identity is none by rule. Big-endian byte order per mainframe convention; layout and representation only. This row never validates unseen record payloads."
 shared_evidence_relationships = ["fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.basic"]
-last_verified_full_sha = "aabb7d5c0d91d2c46bfa2b78b40d04f222e5cfa8"
+last_verified_full_sha = "c23495f45319e1ab66bb556aac040df5d1c546da"
 
 [[scenarios]]
 scenario_id = "struct.field.packed_decimal"
@@ -782,7 +782,7 @@ worker_applicability = "single"
 stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "No support-matrix feature covers COMP-3 packed fields, so feature_identity is none by rule. Covers signed, scaled, and unsigned packed layout and representation with mainframe sign-nibble conventions. This row never validates unseen record payloads."
 shared_evidence_relationships = ["fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.basic"]
-last_verified_full_sha = "aabb7d5c0d91d2c46bfa2b78b40d04f222e5cfa8"
+last_verified_full_sha = "c23495f45319e1ab66bb556aac040df5d1c546da"
 
 [[scenarios]]
 scenario_id = "struct.field.signed_zoned"
@@ -813,4 +813,4 @@ worker_applicability = "single"
 stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "No support-matrix feature covers signed zoned fields, so feature_identity is none by rule. Overpunch sign encoding per EBCDIC/ASCII zone conventions; covers signed and V-scaled zoned layout and representation. This row never validates unseen record payloads."
 shared_evidence_relationships = ["fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.basic"]
-last_verified_full_sha = "aabb7d5c0d91d2c46bfa2b78b40d04f222e5cfa8"
+last_verified_full_sha = "c23495f45319e1ab66bb556aac040df5d1c546da"

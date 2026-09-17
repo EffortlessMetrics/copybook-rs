@@ -2739,18 +2739,64 @@ fn validate_scenario_row(
     for relationship in &row.shared_evidence_relationships {
         validate_relationship(id, relationship, ids, error_codes, pipeline_ids)?;
     }
-    if row.last_verified_full_sha.len() != 40
-        || !row
-            .last_verified_full_sha
-            .bytes()
-            .all(|byte| byte.is_ascii_hexdigit())
+    verify_scenario_commit_anchor(root, id, &row.last_verified_full_sha)?;
+    Ok(())
+}
+
+fn verify_scenario_commit_anchor(root: &Path, id: &str, sha: &str) -> Result<()> {
+    if sha.len() != 40 || !sha.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        bail!("scenario `{id}` needs a full 40-hex last_verified_full_sha, found `{sha}`");
+    }
+    // #981: SHA syntax alone proves nothing; the SHA must resolve to a
+    // commit. Ancestry is deliberately not required: equivalent content must
+    // survive squash/rebase without treating topology as behavior. The
+    // existence probe is a bare `cat-file -e` (exit 1 when absent) rather
+    // than a `^{commit}` peel, which exits 128 for missing objects and would
+    // mask the precise not-available diagnostic.
+    let exists_check = Command::new("git")
+        .current_dir(root)
+        .args(["cat-file", "-e", sha])
+        .output()
+        .with_context(|| format!("resolving scenario `{id}` last_verified_full_sha"))?;
+    match exists_check.status.code() {
+        Some(0) => verify_scenario_commit_type(root, id, sha),
+        Some(1) if is_shallow_repository(root)? => {
+            println!(
+                "scenario `{id}` commit `{sha}` unavailable in shallow checkout; freshness checks skipped"
+            );
+            Ok(())
+        }
+        Some(1) => bail!(
+            "scenario `{id}` last_verified_full_sha `{sha}` is not available; re-verify the row and record the proving commit, do not blanket-sync | repair: cargo run -p xtask -- docs verify-scenario-ledger"
+        ),
+        other => bail!(
+            "git cat-file failed while resolving scenario `{id}` last_verified_full_sha (exit {other:?}): {}",
+            String::from_utf8_lossy(&exists_check.stderr).trim()
+        ),
+    }
+}
+
+fn verify_scenario_commit_type(root: &Path, id: &str, sha: &str) -> Result<()> {
+    let type_check = Command::new("git")
+        .current_dir(root)
+        .args(["cat-file", "-t", sha])
+        .output()
+        .with_context(|| format!("reading scenario `{id}` last_verified_full_sha object type"))?;
+    if type_check.status.success() && String::from_utf8_lossy(&type_check.stdout).trim() == "commit"
     {
+        return Ok(());
+    }
+    if type_check.status.success() {
         bail!(
-            "scenario `{id}` needs a full 40-hex last_verified_full_sha, found `{}`",
-            row.last_verified_full_sha
+            "scenario `{id}` last_verified_full_sha `{sha}` is a {}, not a commit; record the proving commit | repair: cargo run -p xtask -- docs verify-scenario-ledger",
+            String::from_utf8_lossy(&type_check.stdout).trim()
         );
     }
-    Ok(())
+    bail!(
+        "git cat-file failed while reading scenario `{id}` last_verified_full_sha object type (exit {:?}): {}",
+        type_check.status.code(),
+        String::from_utf8_lossy(&type_check.stderr).trim()
+    );
 }
 
 fn validate_scenario_enums(id: &str, row: &ScenarioRow) -> Result<()> {
@@ -5314,7 +5360,9 @@ CBK999_OUTSIDE,
 
     #[test]
     fn parsing_scenario_ledger_accepts_valid_row() {
-        let (temp, row) = scenario_row_fixture();
+        let (temp, mut row) = scenario_row_fixture();
+        // #981: the fixture SHA must resolve to a real commit.
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
         let (codes, pipeline) = scenario_registries();
         let ids = BTreeSet::from(["test.row".to_string()]);
         validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline).unwrap();
@@ -5392,6 +5440,62 @@ CBK999_OUTSIDE,
         assert!(validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline).is_err());
     }
 
+    fn scaffold_git_repo_with_commit(path: &Path) -> String {
+        let run = |args: &[&str]| {
+            let status = Command::new("git")
+                .current_dir(path)
+                .args(args)
+                .status()
+                .unwrap();
+            assert!(status.success(), "git {args:?} failed");
+        };
+        run(&["init", "--quiet"]);
+        run(&["config", "user.name", "xtask-test"]);
+        run(&["config", "user.email", "xtask-test@example.com"]);
+        run(&["add", "--", "t.rs"]);
+        run(&["commit", "--quiet", "--message", "fixture"]);
+        let output = Command::new("git")
+            .current_dir(path)
+            .args(["rev-parse", "HEAD"])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        String::from_utf8(output.stdout).unwrap().trim().to_string()
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_unresolvable_sha() {
+        // #981: a well-formed SHA that resolves to no commit must not pass
+        // as verification evidence.
+        let (temp, mut row) = scenario_row_fixture();
+        scaffold_git_repo_with_commit(temp.path());
+        row.last_verified_full_sha = "0000000000000000000000000000000000000000".to_string();
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect_err("unresolvable SHA must fail");
+        assert!(err.to_string().contains("not available"), "{err}");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_non_commit_sha() {
+        // #981: an existing non-commit object is not verification evidence.
+        let (temp, mut row) = scenario_row_fixture();
+        scaffold_git_repo_with_commit(temp.path());
+        let output = Command::new("git")
+            .current_dir(temp.path())
+            .args(["hash-object", "-w", "--", "t.rs"])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        row.last_verified_full_sha = String::from_utf8(output.stdout).unwrap().trim().to_string();
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect_err("non-commit SHA must fail");
+        assert!(err.to_string().contains("not a commit"), "{err}");
+    }
+
     #[test]
     fn parsing_scenario_ledger_rejects_unknown_relationship() {
         let (temp, mut row) = scenario_row_fixture();
@@ -5408,7 +5512,11 @@ CBK999_OUTSIDE,
         let (temp, first) = scenario_row_fixture();
         let mut second = scenario_row_fixture().1;
         second.scenario_id = "test.other".to_string();
+        // #981: rows must carry a resolvable SHA before cycle detection runs.
+        let sha = scaffold_git_repo_with_commit(temp.path());
         let mut first = first;
+        first.last_verified_full_sha = sha.clone();
+        second.last_verified_full_sha = sha;
         first.shared_evidence_relationships = vec!["ledger:test.other".to_string()];
         second.shared_evidence_relationships = vec!["ledger:test.row".to_string()];
         let ledger = ScenarioLedger {
@@ -5434,7 +5542,12 @@ CBK999_OUTSIDE,
         second.scenario_id = "test.other".to_string();
         let mut third = scenario_row_fixture().1;
         third.scenario_id = "test.leaf".to_string();
+        // #981: rows must carry a resolvable SHA.
+        let sha = scaffold_git_repo_with_commit(temp.path());
         let mut first = first;
+        first.last_verified_full_sha = sha.clone();
+        second.last_verified_full_sha = sha.clone();
+        third.last_verified_full_sha = sha;
         first.shared_evidence_relationships = vec![
             "ledger:test.other".to_string(),
             "ledger:test.leaf".to_string(),

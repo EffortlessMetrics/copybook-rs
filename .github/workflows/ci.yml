@@ -28,6 +28,10 @@ jobs:
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
+    # Formatting parity is deliberately pinned: rustfmt output must match the
+    # developer pin exactly, never a moving stable (#991).
+    env:
+      RUSTUP_TOOLCHAIN: 1.98.0
     steps:
     - uses: actions/checkout@v7
       with:
@@ -35,13 +39,20 @@ jobs:
         persist-credentials: false
     - uses: dtolnay/rust-toolchain@stable
       with:
+        toolchain: 1.98.0
         components: rustfmt
+    - name: Witness effective toolchain
+      run: bash scripts/ci/witness_toolchain.sh "1.98.0 (deliberate fmt pin)"
     - name: Check formatting
       run: cargo fmt --all -- --check
 
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
+    # Moving stable: this lane must enforce the lint set on current stable,
+    # not silently run the repository pin (#991).
+    env:
+      RUSTUP_TOOLCHAIN: stable
     steps:
     - uses: actions/checkout@v7
       with:
@@ -50,6 +61,8 @@ jobs:
     - uses: dtolnay/rust-toolchain@stable
       with:
         components: clippy
+    - name: Witness effective toolchain
+      run: bash scripts/ci/witness_toolchain.sh "stable"
     - uses: Swatinem/rust-cache@v2
     - name: Run clippy (libs/bins/examples, pedantic)
       run: cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -W clippy::pedantic
@@ -79,6 +92,10 @@ jobs:
   test:
     name: Test Suite
     runs-on: ${{ matrix.os }}
+    # Each matrix leg must execute its own selector: the repository pin would
+    # otherwise collapse stable/beta onto 1.98.0 (#991).
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -92,6 +109,8 @@ jobs:
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
+    - name: Witness effective toolchain
+      run: bash scripts/ci/witness_toolchain.sh "${{ matrix.rust }}"
     - uses: Swatinem/rust-cache@v2
       with:
         key: ${{ matrix.features }}
@@ -163,6 +182,9 @@ jobs:
   examples:
     name: Build Examples
     runs-on: ${{ matrix.os }}
+    # The stable leg must execute stable, not the repository pin (#991).
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -173,6 +195,8 @@ jobs:
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
+    - name: Witness effective toolchain
+      run: bash scripts/ci/witness_toolchain.sh "${{ matrix.rust }}"
     - uses: Swatinem/rust-cache@v2
     - name: Build all examples
       run: cargo build --workspace --examples
@@ -190,10 +214,14 @@ jobs:
   security:
     name: Security Checks
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable
     timeout-minutes: 20
     steps:
     - uses: actions/checkout@v7
     - uses: dtolnay/rust-toolchain@stable
+    - name: Witness effective toolchain
+      run: bash scripts/ci/witness_toolchain.sh "stable"
     - uses: Swatinem/rust-cache@v2
     - name: Run cargo deny
       uses: EmbarkStudios/cargo-deny-action@v2
@@ -293,11 +321,15 @@ jobs:
   bdd-tests:
     name: Governance + BDD Smoke
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable
     steps:
     - uses: actions/checkout@v7
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: stable
+    - name: Witness effective toolchain
+      run: bash scripts/ci/witness_toolchain.sh "stable"
     - uses: Swatinem/rust-cache@v2
     - name: Run governance microcrate + BDD smoke gate
       run: bash scripts/ci/governance-bdd-smoke.sh
@@ -305,11 +337,15 @@ jobs:
   rdw-iterator-tests:
     name: RDW iterator tests
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable
     steps:
     - uses: actions/checkout@v7
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: stable
+    - name: Witness effective toolchain
+      run: bash scripts/ci/witness_toolchain.sh "stable"
     - uses: Swatinem/rust-cache@v2
     - name: Zoned parity proptests (ASCII/CP037)
       env:
@@ -383,6 +419,8 @@ jobs:
   exit-code-matrix:
     name: Exit code mapping
     runs-on: ${{ matrix.os }}
+    env:
+      RUSTUP_TOOLCHAIN: stable
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -391,6 +429,8 @@ jobs:
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: stable
+    - name: Witness effective toolchain
+      run: bash scripts/ci/witness_toolchain.sh "stable"
     - uses: Swatinem/rust-cache@v2
     - name: Run exit code mapping tests
       shell: bash
@@ -412,11 +452,15 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable
     steps:
     - uses: actions/checkout@v7
     - uses: dtolnay/rust-toolchain@stable
       with:
         components: llvm-tools-preview
+    - name: Witness effective toolchain
+      run: bash scripts/ci/witness_toolchain.sh "stable"
     - uses: Swatinem/rust-cache@v2
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
@@ -435,9 +479,13 @@ jobs:
   docs:
     name: Documentation
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable
     steps:
     - uses: actions/checkout@v7
     - uses: dtolnay/rust-toolchain@stable
+    - name: Witness effective toolchain
+      run: bash scripts/ci/witness_toolchain.sh "stable"
     - uses: Swatinem/rust-cache@v2
     - name: Check documentation
       run: cargo doc --all-features --workspace --no-deps
@@ -447,9 +495,13 @@ jobs:
   strict-comments:
     name: Strict Comments Mode
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable
     steps:
     - uses: actions/checkout@v7
     - uses: dtolnay/rust-toolchain@stable
+    - name: Witness effective toolchain
+      run: bash scripts/ci/witness_toolchain.sh "stable"
     - uses: Swatinem/rust-cache@v2
     - name: Run core tests with strict comments mode
       run: cargo test --package copybook-core

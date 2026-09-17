@@ -90,6 +90,37 @@ class ToolchainPinTests(unittest.TestCase):
             proc = run_checker(Path(tmp))
         self.assertEqual(proc.returncode, 0, proc.stderr)
 
+    def test_env_selection_without_witness_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "matrix.yml"
+            path.write_text(
+                "jobs:\n"
+                "  test:\n"
+                "    env:\n"
+                "      RUSTUP_TOOLCHAIN: ${{ matrix.rust }}\n"
+                "    steps:\n"
+                "      - uses: dtolnay/rust-toolchain@master\n"
+            )
+            proc = run_checker(Path(tmp))
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("witness_toolchain.sh", proc.stderr)
+
+    def test_env_selection_with_witness_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "matrix.yml"
+            path.write_text(
+                "jobs:\n"
+                "  test:\n"
+                "    env:\n"
+                "      RUSTUP_TOOLCHAIN: stable\n"
+                "    steps:\n"
+                "      - uses: dtolnay/rust-toolchain@stable\n"
+                "      - name: Witness effective toolchain\n"
+                '        run: bash scripts/ci/witness_toolchain.sh "stable"\n'
+            )
+            proc = run_checker(Path(tmp))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

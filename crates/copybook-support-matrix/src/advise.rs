@@ -540,8 +540,7 @@ pub fn analyze(input: &AdviseInput) -> AdviseResult {
     let mut evidence_dropped = 0usize;
     if let Some(parse_error) = input.parse_error.as_deref() {
         let mut item = ScenarioAssessment::bounded("unparsed", AssessmentStatus::Invalid, "stable");
-        item.error_identity
-            .clone_from(&input.parse_error_identity);
+        item.error_identity.clone_from(&input.parse_error_identity);
         item.set_next_action(format!(
             "Fix the reported parse error, then re-run: {parse_error}"
         ));

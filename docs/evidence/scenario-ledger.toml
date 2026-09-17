@@ -30,7 +30,7 @@ round_trip_evidence = [
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_encode_counter_array_mismatch_rejected", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic" }]
 fixed_rdw_vb_applicability = ["fixed"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
@@ -61,7 +61,7 @@ round_trip_evidence = [{ kind = "not_applicable", reason = "variable-length roun
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_encode_counter_array_mismatch_rejected", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.rdw.odo_variable" }]
 fixed_rdw_vb_applicability = ["rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "both"
@@ -89,7 +89,7 @@ round_trip_evidence = [{ kind = "not_applicable", reason = "agreement property, 
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_encode_counter_array_mismatch_rejected", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic, fixed-rdw:format.rdw.odo_variable" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
@@ -226,7 +226,7 @@ round_trip_evidence = [
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_encode_ambiguity_error", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
@@ -254,7 +254,7 @@ round_trip_evidence = [
   { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_round_trip_preservation", kind = "direct" },
 ]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "group overlay has no dedicated rejection path" }]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
@@ -280,13 +280,13 @@ decode_evidence = [
 encode_evidence = [{ kind = "not_applicable", reason = "bounds pinned at decode; encode rides the scalar row" }]
 round_trip_evidence = [{ kind = "not_applicable", reason = "bounds pinned at decode; round-trip rides the scalar row" }]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "all three bound shapes are accepted" }]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic, fixed-rdw:format.rdw.basic" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
 stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "Longer-overlay truncation policy asserted inside the longer-overlay anchor."
-shared_evidence_relationships = ["ledger:struct.redefines.scalar"]
+shared_evidence_relationships = ["ledger:struct.redefines.scalar", "fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.basic"]
 
 last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
 
@@ -332,13 +332,13 @@ decode_evidence = [
 encode_evidence = [{ kind = "not_applicable", reason = "nested combinations have no encode contract yet" }]
 round_trip_evidence = [{ kind = "not_applicable", reason = "nested combinations have no round-trip contract yet" }]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "covered combinations do not reject" }]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic, fixed-rdw:format.rdw.basic" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
 stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "Only the explicitly anchored combinations are supported; every other nesting shape stays rejected until anchored."
-shared_evidence_relationships = ["ledger:struct.redefines.group"]
+shared_evidence_relationships = ["ledger:struct.redefines.group", "fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.basic"]
 
 last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
 
@@ -356,13 +356,13 @@ decode_evidence = [
 encode_evidence = [{ kind = "not_applicable", reason = "no encode contract for policy-limited shapes" }]
 round_trip_evidence = [{ kind = "not_applicable", reason = "no round-trip contract for policy-limited shapes" }]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "raw precedence accepts; interaction rejections live in dedicated rows" }]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic, fixed-rdw:format.rdw.basic" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
 stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "Raw-data precedence is the pinned policy; unsupported interaction shapes reject in their own rows."
-shared_evidence_relationships = ["ledger:struct.redefines.scalar"]
+shared_evidence_relationships = ["ledger:struct.redefines.scalar", "fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.basic"]
 
 last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
 
@@ -389,7 +389,7 @@ round_trip_evidence = [{ kind = "not_applicable", reason = "alias-skipping encod
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/renames_codec_tests.rs::test_renames_missing_metadata_error", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
@@ -493,7 +493,7 @@ decode_evidence = [
 encode_evidence = [{ kind = "not_applicable", reason = "condition names never encode to record bytes" }]
 round_trip_evidence = [{ kind = "not_applicable", reason = "condition names never round-trip through record bytes" }]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "single values do not reject" }]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
@@ -518,13 +518,13 @@ decode_evidence = [{ kind = "not_applicable", reason = "list/range evaluation ri
 encode_evidence = [{ kind = "not_applicable", reason = "condition names never encode to record bytes" }]
 round_trip_evidence = [{ kind = "not_applicable", reason = "condition names never round-trip through record bytes" }]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "list/range syntax does not reject" }]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic, fixed-rdw:format.rdw.basic" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
 stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "Syntax row only; evaluation semantics ride struct.level88.single_value."
-shared_evidence_relationships = ["ledger:struct.level88.single_value"]
+shared_evidence_relationships = ["ledger:struct.level88.single_value", "fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.basic"]
 
 last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
 
@@ -543,13 +543,13 @@ decode_evidence = [
 encode_evidence = [{ kind = "not_applicable", reason = "condition names never encode to record bytes" }]
 round_trip_evidence = [{ kind = "not_applicable", reason = "condition names never round-trip through record bytes" }]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "parent-field context does not reject" }]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic, fixed-rdw:format.rdw.basic" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
 stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "Parent-field value relationship asserted inside the golden anchors."
-shared_evidence_relationships = ["ledger:struct.level88.single_value"]
+shared_evidence_relationships = ["ledger:struct.level88.single_value", "fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.basic"]
 
 last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
 
@@ -678,7 +678,7 @@ round_trip_evidence = [
   { ref = "crates/copybook-codec/tests/roundtrip_fidelity.rs::rt_long_alphanumeric_with_padding", kind = "direct" },
 ]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "alphanumeric fields have no rejection path; truncation and padding ride the cited round-trip proof" }]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic, fixed-rdw:format.rdw.basic" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
@@ -709,7 +709,7 @@ round_trip_evidence = [
   { ref = "crates/copybook-codec/tests/codec_roundtrip_exhaustive.rs::roundtrip_ascii_zoned_unsigned", kind = "direct" },
 ]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "unsigned display numerics have no rejection path; digit validity of unseen payloads is out of scope (see limitations)" }]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic, fixed-rdw:format.rdw.basic" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
@@ -740,7 +740,7 @@ round_trip_evidence = [
   { ref = "crates/copybook-codec/tests/comp_binary_deep.rs::test_encode_decode_roundtrip_32bit_unsigned", kind = "direct" },
 ]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "width mismatches surface as typed length errors, not row rejections; unseen-payload validity is out of scope (see limitations)" }]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic, fixed-rdw:format.rdw.basic" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
@@ -771,7 +771,7 @@ round_trip_evidence = [
   { ref = "crates/copybook-codec/tests/binary_roundtrip_fidelity_tests.rs::test_comp3_packed_decimal_roundtrip_accuracy", kind = "direct" },
 ]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "invalid nibbles surface as typed decode errors, not row rejections; unseen-payload digit validity is out of scope (see limitations)" }]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic, fixed-rdw:format.rdw.basic" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
@@ -802,7 +802,7 @@ round_trip_evidence = [
   { ref = "crates/copybook-codec/tests/codec_roundtrip_exhaustive.rs::roundtrip_display_numeric_ebcdic_signed_negative", kind = "direct" },
 ]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "invalid overpunch codepoints surface as typed decode errors, not row rejections; unseen-payload digit validity is out of scope (see limitations)" }]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane by fixed-rdw:format.fixed.basic, fixed-rdw:format.rdw.basic" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"

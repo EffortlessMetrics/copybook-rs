@@ -141,7 +141,7 @@ Build the legacy producer example:
 ```bash
 cargo build --manifest-path examples/kafka_pipeline/Cargo.toml
 ```
- 
+
 Build the producer/consumer example:
 
 ```bash

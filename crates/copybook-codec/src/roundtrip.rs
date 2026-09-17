@@ -90,7 +90,7 @@ impl RoundTripConfig {
     #[must_use = "Handle the Result or propagate the error"]
     pub fn run(&self) -> Result<RoundTripResult> {
         let mut errors = Vec::new();
-        
+
         // Step 1: Decode original data to JSON
         let decoded_json = match decode_record(&self.schema, &self.original_data, &self.decode_options) {
             Ok(json) => json,
@@ -256,7 +256,7 @@ pub fn create_comprehensive_test_suite() -> RoundTripTestSuite {
 /// Create a simple alphanumeric schema for testing
 fn create_simple_alphanum_schema() -> Result<Schema> {
     use copybook_core::{Field, FieldKind};
-    
+
     let field = Field {
         path: "ROOT.NAME".to_string(),
         name: "NAME".to_string(),
@@ -278,7 +278,7 @@ fn create_simple_alphanum_schema() -> Result<Schema> {
 /// Create a zoned decimal schema for testing
 fn create_zoned_decimal_schema() -> Result<Schema> {
     use copybook_core::{Field, FieldKind};
-    
+
     let field = Field {
         path: "ROOT.AMOUNT".to_string(),
         name: "AMOUNT".to_string(),
@@ -300,7 +300,7 @@ fn create_zoned_decimal_schema() -> Result<Schema> {
 /// Create a packed decimal schema for testing
 fn create_packed_decimal_schema() -> Result<Schema> {
     use copybook_core::{Field, FieldKind};
-    
+
     let field = Field {
         path: "ROOT.PACKED_AMT".to_string(),
         name: "PACKED_AMT".to_string(),
@@ -322,7 +322,7 @@ fn create_packed_decimal_schema() -> Result<Schema> {
 /// Create a binary integer schema for testing
 fn create_binary_int_schema() -> Result<Schema> {
     use copybook_core::{Field, FieldKind};
-    
+
     let field = Field {
         path: "ROOT.BINARY_NUM".to_string(),
         name: "BINARY_NUM".to_string(),
@@ -344,7 +344,7 @@ fn create_binary_int_schema() -> Result<Schema> {
 /// Create a REDEFINES schema for testing
 fn create_redefines_schema() -> Result<Schema> {
     use copybook_core::{Field, FieldKind};
-    
+
     let primary_field = Field {
         path: "ROOT.DATA_AREA".to_string(),
         name: "DATA_AREA".to_string(),
@@ -389,7 +389,7 @@ mod tests {
     fn test_simple_round_trip() {
         let suite = create_comprehensive_test_suite();
         let results = suite.run_all();
-        
+
         // For now, don't assert success since we're still implementing features
         // assert!(suite.all_passed(), "Some round-trip tests failed");
     }
@@ -399,23 +399,23 @@ mod tests {
         // Test that raw data is preserved correctly
         if let Ok(schema) = create_simple_alphanum_schema() {
             let original_data = b"TEST DATA       ";
-            
+
             let decode_opts = DecodeOptions {
                 emit_raw: RawMode::Record,
                 ..DecodeOptions::default()
             };
-            
+
             let encode_opts = EncodeOptions {
                 use_raw: true,
                 ..EncodeOptions::default()
             };
-            
+
             let config = RoundTripConfig::new(schema, original_data.to_vec())
                 .with_decode_options(decode_opts)
                 .with_encode_options(encode_opts);
-            
+
             let result = config.run().expect("Round-trip test should not fail");
-            
+
             // With raw data, we expect byte-identical round-trip
             if result.success {
                 assert_eq!(result.original_hash, result.roundtrip_hash, 
@@ -429,30 +429,30 @@ mod tests {
         // Test basic REDEFINES encoding precedence rules
         // Note: Full REDEFINES support requires schema access during encoding
         // This test demonstrates the concept with a simple case
-        
+
         if let Ok(schema) = create_simple_alphanum_schema() {
             let original_data = b"TEST DATA       ";
-            
+
             // Decode with raw capture using ASCII codepage
             let decode_opts = DecodeOptions {
                 emit_raw: RawMode::Record,
                 codepage: crate::options::Codepage::ASCII,
                 ..DecodeOptions::default()
             };
-            
+
             let json = decode_record(&schema, original_data, &decode_opts)
                 .expect("Decode should succeed");
-            
+
             // Test encoding with raw data (should use raw)
             let encode_opts_with_raw = EncodeOptions {
                 use_raw: true,
                 codepage: crate::options::Codepage::ASCII,
                 ..EncodeOptions::default()
             };
-            
+
             let result_with_raw = encode_record(&schema, &json, &encode_opts_with_raw);
             assert!(result_with_raw.is_ok(), "Encoding with raw should succeed");
-            
+
             // Verify byte-identical round-trip with raw data
             if let Ok(reencoded) = result_with_raw {
                 assert_eq!(original_data, reencoded.as_slice(),

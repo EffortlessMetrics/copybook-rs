@@ -193,6 +193,27 @@ class PolicyClosureTest(unittest.TestCase):
         result = assess(pr_doc(), rows, [], HEAD)
         self.assertEqual(result["verdict"], "ready")
 
+    def test_conditional_perf_absent_stays_ready(self):
+        # perf.yml runs on PRs only under its trigger path filter; a head
+        # that does not touch those paths has no `perf` row and stays ready.
+        rows = [run(n) for n in EXPECTED_SAMPLES]
+        result = assess(pr_doc(), rows, [], HEAD)
+        self.assertEqual(result["verdict"], "ready")
+        self.assertEqual(result["unmapped"], [])
+
+    def test_conditional_perf_present_and_green_stays_ready(self):
+        rows = [run(n) for n in EXPECTED_SAMPLES] + [run("perf")]
+        result = assess(pr_doc(), rows, [], HEAD)
+        self.assertEqual(result["verdict"], "ready")
+        perf = next(c for c in result["checks"] if c["name"] == "perf")
+        self.assertEqual((perf["lane"], perf["presence"]), ("required", "conditional"))
+
+    def test_conditional_perf_failure_blocks(self):
+        rows = [run(n) for n in EXPECTED_SAMPLES] + [run("perf", conclusion="failure")]
+        result = assess(pr_doc(), rows, [], HEAD)
+        self.assertEqual(result["verdict"], "blocked")
+        self.assertIn("perf", result["required_fail"])
+
     def test_missing_expected_check_is_incomplete(self):
         rows = [run(n) for n in EXPECTED_SAMPLES if n != "Clippy"]
         result = assess(pr_doc(), rows, [], HEAD)

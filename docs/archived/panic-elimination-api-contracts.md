@@ -80,21 +80,21 @@ impl Error {
     pub fn parser_state_error(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::CBKP001_SYNTAX, message)
     }
-    
+
     /// Contract: Panic-safe constructor for numeric processing errors  
     /// Guarantees: Never panics, maintains format error semantics
     /// Usage: Replace .unwrap() in numeric conversion operations
     pub fn numeric_format_error(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, message)
     }
-    
+
     /// Contract: Panic-safe constructor for data validation errors
     /// Guarantees: Never panics, preserves data integrity error semantics
     /// Usage: Replace .unwrap() in bounds checking operations
     pub fn data_validation_error(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, message)
     }
-    
+
     /// Contract: Panic-safe constructor for buffer operations
     /// Guarantees: Never panics, maintains memory safety semantics
     /// Usage: Replace .unwrap() in memory allocation operations
@@ -116,7 +116,7 @@ impl Error {
 pub mod panic_safe {
     use crate::error::{Error, ErrorCode, Result};
     use crate::error;
-    
+
     /// Contract: Safe vector pop with context information
     /// Guarantees: Returns appropriate error for empty vector
     /// Error Code: CBKP001_SYNTAX for parser context
@@ -126,7 +126,7 @@ pub mod panic_safe {
             error!(ErrorCode::CBKP001_SYNTAX, "Stack underflow in {}", context)
         )
     }
-    
+
     /// Contract: Safe slice indexing with bounds checking
     /// Guarantees: Returns appropriate error for out-of-bounds access
     /// Error Code: CBKD301_RECORD_TOO_SHORT for data access
@@ -137,7 +137,7 @@ pub mod panic_safe {
                 "Index {} out of bounds (len: {}) in {}", index, slice.len(), context)
         )
     }
-    
+
     /// Contract: Safe mutable slice indexing
     /// Guarantees: Returns appropriate error for out-of-bounds access
     /// Error Code: CBKD301_RECORD_TOO_SHORT for data access
@@ -149,7 +149,7 @@ pub mod panic_safe {
                 "Mutable index {} out of bounds (len: {}) in {}", index, len, context)
         )
     }
-    
+
     /// Contract: Safe string formatting with error handling
     /// Guarantees: Returns appropriate error for formatting failures
     /// Error Code: CBKC201_JSON_WRITE_ERROR for format operations
@@ -162,7 +162,7 @@ pub mod panic_safe {
                 "String formatting operation failed"))?;
         Ok(result)
     }
-    
+
     /// Contract: Safe Option unwrapping with context
     /// Guarantees: Returns appropriate error for None values
     /// Error Code: Contextual based on operation type
@@ -190,24 +190,24 @@ impl Parser {
     /// Performance: <1% overhead vs original implementation
     pub fn parse_field_sequence(&mut self) -> Result<Vec<Field>> {
         let mut fields = Vec::new();
-        
+
         while !self.stack.is_empty() {
             // Contract: Safe stack operation with context
             let completed_field = panic_safe::safe_pop(&mut self.stack, "field_sequence")?;
-            
+
             // Contract: Safe token access with bounds checking  
             let current_token = panic_safe::safe_index(
                 &self.tokens, 
                 self.position, 
                 "current_token"
             )?;
-            
+
             fields.push(completed_field.build()?);
         }
-        
+
         Ok(fields)
     }
-    
+
     /// Contract: Safe token lookahead with bounds validation
     /// Guarantees: Returns None for valid lookahead beyond end, Error for invalid state
     /// Error Handling: Uses CBKP001_SYNTAX for parser errors
@@ -216,14 +216,14 @@ impl Parser {
         let target_index = self.position.checked_add(offset)
             .ok_or_else(|| error!(ErrorCode::CBKP001_SYNTAX,
                 "Token lookahead overflow: position {} + offset {}", self.position, offset))?;
-        
+
         if target_index >= self.tokens.len() {
             Ok(None) // Valid lookahead beyond end
         } else {
             Ok(Some(panic_safe::safe_index(&self.tokens, target_index, "token_lookahead")?))
         }
     }
-    
+
     /// Contract: Safe parser state reset
     /// Guarantees: Always succeeds, never panics on cleanup
     /// Usage: Replace cleanup operations that could panic
@@ -267,18 +267,18 @@ impl SafeNumericConverter {
             return Err(error!(ErrorCode::CBKD301_RECORD_TOO_SHORT,
                 "Empty packed decimal data"));
         }
-        
+
         if precision == 0 {
             return Err(error!(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                 "Invalid precision 0 for packed decimal"));
         }
-        
+
         // Contract: Safe nibble extraction with validation
         let mut nibbles = Vec::with_capacity(data.len() * 2);
         for (i, &byte) in data.iter().enumerate() {
             let high_nibble = (byte >> 4) & 0x0F;
             let low_nibble = byte & 0x0F;
-            
+
             // Contract: Validate nibble values
             if i == data.len() - 1 && signed {
                 // Last nibble is sign in signed packed decimal
@@ -290,33 +290,33 @@ impl SafeNumericConverter {
                 return Err(error!(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                     "Invalid nibble values: high=0x{:X}, low=0x{:X}", high_nibble, low_nibble));
             }
-            
+
             nibbles.push(high_nibble);
             nibbles.push(low_nibble);
         }
-        
+
         // Contract: Safe decimal value calculation with overflow detection
         let decimal_value = self.calculate_decimal_value(&nibbles, scale, signed)
             .ok_or_else(|| error!(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                 "Decimal calculation overflow for precision {} scale {}", precision, scale))?;
-        
+
         // Contract: Safe string formatting  
         self.format_buffer.clear();
         use std::fmt::Write;
         write!(&mut self.format_buffer, "{}", decimal_value)
             .map_err(|_| error!(ErrorCode::CBKC201_JSON_WRITE_ERROR,
                 "Failed to format packed decimal value"))?;
-        
+
         Ok(self.format_buffer.clone())
     }
-    
+
     /// Contract: Safe decimal value calculation with overflow protection
     /// Guarantees: Returns None on overflow instead of panicking
     /// Usage: Replace integer arithmetic .unwrap() patterns
     fn calculate_decimal_value(&self, nibbles: &[u8], scale: u8, signed: bool) -> Option<i64> {
         let mut value: i64 = 0;
         let mut is_negative = false;
-        
+
         // Contract: Safe iteration with bounds checking
         let digit_nibbles = if signed && !nibbles.is_empty() {
             // Check sign nibble
@@ -326,7 +326,7 @@ impl SafeNumericConverter {
         } else {
             nibbles
         };
-        
+
         // Contract: Safe arithmetic with overflow detection
         for &nibble in digit_nibbles {
             if nibble > 9 {
@@ -334,15 +334,15 @@ impl SafeNumericConverter {
             }
             value = value.checked_mul(10)?.checked_add(nibble as i64)?;
         }
-        
+
         // Contract: Apply sign safely
         if is_negative {
             value = value.checked_neg()?;
         }
-        
+
         Some(value)
     }
-    
+
     /// Contract: Safe zoned decimal conversion
     /// Guarantees: Validates all characters, handles encoding detection
     /// Error Handling: Uses CBKD411_ZONED_BAD_SIGN for invalid signs
@@ -353,15 +353,15 @@ impl SafeNumericConverter {
             return Err(error!(ErrorCode::CBKD301_RECORD_TOO_SHORT,
                 "Empty zoned decimal field"));
         }
-        
+
         // Contract: Safe sign character extraction
         let sign_char = panic_safe::safe_index(data, data.len() - 1, "zoned_sign")?;
-        
+
         // Contract: Validate sign encoding
         let (is_negative, digit_char) = self.decode_zoned_sign(*sign_char)
             .ok_or_else(|| error!(ErrorCode::CBKD411_ZONED_BAD_SIGN,
                 "Invalid zoned decimal sign: 0x{:02X}", sign_char))?;
-        
+
         // Continue with safe processing...
         self.process_zoned_digits(data, scale, is_negative)
     }
@@ -390,12 +390,12 @@ impl SafeLayoutResolver {
         let target_name = field.redefines_of.as_ref()
             .ok_or_else(|| error!(ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                 "REDEFINES target not specified for field {}", field.name))?;
-        
+
         self.find_field_by_name(target_name)
             .ok_or_else(|| error!(ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                 "REDEFINES target '{}' not found for field {}", target_name, field.name))
     }
-    
+
     /// Contract: Safe ODO tail validation
     /// Guarantees: Returns appropriate error for missing or invalid ODO configuration
     /// Error Handling: Uses CBKP021_ODO_NOT_TAIL for structural violations
@@ -405,7 +405,7 @@ impl SafeLayoutResolver {
             .ok_or_else(|| error!(ErrorCode::CBKP021_ODO_NOT_TAIL,
                 "ODO array must be positioned at tail of record"))
     }
-    
+
     /// Contract: Safe field lookup with comprehensive validation
     /// Guarantees: Returns appropriate error for missing fields
     /// Error Handling: Uses CBKS121_COUNTER_NOT_FOUND for lookup failures
@@ -414,10 +414,10 @@ impl SafeLayoutResolver {
         let field_id = self.field_registry.get(name)
             .ok_or_else(|| error!(ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                 "Field '{}' not found in schema registry", name))?;
-        
+
         self.get_field_by_id(*field_id)
     }
-    
+
     /// Contract: Safe field ID resolution
     /// Guarantees: Returns appropriate error for invalid field IDs
     /// Usage: Replace direct field access patterns
@@ -445,7 +445,7 @@ impl DecodeCommand {
                 "Failed to read file metadata: {}", e))?
             .len()
     }
-    
+
     /// Contract: Safe command execution with comprehensive error handling
     /// Guarantees: Never panics on invalid arguments or processing errors
     /// Error Handling: Contextual error codes based on failure type
@@ -453,14 +453,14 @@ impl DecodeCommand {
         // Contract: Safe input validation
         let input_file = self.validate_input_file()?;
         let copybook = self.load_copybook()?;
-        
+
         // Contract: Safe processing pipeline
         let schema = parse_copybook(&copybook)
             .map_err(|e| e.with_context(ErrorContext {
                 details: Some("CLI copybook parsing".to_string()),
                 ..Default::default()
             }))?;
-        
+
         // Continue with safe processing...
         Ok(())
     }
@@ -488,24 +488,24 @@ impl PanicEliminationPerformanceContract {
             self.baseline_metrics.display_throughput,
             metrics.display_throughput
         );
-        
+
         if regression > self.regression_threshold {
             return Err(error!(ErrorCode::CBKP001_SYNTAX,
                 "DISPLAY performance regression {:.1}% exceeds threshold {:.1}%",
                 regression * 100.0, self.regression_threshold * 100.0
             ));
         }
-        
+
         if metrics.display_throughput < 4.1e9 { // 4.1 GiB/s in bytes/sec
             return Err(error!(ErrorCode::CBKP001_SYNTAX,
                 "DISPLAY throughput {:.2} GiB/s below enterprise target 4.1 GiB/s",
                 metrics.display_throughput / 1e9
             ));
         }
-        
+
         Ok(())
     }
-    
+
     /// Contract: Validate COMP-3 processing performance  
     /// Guarantees: Maintains >560 MiB/s throughput target
     pub fn validate_comp3_performance(&self, metrics: &PerformanceMetrics) -> Result<()> {
@@ -513,21 +513,21 @@ impl PanicEliminationPerformanceContract {
             self.baseline_metrics.comp3_throughput,
             metrics.comp3_throughput
         );
-        
+
         if regression > self.regression_threshold {
             return Err(error!(ErrorCode::CBKP001_SYNTAX,
                 "COMP-3 performance regression {:.1}% exceeds threshold {:.1}%", 
                 regression * 100.0, self.regression_threshold * 100.0
             ));
         }
-        
+
         if metrics.comp3_throughput < 560e6 { // 560 MiB/s in bytes/sec
             return Err(error!(ErrorCode::CBKP001_SYNTAX,
                 "COMP-3 throughput {:.2} MiB/s below enterprise target 560 MiB/s",
                 metrics.comp3_throughput / 1e6
             ));
         }
-        
+
         Ok(())
     }
 }
@@ -545,40 +545,40 @@ impl PanicEliminationPerformanceContract {
 #[cfg(test)]
 mod panic_elimination_contracts {
     use super::*;
-    
+
     #[test] // AC:33:PARSER:STACK_UNDERFLOW
     fn test_parser_stack_underflow_contract() {
         // Contract: Parser must handle empty stack gracefully
         let mut parser = Parser::new();
         assert!(parser.stack.is_empty());
-        
+
         // Contract: safe_pop must return appropriate error
         let result = panic_safe::safe_pop(&mut parser.stack, "test_operation");
         assert!(result.is_err());
-        
+
         // Contract: Error must use correct error code
         let error = result.unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
         assert!(error.message.contains("Stack underflow"));
         assert!(error.message.contains("test_operation"));
     }
-    
+
     #[test] // AC:33:NUMERIC:FORMAT_SAFETY
     fn test_numeric_formatting_contract() {
         // Contract: Numeric formatting must handle all error conditions
         let mut converter = SafeNumericConverter::new();
-        
+
         // Contract: Valid operations must succeed
         let result = converter.safe_format_decimal("123.45", 2);
         assert!(result.is_ok());
-        
+
         // Contract: Invalid operations must return appropriate errors
         // (Test implementation would simulate formatting failure)
-        
+
         // Contract: Error must use correct error code
         // assert_eq!(error.code, ErrorCode::CBKC201_JSON_WRITE_ERROR);
     }
-    
+
     #[test] // AC:33:LAYOUT:REDEFINES_SAFETY
     fn test_redefines_resolution_contract() {
         // Contract: REDEFINES resolution must handle missing targets
@@ -588,11 +588,11 @@ mod panic_elimination_contracts {
             redefines_of: None, // Missing REDEFINES target
             ..Default::default()
         };
-        
+
         // Contract: Missing REDEFINES must return appropriate error
         let result = resolver.resolve_redefines(&field);
         assert!(result.is_err());
-        
+
         let error = result.unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);
         assert!(error.message.contains("REDEFINES target not specified"));

@@ -57,16 +57,16 @@ You are an expert test engineer and diagnostic specialist with deep knowledge of
    - Total Tests: X passed, Y failed
    - Affected Components: [list of copybook-rs crates]
    - Failure Categories: [Compilation/Runtime/Logic/Integration/Performance]
-   
+
    ## Critical Failures (Must Fix):
    [Tests that block deployment or break core functionality]
-   
+
    ## Component-Specific Issues:
    [Organized by copybook-* crate with specific failure details]
-   
+
    ## Root Cause Analysis:
    [Pattern identification and likely causes]
-   
+
    ## Recommended Actions:
    [Specific next steps with priority order]
    ```

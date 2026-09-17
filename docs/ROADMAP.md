@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Roadmap
 
-**Status**: Engineering Preview (v0.8.0)
+**Status**: Engineering Preview (v0.8.1)
 **Release target**: v1.0.0 after the product-readiness gates below pass; there is no calendar-only release promise.
 **Program tracker**: [#535 — v1 Product Readiness](https://github.com/EffortlessMetrics/copybook-rs/issues/535)
 
@@ -354,11 +354,16 @@ freeze clock before the ledger reconciliation (item 5) is complete.
   shape change, plus the 0.7 status narrative and release-lane devex fixes
   (truth budget, local evidence policy, changelog curation docs).
   Coordinated under #975.
-- **v0.8.0** (this release): "trust and velocity" — release-lane hill-climbs
-  (`just preflight`, pinned 1.98 toolchain, fragment gate, CI-evidenced
-  runbook), #553 graduation dispositions for audit/governance/Arrow/Kafka,
-  codepage/numeric evidence close-out (#571, #573), and the #946
-  commercial-relicensing audit receipt. Strictly non-breaking.
+- **v0.8.0** (shipped 2026-09-16): "trust and velocity" — release-lane
+  hill-climbs (`just preflight`, pinned 1.98 toolchain, fragment gate,
+  CI-evidenced runbook), #553 graduation dispositions for
+  audit/governance/Arrow/Kafka, codepage/numeric evidence close-out (#571,
+  #573), and the #946 commercial-relicensing audit receipt. Strictly
+  non-breaking.
+- **v0.8.1** (this release): correctness patch — six wrong EBCDIC slots
+  corrected against independent references (CP1140 Euro `0xFF`→`0x9F`, CP273
+  `~/ß`, CP1047 `^`/`¬`), with pinned oracle fixtures, a release-smoke
+  installed-binary witness, and byte-output migration notes. No API change.
 
 ## History
 

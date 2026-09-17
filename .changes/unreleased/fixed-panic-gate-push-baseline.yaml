@@ -1,7 +1,0 @@
-kind: fixed
-body: '**lane**: CI Quick `test` job fetches the parent commit on push events so
-  the panic-policy gate resolves its `HEAD~1` baseline instead of failing on
-  depth-1 checkouts; `scripts/ci/test_panic_policy_baseline.py` pins the gate
-  contract (missing baseline fails loudly, clean diff passes, new `panic!`
-  fails with location).'
-time: '2026-09-17T00:10:00Z'

@@ -328,10 +328,35 @@ jobs:
         ref: ${{ env.RELEASE_TAG }}
     - uses: dtolnay/rust-toolchain@stable
     - name: Run blocking stable-core registry smoke
+      env:
+        # Persisted outside the run directory: the runner deletes RUN_DIR on
+        # exit, and the receipt is the durable acceptance record (#988).
+        RECEIPT_OUT: ${{ github.workspace }}/acceptance-receipt-${{ env.RELEASE_TAG }}.json
       run: |
         VERSION="${RELEASE_TAG#v}"
         chmod +x scripts/ci/release_smoke.sh
         scripts/ci/release_smoke.sh "${VERSION}"
+        # Registry acceptance must be registry-only: an operator-supplied
+        # binary or workspace path dependency silently invalidates the claim.
+        python3 - "${RECEIPT_OUT}" <<'PY'
+        import json
+        import sys
+
+        receipt = json.load(open(sys.argv[1], encoding="utf-8"))
+        if receipt.get("execution_kind") != "registry-only" or not receipt.get("completed"):
+            sys.exit(f"registry acceptance invalid: {receipt.get('execution_kind')}, "
+                     f"completed={receipt.get('completed')}")
+        print(f"registry acceptance valid: {len(receipt['probes'])} probes, "
+              f"{len(receipt['comparisons'])} comparisons")
+        PY
+
+    - name: Upload acceptance receipt (transport)
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: acceptance-receipt-${{ env.RELEASE_TAG }}
+        path: ${{ github.workspace }}/acceptance-receipt-${{ env.RELEASE_TAG }}.json
+        retention-days: 90
 
   smoke-test-experimental:
     # Advisory only: Arrow and other experimental adapters are not part of the

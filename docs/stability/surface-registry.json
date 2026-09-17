@@ -717,7 +717,8 @@
       "stability_statement": "Interoperability contracts for governance and support are currently beta; consumed by the CLI support command and the canonical facade.",
       "limitations": [
         "Governance behavior may evolve as feature lifecycle definitions are finalized.",
-        "No strict freeze guarantees until beta criteria are met."
+        "No strict freeze guarantees until beta criteria are met.",
+        "This freeze disclaimer covers governance runtime/policy behavior only, not the stable advise envelope recorded under copybook-support-matrix."
       ],
       "graduation_criteria": [
         "Public versus internal responsibility is explicit and documented.",
@@ -1012,10 +1013,11 @@
       "name": "copybook-support-matrix",
       "publish": true,
       "class": "beta",
-      "stability_statement": "Support feature matrix is foundational but currently beta as process and coverage are still under hardening.",
+      "stability_statement": "Support feature matrix is foundational but currently beta as process and coverage are still under hardening. Exception: the `support --advise` machine envelope (`schemas/advise-result.json`, schema_version `1.0`) is stable since 0.7.1 and sits outside this beta classification.",
       "limitations": [
         "Feature IDs and status semantics may still evolve while beta.",
-        "Evidence mapping is being aligned before v1 lock."
+        "Evidence mapping is being aligned before v1 lock.",
+        "The beta classification authorizes no incompatible change to the stable advise envelope; automation must match schema_version exactly."
       ],
       "graduation_criteria": [
         "Support matrix status model is aligned with API baseline and governance bindings.",

@@ -2461,86 +2461,7 @@ fn render_advise_projection(root: &Path) -> Result<String> {
     let mut rows: Vec<&ScenarioRow> = ledger.scenarios.iter().collect();
     rows.sort_by(|left, right| left.scenario_id.cmp(&right.scenario_id));
     for row in rows {
-        let status = match row.support_status.as_str() {
-            "supported" => "AssessmentStatus::Supported",
-            "partial" => "AssessmentStatus::Limited",
-            "rejected" => "AssessmentStatus::Rejected",
-            "beta" => "AssessmentStatus::Beta",
-            other => bail!(
-                "advise projection: scenario `{}` has unknown support status `{other}`",
-                row.scenario_id
-            ),
-        };
-        let mut layer_items: Vec<String> = Vec::new();
-        for layer in &row.required_evidence_layers {
-            let variant = match layer.as_str() {
-                "parse" => "AffectedLayer::Parse",
-                "layout" => "AffectedLayer::Layout",
-                "decode" => "AffectedLayer::Decode",
-                "encode" => "AffectedLayer::Encode",
-                "round_trip" => "AffectedLayer::RoundTrip",
-                "cli" => "AffectedLayer::Cli",
-                // `negative` has no renderable layer; its proof still rides
-                // in `evidence` below.
-                "negative" => continue,
-                other => bail!(
-                    "advise projection: scenario `{}` has unknown layer `{other}`",
-                    row.scenario_id
-                ),
-            };
-            layer_items.push(variant.to_string());
-        }
-        let mut evidence_items: Vec<String> = Vec::new();
-        for layer in SCENARIO_LEDGER_LAYERS {
-            for anchor in scenario_layer(row, layer) {
-                if let Some(direct) = anchor.direct_refs() {
-                    if direct.chars().count() > ADVISE_PROJECTION_MAX_REF_CHARS {
-                        bail!(
-                            "advise projection: scenario `{}` evidence ref exceeds {ADVISE_PROJECTION_MAX_REF_CHARS} chars",
-                            row.scenario_id
-                        );
-                    }
-                    evidence_items.push(quoted(direct));
-                }
-            }
-        }
-        out.push_str("    LedgerProjection {\n");
-        out.push_str(&format!("        id: {},\n", quoted(&row.scenario_id)));
-        out.push_str(&format!(
-            "        formats: {},\n",
-            fmt_slice(
-                &row.fixed_rdw_vb_applicability
-                    .iter()
-                    .map(|value| quoted(value))
-                    .collect::<Vec<String>>()
-            )
-        ));
-        out.push_str(&format!(
-            "        codepages: {},\n",
-            fmt_slice(
-                &row.codepage_applicability
-                    .iter()
-                    .map(|value| quoted(value))
-                    .collect::<Vec<String>>()
-            )
-        ));
-        out.push_str(&format!("        status: {status},\n"));
-        out.push_str(&format!(
-            "        stability: {},\n",
-            quoted(&row.stability_class)
-        ));
-        out.push_str(&format!("        layers: {},\n", fmt_slice(&layer_items)));
-        out.push_str(&format!(
-            "        evidence: {},\n",
-            fmt_slice(&evidence_items)
-        ));
-        out.push_str(&format!(
-            "        limitations: \"{}\",\n",
-            row.known_limitations_or_remediation
-                .replace('\\', "\\\\")
-                .replace('"', "\\\"")
-        ));
-        out.push_str("    },\n");
+        write_projection_row(&mut out, row)?;
     }
     out.push_str("];\n");
     out.push_str(
@@ -2553,6 +2474,95 @@ fn render_advise_projection(root: &Path) -> Result<String> {
          }\n",
     );
     Ok(out)
+}
+
+/// Render one projection row. `write!` results are discarded: the buffer is
+/// in-memory and infallible, and `let _ =` is clippy's sanctioned pattern
+/// for that case.
+fn write_projection_row(out: &mut String, row: &ScenarioRow) -> Result<()> {
+    use std::fmt::Write as _;
+    let status = projection_status(row)?;
+    let layer_items = projection_layers(row)?;
+    let evidence_items = projection_evidence(row)?;
+    let formats: Vec<String> = row
+        .fixed_rdw_vb_applicability
+        .iter()
+        .map(|value| quoted(value))
+        .collect();
+    let codepages: Vec<String> = row
+        .codepage_applicability
+        .iter()
+        .map(|value| quoted(value))
+        .collect();
+    let _ = writeln!(out, "    LedgerProjection {{");
+    let _ = writeln!(out, "        id: {},", quoted(&row.scenario_id));
+    let _ = writeln!(out, "        formats: {},", fmt_slice(&formats));
+    let _ = writeln!(out, "        codepages: {},", fmt_slice(&codepages));
+    let _ = writeln!(out, "        status: {status},");
+    let _ = writeln!(out, "        stability: {},", quoted(&row.stability_class));
+    let _ = writeln!(out, "        layers: {},", fmt_slice(&layer_items));
+    let _ = writeln!(out, "        evidence: {},", fmt_slice(&evidence_items));
+    let _ = writeln!(
+        out,
+        "        limitations: {},",
+        quoted(&row.known_limitations_or_remediation)
+    );
+    let _ = writeln!(out, "    }},");
+    Ok(())
+}
+
+fn projection_status(row: &ScenarioRow) -> Result<&'static str> {
+    match row.support_status.as_str() {
+        "supported" => Ok("AssessmentStatus::Supported"),
+        "partial" => Ok("AssessmentStatus::Limited"),
+        "rejected" => Ok("AssessmentStatus::Rejected"),
+        "beta" => Ok("AssessmentStatus::Beta"),
+        other => bail!(
+            "advise projection: scenario `{}` has unknown support status `{other}`",
+            row.scenario_id
+        ),
+    }
+}
+
+fn projection_layers(row: &ScenarioRow) -> Result<Vec<String>> {
+    let mut layer_items: Vec<String> = Vec::new();
+    for layer in &row.required_evidence_layers {
+        let variant = match layer.as_str() {
+            "parse" => "AffectedLayer::Parse",
+            "layout" => "AffectedLayer::Layout",
+            "decode" => "AffectedLayer::Decode",
+            "encode" => "AffectedLayer::Encode",
+            "round_trip" => "AffectedLayer::RoundTrip",
+            "cli" => "AffectedLayer::Cli",
+            // `negative` has no renderable layer; its proof still rides
+            // in `evidence`.
+            "negative" => continue,
+            other => bail!(
+                "advise projection: scenario `{}` has unknown layer `{other}`",
+                row.scenario_id
+            ),
+        };
+        layer_items.push(variant.to_string());
+    }
+    Ok(layer_items)
+}
+
+fn projection_evidence(row: &ScenarioRow) -> Result<Vec<String>> {
+    let mut evidence_items: Vec<String> = Vec::new();
+    for layer in SCENARIO_LEDGER_LAYERS {
+        for anchor in scenario_layer(row, layer) {
+            if let Some(direct) = anchor.direct_refs() {
+                if direct.chars().count() > ADVISE_PROJECTION_MAX_REF_CHARS {
+                    bail!(
+                        "advise projection: scenario `{}` evidence ref exceeds {ADVISE_PROJECTION_MAX_REF_CHARS} chars",
+                        row.scenario_id
+                    );
+                }
+                evidence_items.push(quoted(direct));
+            }
+        }
+    }
+    Ok(evidence_items)
 }
 
 fn quoted(value: &str) -> String {

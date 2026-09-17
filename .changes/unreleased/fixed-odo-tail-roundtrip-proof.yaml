@@ -1,0 +1,7 @@
+kind: fixed
+body: '**evidence**: give tail ODO a dedicated record round-trip proof
+  (#983). `test_tail_odo_record_roundtrip_identity` encodes a JSONL
+  record and requires full value identity after decoding the bytes; the
+  `struct.odo.tail_fixed` row now declares `round_trip` as a required
+  layer with that direct anchor instead of `not_applicable`.'
+time: '2026-09-17T13:47:27Z'

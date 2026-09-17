@@ -317,15 +317,17 @@ pub const LEDGER_PROJECTION: &[LedgerProjection] = &[
             AffectedLayer::Layout,
             AffectedLayer::Decode,
             AffectedLayer::Encode,
+            AffectedLayer::RoundTrip,
         ],
         evidence: &[
             "crates/copybook-core/tests/odo_tail_validation.rs::odo_tail_ok_with_children_but_no_sibling_after",
             "crates/copybook-core/tests/golden_fixtures_odo.rs::golden_simple_odo_with_nesting_passes",
             "crates/copybook-codec/tests/odo_comprehensive.rs::test_valid_odo_configuration",
             "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_encode_counter_array_match_accepted",
+            "crates/copybook-codec/tests/odo_comprehensive.rs::test_tail_odo_record_roundtrip_identity",
             "crates/copybook-codec/tests/odo_comprehensive.rs::test_odo_encode_counter_array_mismatch_rejected",
         ],
-        limitations: "Round-trip and CLI layers ride the format plane (see relationships); row-level anchors pending.",
+        limitations: "CLI layer rides the format plane (see relationships); row-level CLI anchors pending. Round-trip is directly evidenced; unseen-payload counter validity is out of scope.",
     },
     LedgerProjection {
         id: "struct.odo.tail_rdw_variable",

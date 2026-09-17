@@ -43,54 +43,116 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - name: Witness effective toolchain
+        run: bash scripts/ci/witness_toolchain.sh nightly
+
       - name: Install valgrind
         run: |
           sudo apt-get update
           sudo apt-get install -y valgrind
 
+      - name: Record tool versions
+        run: |
+          set -euo pipefail
+          rustc -vV | tee rustc.version
+          valgrind --version | tee valgrind.version
+
+      # The valgrind workload must run on a native binary: an
+      # LSAN-instrumented binary under Valgrind produces interceptor noise
+      # that is not product signal. This scoped build is cheap; the full
+      # LSAN workspace build below is unchanged. The copy survives the
+      # `cargo clean` in the LSAN build step.
+      - name: Build native CLI for valgrind workload
+        id: native-build
+        run: |
+          set -euo pipefail
+          cargo build --release -p copybook-cli
+          cp target/release/copybook ./copybook-native
+          ./copybook-native decode --help > /dev/null
+
       - name: Build with leak detection flags
+        id: lsan-build
         env:
           RUSTFLAGS: "-Zsanitizer=leak"
         run: |
+          set -euo pipefail
           cargo clean
           cargo build --workspace --release
 
+      # pipefail is required: without it the pipeline status is tee's, and a
+      # failing test run would be recorded as success. The rc file preserves
+      # the producer status for the analyzer; a nonzero rc is a failed
+      # execution, never a clean claim (#1000).
       - name: Run tests with LSAN
+        id: lsan-test
         env:
           RUSTFLAGS: "-Zsanitizer=leak"
           ASAN_OPTIONS: "detect_leaks=1:halt_on_error=0"
         run: |
+          set -euo pipefail
           cargo test --workspace --exclude copybook-bench --exclude copybook-bdd --release --no-fail-fast -- -Z unstable-options --report-time 2>&1 | tee test_output.log
+          rc="${PIPESTATUS[0]}"
+          printf '%s\n' "${rc}" > lsan_producer.rc
+          exit "${rc}"
 
       - name: Analyze leak reports
+        id: lsan-analysis
         if: always()
         run: |
-          echo "=== Leak Detection Summary ==="
-          if grep -q "SUMMARY: LeakSanitizer" test_output.log 2>/dev/null; then
-            echo "⚠️ Memory leaks detected"
-            grep -A 5 "SUMMARY: LeakSanitizer" test_output.log || true
-            exit 1
-          else
-            echo "✅ No memory leaks detected"
-          fi
+          set -euo pipefail
+          python3 scripts/ci/leak_result.py lsan \
+            --log test_output.log \
+            --rc lsan_producer.rc \
+            --rustc-version "$(cat rustc.version)" \
+            --out lsan_result.json
 
-      - name: Run valgrind on CLI
+      # Record-processing workload (not help smoke): decode the governed
+      # fixed fixture under Valgrind and compare its output byte-for-byte
+      # with the native run, so a clean verdict also proves the instrumented
+      # execution processed records with checked results.
+      #
+      # Error policy (explicit, recorded in the result JSON): only definite
+      # and indirect loss block, enforced by Valgrind itself via
+      # --errors-for-leak-kinds plus --error-exitcode 42. Possible and
+      # reachable allocations are reported, never blocking. No suppressions.
+      # if: always(): LSAN and Valgrind results stay independently
+      # attributable — a failed LSAN producer must not silently cancel the
+      # Valgrind evidence, and vice versa.
+      - name: Run valgrind on record conversion
+        id: valgrind-run
+        if: always()
         run: |
-          cargo build --release -p copybook-cli
-          valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 \
-            ./target/release/copybook decode --help 2>&1 | tee valgrind_output.log || true
+          set -euo pipefail
+          ./copybook-native decode fixtures/copybooks/simple.cpy fixtures/data/simple.bin \
+            --format fixed --codepage cp037 --threads 1 \
+            --output native_decode.jsonl
+          valgrind --leak-check=full --show-leak-kinds=all \
+            --errors-for-leak-kinds=definite,indirect --error-exitcode=42 \
+            --xml=yes --xml-file=valgrind.xml \
+            ./copybook-native decode fixtures/copybooks/simple.cpy fixtures/data/simple.bin \
+            --format fixed --codepage cp037 --threads 1 \
+            --output valgrind_decode.jsonl 2> valgrind_text.log
+          rc="$?"
+          printf '%s\n' "${rc}" > valgrind_producer.rc
+          exit "${rc}"
 
       - name: Analyze valgrind output
+        id: valgrind-analysis
         if: always()
         run: |
-          echo "=== Valgrind Summary ==="
-          if grep -q "LEAK SUMMARY" valgrind_output.log; then
-            echo "⚠️ Memory leaks detected by valgrind"
-            grep "LEAK SUMMARY" valgrind_output.log
-            exit 1
-          else
-            echo "✅ No memory leaks detected by valgrind"
-          fi
+          set -euo pipefail
+          python3 scripts/ci/leak_result.py valgrind \
+            --xml valgrind.xml \
+            --rc valgrind_producer.rc \
+            --error-exitcode 42 \
+            --kinds Leak_Definite,Leak_Indirect \
+            --valgrind-version "$(cat valgrind.version)" \
+            --out valgrind_result.json
+
+      - name: Compare instrumented and native conversion output
+        run: |
+          set -euo pipefail
+          cmp -- native_decode.jsonl valgrind_decode.jsonl
 
       - name: Upload leak detection artifacts
         if: always()
@@ -99,5 +161,14 @@ jobs:
           name: leak-detection-logs-${{ github.sha }}
           path: |
             test_output.log
-            valgrind_output.log
+            lsan_producer.rc
+            lsan_result.json
+            valgrind.xml
+            valgrind_text.log
+            valgrind_producer.rc
+            valgrind_result.json
+            native_decode.jsonl
+            valgrind_decode.jsonl
+            rustc.version
+            valgrind.version
           retention-days: 30

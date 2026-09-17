@@ -1,0 +1,13 @@
+kind: fixed
+body: '**ci**: leak-detection analyzers no longer conflate missing evidence
+  with clean results. Build/test/valgrind producers preserve exit status
+  (no swallowed failures, `pipefail` on logging pipelines); new
+  `scripts/ci/leak_result.py` (with `test_leak_result.py`, wired into
+  `ci-quick.yml`) reports `clean`, `leak-found`, or `unavailable` with
+  distinct exits, so a missing log, failed execution, or malformed XML can
+  never certify a run. Valgrind uses structured XML plus an explicit
+  `--errors-for-leak-kinds=definite,indirect` policy (reachable/possible
+  reported, never blocking) instead of heading grep, and exercises a real
+  fixed-record conversion whose output is byte-compared with the native
+  run instead of `--help` smoke.'
+time: '2026-09-17T08:00:00Z'

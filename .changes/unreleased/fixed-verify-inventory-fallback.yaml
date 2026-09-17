@@ -1,0 +1,8 @@
+kind: fixed
+body: '**devex**: accept content-identical receipts in `docs verify-tests`
+  (#992). The stale-mtime refusal fired on fresh checkouts, where git
+  refreshes mtimes over unchanged content. A stale-mtime receipt is now
+  accepted when its test inventory exactly matches the current runnable
+  set (`cargo nextest list`, ignored tests excluded); genuinely changed
+  inventories are still refused with the rerun/sync report.'
+time: '2026-09-18T07:00:00Z'

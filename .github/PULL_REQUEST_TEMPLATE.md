@@ -50,7 +50,7 @@
 
 - [ ] Tests added/updated (or N/A for docs-only changes)
 - [ ] Documentation updated (AGENTS.md, tool adapters, docs/, or inline comments if needed)
-- [ ] Changie fragment added under `.changes/unreleased/` if the change belongs in public release notes (otherwise N/A)
+- [ ] Changie fragment added under `.changes/unreleased/` if the change belongs in public release notes (test/docs-only changes are exempt by the changelog lane)
 - [ ] `cargo fmt --all` passes
 - [ ] `cargo clippy --workspace -- -D warnings -W clippy::pedantic` passes
 - [ ] `cargo test --workspace` passes (or `cargo nextest run --workspace`)

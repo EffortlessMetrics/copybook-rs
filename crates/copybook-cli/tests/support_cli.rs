@@ -532,10 +532,14 @@ fn support_advise_numeric_fields_are_supported() {
             "never validates unseen record payloads",
         ),
     ] {
+        assert!(
+            scenarios.iter().any(|s| s["scenario_id"] == id),
+            "expected row {id} in {scenarios:?}"
+        );
         let row = scenarios
             .iter()
             .find(|s| s["scenario_id"] == id)
-            .unwrap_or_else(|| panic!("expected row {id}"));
+            .unwrap_or(&serde_json::Value::Null);
         assert_eq!(row["status"], "supported");
         assert!(
             !row["evidence_refs"]

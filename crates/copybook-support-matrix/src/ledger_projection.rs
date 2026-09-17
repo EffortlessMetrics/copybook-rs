@@ -413,11 +413,15 @@ pub const LEDGER_PROJECTION: &[LedgerProjection] = &[
         status: AssessmentStatus::Supported,
         stability: "stable",
         layers: &[
+            AffectedLayer::Parse,
+            AffectedLayer::Layout,
             AffectedLayer::Decode,
             AffectedLayer::Encode,
             AffectedLayer::RoundTrip,
         ],
         evidence: &[
+            "crates/copybook-core/tests/parser_comprehensive.rs::test_redefines_basic",
+            "crates/copybook-core/tests/layout_resolution.rs::test_offset_redefines_same_as_original",
             "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_decode_all_views",
             "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_encode_single_view_allowed",
             "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_round_trip_preservation",

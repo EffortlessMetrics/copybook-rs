@@ -207,9 +207,13 @@ scenario_id = "struct.redefines.scalar"
 feature_identity = "none"
 support_status = "supported"
 stability_class = "stable"
-required_evidence_layers = ["decode", "encode", "round_trip", "negative"]
-parse_evidence = [{ kind = "not_applicable", reason = "core parse coverage exists; row-level anchor pending" }]
-layout_evidence = [{ kind = "not_applicable", reason = "scalar overlay bounds pinned by the short_equal_long row" }]
+required_evidence_layers = ["parse", "layout", "decode", "encode", "round_trip", "negative"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/parser_comprehensive.rs::test_redefines_basic", kind = "direct" },
+]
+layout_evidence = [
+  { ref = "crates/copybook-core/tests/layout_resolution.rs::test_offset_redefines_same_as_original", kind = "direct" },
+]
 decode_evidence = [
   { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_decode_all_views", kind = "direct" },
 ]

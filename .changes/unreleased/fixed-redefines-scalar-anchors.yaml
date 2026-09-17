@@ -1,0 +1,7 @@
+kind: fixed
+body: '**evidence**: anchor scalar REDEFINES parse and layout directly
+  (#983). The `struct.redefines.scalar` row claimed `not_applicable`
+  for parse and layout while supported; both layers now declare direct
+  anchors (`test_redefines_basic`, `test_offset_redefines_same_as_original`)
+  as required evidence, and the compiled projection is re-synced.'
+time: '2026-09-17T14:09:11Z'

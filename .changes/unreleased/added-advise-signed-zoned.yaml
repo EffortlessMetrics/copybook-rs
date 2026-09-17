@@ -1,0 +1,8 @@
+kind: added
+body: '**advise**: assess signed and V-scaled zoned decimals (#980 third
+  family) against a new reconciled scenario row
+  (`struct.field.signed_zoned`) with direct
+  parse/layout/decode/encode/round-trip evidence. Resolution states the
+  overpunch sign convention and the copybook-only limit explicitly;
+  formats without a row stay unknown. No schema change.'
+time: '2026-09-17T12:11:11Z'

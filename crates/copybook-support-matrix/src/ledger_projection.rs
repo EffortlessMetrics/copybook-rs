@@ -153,6 +153,28 @@ pub const LEDGER_PROJECTION: &[LedgerProjection] = &[
         limitations: "No support-matrix feature covers COMP-3 packed fields, so feature_identity is none by rule. Covers signed, scaled, and unsigned packed layout and representation with mainframe sign-nibble conventions. This row never validates unseen record payloads.",
     },
     LedgerProjection {
+        id: "struct.field.signed_zoned",
+        formats: &["fixed", "rdw"],
+        codepages: &["all"],
+        status: AssessmentStatus::Supported,
+        stability: "stable",
+        layers: &[
+            AffectedLayer::Parse,
+            AffectedLayer::Layout,
+            AffectedLayer::Decode,
+            AffectedLayer::Encode,
+            AffectedLayer::RoundTrip,
+        ],
+        evidence: &[
+            "crates/copybook-core/tests/parser_comprehensive.rs::test_pic_numeric_signed_with_decimal",
+            "crates/copybook-core/tests/layout_resolution.rs::test_size_pic_s9_overpunch",
+            "crates/copybook-codec/tests/decode_comprehensive_deep.rs::decode_signed_display_negative_overpunch_ebcdic",
+            "crates/copybook-codec/tests/codec_roundtrip_exhaustive.rs::roundtrip_display_numeric_ebcdic_signed_positive",
+            "crates/copybook-codec/tests/codec_roundtrip_exhaustive.rs::roundtrip_display_numeric_ebcdic_signed_negative",
+        ],
+        limitations: "No support-matrix feature covers signed zoned fields, so feature_identity is none by rule. Overpunch sign encoding per EBCDIC/ASCII zone conventions; covers signed and V-scaled zoned layout and representation. This row never validates unseen record payloads.",
+    },
+    LedgerProjection {
         id: "struct.level88.codec_context",
         formats: &["fixed", "rdw"],
         codepages: &["all"],

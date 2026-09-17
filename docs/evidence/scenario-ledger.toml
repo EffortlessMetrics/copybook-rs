@@ -589,7 +589,7 @@ decode_evidence = [{ kind = "not_applicable", reason = "projection-alias behavio
 encode_evidence = [{ kind = "not_applicable", reason = "projection-alias behavior unindexed; anchor pending" }]
 round_trip_evidence = [{ kind = "not_applicable", reason = "projection-alias behavior unindexed; anchor pending" }]
 negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "projection-alias behavior unindexed; anchor pending" }]
-cli_evidence = [{ kind = "not_applicable", reason = "projection-alias behavior unindexed; anchor pending" }]
+cli_evidence = [{ kind = "not_applicable", reason = "beta placeholder reserves the ID; no behavior exists to evidence at the CLI until selection/reference anchoring lands" }]
 fixed_rdw_vb_applicability = []
 codepage_applicability = []
 worker_applicability = "not_applicable"
@@ -647,7 +647,7 @@ negative_or_rejection_evidence = [
   { ref = "crates/copybook-rdw/tests/bdw_block_tests.rs::vb_rdw_beyond_block_is_rejected", kind = "direct" },
   { ref = "crates/copybook-rdw/tests/bdw_block_tests.rs::bdw_reserved_nonzero_strict_is_rejected", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "block framing is below the CLI surface" }]
+cli_evidence = [{ kind = "not_applicable", reason = "no CLI command addresses BDW blocks; block framing executes inside record iteration and CLI decode starts at records" }]
 fixed_rdw_vb_applicability = ["vb"]
 codepage_applicability = ["all"]
 worker_applicability = "not_applicable"

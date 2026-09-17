@@ -1,0 +1,7 @@
+kind: fixed
+body: '**evidence**: state genuine CLI inapplicability plainly (#983).
+  The block-framing row now records that no CLI command addresses BDW
+  blocks (framing executes inside record iteration) instead of `below
+  the surface`; the beta projection-alias row records that no behavior
+  exists to evidence until its anchoring lands.'
+time: '2026-09-17T16:17:10Z'

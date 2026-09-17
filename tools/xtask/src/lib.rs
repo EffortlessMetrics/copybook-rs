@@ -4,7 +4,7 @@
 //! Exposes testable modules
 
 use anyhow::Result;
-use std::{fs, path::Path, path::PathBuf};
+use std::{fs, path::Path, path::PathBuf, time::SystemTime};
 
 pub mod architecture;
 pub mod perf;
@@ -76,4 +76,99 @@ fn attr(node: roxmltree::Node<'_, '_>, key: &str) -> u64 {
     node.attribute(key)
         .and_then(|s| s.parse().ok())
         .unwrap_or(0)
+}
+
+/// Source roots whose `.rs` files can change the test inventory a receipt
+/// claims to prove (#992).
+const TEST_SOURCE_ROOTS: [&str; 4] = ["crates", "tests", "tools", "examples"];
+
+/// Newest modification time of any `.rs` file under the test source roots.
+///
+/// # Errors
+///
+/// Returns an error when a root cannot be walked or a file time is unreadable.
+#[inline]
+pub fn newest_test_source_mtime() -> Result<SystemTime> {
+    fn visit(dir: &Path, newest: &mut SystemTime) -> Result<()> {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            let file_type = entry.file_type()?;
+            if file_type.is_dir() {
+                if path.file_name().is_some_and(|name| name != "target") {
+                    visit(&path, newest)?;
+                }
+            } else if file_type.is_file() && path.extension().is_some_and(|ext| ext == "rs") {
+                *newest = (*newest).max(fs::metadata(&path)?.modified()?);
+            }
+        }
+        Ok(())
+    }
+
+    let mut newest = SystemTime::UNIX_EPOCH;
+    for root in TEST_SOURCE_ROOTS {
+        let dir = Path::new(root);
+        if dir.is_dir() {
+            visit(dir, &mut newest)?;
+        }
+    }
+    Ok(newest)
+}
+
+/// Describe receipt staleness for `docs sync-tests` output (#992).
+///
+/// Returns a warning naming the rerun command when the receipt predates
+/// the newest test source, and `None` when the receipt is at least as
+/// fresh. This reports; it never refuses a sync.
+#[must_use]
+#[inline]
+pub fn stale_receipt_warning(
+    receipt_mtime: SystemTime,
+    newest_source_mtime: SystemTime,
+    rerun_command: &str,
+) -> Option<String> {
+    if newest_source_mtime > receipt_mtime {
+        Some(format!(
+            "WARNING: junit receipt predates the newest test source; counts may certify unexecuted tests. Rerun: {rerun_command}"
+        ))
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{newest_test_source_mtime, stale_receipt_warning};
+    use std::time::{Duration, SystemTime};
+
+    #[test]
+    fn stale_receipt_warning_fires_only_for_older_receipts() {
+        let receipt = SystemTime::UNIX_EPOCH + Duration::from_secs(100);
+        let older_source = SystemTime::UNIX_EPOCH + Duration::from_secs(50);
+        let newer_source = SystemTime::UNIX_EPOCH + Duration::from_secs(150);
+        assert!(
+            stale_receipt_warning(receipt, older_source, "rerun").is_none(),
+            "fresh receipt must not warn"
+        );
+        assert!(
+            stale_receipt_warning(receipt, receipt, "rerun").is_none(),
+            "same-time receipt must not warn"
+        );
+        let warning = stale_receipt_warning(receipt, newer_source, "rerun-cmd")
+            .expect("stale receipt must warn");
+        assert!(warning.contains("rerun-cmd"), "{warning}");
+    }
+
+    #[test]
+    fn newest_test_source_mtime_sees_workspace_sources() {
+        let newest = newest_test_source_mtime().expect("source walk must succeed in the workspace");
+        assert!(
+            newest > SystemTime::UNIX_EPOCH,
+            "walk must find workspace sources"
+        );
+        assert!(
+            newest <= SystemTime::now() + Duration::from_secs(5),
+            "mtime cannot be in the future"
+        );
+    }
 }

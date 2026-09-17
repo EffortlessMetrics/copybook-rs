@@ -1,0 +1,8 @@
+kind: fixed
+body: '**evidence**: pin the ledger validator state matrix with regression
+  tests (#983). New coverage locks reasonless-N/A rejection, required-layer
+  directness (N/A alone cannot satisfy an obligation), all four
+  relationship-identity branches (missing namespace, unknown namespace,
+  unknown plane targets including self-links), and byte-stable cycle
+  diagnostics. No validator behavior changed; the matrix passes by design.'
+time: '2026-09-18T00:00:00Z'

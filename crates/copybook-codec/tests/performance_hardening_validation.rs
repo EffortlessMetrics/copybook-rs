@@ -215,15 +215,20 @@ fn test_performance_regression_detection() -> Result<(), Box<dyn std::error::Err
         variance_ratio
     );
 
-    // Validate performance consistency (regression detection).
-    // Shared CI runners and debug-build environments can exhibit bursty
-    // scheduling/CPU contention, so this bound is intentionally tolerant
-    // while still catching major regressions.
-    assert!(
-        variance_ratio < 5.0,
-        "Performance variance should be low for regression detection: {:.2}x",
-        variance_ratio
-    );
+    // Validate performance consistency (regression detection) only when
+    // timing floors are requested. Shared CI runners and debug-build
+    // environments exhibit bursty scheduling/CPU contention (see #1061),
+    // and timing gating belongs to the canonical bench gate
+    // (`bench-report gate`, docs/PERFORMANCE_GOVERNANCE.md). The variance
+    // is always printed above; it is enforced only with
+    // `COPYBOOK_TEST_PERF_ASSERT=1`.
+    if perf_assert_enabled() {
+        assert!(
+            variance_ratio < 5.0,
+            "Performance variance should be low for regression detection: {:.2}x",
+            variance_ratio
+        );
+    }
 
     let throughput_records_s = num_records as f64 / avg_duration.as_secs_f64();
     if perf_assert_enabled() {

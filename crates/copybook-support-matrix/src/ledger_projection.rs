@@ -478,8 +478,9 @@ pub const LEDGER_PROJECTION: &[LedgerProjection] = &[
         layers: &[AffectedLayer::Parse],
         evidence: &[
             "crates/copybook-core/tests/renames_r4_r6_feature_enabled_tests.rs::test_r4_single_redefines_renames_accepted_with_feature_flag",
+            "crates/copybook-core/tests/renames_r4_r6_bdd_tests.rs::test_r4_renames_over_redefines_rejected_when_flag_disabled",
         ],
-        limitations: "R4 accepted only under the RenamesR4R6 flag; the unflagged path rejects with CBKS609 and needs its own negative anchor.",
+        limitations: "R4 accepted only under the RenamesR4R6 flag; the unflagged path rejects with CBKS609 per the cited negative anchor.",
     },
     LedgerProjection {
         id: "struct.renames.r1_r3",

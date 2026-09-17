@@ -1,0 +1,9 @@
+kind: fixed
+body: '**evidence**: prove ledger anchors against the claimed commit (#981).
+  Direct anchors were checked against the working tree only, so a test
+  added after the claimed SHA passed. The verifier now also resolves each
+  anchor file and symbol inside the claimed commit tree (existence only,
+  never ancestry), with an explicit skip when shallow history is absent.
+  One live row (`struct.odo.tail_fixed`, whose round-trip anchor postdates
+  its SHA) was re-verified anchor-by-anchor against main.'
+time: '2026-09-17T20:00:00Z'

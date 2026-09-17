@@ -1,0 +1,8 @@
+kind: fixed
+body: '**governance**: distinguish dependency presence from runtime policy
+  execution (#985). The CLI links `copybook-governance` as a normal
+  dependency, but governance policy evaluates only under the explicit
+  opt-in `--with-governance` flag; the documented stable advise path
+  never receives governance state, pinned by a byte-identical-output
+  regression test. No behavior change.'
+time: '2026-09-17T12:56:42Z'

@@ -154,25 +154,25 @@ bench-enterprise-slo:
 bench-compare baseline enterprise:
     #!/usr/bin/env bash
     set -euo pipefail
-    
+
     BASELINE="{{baseline}}"
     ENTERPRISE="{{enterprise}}"
-    
+
     if [[ ! -f "$BASELINE" ]]; then
         echo "❌ Baseline file not found: $BASELINE"
         exit 1
     fi
-    
+
     if [[ ! -f "$ENTERPRISE" ]]; then
         echo "❌ Enterprise file not found: $ENTERPRISE"
         exit 1
     fi
-    
+
     echo "Comparing performance receipts:"
     echo "  Baseline:   $BASELINE"
     echo "  Enterprise:  $ENTERPRISE"
     echo ""
-    
+
     # Extract throughput values
     BASE_THROUGHPUT=$(jq -r '
         [
@@ -180,26 +180,26 @@ bench-compare baseline enterprise:
           .benchmarks[]? | select(.name | contains("slo")) | .mean_mibps
         ] | max // 0
     ' "$BASELINE")
-    
+
     ENT_THROUGHPUT=$(jq -r '
         [
           .benchmarks[]? | select(.name | contains("combined")) | .mean_mibps,
           .benchmarks[]? | select(.name | contains("slo")) | .mean_mibps
         ] | max // 0
     ' "$ENTERPRISE")
-    
+
     # Calculate overhead
     if [[ "$BASE_THROUGHPUT" != "0" && "$BASE_THROUGHPUT" != "null" ]]; then
         OVERHEAD=$(awk "BEGIN {printf \"%.2f\", (($BASE_THROUGHPUT - $ENT_THROUGHPUT) / $BASE_THROUGHPUT) * 100}")
     else
         OVERHEAD="N/A"
     fi
-    
+
     echo "Baseline Throughput:   ${BASE_THROUGHPUT} MiB/s"
     echo "Enterprise Throughput: ${ENT_THROUGHPUT} MiB/s"
     echo "Enterprise Overhead:   ${OVERHEAD}%"
     echo ""
-    
+
     # Check against targets
     if [[ "$OVERHEAD" != "N/A" ]]; then
         OVERHEAD_NUM=$(echo "$OVERHEAD" | awk '{print $1}')
@@ -219,48 +219,48 @@ bench-compare baseline enterprise:
 perf-compare baseline pr:
     #!/usr/bin/env bash
     set -euo pipefail
-    
+
     BASELINE="{{baseline}}"
     PR="{{pr}}"
-    
+
     if [[ ! -f "$BASELINE" ]]; then
         echo "❌ Baseline file not found: $BASELINE"
         exit 1
     fi
-    
+
     if [[ ! -f "$PR" ]]; then
         echo "❌ PR file not found: $PR"
         exit 1
     fi
-    
+
     echo "Comparing performance receipts:"
     echo "  Baseline: $BASELINE"
     echo "  PR:       $PR"
     echo ""
-    
+
     # Extract values
     BASE_DISPLAY=$(jq -r '.summary.display_mibps // 0' "$BASELINE")
     BASE_COMP3=$(jq -r '.summary.comp3_mibps // 0' "$BASELINE")
     CURR_DISPLAY=$(jq -r '.summary.display_mibps // 0' "$PR")
     CURR_COMP3=$(jq -r '.summary.comp3_mibps // 0' "$PR")
-    
+
     # Calculate deltas
     if [[ "$BASE_DISPLAY" != "0" && "$BASE_DISPLAY" != "null" ]]; then
         DISPLAY_DELTA=$(awk "BEGIN {printf \"%.2f\", (($CURR_DISPLAY - $BASE_DISPLAY) / $BASE_DISPLAY) * 100}")
     else
         DISPLAY_DELTA="N/A"
     fi
-    
+
     if [[ "$BASE_COMP3" != "0" && "$BASE_COMP3" != "null" ]]; then
         COMP3_DELTA=$(awk "BEGIN {printf \"%.2f\", (($CURR_COMP3 - $BASE_COMP3) / $BASE_COMP3) * 100}")
     else
         COMP3_DELTA="N/A"
     fi
-    
+
     # Determine status (advisory mode: warn on >5% regression)
     STATUS="✅ Pass"
     WARNINGS=""
-    
+
     # Check for regressions (negative delta means regression)
     if command -v bc >/dev/null 2>&1; then
         if [[ "$DISPLAY_DELTA" != "N/A" ]]; then
@@ -270,7 +270,7 @@ perf-compare baseline pr:
                 WARNINGS="$WARNINGS\n  - DISPLAY: ${DISPLAY_DELTA}% regression (warn threshold: -5%)"
             fi
         fi
-        
+
         if [[ "$COMP3_DELTA" != "N/A" ]]; then
             DELTA_NUM=$(echo "$COMP3_DELTA" | awk '{print $1}')
             if (( $(echo "$DELTA_NUM < -5" | bc -l) )); then
@@ -279,7 +279,7 @@ perf-compare baseline pr:
             fi
         fi
     fi
-    
+
     # Output comparison table
     echo "| Metric | Baseline | PR | Delta |"
     echo "|--------|----------|-----|-------|"
@@ -287,7 +287,7 @@ perf-compare baseline pr:
     echo "| COMP-3 | ${BASE_COMP3} MiB/s | ${CURR_COMP3} MiB/s | ${COMP3_DELTA}% |"
     echo ""
     echo "Status: $STATUS"
-    
+
     if [[ -n "$WARNINGS" ]]; then
         echo ""
         echo "Warnings:"

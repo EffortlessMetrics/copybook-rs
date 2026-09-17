@@ -1134,7 +1134,7 @@ let opts = Arc::new(opts);
 let handles: Vec<_> = (0..num_threads).map(|i| {
     let schema = Arc::clone(&schema);
     let opts = Arc::clone(&opts);
-    
+
     thread::spawn(move || {
         // Use decode_record_with_scratch for per-thread decode with reused buffers
         let mut scratch = copybook_codec::runtime::ScratchBuffers::new();
@@ -1183,13 +1183,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = File::open("data.bin").await?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer).await?;
-    
+
     // Process with copybook-rs
     let json_value = decode_record(&schema, &buffer, &opts)?;
-    
+
     let mut output = File::create("output.jsonl").await?;
     output.write_all(serde_json::to_string(&json_value)?.as_bytes()).await?;
-    
+
     Ok(())
 }
 ```
@@ -1206,7 +1206,7 @@ fn streaming_decode(
 ) -> (Sender<Vec<u8>>, Receiver<serde_json::Value>) {
     let (input_tx, input_rx) = bounded(100);
     let (output_tx, output_rx) = bounded(100);
-    
+
     thread::spawn(move || {
         use copybook_codec::decode_record;
 
@@ -1217,7 +1217,7 @@ fn streaming_decode(
             }
         }
     });
-    
+
     (input_tx, output_rx)
 }
 ```
@@ -1269,7 +1269,7 @@ if !batch.is_empty() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_simple_decode() {
         let copybook = r#"
@@ -1277,7 +1277,7 @@ mod tests {
            05 ID    PIC 9(4).
            05 NAME  PIC X(10).
         "#;
-        
+
         let schema = parse_copybook(copybook).unwrap();
         let opts = DecodeOptions::default().with_emit_meta(true);
 
@@ -1308,10 +1308,10 @@ proptest! {
             "NAME": name,
             "BALANCE": format!("{:08}", balance)
         });
-        
+
         let binary = encode_record(&schema, &json, &encode_opts)?;
         let decoded = decode_record(&schema, &binary, &decode_opts)?;
-        
+
         prop_assert_eq!(json, decoded);
     }
 }

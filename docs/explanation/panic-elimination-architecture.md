@@ -230,7 +230,7 @@ impl SafeParser {
             .ok_or_else(|| error!(ErrorCode::CBKP001_SYNTAX, 
                 "Parser stack underflow during {}", context))
     }
-    
+
     /// Panic-safe token access with bounds checking
     fn safe_get_token(&self, index: usize) -> Result<&Token> {
         self.tokens.get(index)
@@ -270,7 +270,7 @@ impl SafeNumericConverter {
                 "Numeric formatting failed for value: {}", value))?;
         Ok(self.format_buffer.clone())
     }
-    
+
     /// Panic-safe nibble extraction with bounds checking
     pub fn safe_extract_nibble(&self, data: &[u8], index: usize) -> Result<u8> {
         let byte = data.get(index)
@@ -309,7 +309,7 @@ impl SafeLayoutResolver {
                 "REDEFINES target not specified for field {}", field.name))
             .and_then(|target_name| self.find_field_by_name(target_name))
     }
-    
+
     /// Panic-safe ODO tail validation
     pub fn validate_odo_tail(&self, schema: &Schema) -> Result<&Field> {
         schema.tail_odo.as_ref()
@@ -338,12 +338,12 @@ impl Error {
     pub fn parser_state_error(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::CBKP001_SYNTAX, message)
     }
-    
+
     /// Panic-safe constructor for numeric processing errors  
     pub fn numeric_format_error(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, message)
     }
-    
+
     /// Panic-safe constructor for data validation errors
     pub fn data_validation_error(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, message)
@@ -358,7 +358,7 @@ pub mod panic_safe_utils {
             Error::parser_state_error(format!("Stack underflow in {}", context))
         )
     }
-    
+
     /// Safe slice indexing with bounds checking
     pub fn safe_index<T>(slice: &[T], index: usize, context: &str) -> Result<&T> {
         slice.get(index).ok_or_else(|| 
@@ -480,7 +480,7 @@ impl Error {
             panic_elimination_verified: true, // New field for safety tracking
         }
     }
-    
+
     /// Determine error severity for enterprise alerting
     fn determine_severity(&self) -> Severity {
         match self.code {
@@ -518,26 +518,26 @@ impl PanicEliminationValidator {
             self.baseline_metrics.display_throughput,
             new_metrics.display_throughput
         );
-        
+
         let comp3_regression = self.calculate_regression(
             self.baseline_metrics.comp3_throughput, 
             new_metrics.comp3_throughput
         );
-        
+
         if display_regression > self.regression_threshold {
             return Err(error!(ErrorCode::CBKP001_SYNTAX,
                 "DISPLAY performance regression {:.1}% exceeds threshold {:.1}%",
                 display_regression * 100.0, self.regression_threshold * 100.0
             ));
         }
-        
+
         if comp3_regression > self.regression_threshold {
             return Err(error!(ErrorCode::CBKP001_SYNTAX,
                 "COMP-3 performance regression {:.1}% exceeds threshold {:.1}%", 
                 comp3_regression * 100.0, self.regression_threshold * 100.0
             ));
         }
-        
+
         Ok(())
     }
 }
@@ -557,25 +557,25 @@ pub struct SafeBuffer {
 
 impl SafeBuffer {
     const MAX_BUFFER_SIZE: usize = 64 * 1024 * 1024; // 64 MiB limit
-    
+
     /// Panic-safe allocation with bounds checking
     pub fn allocate_safe(size: usize) -> Result<Self> {
         if size > Self::MAX_BUFFER_SIZE {
             return Err(error!(ErrorCode::CBKD301_RECORD_TOO_SHORT,
                 "Buffer size {} exceeds maximum {}", size, Self::MAX_BUFFER_SIZE));
         }
-        
+
         let mut data = Vec::new();
         data.try_reserve(size)
             .map_err(|_| error!(ErrorCode::CBKD301_RECORD_TOO_SHORT,
                 "Failed to allocate buffer of size {}", size))?;
-        
+
         Ok(Self {
             data,
             capacity_limit: size,
         })
     }
-    
+
     /// Panic-safe write with bounds checking
     pub fn safe_write(&mut self, offset: usize, data: &[u8]) -> Result<()> {
         if offset + data.len() > self.capacity_limit {
@@ -583,7 +583,7 @@ impl SafeBuffer {
                 "Write beyond buffer bounds: {} + {} > {}",
                 offset, data.len(), self.capacity_limit));
         }
-        
+
         // Safe operation without bounds checking since we validated above
         self.data[offset..offset + data.len()].copy_from_slice(data);
         Ok(())

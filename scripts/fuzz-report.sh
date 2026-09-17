@@ -70,20 +70,20 @@ for target_dir in "${ARTIFACTS_DIR}"/*/; do
     if [ -d "${target_dir}" ]; then
         target=$(basename "${target_dir}")
         corpus_dir="fuzz/corpus/${target}"
-        
+
         # Count crashes
         crash_files=$(find "${target_dir}" -name "crash-*" 2>/dev/null | wc -l)
-        
+
         # Count corpus size
         corpus_size=$(find "${corpus_dir}" -type f 2>/dev/null | wc -l)
-        
+
         # Determine status
         if [ "${crash_files}" -gt 0 ]; then
             status="❌ FAILED"
         else
             status="✅ PASSED"
         fi
-        
+
         echo "| ${target} | ${status} | ${crash_files} | ${corpus_size} |" >> "${REPORT_FILE}"
     fi
 done
@@ -96,25 +96,25 @@ if [ "${CRASH_COUNT}" -gt 0 ]; then
 ## Crash Details
 
 EOF
-    
+
     for target_dir in "${ARTIFACTS_DIR}"/*/; do
         if [ -d "${target_dir}" ]; then
             target=$(basename "${target_dir}")
             crash_files=$(find "${target_dir}" -name "crash-*" 2>/dev/null)
-            
+
             if [ -n "${crash_files}" ]; then
                 echo "### ${target}" >> "${REPORT_FILE}"
                 echo "" >> "${REPORT_FILE}"
-                
+
                 for crash_file in ${crash_files}; do
                     crash_name=$(basename "${crash_file}")
                     crash_size=$(stat -f%z "${crash_file}" 2>/dev/null || stat -c%s "${crash_file}" 2>/dev/null || echo "unknown")
-                    
+
                     echo "#### ${crash_name}" >> "${REPORT_FILE}"
                     echo "- Size: ${crash_size} bytes" >> "${REPORT_FILE}"
                     echo "- Path: \`${crash_file}\`" >> "${REPORT_FILE}"
                     echo "" >> "${REPORT_FILE}"
-                    
+
                     # Try to get a preview of the crash input
                     if [ -f "${crash_file}" ]; then
                         echo "**Input Preview:**" >> "${REPORT_FILE}"
@@ -140,7 +140,7 @@ for corpus_dir in fuzz/corpus/*/; do
         target=$(basename "${corpus_dir}")
         file_count=$(find "${corpus_dir}" -type f | wc -l)
         total_size=$(du -sh "${corpus_dir}" 2>/dev/null | cut -f1 || echo "unknown")
-        
+
         echo "### ${target}" >> "${REPORT_FILE}"
         echo "- Files: ${file_count}" >> "${REPORT_FILE}"
         echo "- Total Size: ${total_size}" >> "${REPORT_FILE}"

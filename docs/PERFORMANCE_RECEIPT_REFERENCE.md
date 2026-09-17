@@ -104,7 +104,7 @@ jq -n '
     if baseline == 0 then return "0";
     ((current - baseline) / baseline * 100
   ;
-  
+
   . as $baseline | .[0] as $current | regress_percent(.; .[0])
 ' baseline.json current.json
 ```
@@ -182,7 +182,7 @@ jq -n '
     if current < baseline then ((baseline - current) / baseline * 100);
     else "0";
   ;
-  
+
   . as $baseline | .[0] as $current | regress_percent(.; .[0])
 ' baseline.json current.json
 ```

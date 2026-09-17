@@ -81,13 +81,13 @@ for doc_file in "$DOCS_DIR"/*.md; do
   if [[ ! -f "$doc_file" ]]; then
     continue
   fi
-  
+
   echo -n "🔍 Checking: $(basename "$doc_file")"
-  
+
   # Check for performance numbers
   if contains_performance_numbers "$doc_file"; then
     echo -e "  ${RED}❌ Contains performance numbers${NC}"
-    
+
     # Check if references canonical receipts
     if ! references_canonical_receipts "$doc_file"; then
       echo -e "  ${RED}❌ Does not reference canonical receipts${NC}"
@@ -95,13 +95,13 @@ for doc_file in "$DOCS_DIR"/*.md; do
     else
       echo -e "  ${GREEN}✅ References canonical receipts${NC}"
     fi
-    
+
     # Check for unlabeled historical claims
     if has_unlabeled_historical_claims "$doc_file"; then
       echo -e "  ${YELLOW}⚠️  Contains unlabeled historical claims${NC}"
       ISSUES_FOUND=$((ISSUES_FOUND + 1))
     fi
-    
+
     # Check for receipt format version usage
     if ! uses_receipt_format_version "$doc_file"; then
       echo -e "  ${YELLOW}⚠️  Does not use receipt format version${NC}"

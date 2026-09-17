@@ -58,17 +58,17 @@ impl Error {
     pub fn parser_state_error(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::CBKP001_SYNTAX, message)
     }
-    
+
     /// Panic-safe constructor for numeric processing errors
     pub fn numeric_format_error(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, message)
     }
-    
+
     /// Panic-safe constructor for data validation errors
     pub fn data_validation_error(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, message)
     }
-    
+
     /// Panic-safe constructor for buffer operations
     pub fn buffer_error(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, message)
@@ -84,14 +84,14 @@ impl Error {
 pub mod panic_safe {
     use crate::error::{Error, ErrorCode, Result};
     use crate::error;
-    
+
     /// Safe vector pop with context information
     pub fn safe_pop<T>(vec: &mut Vec<T>, context: &str) -> Result<T> {
         vec.pop().ok_or_else(|| 
             error!(ErrorCode::CBKP001_SYNTAX, "Stack underflow in {}", context)
         )
     }
-    
+
     /// Safe slice indexing with bounds checking
     pub fn safe_index<T>(slice: &[T], index: usize, context: &str) -> Result<&T> {
         slice.get(index).ok_or_else(|| 
@@ -99,7 +99,7 @@ pub mod panic_safe {
                 "Index {} out of bounds (len: {}) in {}", index, slice.len(), context)
         )
     }
-    
+
     /// Safe mutable slice indexing
     pub fn safe_index_mut<T>(slice: &mut [T], index: usize, context: &str) -> Result<&mut T> {
         let len = slice.len();
@@ -108,7 +108,7 @@ pub mod panic_safe {
                 "Mutable index {} out of bounds (len: {}) in {}", index, len, context)
         )
     }
-    
+
     /// Safe string formatting with error handling
     pub fn safe_format_string(args: std::fmt::Arguments) -> Result<String> {
         use std::fmt::Write;
@@ -203,21 +203,21 @@ impl Parser {
     /// Parse field sequence with comprehensive safety
     fn parse_field_sequence(&mut self) -> Result<Vec<Field>> {
         let mut fields = Vec::new();
-        
+
         while !self.stack.is_empty() {
             // Safe stack operation with context
             let mut completed_field = panic_safe::safe_pop(&mut self.stack, "field_sequence")?;
-            
+
             // Safe token access with bounds checking
             let current_token = panic_safe::safe_index(&self.tokens, self.position, "current_token")?;
-            
+
             // Continue processing...
             fields.push(completed_field.build()?);
         }
-        
+
         Ok(fields)
     }
-    
+
     /// Safe token lookahead with bounds validation
     fn peek_token(&self, offset: usize) -> Result<Option<&Token>> {
         let target_index = self.position + offset;
@@ -265,34 +265,34 @@ impl SafeNumericConverter {
             nibbles.push((byte >> 4) & 0x0F);
             nibbles.push(byte & 0x0F);
         }
-        
+
         // Safe decimal value calculation
         let decimal_value = self.calculate_decimal_value(&nibbles, scale)
             .ok_or_else(|| error!(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                 "Decimal calculation overflow for precision {} scale {}", precision, scale))?;
-        
+
         // Safe string formatting
         self.format_buffer.clear();
         use std::fmt::Write;
         write!(&mut self.format_buffer, "{}", decimal_value)
             .map_err(|_| error!(ErrorCode::CBKC201_JSON_WRITE_ERROR,
                 "Failed to format decimal value"))?;
-        
+
         Ok(self.format_buffer.clone())
     }
-    
+
     /// Safe scale calculation with overflow detection
     fn calculate_decimal_value(&self, nibbles: &[u8], scale: u8) -> Option<i64> {
         let mut value: i64 = 0;
         let scale_factor = 10_i64.checked_pow(scale as u32)?;
-        
+
         for &nibble in nibbles {
             if nibble > 9 {
                 return None; // Invalid nibble
             }
             value = value.checked_mul(10)?.checked_add(nibble as i64)?;
         }
-        
+
         Some(value)
     }
 }
@@ -380,7 +380,7 @@ let test_data = data_builder.build().unwrap();
 let generator = generators.get(field_type)
     .ok_or_else(|| error!(ErrorCode::CBKP011_UNSUPPORTED_CLAUSE,
         "No generator available for field type: {:?}", field_type))?;
-        
+
 let test_data = data_builder.build()
     .map_err(|e| error!(ErrorCode::CBKD301_RECORD_TOO_SHORT,
         "Test data generation failed: {}", e))?;
@@ -398,7 +398,7 @@ let metric_value = metrics.get("throughput").unwrap();
 let baseline = baselines.get(test_name)
     .ok_or_else(|| error!(ErrorCode::CBKP001_SYNTAX,
         "No baseline found for test: {}", test_name))?;
-        
+
 let metric_value = metrics.get("throughput")
     .ok_or_else(|| error!(ErrorCode::CBKP001_SYNTAX,
         "Missing throughput metric in benchmark results"))?;
@@ -443,36 +443,36 @@ cargo test --workspace integration_examples
 #[cfg(test)]
 mod panic_elimination_tests {
     use super::*;
-    
+
     #[test] // AC:33:PARSER:STACK
     fn test_parser_stack_underflow_safety() {
         let mut parser = Parser::new();
         // Ensure empty stack
         assert!(parser.stack.is_empty());
-        
+
         // Attempt to pop from empty stack should return error
         let result = parser.safe_pop_stack("test_context");
         assert!(result.is_err());
-        
+
         // Verify specific error code
         let error = result.unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
         assert!(error.message.contains("Stack underflow"));
         assert!(error.message.contains("test_context"));
     }
-    
+
     #[test] // AC:33:PARSER:TOKEN
     fn test_token_bounds_checking_safety() {
         let parser = Parser::with_tokens(vec![Token::Level, Token::Name]);
-        
+
         // Valid access should succeed
         assert!(parser.safe_get_token(0).is_ok());
         assert!(parser.safe_get_token(1).is_ok());
-        
+
         // Out of bounds access should return error
         let result = parser.safe_get_token(2);
         assert!(result.is_err());
-        
+
         let error = result.unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
         assert!(error.message.contains("out of bounds"));
@@ -486,17 +486,17 @@ mod panic_elimination_tests {
 #[test] // AC:33:NUMERIC:FORMAT
 fn test_numeric_formatting_safety() {
     let mut converter = SafeNumericConverter::new();
-    
+
     // Test normal formatting
     let result = converter.safe_format_decimal("123.45", 2);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "123.45");
-    
+
     // Test error condition - this would have been .unwrap() panic
     // Simulate formatting failure scenario
     let result = converter.safe_format_decimal(&"\u{FFFF}".repeat(1000), 2);
     assert!(result.is_err());
-    
+
     let error = result.unwrap_err();
     assert_eq!(error.code, ErrorCode::CBKC201_JSON_WRITE_ERROR);
 }
@@ -511,22 +511,22 @@ fn test_numeric_formatting_safety() {
 fn test_panic_elimination_performance_impact() {
     let baseline_metrics = establish_performance_baseline();
     let current_metrics = measure_current_performance();
-    
+
     // Validate <5% degradation requirement
     let display_regression = calculate_regression(
         baseline_metrics.display_throughput,
         current_metrics.display_throughput
     );
-    
+
     let comp3_regression = calculate_regression(
         baseline_metrics.comp3_throughput,
         current_metrics.comp3_throughput
     );
-    
+
     assert!(display_regression < 0.05, 
         "DISPLAY performance regression {:.1}% exceeds 5% threshold", 
         display_regression * 100.0);
-        
+
     assert!(comp3_regression < 0.05,
         "COMP-3 performance regression {:.1}% exceeds 5% threshold",
         comp3_regression * 100.0);
@@ -589,12 +589,12 @@ fn enterprise_data_processing(copybook: &str, data: &[u8]) -> Result<serde_json:
             details: Some("Enterprise COBOL copybook parsing".to_string()),
             ..Default::default()
         }))?;
-    
+
     // Decode with panic-safe operations
     let options = DecodeOptions::new()
         .with_emit_meta(true)
         .with_json_number_mode(JsonNumberMode::Lossless);
-    
+
     decode_record(&schema, data, &options)
         .map_err(|e| match e.code {
             ErrorCode::CBKD301_RECORD_TOO_SHORT => {

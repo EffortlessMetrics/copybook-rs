@@ -502,6 +502,59 @@ fn support_advise_ordinary_two_field_copybook_is_supported() {
 }
 
 #[test]
+fn support_advise_numeric_fields_are_supported() {
+    // #980 second family: COMP binary and COMP-3 packed fields in one
+    // copybook resolve to their ledger rows with evidence and explicit
+    // copybook-only limits.
+    const NUMERIC_COPYBOOK: &str = "       01 REC.\n           05 COUNT PIC 9(4) COMP.\n           05 AMT PIC S9(7)V99 COMP-3.\n";
+    let copybook = write_advise_copybook(NUMERIC_COPYBOOK);
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args([
+            "support",
+            "--advise",
+            &copybook.path().to_string_lossy(),
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("failed to execute command");
+
+    assert!(output.status.success());
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .expect("support --advise --format json should emit valid JSON");
+    assert_eq!(value["verdict"], "supported");
+    let scenarios = value["scenarios"].as_array().cloned().unwrap_or_default();
+    assert_eq!(scenarios.len(), 2);
+    for (id, marker) in [
+        ("struct.field.binary_int", "Big-endian byte order"),
+        (
+            "struct.field.packed_decimal",
+            "never validates unseen record payloads",
+        ),
+    ] {
+        let row = scenarios
+            .iter()
+            .find(|s| s["scenario_id"] == id)
+            .unwrap_or_else(|| panic!("expected row {id}"));
+        assert_eq!(row["status"], "supported");
+        assert!(
+            !row["evidence_refs"]
+                .as_array()
+                .unwrap_or(&vec![])
+                .is_empty(),
+            "row {id} must carry evidence"
+        );
+        assert!(
+            row["limitation_or_remediation"]
+                .as_str()
+                .unwrap_or_default()
+                .contains(marker),
+            "row {id} must state its limit, got: {row}"
+        );
+    }
+}
+
+#[test]
 fn support_advise_corpus_nontail_odo_reports_invalid_input() {
     // The governed corpus fixture must stay in agreement with the inline
     // rejection contract: non-tail ODO never parses (CBKP021).

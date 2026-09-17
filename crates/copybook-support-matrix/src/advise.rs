@@ -430,6 +430,12 @@ pub enum ConstructKind {
     /// Signed, scaled, and `SIGN SEPARATE` zoned fields keep their existing
     /// mappings; the ledger row covers unsigned display only.
     DisplayNumeric,
+    /// Binary integer (`COMP`, #980 second family). Big-endian per
+    /// mainframe convention; see the ledger row for the covered widths.
+    BinaryInt,
+    /// Packed decimal (`COMP-3`, #980 second family), signed, scaled, and
+    /// unsigned with mainframe sign-nibble conventions.
+    PackedDecimal,
     /// Construct with no analysis mapping; never rendered as certainty.
     Unmapped,
 }
@@ -678,6 +684,18 @@ fn resolve_assessment(kind: &ConstructKind, options: &EffectiveOptions) -> Resol
             "unsigned display numerics",
             options,
         ),
+        ConstructKind::BinaryInt => row_for_format(
+            "struct.field.binary_int",
+            "matrix:binary-int",
+            "COMP binary integers",
+            options,
+        ),
+        ConstructKind::PackedDecimal => row_for_format(
+            "struct.field.packed_decimal",
+            "matrix:packed-decimal",
+            "COMP-3 packed decimals",
+            options,
+        ),
         ConstructKind::Renames
         | ConstructKind::Redefines
         | ConstructKind::Level88
@@ -798,6 +816,8 @@ fn construct_plan(
         | ConstructKind::NestedOdo
         | ConstructKind::Alphanumeric
         | ConstructKind::DisplayNumeric
+        | ConstructKind::BinaryInt
+        | ConstructKind::PackedDecimal
         | ConstructKind::Unmapped => ("unmapped", "none", None, None, ""),
         ConstructKind::Renames => (
             "struct.renames.r1_r3",
@@ -1288,6 +1308,8 @@ mod tests {
             "struct.odo.nested",
             "struct.field.alphanumeric",
             "struct.field.display_numeric",
+            "struct.field.binary_int",
+            "struct.field.packed_decimal",
         ] {
             assert!(
                 crate::ledger_projection::projection_for(id).is_some(),
@@ -1336,6 +1358,69 @@ mod tests {
                 .evidence_refs
                 .contains(&"crates/copybook-codec/tests/codec_roundtrip_exhaustive.rs::roundtrip_ascii_zoned_unsigned".to_string())
         );
+    }
+
+    #[test]
+    fn encoding_advise_numeric_fields_resolve_with_evidence() {
+        // #980 second family: COMP binary and COMP-3 packed resolve to
+        // applicable rows with real layers and evidence.
+        let binary = single_scenario("fixed", ConstructKind::BinaryInt);
+        assert_eq!(binary.scenario_id, "struct.field.binary_int");
+        assert_eq!(binary.status, AssessmentStatus::Supported);
+        assert_eq!(
+            binary.affected_layers,
+            vec![
+                AffectedLayer::Parse,
+                AffectedLayer::Layout,
+                AffectedLayer::Decode,
+                AffectedLayer::Encode,
+                AffectedLayer::RoundTrip,
+            ]
+        );
+        assert!(
+            binary.evidence_refs.contains(
+                &"crates/copybook-codec/tests/comp_binary_deep.rs::test_comp_16bit_signed_zero"
+                    .to_string()
+            )
+        );
+        assert!(
+            binary
+                .limitation_or_remediation
+                .contains("Big-endian byte order"),
+            "binary row must state byte order, got: {}",
+            binary.limitation_or_remediation
+        );
+
+        let packed = single_scenario("rdw", ConstructKind::PackedDecimal);
+        assert_eq!(packed.scenario_id, "struct.field.packed_decimal");
+        assert_eq!(packed.status, AssessmentStatus::Supported);
+        assert_eq!(packed.record_formats, vec!["rdw".to_string()]);
+        assert!(
+            packed
+                .evidence_refs
+                .contains(&"crates/copybook-codec/tests/binary_roundtrip_fidelity_tests.rs::test_comp3_packed_decimal_roundtrip_accuracy".to_string())
+        );
+        assert!(
+            packed
+                .limitation_or_remediation
+                .contains("never validates unseen record payloads"),
+            "copybook-only limit must be explicit, got: {}",
+            packed.limitation_or_remediation
+        );
+    }
+
+    #[test]
+    fn encoding_advise_numeric_fields_stay_unknown_without_row() {
+        // #980: VB has no binary/packed rows; both stay unknown under
+        // explicit matrix IDs instead of borrowing fixed evidence.
+        for (kind, id) in [
+            (ConstructKind::BinaryInt, "matrix:binary-int"),
+            (ConstructKind::PackedDecimal, "matrix:packed-decimal"),
+        ] {
+            let item = single_scenario("vb", kind);
+            assert_eq!(item.scenario_id, id);
+            assert_eq!(item.status, AssessmentStatus::Unknown);
+        }
     }
 
     #[test]

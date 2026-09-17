@@ -711,3 +711,65 @@ stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "No support-matrix feature covers plain display numerics, so feature_identity is none by rule. Covers unsigned display (PIC 9) layout and representation only; signed overpunch, scale handling, and unseen-payload digit validity are out of scope. This row never validates unseen record payloads."
 shared_evidence_relationships = ["fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.basic"]
 last_verified_full_sha = "69115be83230e3d3db870f3383b269d5e232cc96"
+
+[[scenarios]]
+scenario_id = "struct.field.binary_int"
+feature_identity = "none"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["parse", "layout", "decode", "encode", "round_trip"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/parser_comprehensive.rs::test_pic_comp_binary", kind = "direct" },
+]
+layout_evidence = [
+  { ref = "crates/copybook-core/tests/layout_resolution.rs::test_size_comp_binary", kind = "direct" },
+]
+decode_evidence = [
+  { ref = "crates/copybook-codec/tests/comp_binary_deep.rs::test_comp_16bit_signed_zero", kind = "direct" },
+]
+encode_evidence = [
+  { ref = "crates/copybook-codec/tests/comp_binary_deep.rs::test_encode_decode_roundtrip_16bit_signed", kind = "direct" },
+]
+round_trip_evidence = [
+  { ref = "crates/copybook-codec/tests/comp_binary_deep.rs::test_encode_decode_roundtrip_32bit_unsigned", kind = "direct" },
+]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "width mismatches surface as typed length errors, not row rejections; unseen-payload validity is out of scope (see limitations)" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "No support-matrix feature covers COMP binary fields, so feature_identity is none by rule. Big-endian byte order per mainframe convention; layout and representation only. This row never validates unseen record payloads."
+shared_evidence_relationships = ["fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.basic"]
+last_verified_full_sha = "aabb7d5c0d91d2c46bfa2b78b40d04f222e5cfa8"
+
+[[scenarios]]
+scenario_id = "struct.field.packed_decimal"
+feature_identity = "none"
+support_status = "supported"
+stability_class = "stable"
+required_evidence_layers = ["parse", "layout", "decode", "encode", "round_trip"]
+parse_evidence = [
+  { ref = "crates/copybook-core/tests/parser_comprehensive.rs::test_pic_comp3_packed", kind = "direct" },
+]
+layout_evidence = [
+  { ref = "crates/copybook-core/tests/layout_resolution.rs::test_size_comp3_packed_decimal", kind = "direct" },
+]
+decode_evidence = [
+  { ref = "crates/copybook-codec/tests/binary_roundtrip_fidelity_tests.rs::test_comp3_packed_decimal_roundtrip_accuracy", kind = "direct" },
+]
+encode_evidence = [
+  { ref = "crates/copybook-codec/tests/binary_roundtrip_fidelity_tests.rs::test_comp3_packed_decimal_roundtrip_accuracy", kind = "direct" },
+]
+round_trip_evidence = [
+  { ref = "crates/copybook-codec/tests/binary_roundtrip_fidelity_tests.rs::test_comp3_packed_decimal_roundtrip_accuracy", kind = "direct" },
+]
+negative_or_rejection_evidence = [{ kind = "not_applicable", reason = "invalid nibbles surface as typed decode errors, not row rejections; unseen-payload digit validity is out of scope (see limitations)" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI decode covered at the format plane" }]
+fixed_rdw_vb_applicability = ["fixed", "rdw"]
+codepage_applicability = ["all"]
+worker_applicability = "single"
+stable_error_or_rejection_identity = "none"
+known_limitations_or_remediation = "No support-matrix feature covers COMP-3 packed fields, so feature_identity is none by rule. Covers signed, scaled, and unsigned packed layout and representation with mainframe sign-nibble conventions. This row never validates unseen record payloads."
+shared_evidence_relationships = ["fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.basic"]
+last_verified_full_sha = "aabb7d5c0d91d2c46bfa2b78b40d04f222e5cfa8"

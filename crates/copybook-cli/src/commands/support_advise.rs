@@ -176,6 +176,19 @@ fn walk_field(
             field.path.clone(),
             None,
         )),
+        // #980 second family: binary and packed numerics. All widths and
+        // signs resolve to the ledger rows, whose limitations state the
+        // covered conventions (big-endian; sign nibbles).
+        FieldKind::BinaryInt { .. } => constructs.push(AdviseConstruct::bounded(
+            ConstructKind::BinaryInt,
+            field.path.clone(),
+            None,
+        )),
+        FieldKind::PackedDecimal { .. } => constructs.push(AdviseConstruct::bounded(
+            ConstructKind::PackedDecimal,
+            field.path.clone(),
+            None,
+        )),
         FieldKind::Condition { .. } => constructs.push(AdviseConstruct::bounded(
             ConstructKind::Level88,
             field.path.clone(),

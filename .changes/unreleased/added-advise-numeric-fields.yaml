@@ -1,0 +1,9 @@
+kind: added
+body: '**advise**: assess COMP binary integers and COMP-3 packed decimals
+  (#980 second family) against two new reconciled scenario rows
+  (`struct.field.binary_int`, `struct.field.packed_decimal`) with direct
+  parse/layout/decode/encode/round-trip evidence. Binary resolution states
+  the big-endian convention; packed covers signed, scaled, and unsigned
+  with sign-nibble conventions. Both state the copybook-only limit
+  explicitly; formats without a row stay unknown. No schema change.'
+time: '2026-09-17T11:25:00Z'

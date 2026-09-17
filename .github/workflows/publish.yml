@@ -233,23 +233,30 @@ jobs:
 
         publish_crate() {
           local crate="$1"
+          local version="$2"
           local output
           local attempt=1
           local max_attempts=10
           local retry_delay
 
           while [ "${attempt}" -le "${max_attempts}" ]; do
-            echo "Publishing ${crate} (attempt ${attempt}/${max_attempts})..."
+            echo "Publishing ${crate}@${version} (attempt ${attempt}/${max_attempts})..."
             if output=$(cargo publish -p "${crate}" 2>&1); then
               echo "${output}"
-              echo "  ${crate} published successfully"
+              echo "  ${crate}@${version} published successfully"
               return 0
             fi
 
             echo "${output}"
             if echo "${output}" | grep -q "already exists"; then
-              echo "  ${crate} already published, skipping"
-              return 0
+              # Never trust the substring alone: reconcile the exact planned
+              # package/version against the resolution index before skipping.
+              if probe_package_version "${crate}" "${version}"; then
+                echo "  ${crate}@${version} already resolvable, skipping"
+                return 0
+              fi
+              echo "  FAILED: upload reported 'already exists' but ${crate}@${version} is not resolvable" >&2
+              return 1
             fi
 
             if echo "${output}" | grep -q "status 429 Too Many Requests"; then
@@ -268,11 +275,11 @@ jobs:
           return 1
         }
 
-        wait_for_index() {
-          local seconds="${1:-60}"
-          echo "Waiting ${seconds}s for crates.io index propagation..."
-          sleep "${seconds}"
-        }
+        # Exact-version readiness replaces the old unconditional post-success
+        # sleep (#996): cargo's own publish establishes upload completion, and
+        # the dependent that follows needs the exact version resolvable.
+        # shellcheck disable=SC1091
+        source "${GITHUB_WORKSPACE}/scripts/ci/crates_index_ready.sh"
 
         PLAN_JSON="${{ steps.publish-plan.outputs.plan_json }}"
         PLAN_COUNT="${{ steps.publish-plan.outputs.plan_count }}"
@@ -282,7 +289,7 @@ jobs:
 
         with open(sys.argv[1], encoding="utf-8") as handle:
             for crate in json.load(handle):
-                print(crate["package"])
+                print(f'{crate["package"]} {crate["version"]}')
         PY
         )
 
@@ -296,11 +303,15 @@ jobs:
           exit 1
         fi
 
-        for crate in "${PUBLISH_CRATES[@]}"; do
-          echo "=== Publishing ${crate} ==="
-          publish_crate "${crate}"
-          if [[ "${crate}" != "copybook-rs" ]]; then
-            wait_for_index 60
+        last_index=$(( ${#PUBLISH_CRATES[@]} - 1 ))
+        for i in "${!PUBLISH_CRATES[@]}"; do
+          read -r crate version <<< "${PUBLISH_CRATES[$i]}"
+          echo "=== Publishing ${crate}@${version} ==="
+          publish_crate "${crate}" "${version}"
+          # Only wait when a later plan entry can depend on this one: the
+          # final package needs no readiness gate regardless of its name.
+          if [ "$i" -ne "$last_index" ]; then
+            wait_for_version "${crate}" "${version}" 12 10
           fi
         done
 

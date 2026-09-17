@@ -3140,7 +3140,6 @@ fn verify_publish_workflow_inventory() -> Result<()> {
     for line in [
         "mapfile -t PUBLISH_CRATES < <(python - \"$PLAN_JSON\" <<'PY'",
         "PLAN_COUNT=$(python - \"${PLAN_JSON}\" <<'PY'",
-        "print(crate[\"package\"])",
         "if [ \"${PLAN_COUNT}\" -le 0 ]; then",
     ] {
         if !publish_workflow.contains(line) {
@@ -3148,6 +3147,31 @@ fn verify_publish_workflow_inventory() -> Result<()> {
         }
         if !publish_dry_run.contains(line) {
             bail!("publish-dry-run workflow inventory mismatch: missing `{line}`");
+        }
+    }
+
+    // The dry-run workflow performs no uploads, so it reads bare package names
+    // only. The live publish workflow pins `package version` rows so each
+    // wave waits on the exact version just uploaded (#996).
+    if !publish_dry_run.contains("print(crate[\"package\"])") {
+        bail!("publish-dry-run workflow inventory mismatch: missing package-name extraction");
+    }
+    for line in [
+        "{crate[\"package\"]} {crate[\"version\"]}",
+        "probe_package_version",
+        "wait_for_version",
+        "crates_index_ready.sh",
+    ] {
+        if !publish_workflow.contains(line) {
+            bail!("publish workflow inventory mismatch: missing `{line}`");
+        }
+    }
+
+    for line in ["wait_for_index 60", "!= \"copybook-rs\""] {
+        if publish_workflow.contains(line) {
+            bail!(
+                "publish workflow inventory mismatch: legacy index wait still present (`{line}`)"
+            );
         }
     }
 

@@ -1,0 +1,10 @@
+kind: fixed
+body: '**release**: the ordered publisher no longer sleeps a fixed 60 seconds
+  after every upload — cargo''s own completion plus an exact-version
+  sparse-index readiness probe (bounded, 12x10s) gates each dependent, the
+  `copybook-rs` name literal is gone in favor of skipping the wait after the
+  final plan entry whatever its name, and an `already exists` report only
+  skips when the exact planned version resolves. 429 backoff is preserved
+  separately. Decision logic lives in `scripts/ci/crates_index_ready.sh`
+  with injected curl/sleep/index boundaries and deterministic tests.'
+time: '2026-09-17T06:30:00Z'

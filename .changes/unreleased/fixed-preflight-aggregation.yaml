@@ -1,0 +1,8 @@
+kind: fixed
+body: '**devex**: aggregate `just preflight` failures in one report (#992).
+  The recipe stopped at the first failing step, hiding sibling breakage.
+  It now runs fmt, verify-all, architecture, freeze contracts, and publish
+  plan to completion and reports every failure with a nonzero exit. Proven
+  live: a stale-receipt refusal inside verify-all is reported alongside
+  passing siblings instead of aborting the lane.'
+time: '2026-09-18T06:00:00Z'

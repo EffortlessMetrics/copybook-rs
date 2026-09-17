@@ -1,0 +1,7 @@
+kind: fixed
+body: '**devex**: aggregate independent verify-all failures in one report
+  (#992). The check runner stopped at the first failure, hiding sibling
+  breakage. It now runs every check sequentially (deterministic order
+  preserved) and reports all failures with a count and nonzero exit. Only
+  gates aggregate this way; no check semantics changed.'
+time: '2026-09-18T05:00:00Z'

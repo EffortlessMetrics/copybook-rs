@@ -30,6 +30,24 @@ copybook = "0.8"
 `copybook-core` and `copybook-codec` remain available for advanced users who need a smaller dependency surface.
 For direct character conversion, use `copybook::charset`.
 
+### Facade path stability classes (#985)
+
+Each `copybook::` module re-exports its owner crate with that crate's
+registry class (`docs/stability/surface-registry.json` is authoritative;
+a stable facade does not promote a beta child):
+
+| Facade path | Owner | Class |
+| --- | --- | --- |
+| `copybook::core`, `copybook::codec`, `copybook::error`, `copybook::charset` | `copybook-core`, `copybook-codec`, `copybook-error`, `copybook-charset` | stable |
+| `copybook::framing::fixed` | `copybook-fixed` | beta |
+| `copybook::framing::rdw` | `copybook-rdw` | internal-dev-only |
+| `copybook::governance` | `copybook-governance` | beta; policy executes only under explicit opt-in |
+| `copybook::support_matrix` | `copybook-support-matrix` | beta, except the advise envelope |
+
+Exception: `support_matrix::advise::AdviseResult` (`schemas/advise-result.json`,
+`schema_version` `1.0`) is stable since 0.7.1 and sits outside the beta
+classification; automation must match `schema_version` exactly.
+
 ### Record-format dispatch ownership
 
 Record-format dispatch is owned by `copybook-codec`. Use

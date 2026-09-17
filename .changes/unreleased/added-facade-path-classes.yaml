@@ -1,0 +1,6 @@
+kind: added
+body: '**docs**: map canonical facade paths to registry stability classes
+  (#985). `docs/reference/LIBRARY_API.md` now records each `copybook::`
+  module with its owner crate and class, including the stable advise
+  envelope exception inside beta `copybook::support_matrix`.'
+time: '2026-09-17T13:13:59Z'

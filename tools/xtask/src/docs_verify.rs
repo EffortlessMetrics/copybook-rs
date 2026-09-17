@@ -20,7 +20,7 @@ use xtask::perf;
 type Verifier = (&'static str, fn() -> Result<()>);
 
 pub(crate) fn run() -> Result<()> {
-    let checks: [Verifier; 19] = [
+    let checks: [Verifier; 20] = [
         (
             "workspace-version-and-msrv",
             verify_workspace_version_and_msrv,
@@ -33,6 +33,7 @@ pub(crate) fn run() -> Result<()> {
         ("error-code-inventory", verify_error_code_inventory),
         ("stable-error-registry", verify_stable_error_registry),
         ("scenario-ledger", verify_scenario_ledger),
+        ("advise-projection", verify_advise_projection),
         ("corpus-manifest", verify_corpus),
         ("record-pipeline-evidence", verify_record_pipeline_evidence),
         ("test-status", verify_test_status_if_present),
@@ -159,6 +160,16 @@ pub(crate) fn verify_stable_error_registry_command() -> Result<()> {
 
 pub(crate) fn verify_scenario_ledger_command() -> Result<()> {
     verify_scenario_ledger()
+}
+
+pub(crate) fn sync_advise_projection_command() -> Result<()> {
+    let root = workspace_root();
+    let generated = render_advise_projection(&root)?;
+    let path = root.join(ADVISE_PROJECTION_PATH);
+    fs::write(&path, generated)
+        .with_context(|| format!("writing advise ledger projection {}", path.display()))?;
+    println!("advise ledger projection synced: {ADVISE_PROJECTION_PATH}");
+    Ok(())
 }
 
 pub(crate) fn run_freeze_contract_checks() -> Result<()> {
@@ -2372,6 +2383,212 @@ fn load_scenario_ledger(path: &Path) -> Result<ScenarioLedger> {
     let source = fs::read_to_string(path)
         .with_context(|| format!("loading scenario ledger {}", path.display()))?;
     toml::from_str(&source).with_context(|| format!("parsing {}", path.display()))
+}
+
+// ---------------------------------------------------------------------------
+// Advise ledger projection (#978): generated, compiled-in scenario authority.
+// ---------------------------------------------------------------------------
+
+/// Generated projection path, relative to the workspace root. The file is
+/// compiled into `copybook-support-matrix`, so runtime analysis performs no
+/// repository-file I/O and registry-only installs work without `docs/`.
+const ADVISE_PROJECTION_PATH: &str = "crates/copybook-support-matrix/src/ledger_projection.rs";
+
+/// Evidence-string bound mirrored from the advise domain (`MAX_SUGGESTION_CHARS`).
+/// A longer ledger ref fails generation loudly instead of truncating proof.
+const ADVISE_PROJECTION_MAX_REF_CHARS: usize = 512;
+
+fn verify_advise_projection() -> Result<()> {
+    let root = workspace_root();
+    let expected = render_advise_projection(&root)?;
+    let path = root.join(ADVISE_PROJECTION_PATH);
+    let actual = fs::read_to_string(&path)
+        .with_context(|| format!("loading advise ledger projection {}", path.display()))?;
+    if actual != expected {
+        bail!(
+            "advise ledger projection is stale: `{ADVISE_PROJECTION_PATH}` does not match `{SCENARIO_LEDGER_PATH}` | run `cargo run -p xtask -- advise sync-projection`"
+        );
+    }
+    println!(
+        "advise ledger projection verified: {} rows",
+        expected.matches("    LedgerProjection {\n").count()
+    );
+    Ok(())
+}
+
+/// Render the projection module from the scenario ledger. Every mapping is
+/// closed: an unknown status, layer, or over-long ref fails loudly so
+/// unverified rows can never silently enter the compiled authority.
+fn render_advise_projection(root: &Path) -> Result<String> {
+    let ledger = load_scenario_ledger(&root.join(SCENARIO_LEDGER_PATH))?;
+    let mut out = String::new();
+    out.push_str(
+        "// SPDX-License-Identifier: AGPL-3.0-or-later\n\
+         //! Generated scenario authority for `support --advise` (#978).\n\
+         //!\n\
+         //! DO NOT EDIT. Source: `docs/evidence/scenario-ledger.toml`.\n\
+         //! Regenerate: `cargo run -p xtask -- advise sync-projection`.\n\
+         //! Freshness is enforced by `docs verify-all` (`advise-projection`).\n\
+         //! Compiled in: no runtime file I/O, registry-install safe.\n\
+         \n\
+         use crate::advise::{AffectedLayer, AssessmentStatus};\n\
+         \n\
+         /// One scenario authority row: applicability, outcome, and proof.\n\
+         /// `layers` carries only schema-renderable layers; `negative`-layer\n\
+         /// proof still rides in `evidence`.\n\
+         pub struct LedgerProjection {\n\
+         \x20   /// Ledger scenario ID.\n\
+         \x20   pub id: &'static str,\n\
+         \x20   /// Record formats this row evidences (`fixed`, `rdw`, `vb` subset).\n\
+         \x20   pub formats: &'static [&'static str],\n\
+         \x20   /// Codepages this row evidences (`all` or an explicit subset).\n\
+         \x20   pub codepages: &'static [&'static str],\n\
+         \x20   /// Row outcome mapped from the ledger support status.\n\
+         \x20   pub status: AssessmentStatus,\n\
+         \x20   /// Row stability class verbatim (`stable`, `beta`).\n\
+         \x20   pub stability: &'static str,\n\
+         \x20   /// Renderable affected layers in ledger order.\n\
+         \x20   pub layers: &'static [AffectedLayer],\n\
+         \x20   /// Direct evidence refs (`path::test`) in ledger layer order.\n\
+         \x20   pub evidence: &'static [&'static str],\n\
+         \x20   /// Row limitations/remediation verbatim (empty when none stated).\n\
+         \x20   pub limitations: &'static str,\n\
+         }\n\
+         \n\
+         /// Full ledger authority, sorted by scenario ID for determinism.\n\
+         pub const LEDGER_PROJECTION: &[LedgerProjection] = &[\n",
+    );
+    let mut rows: Vec<&ScenarioRow> = ledger.scenarios.iter().collect();
+    rows.sort_by(|left, right| left.scenario_id.cmp(&right.scenario_id));
+    for row in rows {
+        write_projection_row(&mut out, row)?;
+    }
+    out.push_str("];\n");
+    out.push_str(
+        "\n\
+         /// Look up one scenario authority row by ledger ID.\n\
+         #[must_use]\n\
+         #[inline]\n\
+         pub fn projection_for(id: &str) -> Option<&'static LedgerProjection> {\n\
+         \x20   LEDGER_PROJECTION.iter().find(|row| row.id == id)\n\
+         }\n",
+    );
+    Ok(out)
+}
+
+/// Render one projection row. `write!` results are discarded: the buffer is
+/// in-memory and infallible, and `let _ =` is clippy's sanctioned pattern
+/// for that case.
+fn write_projection_row(out: &mut String, row: &ScenarioRow) -> Result<()> {
+    use std::fmt::Write as _;
+    let status = projection_status(row)?;
+    let layer_items = projection_layers(row)?;
+    let evidence_items = projection_evidence(row)?;
+    let formats: Vec<String> = row
+        .fixed_rdw_vb_applicability
+        .iter()
+        .map(|value| quoted(value))
+        .collect();
+    let codepages: Vec<String> = row
+        .codepage_applicability
+        .iter()
+        .map(|value| quoted(value))
+        .collect();
+    let _ = writeln!(out, "    LedgerProjection {{");
+    let _ = writeln!(out, "        id: {},", quoted(&row.scenario_id));
+    let _ = writeln!(out, "        formats: {},", fmt_slice(&formats));
+    let _ = writeln!(out, "        codepages: {},", fmt_slice(&codepages));
+    let _ = writeln!(out, "        status: {status},");
+    let _ = writeln!(out, "        stability: {},", quoted(&row.stability_class));
+    let _ = writeln!(out, "        layers: {},", fmt_slice(&layer_items));
+    let _ = writeln!(out, "        evidence: {},", fmt_slice(&evidence_items));
+    let _ = writeln!(
+        out,
+        "        limitations: {},",
+        quoted(&row.known_limitations_or_remediation)
+    );
+    let _ = writeln!(out, "    }},");
+    Ok(())
+}
+
+fn projection_status(row: &ScenarioRow) -> Result<&'static str> {
+    match row.support_status.as_str() {
+        "supported" => Ok("AssessmentStatus::Supported"),
+        "partial" => Ok("AssessmentStatus::Limited"),
+        "rejected" => Ok("AssessmentStatus::Rejected"),
+        "beta" => Ok("AssessmentStatus::Beta"),
+        other => bail!(
+            "advise projection: scenario `{}` has unknown support status `{other}`",
+            row.scenario_id
+        ),
+    }
+}
+
+fn projection_layers(row: &ScenarioRow) -> Result<Vec<String>> {
+    let mut layer_items: Vec<String> = Vec::new();
+    for layer in &row.required_evidence_layers {
+        let variant = match layer.as_str() {
+            "parse" => "AffectedLayer::Parse",
+            "layout" => "AffectedLayer::Layout",
+            "decode" => "AffectedLayer::Decode",
+            "encode" => "AffectedLayer::Encode",
+            "round_trip" => "AffectedLayer::RoundTrip",
+            "cli" => "AffectedLayer::Cli",
+            // `negative` has no renderable layer; its proof still rides
+            // in `evidence`.
+            "negative" => continue,
+            other => bail!(
+                "advise projection: scenario `{}` has unknown layer `{other}`",
+                row.scenario_id
+            ),
+        };
+        layer_items.push(variant.to_string());
+    }
+    Ok(layer_items)
+}
+
+fn projection_evidence(row: &ScenarioRow) -> Result<Vec<String>> {
+    let mut evidence_items: Vec<String> = Vec::new();
+    for layer in SCENARIO_LEDGER_LAYERS {
+        for anchor in scenario_layer(row, layer) {
+            if let Some(direct) = anchor.direct_refs() {
+                if direct.chars().count() > ADVISE_PROJECTION_MAX_REF_CHARS {
+                    bail!(
+                        "advise projection: scenario `{}` evidence ref exceeds {ADVISE_PROJECTION_MAX_REF_CHARS} chars",
+                        row.scenario_id
+                    );
+                }
+                evidence_items.push(quoted(direct));
+            }
+        }
+    }
+    Ok(evidence_items)
+}
+
+fn quoted(value: &str) -> String {
+    format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+/// Format a slice literal the way rustfmt would: single line when the
+/// bracketed items fit `array_width` (default 60), otherwise one item per
+/// line with a trailing comma. Items arrive pre-rendered (variants bare,
+/// strings quoted). If a rustfmt default ever moves this threshold, or a
+/// future row lands exactly on the boundary, the mismatch surfaces as
+/// projection staleness that re-sync cannot fix; move the threshold here.
+fn fmt_slice(items: &[String]) -> String {
+    const ARRAY_WIDTH: usize = 60;
+    let inner = items.join(", ");
+    if inner.chars().count() <= ARRAY_WIDTH {
+        return format!("&[{inner}]");
+    }
+    let mut block = String::from("&[\n");
+    for item in items {
+        block.push_str("            ");
+        block.push_str(item);
+        block.push_str(",\n");
+    }
+    block.push_str("        ]");
+    block
 }
 
 fn verify_scenario_ledger() -> Result<()> {

@@ -6,6 +6,11 @@
 /// derivation, redaction posture, deterministic JSON projection).
 pub mod advise;
 
+/// Generated ledger authority compiled in for `support --advise` (#978).
+/// Freshness against `docs/evidence/scenario-ledger.toml` is enforced by
+/// `docs verify-all`; see `cargo run -p xtask -- advise sync-projection`.
+pub mod ledger_projection;
+
 use serde::{Deserialize, Serialize};
 
 /// Identifier for a COBOL feature tracked in the support matrix.

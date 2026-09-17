@@ -1,0 +1,8 @@
+kind: fixed
+body: '**devex**: refuse stale test-evidence receipts in `docs verify-tests`
+  (#992). The gate compared counts only, so a receipt older than the test
+  sources passed whenever the old counts still agreed. It now fails with
+  the receipt identity (sha256) plus the exact rerun and sync commands.
+  `sync-tests` keeps its warn-and-continue policy; only gates refuse. New
+  unit coverage pins the fresh/stale boundary and the report contents.'
+time: '2026-09-18T04:00:00Z'

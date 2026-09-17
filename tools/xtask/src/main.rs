@@ -6,7 +6,7 @@ use std::{fs, path::Path};
 use xtask::publish::{PlanFormat, run_plan};
 use xtask::{
     Counts, architecture, counts, junit_xml_path, newest_test_source_mtime, perf,
-    stale_receipt_warning,
+    stale_gate_report, stale_receipt_warning,
 };
 
 mod corpus;
@@ -210,6 +210,19 @@ fn verify() -> Result<()> {
     let receipt = junit_xml_path()?;
     let receipt_bytes = fs::read(&receipt)?;
     let receipt_sha256 = format!("{:x}", sha2::Sha256::digest(&receipt_bytes));
+    // #992: a gate must refuse a stale receipt even when its counts still
+    // agree with the docs; only `sync-tests` may warn and continue.
+    let receipt_mtime = fs::metadata(&receipt)?.modified()?;
+    if let Some(report) = stale_gate_report(
+        &receipt.display().to_string(),
+        &receipt_sha256,
+        receipt_mtime,
+        newest_test_source_mtime()?,
+        JUNIT_RECEIPT_COMMAND,
+        TEST_STATUS_SYNC_COMMAND,
+    ) {
+        bail!("{report}");
+    }
 
     for path in TEST_STATUS_PATHS {
         let content = fs::read_to_string(path)?;

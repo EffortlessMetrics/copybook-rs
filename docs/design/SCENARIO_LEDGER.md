@@ -110,6 +110,10 @@ and skips freshness checks instead of counting as verified. The
 freshness policy is explicit re-verification: touching a row's anchors
 without updating its SHA fails the verifier only when the referenced content
 moved (relationship targets are content-pinned by their own registries).
+Every direct anchor is proven twice: against the working tree (fast local
+signal) and against the claimed commit's tree (the SHA must contain the
+anchor file and the anchored symbol there). A test added after the claimed
+commit proves nothing about that commit.
 
 ## Verifier failure catalog
 
@@ -127,7 +131,9 @@ moved (relationship targets are content-pinned by their own registries).
 - an empty evidence layer (N/A reason required instead);
 - a malformed or abbreviated verification SHA;
 - a well-formed verification SHA that resolves to no commit object
-  (or to a non-commit object).
+  (or to a non-commit object);
+- a direct anchor whose file is absent from the claimed commit's tree, or
+  whose symbol that tree's file does not declare.
 
 Failures print `scenario_id`, field, expected shape, actual reference, and
 the repair command (`docs verify-scenario-ledger`, relevant sync, or the

@@ -776,6 +776,16 @@ fn verify_record_pipeline_scenarios(
     Ok(())
 }
 
+fn source_declares_function(source: &str, symbol: &str) -> bool {
+    let function_anchor = format!("fn {symbol}");
+    source.match_indices(&function_anchor).any(|(index, _)| {
+        source[index + function_anchor.len()..]
+            .chars()
+            .next()
+            .is_none_or(|next| !next.is_alphanumeric() && next != '_')
+    })
+}
+
 fn verify_test_anchor(root: &Path, anchor: &str, scenario_id: &str) -> Result<()> {
     let (path, symbol) = anchor.rsplit_once("::").ok_or_else(|| {
         anyhow::anyhow!(
@@ -785,15 +795,51 @@ fn verify_test_anchor(root: &Path, anchor: &str, scenario_id: &str) -> Result<()
     let source_path = root.join(path);
     let source = fs::read_to_string(&source_path)
         .with_context(|| format!("loading test anchor `{anchor}` for scenario `{scenario_id}`"))?;
-    let function_anchor = format!("fn {symbol}");
-    let declares_function = source.match_indices(&function_anchor).any(|(index, _)| {
-        source[index + function_anchor.len()..]
-            .chars()
-            .next()
-            .is_none_or(|next| !next.is_alphanumeric() && next != '_')
-    });
-    if !declares_function {
+    if !source_declares_function(&source, symbol) {
         bail!("scenario `{scenario_id}` anchor `{anchor}` does not name an existing function");
+    }
+    Ok(())
+}
+
+fn verify_anchor_at_commit(root: &Path, sha: &str, anchor: &str, scenario_id: &str) -> Result<()> {
+    // #981: the anchor must exist in the claimed commit's tree, not only in
+    // the working tree; a test added after the claimed commit proves nothing
+    // about that commit.
+    let (path, symbol) = anchor.rsplit_once("::").ok_or_else(|| {
+        anyhow::anyhow!(
+            "scenario `{scenario_id}` has malformed test anchor `{anchor}`; expected path::function"
+        )
+    })?;
+    let blob_check = Command::new("git")
+        .current_dir(root)
+        .args(["cat-file", "-e", &format!("{sha}:{path}")])
+        .output()
+        .with_context(|| {
+            format!("resolving scenario `{scenario_id}` anchor `{anchor}` at commit `{sha}`")
+        })?;
+    if !blob_check.status.success() {
+        bail!(
+            "scenario `{scenario_id}` anchor `{anchor}` is not present in claimed commit `{sha}`; re-verify the row and record the proving commit, do not blanket-sync | repair: cargo run -p xtask -- docs verify-scenario-ledger"
+        );
+    }
+    let show = Command::new("git")
+        .current_dir(root)
+        .args(["show", &format!("{sha}:{path}")])
+        .output()
+        .with_context(|| {
+            format!("reading scenario `{scenario_id}` anchor `{anchor}` at commit `{sha}`")
+        })?;
+    if !show.status.success() {
+        bail!(
+            "git show failed while reading scenario `{scenario_id}` anchor `{anchor}` at commit `{sha}` (exit {:?}): {}",
+            show.status.code(),
+            String::from_utf8_lossy(&show.stderr).trim()
+        );
+    }
+    if !source_declares_function(&String::from_utf8_lossy(&show.stdout), symbol) {
+        bail!(
+            "scenario `{scenario_id}` anchor `{anchor}` names no function in claimed commit `{sha}`; re-verify the row and record the proving commit, do not blanket-sync | repair: cargo run -p xtask -- docs verify-scenario-ledger"
+        );
     }
     Ok(())
 }
@@ -2722,9 +2768,13 @@ fn validate_scenario_row(
     pipeline_ids: &BTreeSet<String>,
 ) -> Result<()> {
     let id = row.scenario_id.as_str();
+    // #981: resolve the verification SHA before checking layers so direct
+    // anchors can be proven against the claimed commit's tree.
+    let history_available = verify_scenario_commit_anchor(root, id, &row.last_verified_full_sha)?;
     validate_scenario_enums(id, row)?;
     validate_feature_identity(id, &row.feature_identity)?;
-    let has_na = validate_scenario_layers(root, id, row)?;
+    let claimed = history_available.then_some(row.last_verified_full_sha.as_str());
+    let has_na = validate_scenario_layers(root, id, row, claimed)?;
     validate_scenario_metadata(id, row, has_na)?;
     if matches!(row.support_status.as_str(), "rejected" | "non_goal") {
         validate_rejection_identity(id, row, error_codes)?;
@@ -2739,11 +2789,14 @@ fn validate_scenario_row(
     for relationship in &row.shared_evidence_relationships {
         validate_relationship(id, relationship, ids, error_codes, pipeline_ids)?;
     }
-    verify_scenario_commit_anchor(root, id, &row.last_verified_full_sha)?;
     Ok(())
 }
 
-fn verify_scenario_commit_anchor(root: &Path, id: &str, sha: &str) -> Result<()> {
+/// Resolve a row's verification SHA. Returns whether the commit history is
+/// available: a shallow checkout without the object is an explicit skip
+/// (callers must not run commit-tree checks), every other outcome is
+/// terminal.
+fn verify_scenario_commit_anchor(root: &Path, id: &str, sha: &str) -> Result<bool> {
     if sha.len() != 40 || !sha.bytes().all(|byte| byte.is_ascii_hexdigit()) {
         bail!("scenario `{id}` needs a full 40-hex last_verified_full_sha, found `{sha}`");
     }
@@ -2759,12 +2812,12 @@ fn verify_scenario_commit_anchor(root: &Path, id: &str, sha: &str) -> Result<()>
         .output()
         .with_context(|| format!("resolving scenario `{id}` last_verified_full_sha"))?;
     match exists_check.status.code() {
-        Some(0) => verify_scenario_commit_type(root, id, sha),
+        Some(0) => verify_scenario_commit_type(root, id, sha).map(|()| true),
         Some(1) if is_shallow_repository(root)? => {
             println!(
                 "scenario `{id}` commit `{sha}` unavailable in shallow checkout; freshness checks skipped"
             );
-            Ok(())
+            Ok(false)
         }
         Some(1) => bail!(
             "scenario `{id}` last_verified_full_sha `{sha}` is not available; re-verify the row and record the proving commit, do not blanket-sync | repair: cargo run -p xtask -- docs verify-scenario-ledger"
@@ -2861,7 +2914,12 @@ fn validate_feature_identity(id: &str, feature_identity: &str) -> Result<()> {
     Ok(())
 }
 
-fn validate_scenario_layers(root: &Path, id: &str, row: &ScenarioRow) -> Result<bool> {
+fn validate_scenario_layers(
+    root: &Path,
+    id: &str,
+    row: &ScenarioRow,
+    claimed_commit: Option<&str>,
+) -> Result<bool> {
     let mut has_na = false;
     for layer in SCENARIO_LEDGER_LAYERS {
         let anchors = scenario_layer(row, layer);
@@ -2876,6 +2934,9 @@ fn validate_scenario_layers(root: &Path, id: &str, row: &ScenarioRow) -> Result<
                     bail!("scenario `{id}` layer `{layer}` direct anchor is missing its ref");
                 };
                 verify_test_anchor(root, reference, id)?;
+                if let Some(sha) = claimed_commit {
+                    verify_anchor_at_commit(root, sha, reference, id)?;
+                }
             } else if anchor.kind == "not_applicable" {
                 if anchor.reason.as_deref().is_none_or(str::is_empty) {
                     bail!("scenario `{id}` layer `{layer}` not_applicable entry needs a reason");
@@ -5392,6 +5453,7 @@ CBK999_OUTSIDE,
     #[test]
     fn parsing_scenario_ledger_rejects_missing_anchor() {
         let (temp, mut row) = scenario_row_fixture();
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
         row.parse_evidence[0].reference = Some("t.rs::absent".to_string());
         let (codes, pipeline) = scenario_registries();
         let ids = BTreeSet::from(["test.row".to_string()]);
@@ -5403,6 +5465,7 @@ CBK999_OUTSIDE,
     #[test]
     fn parsing_scenario_ledger_rejects_empty_layer() {
         let (temp, mut row) = scenario_row_fixture();
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
         row.decode_evidence = Vec::new();
         let (codes, pipeline) = scenario_registries();
         let ids = BTreeSet::from(["test.row".to_string()]);
@@ -5414,6 +5477,7 @@ CBK999_OUTSIDE,
     #[test]
     fn parsing_scenario_ledger_rejects_unknown_status() {
         let (temp, mut row) = scenario_row_fixture();
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
         row.support_status = "almighty".to_string();
         let (codes, pipeline) = scenario_registries();
         let ids = BTreeSet::from(["test.row".to_string()]);
@@ -5423,6 +5487,7 @@ CBK999_OUTSIDE,
     #[test]
     fn parsing_scenario_ledger_rejects_rejection_without_identity() {
         let (temp, mut row) = scenario_row_fixture();
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
         row.support_status = "rejected".to_string();
         let (codes, pipeline) = scenario_registries();
         let ids = BTreeSet::from(["test.row".to_string()]);
@@ -5440,20 +5505,16 @@ CBK999_OUTSIDE,
         assert!(validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline).is_err());
     }
 
-    fn scaffold_git_repo_with_commit(path: &Path) -> String {
-        let run = |args: &[&str]| {
-            let status = Command::new("git")
-                .current_dir(path)
-                .args(args)
-                .status()
-                .unwrap();
-            assert!(status.success(), "git {args:?} failed");
-        };
-        run(&["init", "--quiet"]);
-        run(&["config", "user.name", "xtask-test"]);
-        run(&["config", "user.email", "xtask-test@example.com"]);
-        run(&["add", "--", "t.rs"]);
-        run(&["commit", "--quiet", "--message", "fixture"]);
+    fn git_in(path: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .current_dir(path)
+            .args(args)
+            .status()
+            .unwrap();
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    fn git_head_sha(path: &Path) -> String {
         let output = Command::new("git")
             .current_dir(path)
             .args(["rev-parse", "HEAD"])
@@ -5461,6 +5522,15 @@ CBK999_OUTSIDE,
             .unwrap();
         assert!(output.status.success());
         String::from_utf8(output.stdout).unwrap().trim().to_string()
+    }
+
+    fn scaffold_git_repo_with_commit(path: &Path) -> String {
+        git_in(path, &["init", "--quiet"]);
+        git_in(path, &["config", "user.name", "xtask-test"]);
+        git_in(path, &["config", "user.email", "xtask-test@example.com"]);
+        git_in(path, &["add", "--", "t.rs"]);
+        git_in(path, &["commit", "--quiet", "--message", "fixture"]);
+        git_head_sha(path)
     }
 
     #[test]
@@ -5497,8 +5567,74 @@ CBK999_OUTSIDE,
     }
 
     #[test]
+    fn parsing_scenario_ledger_rejects_anchor_missing_at_claimed_commit() {
+        // #981: an anchor file added after the claimed commit is not proven
+        // by that commit, even when the working tree contains it.
+        let (temp, mut row) = scenario_row_fixture();
+        std::fs::remove_file(temp.path().join("t.rs")).unwrap();
+        git_in(temp.path(), &["init", "--quiet"]);
+        git_in(temp.path(), &["config", "user.name", "xtask-test"]);
+        git_in(
+            temp.path(),
+            &["config", "user.email", "xtask-test@example.com"],
+        );
+        std::fs::write(temp.path().join("seed.txt"), "seed\n").unwrap();
+        git_in(temp.path(), &["add", "--", "seed.txt"]);
+        git_in(temp.path(), &["commit", "--quiet", "--message", "fixture"]);
+        std::fs::write(temp.path().join("t.rs"), "fn works() {}\n").unwrap();
+        row.last_verified_full_sha = git_head_sha(temp.path());
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect_err("anchor missing at claimed commit must fail");
+        assert!(
+            err.to_string().contains("not present in claimed commit"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_anchor_symbol_missing_at_claimed_commit() {
+        // #981: a claimed commit whose file lacks the anchored symbol proves
+        // nothing, even when the working tree declares it.
+        let (temp, mut row) = scenario_row_fixture();
+        std::fs::write(temp.path().join("t.rs"), "fn other() {}\n").unwrap();
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
+        std::fs::write(temp.path().join("t.rs"), "fn works() {}\n").unwrap();
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect_err("anchor symbol missing at claimed commit must fail");
+        assert!(
+            err.to_string()
+                .contains("names no function in claimed commit"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_skips_freshness_explicitly_when_history_shallow() {
+        // #981: missing history in a shallow checkout is an explicit skip,
+        // never a silent pass and never a hard failure.
+        let (src, mut row) = scenario_row_fixture();
+        scaffold_git_repo_with_commit(src.path());
+        let dst = tempfile::tempdir().unwrap();
+        let src_url = format!("file://{}", src.path().display());
+        git_in(
+            dst.path(),
+            &["clone", "--quiet", "--depth", "1", src_url.as_str(), "."],
+        );
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from([row.scenario_id.clone()]);
+        row.last_verified_full_sha = "0000000000000000000000000000000000000000".to_string();
+        validate_scenario_row(dst.path(), &row, &ids, &codes, &pipeline)
+            .expect("shallow checkout without history must skip, not fail");
+    }
+
+    #[test]
     fn parsing_scenario_ledger_rejects_unknown_relationship() {
         let (temp, mut row) = scenario_row_fixture();
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
         row.shared_evidence_relationships = vec!["ledger:nope".to_string()];
         let (codes, pipeline) = scenario_registries();
         let ids = BTreeSet::from(["test.row".to_string()]);
@@ -5566,6 +5702,7 @@ CBK999_OUTSIDE,
     #[test]
     fn parsing_scenario_ledger_rejects_unknown_feature_identity() {
         let (temp, mut row) = scenario_row_fixture();
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
         row.feature_identity = "dialect".to_string();
         let (codes, pipeline) = scenario_registries();
         let ids = BTreeSet::from(["test.row".to_string()]);

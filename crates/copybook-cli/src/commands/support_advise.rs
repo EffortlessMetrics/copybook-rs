@@ -48,24 +48,36 @@ pub fn run_advise(
     })?;
     let source_fingerprint = sha256_hex(source.as_bytes());
 
-    let (schema, parse_error) = match parse_copybook(&source) {
+    // The typed error code travels beside the prose diagnostic (#979): the
+    // machine field carries `error.code()` (never regex over `Display`),
+    // while prose stays human-readable and free to change.
+    let (schema, parse_error, parse_error_identity) = match parse_copybook(&source) {
         Ok(mut schema) => {
             // Layout resolution interprets ODO placement under the dialect;
             // a layout failure is malformed input, never a tool failure.
             match copybook::core::layout::resolve_layout(&mut schema, core_dialect) {
                 Ok(()) => {
                     schema.calculate_fingerprint();
-                    (Some(schema), None)
+                    (Some(schema), None, None)
                 }
-                Err(error) => (None, Some(error.to_string())),
+                Err(error) => (
+                    None,
+                    Some(error.to_string()),
+                    Some(error.code().to_string()),
+                ),
             }
         }
-        Err(error) => (None, Some(error.to_string())),
+        Err(error) => (
+            None,
+            Some(error.to_string()),
+            Some(error.code().to_string()),
+        ),
     };
 
     // Redaction precondition (`AdviseInput::bounded`): construct detail carries
     // schema field paths only, and the parse error is an in-memory diagnostic
-    // string; neither ever carries filesystem paths or record payload.
+    // string; neither ever carries filesystem paths or record payload. The
+    // identity is a stable `CBK*` code, likewise free of paths and payload.
     let constructs = schema.as_ref().map(extract_constructs).unwrap_or_default();
     let mut input = AdviseInput::bounded(
         constructs,
@@ -73,6 +85,9 @@ pub fn run_advise(
         EffectiveOptions::bounded(format, codepage, dialect_str),
         tool_version(),
     );
+    if let Some(identity) = parse_error_identity {
+        input = input.with_parse_error_identity(identity);
+    }
     input.source_fingerprint = Some(source_fingerprint);
     if let Some(schema) = &schema {
         input.copybook_fingerprint = Some(schema.fingerprint.clone());

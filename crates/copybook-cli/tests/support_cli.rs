@@ -200,8 +200,9 @@ fn support_advise_tail_odo_exits_zero() {
 #[test]
 fn support_advise_json_invalid_for_non_tail_odo() {
     // Non-tail ODO never parses (CBKP021), so advise reports invalid input
-    // with the actionable parse identity in `next_action`; the domain-level
-    // `rejected` mapping stays pinned by domain and BDD tests.
+    // with the typed identity in the `error_identity` machine field (#979):
+    // no consumer extracts codes from prose. The domain-level `rejected`
+    // mapping stays pinned by domain and BDD tests.
     let copybook = write_advise_copybook(NON_TAIL_ODO_COPYBOOK);
     let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
         .args([
@@ -219,12 +220,74 @@ fn support_advise_json_invalid_for_non_tail_odo() {
         .expect("support --advise --format json should emit valid JSON");
     assert_eq!(value["verdict"], "invalid-input");
     assert_eq!(value["schema_version"], "1.0");
+    assert_eq!(
+        value["scenarios"][0]["error_identity"],
+        "CBKP021_ODO_NOT_TAIL",
+    );
+}
+
+#[test]
+fn support_advise_json_invalid_for_nested_odo() {
+    // #979 acceptance: a second real parse failure (CBKP022) proving the
+    // identity is carried per error, not special-cased for CBKP021.
+    const NESTED_ODO_COPYBOOK: &str = "       01 NESTED.\n           05 CNT-OUTER PIC 9(2).\n           05 OUTER-GRP OCCURS 0 TO 2 DEPENDING ON CNT-OUTER.\n               10 CNT-INNER PIC 9(2).\n               10 INNER-GRP OCCURS 0 TO 3 DEPENDING ON CNT-INNER.\n                   15 VAL PIC X.\n";
+    let copybook = write_advise_copybook(NESTED_ODO_COPYBOOK);
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args([
+            "support",
+            "--advise",
+            &copybook.path().to_string_lossy(),
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("failed to execute command");
+
+    assert_eq!(output.status.code(), Some(3));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .expect("support --advise --format json should emit valid JSON");
+    assert_eq!(value["verdict"], "invalid-input");
+    assert_eq!(
+        value["scenarios"][0]["error_identity"],
+        "CBKP022_NESTED_ODO",
+    );
+}
+
+#[test]
+fn support_advise_next_action_names_parser_real_flags() {
+    // #979: remediation prose references the real framing flag, checked
+    // against the actual CLI parser surface (`support --help`).
+    let help = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args(["support", "--help"])
+        .output()
+        .expect("failed to execute command");
+    let help_text = String::from_utf8_lossy(&help.stdout);
     assert!(
-        value["scenarios"][0]["next_action"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("CBKP021_ODO_NOT_TAIL"),
-        "expected CBKP021 identity in next_action, got: {value}"
+        help_text.contains("--record-format <RECORD_FORMAT>"),
+        "parser must own --record-format, got: {help_text}"
+    );
+
+    let copybook = write_advise_copybook(TAIL_ODO_COPYBOOK);
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args([
+            "support",
+            "--advise",
+            &copybook.path().to_string_lossy(),
+            "--record-format",
+            "rdw",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("failed to execute command");
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .expect("support --advise --format json should emit valid JSON");
+    let next_action = value["scenarios"][0]["next_action"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(
+        next_action.contains("--record-format rdw"),
+        "remediation must name the evaluated framing flag, got: {next_action}"
     );
 }
 

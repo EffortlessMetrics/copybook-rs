@@ -460,6 +460,10 @@ pub struct AdviseInput {
     pub constructs: Vec<AdviseConstruct>,
     /// Caller-reported parse failure, when the copybook did not parse.
     pub parse_error: Option<String>,
+    /// Typed identity for `parse_error` (e.g. `CBKP021_ODO_NOT_TAIL`),
+    /// carried separately so machine readers never parse prose (#979).
+    /// `None` preserves the historical prose-only projection.
+    pub parse_error_identity: Option<String>,
     /// Effective options under evaluation.
     pub options: EffectiveOptions,
     /// Canonical schema fingerprint when available.
@@ -490,11 +494,23 @@ impl AdviseInput {
         Self {
             constructs,
             parse_error: parse_error.map(|value| bound_chars(value, MAX_SUGGESTION_CHARS)),
+            parse_error_identity: None,
             options,
             copybook_fingerprint: None,
             source_fingerprint: None,
             tool_version: tool_version.into(),
         }
+    }
+
+    /// Attach the typed identity for `parse_error` without disturbing
+    /// existing `bounded` callers (#979). The identity must be a stable
+    /// code (never prose, paths, or payload); analysis copies it verbatim
+    /// into the `unparsed` assessment's `error_identity`.
+    #[inline]
+    #[must_use]
+    pub fn with_parse_error_identity(mut self, identity: impl Into<String>) -> Self {
+        self.parse_error_identity = Some(bound_chars(identity.into(), MAX_SUGGESTION_CHARS));
+        self
     }
 }
 
@@ -524,6 +540,7 @@ pub fn analyze(input: &AdviseInput) -> AdviseResult {
     let mut evidence_dropped = 0usize;
     if let Some(parse_error) = input.parse_error.as_deref() {
         let mut item = ScenarioAssessment::bounded("unparsed", AssessmentStatus::Invalid, "stable");
+        item.error_identity.clone_from(&input.parse_error_identity);
         item.set_next_action(format!(
             "Fix the reported parse error, then re-run: {parse_error}"
         ));
@@ -593,7 +610,11 @@ fn assess_construct(
     if !item.push_evidence(format!("construct:{}", construct.detail)) {
         *evidence_dropped += 1;
     }
-    item.set_next_action(next_action_for(&construct.kind, resolved.scenario_id));
+    item.set_next_action(next_action_for(
+        &construct.kind,
+        resolved.scenario_id,
+        options,
+    ));
     item
 }
 
@@ -765,13 +786,20 @@ fn stability_for(status: crate::SupportStatus) -> &'static str {
     }
 }
 
-/// Next real action for a construct kind. Names implemented behavior only.
-fn next_action_for(kind: &ConstructKind, scenario_id: &str) -> String {
+/// Next real action for a construct kind under the requested options (#979).
+/// Names implemented behavior only: `--record-format` selects framing,
+/// `--codepage` selects the codepage, and the values echoed are the
+/// evaluated ones, so the command is runnable as written against the real
+/// CLI parser (placeholders stay explicit where a value is unknown).
+fn next_action_for(kind: &ConstructKind, scenario_id: &str, options: &EffectiveOptions) -> String {
     match kind {
         ConstructKind::Unmapped => {
             "Run `copybook support --check <feature>` for the construct, or narrow the copybook to inventoried clauses.".to_string()
         }
-        _ => format!("Scenario evidence: {scenario_id}; re-run with --format and --codepage for the target path."),
+        _ => format!(
+            "Scenario evidence: {scenario_id}; re-run with --record-format {} --codepage {} for the target path.",
+            options.format, options.codepage
+        ),
     }
 }
 
@@ -1225,6 +1253,52 @@ mod tests {
         assert_eq!(result.scenarios.len(), 1);
         assert_eq!(result.scenarios[0].scenario_id, "unparsed");
         assert_eq!(result.scenarios[0].status, AssessmentStatus::Invalid);
+        assert_eq!(result.scenarios[0].error_identity, None);
+    }
+
+    #[test]
+    fn encoding_advise_parse_error_identity_rides_beside_prose() {
+        // #979: the typed identity occupies the machine field while prose
+        // stays free to change; nothing derives the code from the text.
+        let input = input_with(
+            vec![],
+            Some("human prose that never names a code".to_string()),
+        )
+        .with_parse_error_identity("CBKP021_ODO_NOT_TAIL");
+        let result = analyze(&input);
+        assert_eq!(result.verdict, Verdict::InvalidInput);
+        assert_eq!(
+            result.scenarios[0].error_identity.as_deref(),
+            Some("CBKP021_ODO_NOT_TAIL")
+        );
+        assert!(
+            !result.scenarios[0]
+                .next_action
+                .contains("CBKP021_ODO_NOT_TAIL"),
+            "identity must not leak into prose in this projection"
+        );
+    }
+
+    #[test]
+    fn encoding_advise_next_action_names_real_flags_with_values() {
+        // #979: remediation references `--record-format` (framing) and
+        // `--codepage` with the evaluated values, never bare `--format`.
+        let item = single_scenario("rdw", ConstructKind::OccursDepending);
+        assert!(
+            item.next_action.contains("--record-format rdw"),
+            "got: {}",
+            item.next_action
+        );
+        assert!(
+            item.next_action.contains("--codepage ascii"),
+            "got: {}",
+            item.next_action
+        );
+        assert!(
+            !item.next_action.contains("--format "),
+            "framing flag must be --record-format, got: {}",
+            item.next_action
+        );
     }
 
     #[test]

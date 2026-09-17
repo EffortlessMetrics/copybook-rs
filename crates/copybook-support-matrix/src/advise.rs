@@ -427,8 +427,9 @@ pub enum ConstructKind {
     /// Plain alphanumeric field (`PIC X`, #980 first family).
     Alphanumeric,
     /// Unsigned display numeric without scale (`PIC 9`, #980 first family).
-    /// Signed, scaled, and `SIGN SEPARATE` zoned fields keep their existing
-    /// mappings; the ledger row covers unsigned display only.
+    /// The ledger row covers unsigned display only; signed, scaled, and
+    /// `SIGN SEPARATE` zoned fields map to [`ConstructKind::SignedZoned`]
+    /// and [`ConstructKind::SignSeparate`] instead.
     DisplayNumeric,
     /// Binary integer (`COMP`, #980 second family). Big-endian per
     /// mainframe convention; see the ledger row for the covered widths.
@@ -436,6 +437,11 @@ pub enum ConstructKind {
     /// Packed decimal (`COMP-3`, #980 second family), signed, scaled, and
     /// unsigned with mainframe sign-nibble conventions.
     PackedDecimal,
+    /// Signed and/or scaled zoned decimal without `SIGN SEPARATE`
+    /// (`PIC S9`, `V`-scaled, #980 third family). Overpunch sign encoding
+    /// per EBCDIC/ASCII zone conventions; see the ledger row for the
+    /// covered codepoints.
+    SignedZoned,
     /// Construct with no analysis mapping; never rendered as certainty.
     Unmapped,
 }
@@ -696,6 +702,12 @@ fn resolve_assessment(kind: &ConstructKind, options: &EffectiveOptions) -> Resol
             "COMP-3 packed decimals",
             options,
         ),
+        ConstructKind::SignedZoned => row_for_format(
+            "struct.field.signed_zoned",
+            "matrix:signed-zoned",
+            "signed/scaled zoned decimals",
+            options,
+        ),
         ConstructKind::Renames
         | ConstructKind::Redefines
         | ConstructKind::Level88
@@ -818,6 +830,7 @@ fn construct_plan(
         | ConstructKind::DisplayNumeric
         | ConstructKind::BinaryInt
         | ConstructKind::PackedDecimal
+        | ConstructKind::SignedZoned
         | ConstructKind::Unmapped => ("unmapped", "none", None, None, ""),
         ConstructKind::Renames => (
             "struct.renames.r1_r3",
@@ -1310,6 +1323,7 @@ mod tests {
             "struct.field.display_numeric",
             "struct.field.binary_int",
             "struct.field.packed_decimal",
+            "struct.field.signed_zoned",
         ] {
             assert!(
                 crate::ledger_projection::projection_for(id).is_some(),
@@ -1421,6 +1435,66 @@ mod tests {
             assert_eq!(item.scenario_id, id);
             assert_eq!(item.status, AssessmentStatus::Unknown);
         }
+    }
+
+    #[test]
+    fn encoding_advise_signed_zoned_resolves_with_evidence() {
+        // #980 third family: signed/scaled zoned resolves to the applicable
+        // row with real layers and evidence, stating the overpunch
+        // convention and the copybook-only limit.
+        let zoned = single_scenario("fixed", ConstructKind::SignedZoned);
+        assert_eq!(zoned.scenario_id, "struct.field.signed_zoned");
+        assert_eq!(zoned.status, AssessmentStatus::Supported);
+        assert_eq!(
+            zoned.affected_layers,
+            vec![
+                AffectedLayer::Parse,
+                AffectedLayer::Layout,
+                AffectedLayer::Decode,
+                AffectedLayer::Encode,
+                AffectedLayer::RoundTrip,
+            ]
+        );
+        assert!(
+            zoned.evidence_refs.contains(
+                &"crates/copybook-core/tests/parser_comprehensive.rs::test_pic_numeric_signed_with_decimal"
+                    .to_string()
+            )
+        );
+        assert!(
+            zoned
+                .limitation_or_remediation
+                .contains("Overpunch sign encoding"),
+            "signed-zoned row must state the sign convention, got: {}",
+            zoned.limitation_or_remediation
+        );
+        assert!(
+            zoned
+                .limitation_or_remediation
+                .contains("never validates unseen record payloads"),
+            "copybook-only limit must be explicit, got: {}",
+            zoned.limitation_or_remediation
+        );
+
+        let scaled = single_scenario("rdw", ConstructKind::SignedZoned);
+        assert_eq!(scaled.scenario_id, "struct.field.signed_zoned");
+        assert_eq!(scaled.status, AssessmentStatus::Supported);
+        assert_eq!(scaled.record_formats, vec!["rdw".to_string()]);
+        assert!(
+            scaled.evidence_refs.contains(
+                &"crates/copybook-codec/tests/codec_roundtrip_exhaustive.rs::roundtrip_display_numeric_ebcdic_signed_negative"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn encoding_advise_signed_zoned_stays_unknown_without_row() {
+        // #980: VB has no signed-zoned row; the assessment stays unknown
+        // under an explicit matrix ID instead of borrowing fixed evidence.
+        let item = single_scenario("vb", ConstructKind::SignedZoned);
+        assert_eq!(item.scenario_id, "matrix:signed-zoned");
+        assert_eq!(item.status, AssessmentStatus::Unknown);
     }
 
     #[test]

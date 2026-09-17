@@ -159,8 +159,8 @@ fn walk_field(
     match &field.kind {
         // #980 first family: ordinary fields the wildcard used to swallow.
         // Only unsigned, unscaled display without SIGN SEPARATE resolves to
-        // the ledger row; signed, scaled, and separate-sign zoned fields
-        // keep their existing mappings.
+        // the display row; signed/scaled zoned maps to the signed-zoned row
+        // below, and separate-sign zoned keeps the SIGN SEPARATE mapping.
         FieldKind::Alphanum { .. } => constructs.push(AdviseConstruct::bounded(
             ConstructKind::Alphanumeric,
             field.path.clone(),
@@ -173,6 +173,17 @@ fn walk_field(
             ..
         } => constructs.push(AdviseConstruct::bounded(
             ConstructKind::DisplayNumeric,
+            field.path.clone(),
+            None,
+        )),
+        // #980 third family: signed and/or scaled zoned without SIGN
+        // SEPARATE. The unsigned, unscaled arm above matched first, so this
+        // arm carries only overpunch/scaled fields to the ledger row.
+        FieldKind::ZonedDecimal {
+            sign_separate: None,
+            ..
+        } => constructs.push(AdviseConstruct::bounded(
+            ConstructKind::SignedZoned,
             field.path.clone(),
             None,
         )),

@@ -319,11 +319,14 @@ pub struct AdviseResult {
 impl AdviseResult {
     /// Build a result; scenarios are sorted by ID and capped at
     /// [`MAX_SCENARIOS`] with counts preserved. The verdict is derived from
-    /// the *reported* assessments only when nothing was dropped; a dropped
-    /// scenario of unknown severity downgrades any non-negative verdict
+    /// the *complete* evaluated set before truncation, so a presentation
+    /// bound can never discard a higher-precedence failure (#977). A
+    /// dropped scenario downgrades a non-negative complete-set verdict
     /// ([`Verdict::Supported`], [`Verdict::SupportedWithLimits`], or
     /// [`Verdict::Beta`]) to [`Verdict::PartialUnknown`] so a bound can
-    /// never manufacture certainty. Already-negative verdicts are preserved.
+    /// never manufacture certainty. Complete-set negative verdicts are
+    /// preserved, including when every negative assessment sorts beyond
+    /// the cap.
     #[must_use]
     #[inline]
     pub fn bounded(
@@ -335,11 +338,12 @@ impl AdviseResult {
     ) -> Self {
         scenarios.sort_by(|left, right| left.scenario_id.cmp(&right.scenario_id));
         let considered = scenarios.len();
+        let complete_statuses: Vec<AssessmentStatus> =
+            scenarios.iter().map(|item| item.status).collect();
+        let complete_verdict = derive_verdict(&complete_statuses);
         scenarios.truncate(MAX_SCENARIOS);
         let reported = scenarios.len();
-        let reported_statuses: Vec<AssessmentStatus> =
-            scenarios.iter().map(|item| item.status).collect();
-        let mut verdict = derive_verdict(&reported_statuses);
+        let mut verdict = complete_verdict;
         if reported < considered
             && matches!(
                 verdict,
@@ -786,6 +790,83 @@ mod tests {
             "copybook 0.7.0",
         );
         assert_eq!(result.verdict, Verdict::Rejected);
+    }
+
+    fn sixty_four_supported_plus(id: &str, status: AssessmentStatus) -> Vec<ScenarioAssessment> {
+        let mut scenarios: Vec<ScenarioAssessment> = (0..MAX_SCENARIOS)
+            .map(|index| assessment(&format!("a{index:03}"), AssessmentStatus::Supported))
+            .collect();
+        scenarios.push(assessment(id, status));
+        scenarios
+    }
+
+    fn bounded_of(scenarios: Vec<ScenarioAssessment>) -> AdviseResult {
+        AdviseResult::bounded(
+            options(),
+            scenarios,
+            0,
+            RedactionState::locked_down(),
+            "copybook 0.7.0",
+        )
+    }
+
+    #[test]
+    fn encoding_advise_omitted_tool_failure_dominates_retained_rejection() {
+        // #977 counterexample: 63 supported + 1 retained rejection sort
+        // before an omitted tool failure; complete-set precedence is
+        // tool failure, not rejection.
+        let mut scenarios = sixty_four_supported_plus("z999", AssessmentStatus::ToolFailure);
+        scenarios[0] = assessment("a000", AssessmentStatus::Rejected);
+        let result = bounded_of(scenarios);
+        assert_eq!(result.truncation.scenarios_considered, MAX_SCENARIOS + 1);
+        assert_eq!(result.truncation.scenarios_reported, MAX_SCENARIOS);
+        assert_eq!(result.verdict, Verdict::ToolFailure);
+    }
+
+    #[test]
+    fn encoding_advise_omitted_invalid_dominates_retained_rejection() {
+        let mut scenarios = sixty_four_supported_plus("z999", AssessmentStatus::Invalid);
+        scenarios[0] = assessment("a000", AssessmentStatus::Rejected);
+        let result = bounded_of(scenarios);
+        assert_eq!(result.verdict, Verdict::InvalidInput);
+    }
+
+    #[test]
+    fn encoding_advise_omitted_negative_counts_with_supported_retained_set() {
+        // An omitted negative with an otherwise supported retained set must
+        // surface the negative, not the dropped-detail unknown.
+        for (status, expected) in [
+            (AssessmentStatus::Rejected, Verdict::Rejected),
+            (AssessmentStatus::Invalid, Verdict::InvalidInput),
+            (AssessmentStatus::ToolFailure, Verdict::ToolFailure),
+            (AssessmentStatus::Unknown, Verdict::PartialUnknown),
+        ] {
+            let result = bounded_of(sixty_four_supported_plus("z999", status));
+            assert_eq!(
+                result.verdict, expected,
+                "omitted {status:?} must set the complete-set verdict"
+            );
+            assert_eq!(result.truncation.scenarios_considered, MAX_SCENARIOS + 1);
+            assert_eq!(result.truncation.scenarios_reported, MAX_SCENARIOS);
+        }
+    }
+
+    #[test]
+    fn encoding_advise_complete_set_verdict_ignores_input_order() {
+        // Reordered input with an omitted beta and a retained rejection
+        // still yields the complete-set verdict.
+        let mut scenarios = sixty_four_supported_plus("z999", AssessmentStatus::Beta);
+        scenarios[0] = assessment("a000", AssessmentStatus::Rejected);
+        scenarios.reverse();
+        let result = bounded_of(scenarios);
+        assert_eq!(result.verdict, Verdict::Rejected);
+        assert_eq!(
+            result
+                .scenarios
+                .first()
+                .map(|item| item.scenario_id.as_str()),
+            Some("a000")
+        );
     }
 
     #[test]

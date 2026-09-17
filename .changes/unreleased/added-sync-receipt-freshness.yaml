@@ -1,0 +1,7 @@
+kind: added
+body: '**devex**: `docs sync-tests` reports its receipt and staleness
+  (#992). A sync now names the junit receipt it consumed and warns,
+  with the rerun command, when the receipt predates the newest test
+  source — so a sync off an old receipt cannot silently certify
+  unexecuted tests.'
+time: '2026-09-17T17:48:38Z'

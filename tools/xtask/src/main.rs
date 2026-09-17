@@ -4,7 +4,10 @@ use copybook_core::support_matrix;
 use sha2::Digest as _;
 use std::{fs, path::Path};
 use xtask::publish::{PlanFormat, run_plan};
-use xtask::{Counts, architecture, counts, junit_xml_path, perf};
+use xtask::{
+    Counts, architecture, counts, junit_xml_path, newest_test_source_mtime, perf,
+    stale_receipt_warning,
+};
 
 mod corpus;
 mod docs_verify;
@@ -154,7 +157,20 @@ fn sync() -> Result<()> {
         }
     }
 
-    println!("\u{2713} Synced test status where the marker is present");
+    // Report which receipt the counts came from and whether it may be stale
+    // (#992): a sync off an old receipt would certify unexecuted tests.
+    let receipt = junit_xml_path()?;
+    let receipt_mtime = fs::metadata(&receipt)?.modified()?;
+    let newest_source = newest_test_source_mtime()?;
+    println!(
+        "\u{2713} Synced test status where the marker is present (receipt: {})",
+        receipt.display()
+    );
+    if let Some(warning) =
+        stale_receipt_warning(receipt_mtime, newest_source, JUNIT_RECEIPT_COMMAND)
+    {
+        println!("{warning}");
+    }
     Ok(())
 }
 

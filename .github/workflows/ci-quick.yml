@@ -58,10 +58,17 @@ jobs:
           echo "BASE_SHA=${{ github.event.pull_request.base.sha }}" >> $GITHUB_ENV
           echo "HEAD_SHA=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
 
+      - name: Fetch parent commit for push-event diff baseline
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=2 origin ${{ github.sha }}
+
       - name: Verify nightly lanes pin nightly toolchain
         run: |
           python3 scripts/ci/check_toolchain_pins.py
           python3 scripts/ci/test_toolchain_pins.py
+          python3 scripts/ci/test_panic_policy_baseline.py
 
       - uses: dtolnay/rust-toolchain@stable
         with:

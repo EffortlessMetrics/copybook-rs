@@ -1,0 +1,8 @@
+kind: fixed
+body: '**advise**: derive the `support --advise` overall verdict from the
+  complete evaluated scenario set before presentation truncation, so a bound
+  can never discard a higher-precedence failure (an omitted tool failure or
+  invalid input now dominates a retained rejection; an omitted negative with
+  an otherwise supported retained set surfaces the negative). Counts still
+  distinguish considered from reported scenarios; no schema change.'
+time: '2026-09-17T10:05:00Z'

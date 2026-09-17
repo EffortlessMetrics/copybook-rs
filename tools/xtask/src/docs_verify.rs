@@ -6003,6 +6003,115 @@ CBK999_OUTSIDE,
     }
 
     #[test]
+    fn parsing_scenario_ledger_rejects_na_without_reason() {
+        // #983: inapplicability must be stated, never bare.
+        let (temp, mut row) = scenario_row_fixture();
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
+        row.layout_evidence = vec![EvidenceAnchor {
+            reference: None,
+            kind: "not_applicable".to_string(),
+            reason: None,
+        }];
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect_err("reasonless N/A must fail");
+        assert!(err.to_string().contains("needs a reason"), "{err}");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_required_layer_without_direct() {
+        // #983: a required layer cannot be satisfied by N/A alone; dropping
+        // the direct anchor drops the claim, not the obligation.
+        let (temp, mut row) = scenario_row_fixture();
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
+        row.required_evidence_layers = vec!["decode".to_string()];
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect_err("required layer without direct must fail");
+        assert!(err.to_string().contains("requires layer `decode`"), "{err}");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_relationship_without_namespace() {
+        // #983: links outside the known namespaces cannot certify a row.
+        let (temp, mut row) = scenario_row_fixture();
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
+        row.shared_evidence_relationships = vec!["test.other".to_string()];
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect_err("namespaceless link must fail");
+        assert!(err.to_string().contains("needs a namespace"), "{err}");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_unknown_relationship_namespace() {
+        // #983: wrong-namespace references resolve nothing.
+        let (temp, mut row) = scenario_row_fixture();
+        row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
+        row.shared_evidence_relationships = vec!["matrix:test.other".to_string()];
+        let (codes, pipeline) = scenario_registries();
+        let ids = BTreeSet::from(["test.row".to_string()]);
+        let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+            .expect_err("unknown namespace must fail");
+        assert!(err.to_string().contains("unknown namespace"), "{err}");
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_rejects_unknown_plane_targets() {
+        // #983: plane links must name IDs their registries actually contain.
+        for relationship in [
+            "fixed-rdw:nope",
+            "stable-error:CBKX000_MISSING",
+            "ledger:nope",
+            "ledger:test.row",
+        ] {
+            let (temp, mut row) = scenario_row_fixture();
+            row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());
+            row.shared_evidence_relationships = vec![relationship.to_string()];
+            let (codes, pipeline) = scenario_registries();
+            let ids = BTreeSet::from(["test.row".to_string()]);
+            let err = validate_scenario_row(temp.path(), &row, &ids, &codes, &pipeline)
+                .expect_err("unknown link target must fail");
+            assert!(
+                err.to_string().contains("unknown target"),
+                "{relationship}: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn parsing_scenario_ledger_cycle_diagnostic_is_deterministic() {
+        // #983: diagnostics must be byte-stable so failures stay greppable.
+        let (temp, first) = scenario_row_fixture();
+        let mut second = scenario_row_fixture().1;
+        second.scenario_id = "test.other".to_string();
+        let sha = scaffold_git_repo_with_commit(temp.path());
+        let mut first = first;
+        first.last_verified_full_sha = sha.clone();
+        second.last_verified_full_sha = sha;
+        first.shared_evidence_relationships = vec!["ledger:test.other".to_string()];
+        second.shared_evidence_relationships = vec!["ledger:test.row".to_string()];
+        let ledger = ScenarioLedger {
+            schema_version: 1,
+            scope: "scenario-ledger".to_string(),
+            scenarios: vec![first, second],
+        };
+        let (codes, pipeline) = scenario_registries();
+        let first_err = validate_scenario_ledger(temp.path(), &ledger, &codes, &pipeline)
+            .expect_err("ledger cycle must fail");
+        let second_err = validate_scenario_ledger(temp.path(), &ledger, &codes, &pipeline)
+            .expect_err("ledger cycle must fail");
+        assert_eq!(first_err.to_string(), second_err.to_string());
+        assert_eq!(
+            first_err.to_string(),
+            "scenario ledger `ledger:` cycle detected: test.other -> test.row -> test.other | repair: remove one direction of the shared-evidence link"
+        );
+    }
+
+    #[test]
     fn parsing_scenario_ledger_rejects_unknown_relationship() {
         let (temp, mut row) = scenario_row_fixture();
         row.last_verified_full_sha = scaffold_git_repo_with_commit(temp.path());

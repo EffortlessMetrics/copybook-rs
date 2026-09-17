@@ -75,10 +75,10 @@ const SIGNATURES: &[Signature] = &[
         probe_ch: "Ý",
         rt_byte: 0xAD,
     },
-    // CP1140: 0xFF = € (the single byte differing from CP037); `[` at 0xBA.
+    // CP1140: 0x9F = € (the single byte differing from CP037); `[` at 0xBA.
     Signature {
         cp: Codepage::CP1140,
-        probe_byte: 0xFF,
+        probe_byte: 0x9F,
         probe_ch: "€",
         rt_byte: 0xBA,
     },
@@ -407,7 +407,7 @@ fn encode_euro_is_specific_to_cp1140() {
         let result = encode_record(&schema, &json, &encode_opts(sig.cp, RecordFormat::Fixed));
         if sig.cp == Codepage::CP1140 {
             let encoded = result.unwrap_or_else(|e| panic!("CP1140 must encode €: {e}"));
-            assert_eq!(encoded[0], 0xFF, "€ must encode to 0xFF under CP1140");
+            assert_eq!(encoded[0], 0x9F, "€ must encode to 0x9F under CP1140");
         } else {
             let err = result.expect_err("€ must be rejected outside CP1140");
             assert_eq!(
@@ -467,6 +467,22 @@ fn worker_thread_count_does_not_change_ebcdic_decode() {
     let schema = parse_copybook(SIG_COPYBOOK).expect("copybook parses");
 
     for sig in SIGNATURES {
+        // 33 records alternate the probe byte with the round-trip byte, so
+        // every record is distinct by position; 33 is not divisible by the
+        // worker split, forcing a partial final batch (#999).
+        let payload: Vec<u8> = (0..33)
+            .map(|i| {
+                if i % 2 == 0 {
+                    sig.probe_byte
+                } else {
+                    sig.rt_byte
+                }
+            })
+            .collect();
+        let expected: Vec<&str> = (0..33)
+            .map(|i| if i % 2 == 0 { sig.probe_ch } else { RT_CH })
+            .collect();
+
         let mut outputs = Vec::new();
         for threads in [1_usize, 4] {
             let opts = DecodeOptions::new()
@@ -476,25 +492,37 @@ fn worker_thread_count_does_not_change_ebcdic_decode() {
                 .with_emit_meta(false)
                 .with_threads(threads);
             let mut out = Vec::new();
-            let status = decode_file_to_jsonl(
-                &schema,
-                Cursor::new(vec![sig.probe_byte; 32]),
-                &mut out,
-                &opts,
+            let result =
+                decode_file_to_jsonl(&schema, Cursor::new(payload.clone()), &mut out, &opts);
+            assert!(result.is_ok(), "decode under {} must succeed", sig.cp);
+            let summary = result.unwrap();
+            assert_eq!(
+                summary.records_processed, 33,
+                "worker decode must account all 33 records under {} (threads={threads})",
+                sig.cp
             );
-            assert!(status.is_ok(), "decode under {} failed", sig.cp);
-            outputs.push(out);
+            let text = String::from_utf8(out).expect("jsonl utf-8");
+            let lines: Vec<&str> = text.lines().collect();
+            assert_eq!(
+                lines.len(),
+                33,
+                "worker decode must emit 33 ordered lines under {} (threads={threads})",
+                sig.cp
+            );
+            let values: Vec<String> = lines
+                .iter()
+                .map(|line| sig_from_jsonl(line.as_bytes()))
+                .collect();
+            assert_eq!(
+                values, expected,
+                "worker decode order/values must match under {} (threads={threads})",
+                sig.cp
+            );
+            outputs.push(text);
         }
         assert_eq!(
             outputs[0], outputs[1],
-            "thread count changed EBCDIC decode under {}",
-            sig.cp
-        );
-        assert_eq!(
-            sig_from_jsonl(&outputs[0]),
-            sig.probe_ch,
-            "worker decode must still yield {:?} under {}",
-            sig.probe_ch,
+            "thread count changed EBCDIC decode bytes under {}",
             sig.cp
         );
     }

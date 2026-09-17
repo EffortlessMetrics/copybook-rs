@@ -9,6 +9,7 @@ use copybook_codec::{
     decode_record, encode_record,
 };
 use copybook_core::parse_copybook;
+use copybook_error::ErrorCode;
 
 // ===========================================================================
 // Helpers
@@ -122,7 +123,7 @@ fn cp037_space_is_0x40() {
 #[allow(clippy::similar_names)]
 fn cp273_german_special_chars() {
     // CP273 maps German characters at specific positions that differ from CP037.
-    // Ä=0x4A, ö=0x6A, Ü=0x5A, ä=0xC0, Ö=0xE0, ü=0xD0, ß=0x59
+    // Ä=0x4A, ö=0x6A, Ü=0x5A, ä=0xC0, Ö=0xE0, ü=0xD0, ß=0xA1 (#999: 0x59 is ~)
     let ebcdic_cap_a_uml = [0x4A];
     let result =
         ebcdic_to_utf8(&ebcdic_cap_a_uml, Codepage::CP273, UnmappablePolicy::Error).unwrap();
@@ -138,9 +139,12 @@ fn cp273_german_special_chars() {
         ebcdic_to_utf8(&ebcdic_cap_u_uml, Codepage::CP273, UnmappablePolicy::Error).unwrap();
     assert_eq!(result, "Ü");
 
-    let ebcdic_eszett = [0x59];
+    let ebcdic_eszett = [0xA1];
     let result = ebcdic_to_utf8(&ebcdic_eszett, Codepage::CP273, UnmappablePolicy::Error).unwrap();
     assert_eq!(result, "ß");
+    let ebcdic_tilde = [0x59];
+    let result = ebcdic_to_utf8(&ebcdic_tilde, Codepage::CP273, UnmappablePolicy::Error).unwrap();
+    assert_eq!(result, "~");
 }
 
 #[test]
@@ -304,16 +308,14 @@ fn cp1047_yen_and_overline_differ_from_cp037() {
 
 #[test]
 fn cp1140_euro_sign_encoding() {
-    // CP1140 differs from CP037 at exactly ONE byte: 0xFF
-    // CP037:  0xFF = control char (U+009F)
-    // CP1140: 0xFF = € (Euro sign U+20AC)
-    let cp1140_result =
-        ebcdic_to_utf8(&[0xFF], Codepage::CP1140, UnmappablePolicy::Replace).unwrap();
+    // CP1140 differs from CP037 at exactly ONE byte: 0x9F (#998)
+    // CP037:  0x9F = ¤ (U+00A4)      0xFF = control char (U+009F)
+    // CP1140: 0x9F = € (U+20AC)      0xFF = control char (U+009F)
+    let cp1140_result = ebcdic_to_utf8(&[0x9F], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
     assert_eq!(cp1140_result, "€");
 
-    // CP037 0xFF maps to a control char (U+009F) which is unmappable
-    let cp037_result = ebcdic_to_utf8(&[0xFF], Codepage::CP037, UnmappablePolicy::Replace).unwrap();
-    assert_ne!(cp037_result, "€");
+    let cp037_result = ebcdic_to_utf8(&[0x9F], Codepage::CP037, UnmappablePolicy::Error).unwrap();
+    assert_eq!(cp037_result, "¤");
 }
 
 #[test]
@@ -323,9 +325,12 @@ fn cp1140_euro_roundtrip() {
 }
 
 #[test]
-fn cp1140_identical_to_cp037_except_0xff() {
-    // Every byte except 0xFF should decode identically in CP037 and CP1140
-    for byte in 0x00u8..=0xFEu8 {
+fn cp1140_identical_to_cp037_except_0x9f() {
+    // Every byte except 0x9F decodes identically in CP037 and CP1140 (#998)
+    for byte in 0x00u8..=0xFFu8 {
+        if byte == 0x9F {
+            continue;
+        }
         let data = [byte];
         let cp037_result = ebcdic_to_utf8(&data, Codepage::CP037, UnmappablePolicy::Replace);
         let cp1140_result = ebcdic_to_utf8(&data, Codepage::CP1140, UnmappablePolicy::Replace);
@@ -344,11 +349,15 @@ fn cp1140_identical_to_cp037_except_0xff() {
 }
 
 #[test]
-fn cp1140_currency_sign_available() {
-    // ¤ (U+00A4) CAN be encoded in CP1140 at 0x9F (same position as CP037)
-    let result = utf8_to_ebcdic("¤", Codepage::CP1140);
-    assert!(result.is_ok(), "¤ should be mappable in CP1140");
-    assert_eq!(result.unwrap(), vec![0x9F]);
+fn cp1140_currency_sign_rejected() {
+    // ¤ (U+00A4) has no CP1140 mapping: 0x9F is € per IBM1140 (#998), so the
+    // strict encoder must reject it with the stable-coded rejection.
+    let err = utf8_to_ebcdic("¤", Codepage::CP1140).unwrap_err();
+    assert_eq!(
+        err.code(),
+        ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+        "CP1140: ¤ must be rejected"
+    );
 }
 
 // ===========================================================================

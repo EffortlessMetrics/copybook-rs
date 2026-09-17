@@ -216,16 +216,16 @@ fn ascii_space_is_0x20() {
 }
 
 #[test]
-fn cp1140_euro_sign_at_0xff() {
-    // CP1140 has euro sign (€) at 0xFF
-    let decoded = ebcdic_to_utf8(&[0xFF], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
+fn cp1140_euro_sign_at_0x9f() {
+    // CP1140 has euro sign (€) at 0x9F per IBM1140 (#998)
+    let decoded = ebcdic_to_utf8(&[0x9F], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
     assert_eq!(decoded, "€");
 }
 
 #[test]
 fn cp1140_euro_sign_roundtrip() {
     let ebcdic = utf8_to_ebcdic("€", Codepage::CP1140).unwrap();
-    assert_eq!(ebcdic, vec![0xFF]);
+    assert_eq!(ebcdic, vec![0x9F]);
     let decoded = ebcdic_to_utf8(&ebcdic, Codepage::CP1140, UnmappablePolicy::Error).unwrap();
     assert_eq!(decoded, "€");
 }

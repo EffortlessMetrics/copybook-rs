@@ -174,6 +174,66 @@ run_with_binary() {
   fi
 }
 
+codepage_correction_witness() {
+  local copybook_cli="$1"
+  local dir="$2"
+  mkdir -p "${dir}"
+  printf '01 SIG-REC.\n   05 SIG PIC X(1).\n' > "${dir}/sig.cpy"
+
+  COPYCASE_BIN="${copybook_cli}" COPYCASE_DIR="${dir}" "${PYTHON_BIN}" - <<'PY'
+import json
+import os
+import pathlib
+import subprocess
+import sys
+
+cli = os.environ["COPYCASE_BIN"]
+work = pathlib.Path(os.environ["COPYCASE_DIR"])
+cpy = str(work / "sig.cpy")
+
+# Independently specified IBM-contract pairs (#998/#999): the expected
+# characters and bytes are hardcoded from the IBM references, never derived
+# from the binary under test, so a mutually consistent but wrong table fails.
+cases = [
+    ("cp1140", 0x9F, "€"),
+    ("cp273", 0x59, "~"),
+    ("cp273", 0xA1, "ß"),
+    ("cp1047", 0x5F, "^"),
+    ("cp1047", 0xB0, "¬"),
+]
+
+for codepage, byte, char in cases:
+    data = work / f"in-{codepage}-{byte:02x}.bin"
+    data.write_bytes(bytes([byte]))
+    decoded = work / f"out-{codepage}-{byte:02x}.jsonl"
+    subprocess.run(
+        [cli, "decode", cpy, str(data), "--format", "fixed",
+         "--codepage", codepage, "--output", str(decoded)],
+        check=True,
+    )
+    line = decoded.read_text(encoding="utf-8").splitlines()[0]
+    seen = json.loads(line).get("SIG")
+    if seen != char:
+        print(f"decode witness failed: {codepage} 0x{byte:02X} -> {seen!r}, want {char!r}")
+        sys.exit(1)
+
+    source = work / f"back-{codepage}-{byte:02x}.jsonl"
+    source.write_text(json.dumps({"SIG": char}, ensure_ascii=False) + "\n", encoding="utf-8")
+    encoded = work / f"back-{codepage}-{byte:02x}.bin"
+    subprocess.run(
+        [cli, "encode", cpy, str(source), "--format", "fixed",
+         "--codepage", codepage, "--output", str(encoded)],
+        check=True,
+    )
+    seen_bytes = encoded.read_bytes()
+    if seen_bytes != bytes([byte]):
+        print(f"encode witness failed: {codepage} {char!r} -> {seen_bytes.hex()}, want {byte:02x}")
+        sys.exit(1)
+
+print(f"codepage witness ok: {len(cases)} independent pairs in both directions")
+PY
+}
+
 emit_smoke_manifest() {
   local manifest_path="$1"
   local mode="$2"
@@ -315,5 +375,8 @@ run_with_binary "${COPYBOOK_CLI_BIN}" rdw "${FIXTURE_COPYBOOK}" "${RDW_FIXTURE}"
 echo "Comparing RDW output across worker settings"
 compare_bytes "${FIXTURE_DIR}/rdw/t1/decode.jsonl" "${FIXTURE_DIR}/rdw/t4/decode.jsonl"
 compare_bytes "${FIXTURE_DIR}/rdw/t1/encode.bin" "${FIXTURE_DIR}/rdw/t4/encode.bin"
+
+echo "Running codepage-correction witness (installed binary, independent pairs)"
+codepage_correction_witness "${COPYBOOK_CLI_BIN}" "${FIXTURE_DIR}/codepage"
 
 echo "Release smoke completed successfully."

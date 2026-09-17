@@ -237,16 +237,17 @@ fn null_byte_handling_skip_policy() {
 
 #[test]
 fn byte_0xff_handling_all_codepages() {
-    // CP1140 maps 0xFF to € (U+20AC); other codepages map to various chars
+    // Every codepage maps 0xFF to U+009F (decodable under any policy); the
+    // € discriminator lives at 0x9F on CP1140 (#998).
     for cp in ALL_CODEPAGES {
         let result = ebcdic_to_utf8(&[0xFF], cp, UnmappablePolicy::Replace);
         assert!(result.is_ok(), "{cp}: 0xFF must not panic with Replace");
         let decoded = result.unwrap();
         assert!(!decoded.is_empty(), "{cp}: 0xFF should decode to something");
     }
-    // CP1140 specifically: 0xFF = €
-    let euro = ebcdic_to_utf8(&[0xFF], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
-    assert_eq!(euro, "€", "CP1140: 0xFF must be euro sign");
+    // CP1140 specifically: 0x9F = €
+    let euro = ebcdic_to_utf8(&[0x9F], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
+    assert_eq!(euro, "€", "CP1140: 0x9F must be euro sign");
 }
 
 // ============================================================================

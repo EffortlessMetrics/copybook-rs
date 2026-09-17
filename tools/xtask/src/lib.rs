@@ -136,9 +136,38 @@ pub fn stale_receipt_warning(
     }
 }
 
+/// Render the gate refusal for a stale receipt (#992).
+///
+/// Returns the failure report naming the receipt identity and the exact
+/// rerun/sync commands when the receipt predates the newest test source,
+/// and `None` when the receipt is at least as fresh. Gates must refuse;
+/// only `sync-tests` may warn and continue.
+#[must_use]
+#[inline]
+pub fn stale_gate_report(
+    receipt_display: &str,
+    receipt_sha256: &str,
+    receipt_mtime: SystemTime,
+    newest_source_mtime: SystemTime,
+    rerun_command: &str,
+    sync_command: &str,
+) -> Option<String> {
+    if newest_source_mtime > receipt_mtime {
+        Some(format!(
+            "test-status evidence is stale: junit receipt {receipt_display} (sha256:{receipt_sha256}) predates the newest test source, so its counts cannot certify the current tests\n\
+             regenerate the receipt with:\n\
+               {rerun_command}\n\
+             then sync the docs with:\n\
+               {sync_command}"
+        ))
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{newest_test_source_mtime, stale_receipt_warning};
+    use super::{newest_test_source_mtime, stale_gate_report, stale_receipt_warning};
     use std::time::{Duration, SystemTime};
 
     #[test]
@@ -157,6 +186,36 @@ mod tests {
         let warning = stale_receipt_warning(receipt, newer_source, "rerun-cmd")
             .expect("stale receipt must warn");
         assert!(warning.contains("rerun-cmd"), "{warning}");
+    }
+
+    #[test]
+    fn stale_gate_report_refuses_only_older_receipts() {
+        let receipt = SystemTime::UNIX_EPOCH + Duration::from_secs(100);
+        let older_source = SystemTime::UNIX_EPOCH + Duration::from_secs(50);
+        let newer_source = SystemTime::UNIX_EPOCH + Duration::from_secs(150);
+        assert!(
+            stale_gate_report("junit.xml", "abc", receipt, older_source, "rerun", "sync").is_none(),
+            "fresh receipt must pass the gate"
+        );
+        assert!(
+            stale_gate_report("junit.xml", "abc", receipt, receipt, "rerun", "sync").is_none(),
+            "same-time receipt must pass the gate"
+        );
+        let report = stale_gate_report(
+            "junit.xml",
+            "deadbeef",
+            receipt,
+            newer_source,
+            "rerun-cmd",
+            "sync-cmd",
+        )
+        .expect("stale receipt must fail the gate");
+        for needle in ["stale", "junit.xml", "deadbeef", "rerun-cmd", "sync-cmd"] {
+            assert!(
+                report.contains(needle),
+                "report must contain {needle}: {report}"
+            );
+        }
     }
 
     #[test]

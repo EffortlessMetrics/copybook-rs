@@ -128,8 +128,8 @@ fn usage_error() -> anyhow::Result<ExitCode> {
 #[allow(clippy::too_many_lines)]
 fn run_occurrence(
     args: &ExplainArgs<'_>,
-    copybook: &PathBuf,
-    input: &PathBuf,
+    copybook: &std::path::Path,
+    input: &std::path::Path,
 ) -> anyhow::Result<ExitCode> {
     let Some(record_format) = args.record_format else {
         let mut stderr = String::new();
@@ -142,7 +142,10 @@ fn run_occurrence(
     };
     if args.record == Some(0) {
         let mut stderr = String::new();
-        let _ = writeln!(stderr, "error: --record is 1-based; record 0 does not exist");
+        let _ = writeln!(
+            stderr,
+            "error: --record is 1-based; record 0 does not exist"
+        );
         crate::write_stderr_all(stderr.as_bytes())?;
         return Ok(ExitCode::Encode);
     }
@@ -150,9 +153,10 @@ fn run_occurrence(
     // unknown filter fails the same way identity mode fails.
     let code_filter = match args.code.as_deref() {
         None => None,
-        Some(code) => match explanation_for(code) {
-            Some(entry) => Some(entry.code.to_string()),
-            None => {
+        Some(code) => {
+            if let Some(entry) = explanation_for(code) {
+                Some(entry.code.to_string())
+            } else {
                 let mut stderr = String::new();
                 let _ = writeln!(
                     stderr,
@@ -161,7 +165,7 @@ fn run_occurrence(
                 crate::write_stderr_all(stderr.as_bytes())?;
                 return Ok(ExitCode::Encode);
             }
-        },
+        }
     };
 
     let copybook_text = std::fs::read_to_string(copybook)?;
@@ -203,7 +207,9 @@ fn run_occurrence(
     )?;
 
     match outcome {
-        OccurrenceOutcome::Found(occurrence) => render_occurrence(&occurrence, args, copybook, input),
+        OccurrenceOutcome::Found(occurrence) => {
+            render_occurrence(&occurrence, args, copybook, input)
+        }
         OccurrenceOutcome::Absent(absence) => render_absence(&absence, args.format),
     }
 }
@@ -213,8 +219,8 @@ fn run_occurrence(
 fn render_occurrence(
     occurrence: &Occurrence,
     args: &ExplainArgs<'_>,
-    copybook: &PathBuf,
-    input: &PathBuf,
+    copybook: &std::path::Path,
+    input: &std::path::Path,
 ) -> anyhow::Result<ExitCode> {
     let Some(entry) = explanation_for(&occurrence.code) else {
         return run_identity(Some(&occurrence.code), args.format);
@@ -295,10 +301,7 @@ fn render_occurrence(
 }
 
 /// Render a no-failure outcome with its reason.
-fn render_absence(
-    absence: &OccurrenceAbsence,
-    format: ExplainFormat,
-) -> anyhow::Result<ExitCode> {
+fn render_absence(absence: &OccurrenceAbsence, format: ExplainFormat) -> anyhow::Result<ExitCode> {
     let message = match absence {
         OccurrenceAbsence::CleanRecord { record } => {
             format!("Record {record} decoded without errors.")
@@ -315,11 +318,7 @@ fn render_absence(
     };
     let failing = matches!(
         absence,
-        OccurrenceAbsence::BeyondEnd { .. }
-            | OccurrenceAbsence::NotFound {
-                limit: Some(_),
-                ..
-            }
+        OccurrenceAbsence::BeyondEnd { .. } | OccurrenceAbsence::NotFound { limit: Some(_), .. }
     );
     match format {
         ExplainFormat::Text => {

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+#![allow(clippy::missing_inline_in_public_items)]
 //! Occurrence-bound failure explanation: why this record failed here.
 //!
 //! Identity explanation (`copybook explain CBKD401…`) says what a code
@@ -98,6 +99,13 @@ pub enum OccurrenceOutcome {
 /// options (or the target record), or at [`OCCURRENCE_SCAN_CAP`] records
 /// when searching without a target, so an unbounded file cannot make one
 /// explanation read forever.
+///
+/// # Errors
+///
+/// Returns [`copybook_core::Error`] when the record stream cannot be
+/// opened (unsupported framing for the schema) or an I/O failure stops
+/// the scan; per-record decode failures are reported as
+/// [`OccurrenceOutcome::Found`], not errors.
 pub fn explain_occurrence<R: Read>(
     reader: R,
     schema: &Schema,
@@ -122,14 +130,8 @@ pub fn explain_occurrence<R: Read>(
                 return Ok(finish_at_eof(scanned, options.target_record));
             }
             Err(error) => {
-                let occurrence = framing_occurrence(
-                    &error,
-                    scanned,
-                    rdw_offset,
-                    lrecl,
-                    options,
-                    scanned + 1,
-                );
+                let occurrence =
+                    framing_occurrence(&error, scanned, rdw_offset, lrecl, options, scanned + 1);
                 if let Some(occurrence) = occurrence {
                     return Ok(OccurrenceOutcome::Found(occurrence));
                 }
@@ -156,11 +158,9 @@ pub fn explain_occurrence<R: Read>(
                 ) {
                     Ok(_) => {
                         if options.target_record == Some(record_index) {
-                            return Ok(OccurrenceOutcome::Absent(
-                                OccurrenceAbsence::CleanRecord {
-                                    record: record_index,
-                                },
-                            ));
+                            return Ok(OccurrenceOutcome::Absent(OccurrenceAbsence::CleanRecord {
+                                record: record_index,
+                            }));
                         }
                     }
                     Err(error) => {
@@ -343,17 +343,19 @@ fn pic_nines(digits: u16, scale: i16, signed: bool) -> String {
             format!("9({count})")
         }
     };
-    if scale == 0 {
-        format!("{sign}{}", digit(i32::from(digits)))
-    } else if scale > 0 {
-        let scale = i32::from(scale);
-        let integer = i32::from(digits) - scale;
-        if integer <= 0 {
-            format!("{sign}V{}", digit(scale))
-        } else {
-            format!("{sign}{}V{}", digit(integer), digit(scale))
+    match scale.cmp(&0) {
+        std::cmp::Ordering::Equal => format!("{sign}{}", digit(i32::from(digits))),
+        std::cmp::Ordering::Greater => {
+            let scale = i32::from(scale);
+            let integer = i32::from(digits) - scale;
+            if integer <= 0 {
+                format!("{sign}V{}", digit(scale))
+            } else {
+                format!("{sign}{}V{}", digit(integer), digit(scale))
+            }
         }
-    } else {
-        format!("{sign}{}P({})", digit(i32::from(digits)), -scale)
+        std::cmp::Ordering::Less => {
+            format!("{sign}{}P({})", digit(i32::from(digits)), -scale)
+        }
     }
 }

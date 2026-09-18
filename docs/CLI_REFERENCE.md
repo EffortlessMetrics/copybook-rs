@@ -377,17 +377,26 @@ copybook determinism round-trip customer.cpy data.bin --output json
 ### explain
 Explain one stable error code: what it means, which diagnostic context it carries, and how to fix it. Content is generated from `docs/reference/ERROR_CODES.md`, so explanations never drift from the documented taxonomy.
 
+Occurrence mode (`--copybook` plus `--input`) re-runs decoding to the failing record and reports the strongest real context available: record index, physical file offset, field path, field byte range, and representation. Anything unknown stays unknown.
+
 ```
 copybook explain <CODE> [--format text|json]
+copybook explain [CODE] --copybook <CPY> --input <DATA> --record-format <fixed|rdw|vb> [--record N] [...]
 ```
 
 **Arguments:**
-- `<CODE>` - Stable error identity: full (`CBKE501_JSON_TYPE_MISMATCH`) or short (`CBKE501`), case-insensitive
+- `<CODE>` - Stable error identity: full (`CBKE501_JSON_TYPE_MISMATCH`) or short (`CBKE501`), case-insensitive. In occurrence mode it filters to that identity.
 
 **Options:**
 - `--format <FORMAT>` - Output rendering: text, json (default: text)
+- `--copybook <CPY>` - Copybook file path (occurrence mode)
+- `--input <DATA>` - Input data file path (occurrence mode)
+- `--record <N>` - 1-based record to explain (occurrence mode; default: first failure)
+- `--record-format <FORMAT>` - Record framing, explicit with no auto-detection (occurrence mode; required with files)
+- `--codepage <CP>` - Character encoding (occurrence mode; default: cp037)
+- `--strict`, `--strict-comments`, `--dialect` - Same decode-side policy as `decode` (occurrence mode)
 
-**Exit codes:** 0 = known identity explained, 3 = unknown identity.
+**Exit codes:** 0 = explained (or the target record is clean), 3 = unknown identity, missing `--record-format`, record out of range, or no matching failure inside the scan scope.
 
 **Examples:**
 ```bash
@@ -396,6 +405,9 @@ copybook explain CBKE501_JSON_TYPE_MISMATCH
 
 # Machine-readable explanation for tooling
 copybook explain cbkd411 --format json
+
+# Why did record 1 fail here? (hint printed by decode/verify failures)
+copybook explain CBKD401 --copybook customer.cpy --input data.bin --record-format fixed
 ```
 
 ### compat

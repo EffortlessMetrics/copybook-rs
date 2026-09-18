@@ -279,10 +279,28 @@ pub fn run(
             )?;
         }
         for error in &verify_report.errors {
-            writeln!(
+            write!(
                 &mut summary_output,
                 "    Record {}: {} - {}",
                 error.index, error.code, error.msg
+            )?;
+            if let Some(field) = error.field.as_deref() {
+                write!(&mut summary_output, " [field {field}]")?;
+            }
+            if let Some(offset) = error.offset {
+                write!(&mut summary_output, " [record byte offset {offset}]")?;
+            }
+            writeln!(&mut summary_output)?;
+        }
+        if let Some(first) = verify_report.errors.first() {
+            writeln!(
+                &mut summary_output,
+                "  Explain a failure: copybook explain {} --copybook {} --input {} --record-format {} --codepage {}",
+                first.code,
+                crate::utils::shell_quote(copybook_path),
+                crate::utils::shell_quote(input),
+                format!("{:?}", opts.format).to_lowercase(),
+                opts.codepage,
             )?;
         }
     } else {

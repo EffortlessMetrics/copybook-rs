@@ -329,7 +329,8 @@ fn process_fields_recursive(
                     scratch_buffers,
                     record_index,
                     encoding_acc,
-                )?;
+                )
+                .map_err(|error| with_field_identity(error, field))?;
             }
             (FieldKind::Group, None) if field.level > 1 => {
                 let mut group_obj = serde_json::Map::new();
@@ -342,7 +343,8 @@ fn process_fields_recursive(
                     scratch_buffers,
                     record_index,
                     encoding_acc,
-                )?;
+                )
+                .map_err(|error| with_field_identity(error, field))?;
                 if is_scalar_target_group_redefine(field, fields) {
                     let group_value = Value::Object(group_obj);
                     if let Value::Object(group_fields) = &group_value {
@@ -367,7 +369,8 @@ fn process_fields_recursive(
                     scratch_buffers,
                     record_index,
                     encoding_acc,
-                )?;
+                )
+                .map_err(|error| with_field_identity(error, field))?;
             }
             _ => {
                 process_scalar_field_standard(
@@ -380,7 +383,8 @@ fn process_fields_recursive(
                     scratch_buffers,
                     record_index,
                     encoding_acc,
-                )?;
+                )
+                .map_err(|error| with_field_identity(error, field))?;
             }
         }
     }
@@ -390,6 +394,28 @@ fn process_fields_recursive(
     }
 
     Ok(())
+}
+
+/// Attach field identity to a decode error that lacks it, as an atomic
+/// pair: the field path names the field, the offset anchors it to the
+/// field's record-relative start. Errors that already name a field keep
+/// their own (possibly more precise) identity; outer group levels never
+/// overwrite an inner field's claim.
+fn with_field_identity(
+    error: copybook_core::Error,
+    field: &copybook_core::Field,
+) -> copybook_core::Error {
+    if error
+        .context
+        .as_ref()
+        .and_then(|context| context.field_path.as_ref())
+        .is_some()
+    {
+        return error;
+    }
+    error
+        .with_field(field.path.clone())
+        .with_offset(u64::from(field.offset))
 }
 
 /// Insert a decoded field without overwriting an earlier colliding view.

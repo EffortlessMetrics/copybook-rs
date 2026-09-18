@@ -34,6 +34,8 @@ pub mod runtime;
 pub use runtime as memory;
 /// Numeric field decoding and encoding (zoned decimal, packed decimal, binary).
 pub mod numeric;
+/// Occurrence-bound failure explanation: why this record failed here.
+pub mod occurrence;
 /// Configuration types: codepage, record format, JSON modes, raw capture.
 pub mod options;
 /// Record-level binary decode/encode logic.

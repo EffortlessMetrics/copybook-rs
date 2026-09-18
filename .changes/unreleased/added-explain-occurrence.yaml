@@ -1,0 +1,8 @@
+kind: added
+body: '**cli**: add occurrence mode to `copybook explain` (`--copybook` plus
+  `--input` with explicit `--record-format`): re-run decoding to the failing
+  record and report record index, physical offset, field path, field byte
+  range, and representation, with clean / beyond-end / scope-bound absences.
+  `decode` and `verify` failures print a pasteable `copybook explain ...`
+  next step. Exit 0 on explained or clean, 3 otherwise.'
+time: '2026-09-18T18:10:00Z'

@@ -444,11 +444,36 @@ Examples:
   copybook explain CBKE501_JSON_TYPE_MISMATCH
   copybook explain cbke501 --format json")]
     Explain {
-        /// Stable error identity: full (`CBKE501_JSON_TYPE_MISMATCH`) or short (`CBKE501`)
-        code: String,
+        /// Stable error identity: full (`CBKE501_JSON_TYPE_MISMATCH`) or short (`CBKE501`).
+        /// In occurrence mode it filters to that identity.
+        code: Option<String>,
         /// Output format
         #[arg(long, value_enum, default_value = "text")]
         format: crate::commands::explain::ExplainFormat,
+        /// Copybook file path (occurrence mode: explain a failure in this file)
+        #[arg(long)]
+        copybook: Option<PathBuf>,
+        /// Input data file path (occurrence mode)
+        #[arg(long)]
+        input: Option<PathBuf>,
+        /// 1-based record to explain (occurrence mode; default: first failure)
+        #[arg(long)]
+        record: Option<u64>,
+        /// Record framing (occurrence mode; explicit, no auto-detection)
+        #[arg(long)]
+        record_format: Option<RecordFormat>,
+        /// Character encoding (occurrence mode)
+        #[arg(long, default_value = "cp037", value_parser = crate::cli_config::parse_codepage)]
+        codepage: Codepage,
+        /// Enable strict mode (occurrence mode)
+        #[arg(long, default_value = "false")]
+        strict: bool,
+        /// Reject `#`-style comments (occurrence mode)
+        #[arg(long)]
+        strict_comments: bool,
+        /// Copybook dialect: n (normative), 0 (zero-tolerant), 1 (one-tolerant)
+        #[arg(long)]
+        dialect: Option<DialectPreference>,
     },
     /// Compare two copybooks and fail CI on breaking scenario changes
     #[command(after_help = "\

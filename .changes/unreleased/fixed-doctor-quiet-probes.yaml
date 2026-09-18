@@ -1,0 +1,9 @@
+kind: fixed
+body: '**cli**: keep `copybook doctor` probe hypotheses off stderr unless
+  verbose. Trial framings and losing codepages necessarily warn inside the
+  library primitives doctor reuses, so a healthy run printed a wall of WARN
+  lines before its verdict. Probes now run under an error-only scoped
+  dispatcher; genuine errors still reach stderr, `-v` restores full
+  internals, and the findings on stdout remain the diagnosis. New e2e
+  coverage pins the quiet default and the verbose escape hatch.'
+time: '2026-09-18T16:00:00Z'

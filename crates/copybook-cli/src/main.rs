@@ -679,7 +679,7 @@ fn run() -> anyhow::Result<ExitCode> {
     }
 
     let (exit_status, exit_op) =
-        command_dispatch::run_command(command, strict_policy, &feature_flags);
+        command_dispatch::run_command(command, strict_policy, &feature_flags, verbose);
 
     #[cfg(feature = "metrics")]
     if let (Err(err), Some((handle, _))) = (&exit_status, &metrics_server) {

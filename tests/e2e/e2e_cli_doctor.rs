@@ -89,6 +89,40 @@ fn doctor_copybook_only_mode_passes() {
 }
 
 #[test]
+fn doctor_healthy_run_keeps_probe_noise_off_stderr() {
+    // Doctor's speculative probes (losing framings, losing codepages) warn
+    // inside the libraries they reuse; rejected hypotheses must not leak
+    // onto stderr. The verdict and findings on stdout are the diagnosis.
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+    cmd()
+        .args(["doctor"])
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("WARN").not())
+        .stdout(predicate::str::contains("healthy"));
+}
+
+#[test]
+fn doctor_verbose_run_shows_probe_internals() {
+    // Explicit -v opts back into library internals, including the losing
+    // codepage warnings the quiet path suppresses.
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+    cmd()
+        .arg("-v")
+        .args(["doctor"])
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("WARN"))
+        .stdout(predicate::str::contains("healthy"));
+}
+
+#[test]
 fn doctor_json_report_is_machine_readable() {
     let copybook = workspace_path("fixtures/copybooks/simple.cpy");
     let data = workspace_path("fixtures/data/simple.bin");

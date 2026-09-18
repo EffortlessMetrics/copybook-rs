@@ -17,6 +17,7 @@ pub(crate) fn run_command(
     command: Commands,
     strict_policy: bool,
     feature_flags: &FeatureFlags,
+    verbose: bool,
 ) -> CommandOutcome {
     match command {
         command @ Commands::Parse { .. } => run_parse_command(command, feature_flags),
@@ -53,6 +54,7 @@ pub(crate) fn run_command(
                 json,
                 strict_comments,
                 crate::cli_config::effective_dialect(dialect),
+                verbose,
             ),
             "doctor",
         ),

@@ -60,8 +60,58 @@ struct Finding {
 }
 
 /// Diagnose a copybook and optional data file.
+///
+/// Doctor speaks through findings, never through speculative probe logs:
+/// trial framings and losing codepages necessarily warn inside the library
+/// primitives they reuse, and rejected hypotheses are not diagnoses. Unless
+/// `verbose` was requested, probes run under an error-only scoped
+/// dispatcher; genuine errors still reach stderr, and every outcome of note
+/// is rendered as a finding with its stable identity.
 #[allow(clippy::too_many_arguments)]
 pub fn run(
+    copybook: &Path,
+    input: Option<PathBuf>,
+    format: Option<RecordFormat>,
+    codepage: Option<Codepage>,
+    sample: u32,
+    json: bool,
+    strict_comments: bool,
+    dialect: crate::DialectPreference,
+    verbose: bool,
+) -> anyhow::Result<ExitCode> {
+    if verbose {
+        return run_inner(
+            copybook,
+            input,
+            format,
+            codepage,
+            sample,
+            json,
+            strict_comments,
+            dialect,
+        );
+    }
+    let quiet = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::new("error"))
+        .with_ansi(false)
+        .with_writer(std::io::sink)
+        .finish();
+    tracing::dispatcher::with_default(&tracing::dispatcher::Dispatch::new(quiet), || {
+        run_inner(
+            copybook,
+            input,
+            format,
+            codepage,
+            sample,
+            json,
+            strict_comments,
+            dialect,
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_inner(
     copybook: &Path,
     input: Option<PathBuf>,
     format: Option<RecordFormat>,

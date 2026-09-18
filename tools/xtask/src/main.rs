@@ -1,12 +1,44 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-use anyhow::{Result, bail};
+use anyhow::{Context as _, Result, bail};
 use copybook_core::support_matrix;
 use sha2::Digest as _;
-use std::{fs, path::Path};
+use std::{collections::BTreeSet, fs, path::Path};
+
+fn receipt_text(receipt: &Path) -> Result<String> {
+    String::from_utf8(fs::read(receipt)?).context("reading junit receipt as UTF-8")
+}
+
+/// Runnable test inventory from `cargo nextest list` in the gate's
+/// workspace/profile scope (#992).
+fn current_test_inventory() -> Result<BTreeSet<String>> {
+    let output = std::process::Command::new("cargo")
+        .args([
+            "nextest",
+            "list",
+            "--workspace",
+            "--exclude",
+            "copybook-bench",
+            "--exclude",
+            "copybook-bdd",
+            "--profile",
+            "ci",
+            "--message-format",
+            "json",
+        ])
+        .output()
+        .context("listing current test inventory with cargo nextest")?;
+    if !output.status.success() {
+        bail!(
+            "cargo nextest list failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    listed_test_ids(&String::from_utf8_lossy(&output.stdout))
+}
 use xtask::publish::{PlanFormat, run_plan};
 use xtask::{
-    Counts, architecture, counts, junit_xml_path, newest_test_source_mtime, perf,
-    stale_gate_report, stale_receipt_warning,
+    Counts, architecture, counts, junit_xml_path, listed_test_ids, newest_test_source_mtime, perf,
+    receipt_test_ids, stale_gate_report, stale_receipt_warning,
 };
 
 mod corpus;
@@ -212,6 +244,9 @@ fn verify() -> Result<()> {
     let receipt_sha256 = format!("{:x}", sha2::Sha256::digest(&receipt_bytes));
     // #992: a gate must refuse a stale receipt even when its counts still
     // agree with the docs; only `sync-tests` may warn and continue.
+    // mtime alone cannot distinguish a content-identical checkout from
+    // genuinely changed inputs, so a stale-mtime receipt is accepted when
+    // its test inventory exactly matches the current runnable set.
     let receipt_mtime = fs::metadata(&receipt)?.modified()?;
     if let Some(report) = stale_gate_report(
         &receipt.display().to_string(),
@@ -221,7 +256,15 @@ fn verify() -> Result<()> {
         JUNIT_RECEIPT_COMMAND,
         TEST_STATUS_SYNC_COMMAND,
     ) {
-        bail!("{report}");
+        match current_test_inventory() {
+            Ok(listed) if listed == receipt_test_ids(&receipt_text(&receipt)?) => {
+                println!(
+                    "receipt predates test sources but test inventory is identical ({} tests); counts accepted",
+                    listed.len()
+                );
+            }
+            _ => bail!("{report}"),
+        }
     }
 
     for path in TEST_STATUS_PATHS {

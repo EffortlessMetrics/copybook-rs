@@ -4,7 +4,7 @@
 //! Exposes testable modules
 
 use anyhow::Result;
-use std::{fs, path::Path, path::PathBuf, time::SystemTime};
+use std::{collections::BTreeSet, fs, path::Path, path::PathBuf, time::SystemTime};
 
 pub mod architecture;
 pub mod perf;
@@ -165,9 +165,59 @@ pub fn stale_gate_report(
     }
 }
 
+/// Test inventory a junit receipt claims to prove, as `binary::test` ids.
+#[must_use]
+#[inline]
+pub fn receipt_test_ids(junit_xml: &str) -> BTreeSet<String> {
+    let mut ids = BTreeSet::new();
+    let Ok(doc) = roxmltree::Document::parse(junit_xml) else {
+        return ids;
+    };
+    for node in doc.descendants().filter(|n| n.has_tag_name("testcase")) {
+        if let (Some(class), Some(name)) = (node.attribute("classname"), node.attribute("name")) {
+            ids.insert(format!("{class}::{name}"));
+        }
+    }
+    ids
+}
+
+/// Currently runnable test inventory from `cargo nextest list
+/// --message-format json`, as `binary::test` ids. Ignored tests are
+/// excluded: they appear in the list but never in a junit receipt.
+///
+/// # Errors
+///
+/// Returns an error when the list output is not valid JSON.
+#[inline]
+pub fn listed_test_ids(nextest_list_json: &str) -> Result<BTreeSet<String>> {
+    let parsed: serde_json::Value = serde_json::from_str(nextest_list_json)?;
+    let mut ids = BTreeSet::new();
+    let Some(suites) = parsed.get("rust-suites").and_then(|s| s.as_object()) else {
+        return Ok(ids);
+    };
+    for (suite, info) in suites {
+        let Some(cases) = info.get("testcases").and_then(|c| c.as_object()) else {
+            continue;
+        };
+        for (name, meta) in cases {
+            let ignored = meta
+                .get("ignored")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false);
+            if !ignored {
+                ids.insert(format!("{suite}::{name}"));
+            }
+        }
+    }
+    Ok(ids)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{newest_test_source_mtime, stale_gate_report, stale_receipt_warning};
+    use super::{
+        listed_test_ids, newest_test_source_mtime, receipt_test_ids, stale_gate_report,
+        stale_receipt_warning,
+    };
     use std::time::{Duration, SystemTime};
 
     #[test]
@@ -216,6 +266,35 @@ mod tests {
                 "report must contain {needle}: {report}"
             );
         }
+    }
+
+    #[test]
+    fn receipt_and_listed_test_ids_agree_on_runnable_set() {
+        // #992: inventory comparison must skip ignored tests (present in
+        // `nextest list`, absent from the junit receipt).
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="a" tests="2" failures="0" errors="0" skipped="0">
+    <testcase classname="pkg::suite_a" name="one"/>
+    <testcase classname="pkg::suite_a" name="two"/>
+  </testsuite>
+</testsuites>"#;
+        let json = r#"{"rust-suites": {"pkg::suite_a": {"testcases": {"one": {"ignored": false}, "two": {"ignored": false}, "wip": {"ignored": true}}}}}"#;
+        let receipt = receipt_test_ids(xml);
+        let listed = listed_test_ids(json).expect("list parse must succeed");
+        assert_eq!(receipt, listed);
+    }
+
+    #[test]
+    fn listed_test_ids_detect_added_or_removed_tests() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<testsuites><testsuite name="a" tests="1" failures="0" errors="0" skipped="0">
+<testcase classname="pkg::suite_a" name="one"/>
+</testsuite></testsuites>"#;
+        let json = r#"{"rust-suites": {"pkg::suite_a": {"testcases": {"one": {"ignored": false}, "two": {"ignored": false}}}}}"#;
+        let receipt = receipt_test_ids(xml);
+        let listed = listed_test_ids(json).expect("list parse must succeed");
+        assert_ne!(receipt, listed, "added test must change the inventory");
     }
 
     #[test]

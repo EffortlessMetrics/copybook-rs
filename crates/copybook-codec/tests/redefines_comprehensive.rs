@@ -209,9 +209,11 @@ fn test_redefines_encode_ambiguity_error() -> TestResult {
         .expect_err("Expected REDEFINES ambiguity to fail");
     assert_eq!(encoded_err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
 
-    // File-based encode should record the error instead of writing output
+    // File-based encode should record the error instead of writing output.
+    // `records_processed` counts only successfully encoded records
+    // (see `RunSummary`), so a single ambiguous record yields 0/1.
     let summary = copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options)?;
-    assert_eq!(summary.records_processed, 1);
+    assert_eq!(summary.records_processed, 0);
     assert_eq!(summary.records_with_errors, 1);
     assert!(output.is_empty());
     Ok(())

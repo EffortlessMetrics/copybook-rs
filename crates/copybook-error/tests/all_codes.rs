@@ -14,6 +14,7 @@ use copybook_error::ErrorCode;
 ///
 /// [`ErrorCode`]: copybook_error::ErrorCode
 #[inline]
+#[must_use]
 pub fn all_error_codes() -> Vec<ErrorCode> {
     vec![
         // CBKP

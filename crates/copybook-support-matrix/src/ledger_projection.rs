@@ -198,7 +198,7 @@ pub const LEDGER_PROJECTION: &[LedgerProjection] = &[
         evidence: &[
             "crates/copybook-codec/tests/enterprise_level88_mismatch.rs::enterprise_level88_value_mismatch_decodes_without_error",
         ],
-        limitations: "Value-mismatch behavior pinned; the exact stable identity for dangling condition references is pending #576.",
+        limitations: "A parent value matching no Level-88 condition still decodes normally; the condition is false, not erroneous, so no stable error identity applies.",
     },
     LedgerProjection {
         id: "struct.level88.projection_alias",
@@ -362,7 +362,7 @@ pub const LEDGER_PROJECTION: &[LedgerProjection] = &[
             "crates/copybook-codec/tests/structural_evidence_matrix.rs::redefines_encode_ambiguity_is_rejected",
             "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_encode_ambiguity_error",
         ],
-        limitations: "Ambiguous multi-view encode is refused; the exact stable identity is pending #576 reconciliation.",
+        limitations: "Ambiguous multi-view encode is refused with CBKE501_JSON_TYPE_MISMATCH; single-view encode is covered by struct.redefines.scalar.",
     },
     LedgerProjection {
         id: "struct.redefines.group",

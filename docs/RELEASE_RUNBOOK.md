@@ -251,6 +251,30 @@ resumable incomplete receipt (re-run the `registry-docs` job by re-running
 the publish workflow's failed jobs); it never triggers republishing,
 retagging, or a yank.
 
+## 6c) Prebuilt CLI binaries
+
+The `release-binaries` publish job builds `copybook-cli` in release mode
+for three triples — `x86_64-unknown-linux-gnu` (ubuntu),
+`aarch64-apple-darwin` (macOS), `x86_64-pc-windows-msvc` (Windows) — and
+attaches `copybook-<version>-<triple>.tar.gz` plus `.sha256` to the GitHub
+release after `github-release` creates it. Each leg packages with
+`scripts/ci/package_binaries.sh`, verifies the checksum, extracts, and
+smokes its own binary (`--version`, `explain`, `doctor` and `decode` over
+the bundled demo fixtures) before `gh release upload --clobber`.
+
+Verify an asset after download:
+
+```bash
+TAG="vX.Y.Z"
+gh release download "${TAG}" --pattern 'copybook-*.tar.gz*'
+sha256sum -c copybook-*.tar.gz.sha256
+```
+
+A failed binaries leg never blocks or reopens publication: rerun the
+failed matrix legs from the publish workflow run. Missing legs stay
+missing (and visible) until rerun; the release notes name the intended
+matrix regardless.
+
 ---
 
 ## 7) Rollback guidance

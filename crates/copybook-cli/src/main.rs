@@ -457,7 +457,7 @@ change is always a copybook change, never an option skew.
 
 Exit codes:
   0 = compatible under the --fail-on policy
-  3 = incompatible, inconclusive, or usage error
+  3 = incompatible or inconclusive
 
 Examples:
   copybook compat base.cpy head.cpy

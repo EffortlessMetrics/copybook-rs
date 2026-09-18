@@ -266,8 +266,8 @@ fn render_occurrence(
             let _ = writeln!(
                 out,
                 "  Next: copybook doctor {} {} --format {} --codepage {}",
-                copybook.display(),
-                input.display(),
+                crate::utils::shell_quote(copybook),
+                crate::utils::shell_quote(input),
                 format!("{:?}", occurrence.format).to_lowercase(),
                 occurrence.codepage,
             );
@@ -343,6 +343,16 @@ fn render_absence(
         absence,
         OccurrenceAbsence::BeyondEnd { .. } | OccurrenceAbsence::NotFound { limit: Some(_), .. }
     );
+    // A filtered scope that saw real failures under other identities did
+    // not establish cleanliness, even when the scan itself completed: the
+    // machine-readable verdict must agree with the message, which names
+    // what was seen. Exit status is unchanged: rendering the honest scope
+    // report is still a successful command.
+    let inconclusive = failing
+        || matches!(
+            absence,
+            OccurrenceAbsence::NotFound { seen, .. } if !seen.is_empty()
+        );
     match format {
         ExplainFormat::Text => {
             let mut out = String::new();
@@ -350,7 +360,7 @@ fn render_absence(
             write_stdout_all(out.as_bytes())?;
         }
         ExplainFormat::Json => {
-            let value = serde_json::json!({ "verdict": if failing { "inconclusive" } else { "clean" }, "message": message });
+            let value = serde_json::json!({ "verdict": if inconclusive { "inconclusive" } else { "clean" }, "message": message });
             let mut rendered = serde_json::to_string_pretty(&value)
                 .unwrap_or_else(|_| "{\"error\":\"json render failed\"}".to_string());
             rendered.push('\n');

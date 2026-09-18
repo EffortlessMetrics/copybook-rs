@@ -288,7 +288,7 @@ pub fn run(
                 write!(&mut summary_output, " [field {field}]")?;
             }
             if let Some(offset) = error.offset {
-                write!(&mut summary_output, " [byte offset {offset}]")?;
+                write!(&mut summary_output, " [record byte offset {offset}]")?;
             }
             writeln!(&mut summary_output)?;
         }
@@ -297,8 +297,8 @@ pub fn run(
                 &mut summary_output,
                 "  Explain a failure: copybook explain {} --copybook {} --input {} --record-format {} --codepage {}",
                 first.code,
-                copybook_path.display(),
-                input.display(),
+                crate::utils::shell_quote(copybook_path),
+                crate::utils::shell_quote(input),
                 format!("{:?}", opts.format).to_lowercase(),
                 opts.codepage,
             )?;

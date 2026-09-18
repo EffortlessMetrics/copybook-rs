@@ -181,8 +181,8 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
 fn explain_hint(code: &str, args: &DecodeArgs) -> String {
     format!(
         "  Explain a failure: copybook explain {code} --copybook {} --input {} --record-format {} --codepage {}",
-        args.copybook.display(),
-        args.input.display(),
+        crate::utils::shell_quote(args.copybook),
+        crate::utils::shell_quote(args.input),
         format!("{:?}", args.format).to_lowercase(),
         args.codepage,
     )

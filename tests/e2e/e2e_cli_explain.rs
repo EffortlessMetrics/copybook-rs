@@ -335,3 +335,107 @@ fn decode_failure_points_at_explain() {
             "Explain a failure: copybook explain CBKD401_COMP3_INVALID_NIBBLE",
         ));
 }
+
+#[test]
+fn explain_occurrence_target_failed_differently_is_not_clean() {
+    // Record 1 fails with CBKD401, but the filter asks for CBKE501: the
+    // target must report a filtered scope naming what was seen, never a
+    // clean record.
+    let dir = tempfile::TempDir::new().expect("temp dir");
+    let (copybook, data) = corrupted_comp3(&dir);
+    let assert = cmd()
+        .args([
+            "explain",
+            "CBKE501",
+            "--copybook",
+            copybook.to_str().expect("copybook path"),
+            "--input",
+            data.to_str().expect("data path"),
+            "--record-format",
+            "fixed",
+            "--record",
+            "1",
+        ])
+        .assert()
+        .failure()
+        .code(3);
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+    assert!(
+        stdout.contains("CBKD401_COMP3_INVALID_NIBBLE"),
+        "filtered scope must name the seen identity.\nstdout: {stdout}"
+    );
+    assert!(
+        !stdout.contains("decoded without errors"),
+        "a record that failed differently is not clean.\nstdout: {stdout}"
+    );
+}
+
+#[test]
+fn explain_occurrence_filtered_scope_json_verdict_is_inconclusive() {
+    // The text report names the seen identity; the JSON verdict must agree
+    // instead of claiming the scope is clean.
+    let dir = tempfile::TempDir::new().expect("temp dir");
+    let (copybook, data) = truncated_rdw(&dir);
+    let assert = cmd()
+        .args([
+            "explain",
+            "CBKF102",
+            "--copybook",
+            copybook.to_str().expect("copybook path"),
+            "--input",
+            data.to_str().expect("data path"),
+            "--record-format",
+            "rdw",
+            "--format",
+            "json",
+        ])
+        .assert()
+        .success();
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).expect("stdout utf8");
+    let value: serde_json::Value = serde_json::from_str(&stdout).expect("valid json");
+    assert_eq!(value["verdict"], "inconclusive");
+    assert!(
+        value["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("CBKF221_RDW_UNDERFLOW"),
+        "filtered scope must name the seen identity.\nstdout: {stdout}"
+    );
+}
+
+#[test]
+fn decode_failure_hint_quotes_spaced_paths() {
+    // Pasted next commands must survive directories with spaces.
+    let outer = tempfile::TempDir::new().expect("temp dir");
+    let spaced = outer.path().join("with space");
+    std::fs::create_dir(&spaced).expect("spaced dir");
+    std::fs::copy(
+        workspace_path("fixtures/copybooks/comp3_test.cpy"),
+        spaced.join("schema.cpy"),
+    )
+    .expect("copy copybook");
+    let mut data =
+        std::fs::read(workspace_path("fixtures/data/comp3_test.bin")).expect("read fixture");
+    data[14] = (data[14] & 0xF0) | 0x07;
+    let data_path = spaced.join("bad.bin");
+    std::fs::write(&data_path, &data).expect("write data");
+    let output = cmd()
+        .args([
+            "decode",
+            spaced.join("schema.cpy").to_str().expect("copybook path"),
+            data_path.to_str().expect("data path"),
+            "-o",
+            spaced.join("out.jsonl").to_str().expect("output path"),
+            "--format",
+            "fixed",
+        ])
+        .output()
+        .expect("run copybook decode");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8(output.stderr).expect("stderr utf8");
+    let quoted = format!("'{}'", data_path.display());
+    assert!(
+        stderr.contains(&quoted),
+        "hint must quote the spaced input path.\nstderr: {stderr}"
+    );
+}

@@ -121,6 +121,7 @@ pub fn explain_occurrence<R: Read>(
     let mut scanned = 0u64;
     let mut rdw_offset = 0u64;
     let mut seen: Vec<String> = Vec::new();
+    let mut target_filtered = false;
     let scan_limit = options.target_record.unwrap_or(OCCURRENCE_SCAN_CAP);
 
     loop {
@@ -133,7 +134,12 @@ pub fn explain_occurrence<R: Read>(
         }
         match iterator.read_raw_record() {
             Ok(None) => {
-                return Ok(finish_at_eof(scanned, options.target_record, seen));
+                return Ok(finish_at_eof(
+                    scanned,
+                    options.target_record,
+                    target_filtered,
+                    seen,
+                ));
             }
             Err(error) => {
                 let occurrence =
@@ -174,15 +180,21 @@ pub fn explain_occurrence<R: Read>(
                         }
                     }
                     Err(error) => {
-                        if !code_matches(&error, options.code_filter.as_deref()) {
-                            note_seen(&mut seen, &error);
-                            continue;
-                        }
                         let record_index = error
                             .context
                             .as_ref()
                             .and_then(|context| context.record_index)
                             .unwrap_or(record_index);
+                        if !code_matches(&error, options.code_filter.as_deref()) {
+                            note_seen(&mut seen, &error);
+                            // The target record failed with a different
+                            // identity: remember, so end-of-input reports a
+                            // filtered scope instead of a clean record.
+                            if options.target_record == Some(record_index) {
+                                target_filtered = true;
+                            }
+                            continue;
+                        }
                         if let Some(target) = options.target_record
                             && target != record_index
                         {
@@ -204,11 +216,24 @@ pub fn explain_occurrence<R: Read>(
 }
 
 /// Terminal outcome when the input ends: the target is clean, missing, or
-/// no failure appeared in scope.
-fn finish_at_eof(scanned: u64, target_record: Option<u64>, seen: Vec<String>) -> OccurrenceOutcome {
+/// no failure appeared in scope. A target that failed under a filtered-out
+/// identity is a filtered scope, never a clean record.
+fn finish_at_eof(
+    scanned: u64,
+    target_record: Option<u64>,
+    target_filtered: bool,
+    seen: Vec<String>,
+) -> OccurrenceOutcome {
     match target_record {
-        Some(target) if target <= scanned => {
+        Some(target) if target <= scanned && !target_filtered => {
             OccurrenceOutcome::Absent(OccurrenceAbsence::CleanRecord { record: target })
+        }
+        Some(target) if target <= scanned => {
+            OccurrenceOutcome::Absent(OccurrenceAbsence::NotFound {
+                scanned,
+                limit: None,
+                seen,
+            })
         }
         Some(target) => OccurrenceOutcome::Absent(OccurrenceAbsence::BeyondEnd {
             requested: target,

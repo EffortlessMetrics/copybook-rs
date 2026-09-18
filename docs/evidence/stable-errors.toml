@@ -2,8 +2,9 @@
 # Stable error taxonomy inventory for issue #576.
 #
 # This slice establishes exact taxonomy coverage and distinguishes the two
-# intentionally reserved float identifiers. Direct trigger ownership is
-# recorded incrementally; `pending` is an explicit residual, not proof.
+# intentionally reserved float identifiers. `direct` names an executed
+# trigger anchor; `not_emitted` names a taxonomy identity no product path
+# emits, with a required reason; `pending` is an explicit residual, not proof.
 schema_version = 1
 scope = "stable-errors"
 
@@ -180,7 +181,8 @@ direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbkd301_record_too_shor
 [[errors]]
 code = "CBKD302_EDITED_PIC_NOT_IMPLEMENTED"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "not_emitted"
+reason = "retained legacy identity; current edited-PIC decode and encode are implemented and do not emit it (taxonomy coverage only in crates/copybook-codec/tests/edited_pic_codec_rejection.rs)"
 [[errors]]
 code = "CBKD401_COMP3_INVALID_NIBBLE"
 stability_class = "stable"
@@ -234,11 +236,13 @@ direct_test = "crates/copybook-codec/tests/edited_pic_blank_when_zero_error_code
 [[errors]]
 code = "CBKD431_FLOAT_NAN"
 stability_class = "reserved"
-evidence_status = "pending"
+evidence_status = "not_emitted"
+reason = "reserved identity; no product path emits it"
 [[errors]]
 code = "CBKD432_FLOAT_INFINITY"
 stability_class = "reserved"
-evidence_status = "pending"
+evidence_status = "not_emitted"
+reason = "reserved identity; no product path emits it"
 [[errors]]
 code = "CBKI001_INVALID_STATE"
 stability_class = "stable"
@@ -332,20 +336,25 @@ direct_test = "crates/copybook-audit/tests/error_codes.rs::test_cbka001_baseline
 [[errors]]
 code = "CBKW001_SCHEMA_CONVERSION"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "not_emitted"
+reason = "experimental Arrow adapter returns its own ArrowError::SchemaConversion variant; it does not emit this ErrorCode value"
 [[errors]]
 code = "CBKW002_TYPE_MAPPING"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "not_emitted"
+reason = "experimental Arrow adapter returns its own ArrowError column-build variant; it does not emit this ErrorCode value"
 [[errors]]
 code = "CBKW003_DECIMAL_OVERFLOW"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "not_emitted"
+reason = "experimental Arrow adapter returns its own ArrowError column-build variant; it does not emit this ErrorCode value"
 [[errors]]
 code = "CBKW004_BATCH_BUILD"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "not_emitted"
+reason = "experimental Arrow adapter returns its own ArrowError::ColumnBuild/Arrow variants; it does not emit this ErrorCode value"
 [[errors]]
 code = "CBKW005_PARQUET_WRITE"
 stability_class = "stable"
-evidence_status = "pending"
+evidence_status = "not_emitted"
+reason = "experimental Arrow adapter returns its own ArrowError::ParquetWrite variant; it does not emit this ErrorCode value"

@@ -2417,6 +2417,8 @@ struct StableErrorEntry {
     stability_class: String,
     evidence_status: String,
     direct_test: Option<String>,
+    #[serde(default)]
+    reason: Option<String>,
 }
 
 fn verify_stable_error_registry() -> Result<()> {
@@ -2447,12 +2449,17 @@ fn verify_stable_error_registry() -> Result<()> {
     validate_stable_error_registry(&registry, &expected)?;
     verify_stable_error_anchors(&root, &registry)?;
     println!(
-        "stable error registry verified: {} codes ({} direct, {} pending)",
+        "stable error registry verified: {} codes ({} direct, {} not_emitted, {} pending)",
         registry.errors.len(),
         registry
             .errors
             .iter()
             .filter(|entry| entry.evidence_status == "direct")
+            .count(),
+        registry
+            .errors
+            .iter()
+            .filter(|entry| entry.evidence_status == "not_emitted")
             .count(),
         registry
             .errors
@@ -2485,7 +2492,10 @@ fn validate_stable_error_registry(
                 entry.stability_class
             );
         }
-        if !matches!(entry.evidence_status.as_str(), "pending" | "direct") {
+        if !matches!(
+            entry.evidence_status.as_str(),
+            "pending" | "direct" | "not_emitted"
+        ) {
             bail!(
                 "stable error registry entry `{}` has invalid evidence status `{}`",
                 entry.code,
@@ -2516,6 +2526,28 @@ fn validate_stable_error_registry(
         }
         if entry.evidence_status == "direct" && entry.direct_test.is_none() {
             bail!("direct error `{}` is missing a test anchor", entry.code);
+        }
+        if entry.evidence_status == "not_emitted" && entry.direct_test.is_some() {
+            bail!(
+                "not_emitted error `{}` cannot claim a direct test anchor",
+                entry.code
+            );
+        }
+        let reason_present = entry
+            .reason
+            .as_deref()
+            .is_some_and(|value| !value.trim().is_empty());
+        if entry.evidence_status == "not_emitted" && !reason_present {
+            bail!(
+                "not_emitted error `{}` needs a reason explaining why no product path emits it",
+                entry.code
+            );
+        }
+        if entry.evidence_status != "not_emitted" && entry.reason.is_some() {
+            bail!(
+                "stable error registry entry `{}` carries a reason but is not not_emitted",
+                entry.code
+            );
         }
     }
     if &seen != expected {
@@ -5639,6 +5671,47 @@ CBK999_OUTSIDE,
         )
         .expect("parse registry fixture");
         let expected = BTreeSet::from(["CBKP001_SYNTAX".to_string()]);
+        assert!(validate_stable_error_registry(&registry, &expected).is_err());
+    }
+
+    #[test]
+    fn stable_error_registry_accepts_not_emitted_with_reason() {
+        let registry: StableErrorRegistry = toml::from_str(
+            "schema_version = 1\nscope = 'stable-errors'\n\n[[errors]]\ncode = 'CBKD302_EDITED_PIC_NOT_IMPLEMENTED'\nstability_class = 'stable'\nevidence_status = 'not_emitted'\nreason = 'retained legacy identity; current edited-PIC paths do not emit it'\n",
+        )
+        .expect("parse registry fixture");
+        let expected = BTreeSet::from(["CBKD302_EDITED_PIC_NOT_IMPLEMENTED".to_string()]);
+        validate_stable_error_registry(&registry, &expected)
+            .expect("not_emitted with reason must pass");
+    }
+
+    #[test]
+    fn stable_error_registry_rejects_not_emitted_without_reason() {
+        let registry: StableErrorRegistry = toml::from_str(
+            "schema_version = 1\nscope = 'stable-errors'\n\n[[errors]]\ncode = 'CBKD302_EDITED_PIC_NOT_IMPLEMENTED'\nstability_class = 'stable'\nevidence_status = 'not_emitted'\n",
+        )
+        .expect("parse registry fixture");
+        let expected = BTreeSet::from(["CBKD302_EDITED_PIC_NOT_IMPLEMENTED".to_string()]);
+        assert!(validate_stable_error_registry(&registry, &expected).is_err());
+    }
+
+    #[test]
+    fn stable_error_registry_rejects_direct_entry_with_empty_reason() {
+        let registry: StableErrorRegistry = toml::from_str(
+            "schema_version = 1\nscope = 'stable-errors'\n\n[[errors]]\ncode = 'CBKP001_SYNTAX'\nstability_class = 'stable'\nevidence_status = 'direct'\nreason = ''\n",
+        )
+        .expect("parse registry fixture");
+        let expected = BTreeSet::from(["CBKP001_SYNTAX".to_string()]);
+        assert!(validate_stable_error_registry(&registry, &expected).is_err());
+    }
+
+    #[test]
+    fn stable_error_registry_rejects_not_emitted_with_anchor() {
+        let registry: StableErrorRegistry = toml::from_str(
+            "schema_version = 1\nscope = 'stable-errors'\n\n[[errors]]\ncode = 'CBKD302_EDITED_PIC_NOT_IMPLEMENTED'\nstability_class = 'stable'\nevidence_status = 'not_emitted'\nreason = 'retained legacy identity'\ndirect_test = 'tests/e2e/e2e_error_taxonomy_complete.rs::cbke501_json_type_mismatch'\n",
+        )
+        .expect("parse registry fixture");
+        let expected = BTreeSet::from(["CBKD302_EDITED_PIC_NOT_IMPLEMENTED".to_string()]);
         assert!(validate_stable_error_registry(&registry, &expected).is_err());
     }
 

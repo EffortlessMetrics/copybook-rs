@@ -807,11 +807,12 @@ mod tests {
         assert_ne!(cp037_9f, cp1140_9f, "CP037 and CP1140 must differ at 0x9F");
         assert_eq!(cp037_9f, "¤");
         assert_eq!(cp1140_9f, "€");
-        let cp037_ff = ebcdic_to_utf8(&[0xFF], Codepage::CP037, UnmappablePolicy::Replace).unwrap();
-        let cp1140_ff =
+        let control_037 =
+            ebcdic_to_utf8(&[0xFF], Codepage::CP037, UnmappablePolicy::Replace).unwrap();
+        let control_1140 =
             ebcdic_to_utf8(&[0xFF], Codepage::CP1140, UnmappablePolicy::Replace).unwrap();
-        assert_eq!(cp037_ff, "\u{9f}", "CP037 0xFF is U+009F");
-        assert_eq!(cp1140_ff, "\u{9f}", "CP1140 0xFF is U+009F");
+        assert_eq!(control_037, "\u{9f}", "CP037 0xFF is U+009F");
+        assert_eq!(control_1140, "\u{9f}", "CP1140 0xFF is U+009F");
     }
 
     // --- 3. Control characters ---

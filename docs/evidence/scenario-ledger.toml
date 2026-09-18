@@ -234,7 +234,7 @@ stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "No support-matrix feature ID exists for REDEFINES; this row owns structural status directly."
 shared_evidence_relationships = ["fixed-rdw:format.fixed.basic"]
 
-last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+last_verified_full_sha = "4f8114f07fd088705c24e0c4613a09969bc95fef"
 
 [[scenarios]]
 scenario_id = "struct.redefines.group"
@@ -309,15 +309,15 @@ round_trip_evidence = [{ kind = "not_applicable", reason = "ambiguous views neve
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/redefines_comprehensive.rs::test_redefines_encode_ambiguity_error", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; exact identity pending #576 reconciliation (see limitations)" }]
+cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane by stable-error:CBKE501_JSON_TYPE_MISMATCH" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
-stable_error_or_rejection_identity = "none"
-known_limitations_or_remediation = "Ambiguous multi-view encode is refused; the exact stable identity is pending #576 reconciliation."
-shared_evidence_relationships = ["ledger:struct.redefines.scalar"]
+stable_error_or_rejection_identity = "CBKE501_JSON_TYPE_MISMATCH"
+known_limitations_or_remediation = "Ambiguous multi-view encode is refused with CBKE501_JSON_TYPE_MISMATCH; single-view encode is covered by struct.redefines.scalar."
+shared_evidence_relationships = ["ledger:struct.redefines.scalar", "stable-error:CBKE501_JSON_TYPE_MISMATCH"]
 
-last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+last_verified_full_sha = "4f8114f07fd088705c24e0c4613a09969bc95fef"
 
 [[scenarios]]
 scenario_id = "struct.redefines.nested_supported"
@@ -571,12 +571,12 @@ round_trip_evidence = [{ kind = "not_applicable", reason = "condition names neve
 negative_or_rejection_evidence = [
   { ref = "crates/copybook-codec/tests/enterprise_level88_mismatch.rs::enterprise_level88_value_mismatch_decodes_without_error", kind = "direct" },
 ]
-cli_evidence = [{ kind = "not_applicable", reason = "CLI exit ownership tracked at the error plane; exact identity pending #576 reconciliation (see limitations)" }]
+cli_evidence = [{ kind = "not_applicable", reason = "successful decode has no CLI failure; unmatched Level-88 conditions emit no stable error" }]
 fixed_rdw_vb_applicability = ["fixed", "rdw"]
 codepage_applicability = ["all"]
 worker_applicability = "single"
 stable_error_or_rejection_identity = "none"
-known_limitations_or_remediation = "Value-mismatch behavior pinned; the exact stable identity for dangling condition references is pending #576."
+known_limitations_or_remediation = "A parent value matching no Level-88 condition still decodes normally; the condition is false, not erroneous, so no stable error identity applies."
 shared_evidence_relationships = []
 
 last_verified_full_sha = "c23495f45319e1ab66bb556aac040df5d1c546da"

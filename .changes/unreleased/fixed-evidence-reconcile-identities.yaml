@@ -1,0 +1,8 @@
+kind: fixed
+body: '**evidence**: reconcile the eight residual stable-error identities to
+  an explicit `not_emitted` state and the final two scenario rows, and
+  correct the REDEFINES summary drift. The registry (70 total: 62 direct,
+  8 not_emitted, 0 pending) and the 29-scenario ledger now agree with the
+  code they certify, and the docs verifier pins the invariant so drift
+  fails loudly instead of teaching operators to distrust the ledger.'
+time: '2026-09-18T16:15:00Z'

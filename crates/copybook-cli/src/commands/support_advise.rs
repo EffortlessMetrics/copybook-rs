@@ -50,28 +50,15 @@ pub(crate) fn analyze_copybook(
     // The typed error code travels beside the prose diagnostic (#979): the
     // machine field carries `error.code()` (never regex over `Display`),
     // while prose stays human-readable and free to change.
-    let (schema, parse_error, parse_error_identity) = match parse_copybook(&source) {
-        Ok(mut schema) => {
-            // Layout resolution interprets ODO placement under the dialect;
-            // a layout failure is malformed input, never a tool failure.
-            match copybook::core::layout::resolve_layout(&mut schema, core_dialect) {
-                Ok(()) => {
-                    schema.calculate_fingerprint();
-                    (Some(schema), None, None)
-                }
-                Err(error) => (
-                    None,
-                    Some(error.to_string()),
-                    Some(error.code().to_string()),
-                ),
-            }
-        }
-        Err(error) => (
-            None,
-            Some(error.to_string()),
-            Some(error.code().to_string()),
-        ),
-    };
+    let (schema, parse_error, parse_error_identity) =
+        match parse_resolved_schema_source(&source, core_dialect) {
+            Ok(schema) => (Some(schema), None, None),
+            Err(error) => (
+                None,
+                Some(error.to_string()),
+                Some(error.code().to_string()),
+            ),
+        };
 
     // Redaction precondition (`AdviseInput::bounded`): construct detail carries
     // schema field paths only, and the parse error is an in-memory diagnostic
@@ -92,6 +79,41 @@ pub(crate) fn analyze_copybook(
         input.copybook_fingerprint = Some(schema.fingerprint.clone());
     }
     Ok(analyze(&input))
+}
+
+/// Parse and layout-resolve one copybook file under the dialect. Shared by
+/// advisory analysis and schema comparison so both judge the same resolved
+/// record, never the raw text.
+pub(crate) fn parse_resolved_schema(
+    copybook: &Path,
+    dialect: Option<crate::cli_config::DialectPreference>,
+) -> anyhow::Result<Schema> {
+    use crate::cli_config::DialectPreference;
+    let core_dialect = match dialect {
+        None | Some(DialectPreference::N) => copybook::core::Dialect::Normative,
+        Some(DialectPreference::Zero) => copybook::core::Dialect::ZeroTolerant,
+        Some(DialectPreference::One) => copybook::core::Dialect::OneTolerant,
+    };
+    let source = std::fs::read_to_string(copybook).map_err(|error| {
+        copybook::core::Error::new(
+            copybook::core::ErrorCode::CBKF001_FILE_READ_ERROR,
+            format!("Cannot read copybook {}: {error}", copybook.display()),
+        )
+    })?;
+    parse_resolved_schema_source(&source, core_dialect).map_err(anyhow::Error::from)
+}
+
+/// Parse and layout-resolve copybook source under the dialect.
+/// Layout resolution interprets ODO placement under the dialect; a layout
+/// failure is malformed input, never a tool failure.
+fn parse_resolved_schema_source(
+    source: &str,
+    dialect: copybook::core::Dialect,
+) -> copybook::core::Result<Schema> {
+    let mut schema = parse_copybook(source)?;
+    copybook::core::layout::resolve_layout(&mut schema, dialect)?;
+    schema.calculate_fingerprint();
+    Ok(schema)
 }
 
 /// Run advisory analysis for one copybook under the requested options.

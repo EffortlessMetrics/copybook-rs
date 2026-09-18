@@ -399,7 +399,7 @@ copybook explain cbkd411 --format json
 ```
 
 ### compat
-Compare two copybooks (base vs head) and fail CI on breaking scenario changes. Both sides are evaluated under identical options, so a reported change is always a copybook change, never an option skew.
+Compare two copybooks (base vs head) and fail CI on breaking changes. Both sides are evaluated under identical options, so a reported change is always a copybook change, never an option skew. Two dimensions are judged: scenario assessments (what newly passes or fails) and the resolved record layout (added, removed, or moved/resized/retyped fields plus record-length drift). A layout break fails under every `--fail-on` policy; either side failing to resolve is inconclusive, never compatible.
 
 ```
 copybook compat <BASE> <HEAD> [OPTIONS]

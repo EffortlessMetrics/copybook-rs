@@ -2,15 +2,17 @@
 //! Compat command implementation.
 //!
 //! Compares two copybooks (base vs head) under identical effective options
-//! and reports scenario-level change: what newly passes, what newly fails.
-//! The comparison domain ([`compare_assessments`], ranks, breaking rules)
-//! lives in the advise library; this module only renders the verdict and
-//! maps it to the process exit code, so CI can reject breaking copybook
-//! changes with `--fail-on`.
+//! and reports two change dimensions: scenario-level change (what newly
+//! passes, what newly fails) and resolved-schema change (what moved in the
+//! record layout). The comparison domains ([`compare_assessments`], ranks,
+//! breaking rules, [`diff_schemas`]) live in libraries; this module only
+//! renders the verdict and maps it to the process exit code, so CI can
+//! reject breaking copybook changes with `--fail-on`.
 
 use crate::commands::support::OutputFormat;
 use crate::exit_codes::ExitCode;
 use crate::write_stdout_all;
+use copybook::core::schema_diff::{FieldChange, FieldChangeKind, SchemaDiff, diff_schemas};
 use copybook::support_matrix::advise::{
     AdviseResult, AssessmentStatus, ScenarioChange, Verdict, compare_assessments,
 };
@@ -37,6 +39,8 @@ struct CompatReport {
     base_fingerprint: Option<String>,
     head_fingerprint: Option<String>,
     changes: Vec<CompatChange>,
+    schema_breaking: bool,
+    schema_changes: Vec<CompatSchemaChange>,
 }
 
 /// One scenario change in report shape.
@@ -48,6 +52,37 @@ struct CompatChange {
     regression: bool,
     breaking: bool,
     improvement: bool,
+}
+
+/// One resolved-schema change in report shape.
+#[derive(Serialize)]
+struct CompatSchemaChange {
+    field: String,
+    kind: &'static str,
+    breaking: bool,
+    base_offset: Option<u32>,
+    base_len: Option<u32>,
+    head_offset: Option<u32>,
+    head_len: Option<u32>,
+}
+
+impl CompatSchemaChange {
+    fn render(change: &FieldChange) -> Self {
+        let kind = match change.kind {
+            FieldChangeKind::Added => "added",
+            FieldChangeKind::Removed => "removed",
+            FieldChangeKind::Changed => "changed",
+        };
+        Self {
+            field: change.path.clone(),
+            kind,
+            breaking: !matches!(change.kind, FieldChangeKind::Added),
+            base_offset: change.base.as_ref().map(|layout| layout.offset),
+            base_len: change.base.as_ref().map(|layout| layout.len),
+            head_offset: change.head.as_ref().map(|layout| layout.offset),
+            head_len: change.head.as_ref().map(|layout| layout.len),
+        }
+    }
 }
 
 /// Compare two copybooks and exit non-zero when the change violates the
@@ -68,7 +103,18 @@ pub fn run(
     let head_result =
         super::support_advise::analyze_copybook(head, record_format, codepage, dialect)?;
 
-    let verdict = decide(&base_result, &head_result, fail_on);
+    // Resolved-schema comparison judges the record layout both sides
+    // established. Either side failing to resolve means there is no layout
+    // to compare, which is inconclusive, never compatible.
+    let schema_diff = match (
+        super::support_advise::parse_resolved_schema(base, dialect),
+        super::support_advise::parse_resolved_schema(head, dialect),
+    ) {
+        (Ok(base_schema), Ok(head_schema)) => Some(diff_schemas(&base_schema, &head_schema)),
+        _ => None,
+    };
+
+    let verdict = decide(&base_result, &head_result, schema_diff.as_ref(), fail_on);
     let changes = compare_assessments(&base_result.scenarios, &head_result.scenarios);
     render(
         verdict,
@@ -76,6 +122,7 @@ pub fn run(
         &base_result,
         &head_result,
         &changes,
+        schema_diff.as_ref(),
         output,
     )?;
     Ok(match verdict {
@@ -104,11 +151,25 @@ impl CompatVerdict {
     }
 }
 
-fn decide(base: &AdviseResult, head: &AdviseResult, fail_on: FailOn) -> CompatVerdict {
+fn decide(
+    base: &AdviseResult,
+    head: &AdviseResult,
+    schema_diff: Option<&SchemaDiff>,
+    fail_on: FailOn,
+) -> CompatVerdict {
     if matches!(base.verdict, Verdict::InvalidInput | Verdict::ToolFailure) {
         return CompatVerdict::Inconclusive;
     }
     if matches!(head.verdict, Verdict::InvalidInput | Verdict::ToolFailure) {
+        return CompatVerdict::Incompatible;
+    }
+    // No comparable layout is inconclusive, never compatible: without a
+    // resolved record on both sides there is nothing to judge.
+    let Some(schema_diff) = schema_diff else {
+        return CompatVerdict::Inconclusive;
+    };
+    // A layout break refuses bytes the base accepted, under every policy.
+    if schema_diff.is_breaking() {
         return CompatVerdict::Incompatible;
     }
     let changes = compare_assessments(&base.scenarios, &head.scenarios);
@@ -129,12 +190,22 @@ fn render(
     base: &AdviseResult,
     head: &AdviseResult,
     changes: &[ScenarioChange],
+    schema_diff: Option<&SchemaDiff>,
     output: OutputFormat,
 ) -> anyhow::Result<()> {
     let fail_on_str = match fail_on {
         FailOn::Breaking => "breaking",
         FailOn::Any => "any",
     };
+    let schema_changes: Vec<CompatSchemaChange> = schema_diff
+        .map(|diff| {
+            diff.changes
+                .iter()
+                .map(CompatSchemaChange::render)
+                .collect()
+        })
+        .unwrap_or_default();
+    let schema_breaking = schema_diff.is_some_and(SchemaDiff::is_breaking);
     match output {
         OutputFormat::Table => {
             let mut out = String::new();
@@ -155,6 +226,35 @@ fn render(
                         "  {}: {:?} -> {:?} ({kind})",
                         change.scenario_id, change.base, change.head,
                     );
+                }
+            }
+            match schema_diff {
+                None => {
+                    let _ = writeln!(out, "no comparable record layout");
+                }
+                Some(diff) if diff.changes.is_empty() && !diff.lrecl_changed() => {
+                    let _ = writeln!(out, "record layout unchanged");
+                }
+                Some(diff) => {
+                    if diff.lrecl_changed() {
+                        let _ = writeln!(
+                            out,
+                            "  record length: {:?} -> {:?} (breaking)",
+                            diff.base_lrecl, diff.head_lrecl,
+                        );
+                    }
+                    for change in &schema_changes {
+                        let kind = if change.breaking { "breaking" } else { "added" };
+                        let _ = writeln!(
+                            out,
+                            "  field {}: {:?} -> {:?} bytes at {:?} -> {:?} ({kind})",
+                            change.field,
+                            change.base_len,
+                            change.head_len,
+                            change.base_offset,
+                            change.head_offset,
+                        );
+                    }
                 }
             }
             write_stdout_all(out.as_bytes())?;
@@ -178,6 +278,8 @@ fn render(
                         improvement: !change.is_regression(),
                     })
                     .collect(),
+                schema_breaking,
+                schema_changes,
             };
             let mut rendered = serde_json::to_string_pretty(&report)
                 .unwrap_or_else(|_| "{\"error\":\"json render failed\"}".to_string());

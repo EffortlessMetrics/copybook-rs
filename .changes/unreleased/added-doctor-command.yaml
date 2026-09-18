@@ -1,0 +1,9 @@
+kind: added
+body: '**cli**: add `copybook doctor <COPYBOOK> [INPUT]` for operator
+  diagnosis: copybook parse, record length, framing fit (confirm or probe
+  fixed vs RDW, including ASCII-corruption detection), codepage fit over a
+  byte window with stated confidence, and trial decode of the first
+  records. Every failure names its stable error identity with remediation
+  from the shared explain table and the exact next command to run; exit 0
+  on healthy, worst-failure taxonomy code otherwise.'
+time: '2026-09-18T06:40:00Z'

@@ -17,6 +17,7 @@ pub(crate) fn run_command(
     command: Commands,
     strict_policy: bool,
     feature_flags: &FeatureFlags,
+    verbose: bool,
 ) -> CommandOutcome {
     match command {
         command @ Commands::Parse { .. } => run_parse_command(command, feature_flags),
@@ -34,6 +35,29 @@ pub(crate) fn run_command(
             "determinism",
         ),
         Commands::Explain { code, format } => (commands::explain::run(&code, format), "explain"),
+        Commands::Doctor {
+            copybook,
+            input,
+            format,
+            codepage,
+            sample,
+            json,
+            strict_comments,
+            dialect,
+        } => (
+            commands::doctor::run(
+                &copybook,
+                input,
+                format,
+                codepage,
+                sample,
+                json,
+                strict_comments,
+                crate::cli_config::effective_dialect(dialect),
+                verbose,
+            ),
+            "doctor",
+        ),
         Commands::Compat {
             base,
             head,

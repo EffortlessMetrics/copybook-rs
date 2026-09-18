@@ -18,6 +18,8 @@
 pub mod charset;
 /// Determinism validation for decode, encode, and round-trip operations.
 pub mod determinism;
+/// Operator diagnosis: staged copybook and data-file findings.
+pub mod diagnose;
 /// Edited PIC (numeric editing) decode and encode support.
 pub mod edited_pic;
 /// Schema-aware file framing integration.

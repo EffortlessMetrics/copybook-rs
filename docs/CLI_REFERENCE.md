@@ -427,6 +427,36 @@ copybook compat main.cpy feature.cpy
 copybook compat main.cpy feature.cpy --fail-on any --format json
 ```
 
+### doctor
+Diagnose a copybook and data file the way a frustrated operator would: parse, record length, framing fit, codepage fit, and a trial decode of the first records. Every failure names its stable error identity with a fix and the exact next command to run. Probes state their confidence and evidence; a guess is never certainty.
+
+```
+copybook doctor <COPYBOOK> [INPUT] [OPTIONS]
+```
+
+**Arguments:**
+- `<COPYBOOK>` - Path to COBOL copybook file
+- `[INPUT]` - Path to data file (omit for copybook-only diagnosis)
+
+**Options:**
+- `--format <FORMAT>` - Record format: fixed, rdw, vb (omit to probe all three framings; an ambiguous probe stays inconclusive instead of guessing)
+- `--codepage <CP>` - Character encoding: ascii, cp037, cp273, cp500, cp1047, cp1140 (omit to probe)
+- `--sample <N>` - Trial-decode this many leading records, 0 skips trial decode (default: 3)
+- `--json` - Emit a machine-readable JSON report
+- `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
+- `--dialect <MODE>` - Dialect mode: n (normative), 0 (zero-tolerant), 1 (one-tolerant)
+
+**Exit codes:** 0 = healthy (warnings do not fail), 2/3/4/5 = worst failure mapped to its taxonomy family.
+
+**Examples:**
+```bash
+# What is wrong with my extract?
+copybook doctor customer.cpy data.bin
+
+# Copybook-only check, machine-readable full diagnosis
+copybook doctor customer.cpy --json
+```
+
 ### audit
 Enterprise audit system for regulatory compliance (SOX, HIPAA, GDPR, PCI DSS), performance auditing, security monitoring, and data lineage tracking.
 

@@ -73,6 +73,29 @@ pub struct DiagnosisFinding {
     pub next: Option<String>,
 }
 
+/// The data-file side of a diagnosis: a bounded leading prefix plus the
+/// full size, so probes can stay bounded while size-based checks (fixed
+/// multiple, truncation) still see the whole file. `prefix.len()` below
+/// `total_bytes` means the scope is truncated; findings say so.
+#[derive(Clone, Copy, Debug)]
+pub struct DiagnosisInput<'a> {
+    /// Display path of the data file (names the next command).
+    pub path: &'a Path,
+    /// Leading bytes actually inspected.
+    pub prefix: &'a [u8],
+    /// Full file size in bytes.
+    pub total_bytes: u64,
+}
+
+impl DiagnosisInput<'_> {
+    /// Whether the prefix covers the whole file.
+    #[inline]
+    #[must_use]
+    pub const fn scope_complete(&self) -> bool {
+        self.prefix.len() as u64 >= self.total_bytes
+    }
+}
+
 /// Inputs to [`diagnose`] that select, rather than guess, the configuration.
 #[derive(Clone, Debug)]
 pub struct DiagnoseOptions {
@@ -117,7 +140,7 @@ impl Diagnosis {
 pub fn diagnose(
     copybook_text: &str,
     copybook_path: &Path,
-    input: Option<(&Path, &[u8])>,
+    input: Option<DiagnosisInput<'_>>,
     options: &DiagnoseOptions,
 ) -> Diagnosis {
     let mut diagnosis = Diagnosis::default();
@@ -169,7 +192,7 @@ pub fn diagnose(
         },
     );
 
-    let Some((input_path, bytes)) = input else {
+    let Some(input) = input else {
         push(
             &mut diagnosis,
             DiagnosisFinding {
@@ -187,7 +210,7 @@ pub fn diagnose(
         return diagnosis;
     };
 
-    if bytes.is_empty() {
+    if input.total_bytes == 0 {
         push(
             &mut diagnosis,
             DiagnosisFinding {
@@ -206,20 +229,38 @@ pub fn diagnose(
         DiagnosisFinding {
             check: "input-load",
             status: DiagnosisStatus::Pass,
-            detail: format!("read {} bytes", bytes.len()),
+            detail: if input.scope_complete() {
+                format!("read {} bytes", input.total_bytes)
+            } else {
+                format!(
+                    "inspecting first {} of {} bytes; later bytes unscanned",
+                    input.prefix.len(),
+                    input.total_bytes
+                )
+            },
             code: None,
             remediation: String::new(),
             next: None,
         },
     );
 
+    // Size-based checks see the whole file; content probes see the prefix.
+    let bytes = input.prefix;
+    let total_bytes = input.total_bytes as usize;
+
     // Format: confirm the explicit choice or probe both framings.
     let resolved_format = match options.format {
         Some(given) => {
-            confirm_format(&mut diagnosis, given, bytes, lrecl);
+            confirm_format(&mut diagnosis, given, bytes, total_bytes, lrecl);
             Some(given)
         }
-        None => probe_format(&mut diagnosis, bytes, lrecl),
+        None => probe_format(
+            &mut diagnosis,
+            bytes,
+            input.scope_complete(),
+            total_bytes,
+            lrecl,
+        ),
     };
     let Some(resolved_format) = resolved_format else {
         return diagnosis;
@@ -236,8 +277,9 @@ pub fn diagnose(
         &mut diagnosis,
         &schema,
         copybook_path,
-        input_path,
+        input.path,
         bytes,
+        input.scope_complete(),
         resolved_format,
         resolved_codepage,
         lrecl,
@@ -295,26 +337,27 @@ fn parse_copybook_with_options(
     copybook_core::parse_copybook_with_options(text, options)
 }
 
-/// Confirm an explicitly requested framing against the bytes.
+/// Confirm an explicitly requested framing against the bytes. Size checks
+/// use the full file size, never the inspected prefix.
 fn confirm_format(
     diagnosis: &mut Diagnosis,
     format: RecordFormat,
     bytes: &[u8],
+    total_bytes: usize,
     lrecl: Option<u32>,
 ) {
     match format {
         RecordFormat::Fixed => match lrecl {
             Some(len) => {
                 let len = len as usize;
-                if len > 0 && bytes.len().is_multiple_of(len) {
+                if len > 0 && total_bytes.is_multiple_of(len) {
                     push(
                         &mut *diagnosis,
                         DiagnosisFinding {
                             check: "format-confirm",
                             status: DiagnosisStatus::Pass,
                             detail: format!(
-                                "file size {} is a multiple of record length {len}",
-                                bytes.len()
+                                "file size {total_bytes} is a multiple of record length {len}"
                             ),
                             code: None,
                             remediation: String::new(),
@@ -328,8 +371,7 @@ fn confirm_format(
                             check: "format-confirm",
                             status: DiagnosisStatus::Warn,
                             detail: format!(
-                                "file size {} is not a multiple of record length {len}",
-                                bytes.len()
+                                "file size {total_bytes} is not a multiple of record length {len}"
                             ),
                             code: Some("CBKR101_FIXED_RECORD_ERROR".to_string()),
                             remediation: remediation_for("CBKR101_FIXED_RECORD_ERROR"),
@@ -398,13 +440,15 @@ fn confirm_format(
 fn probe_format(
     diagnosis: &mut Diagnosis,
     bytes: &[u8],
+    scope_complete: bool,
+    total_bytes: usize,
     lrecl: Option<u32>,
 ) -> Option<RecordFormat> {
     let fixed_fits = match lrecl {
-        Some(len) => len > 0 && !bytes.is_empty() && bytes.len().is_multiple_of(len as usize),
+        Some(len) => len > 0 && total_bytes > 0 && total_bytes.is_multiple_of(len as usize),
         None => false,
     };
-    let rdw_records = read_rdw_records(bytes, 3);
+    let rdw_records = read_rdw_records(bytes, 3, scope_complete);
     let rdw_fits = rdw_records.is_some();
     if bytes.len() >= 4 && rdw_is_suspect_ascii_corruption_slice(&bytes[..4]) {
         push(
@@ -480,6 +524,7 @@ fn probe_pass(diagnosis: &mut Diagnosis, format: &str) {
 fn frame_records(
     diagnosis: &mut Diagnosis,
     bytes: &[u8],
+    scope_complete: bool,
     format: RecordFormat,
     lrecl: Option<u32>,
     sample: u32,
@@ -510,7 +555,7 @@ fn frame_records(
             }
         },
         RecordFormat::RDW | RecordFormat::Vb => {
-            let Some(records) = read_rdw_records(bytes, sample as usize) else {
+            let Some(records) = read_rdw_records(bytes, sample as usize, scope_complete) else {
                 push(
                     &mut *diagnosis,
                     DiagnosisFinding {
@@ -545,14 +590,22 @@ fn frame_records(
 }
 
 /// Read up to `limit` RDW records; `None` when framing fails early.
-fn read_rdw_records(bytes: &[u8], limit: usize) -> Option<Vec<Vec<u8>>> {
+/// When the inspected scope is truncated (`scope_complete` false), a framing
+/// error after at least one record ends the scope instead of failing: the
+/// tail was chosen away, not proven corrupt. A complete scope stays strict.
+fn read_rdw_records(bytes: &[u8], limit: usize, scope_complete: bool) -> Option<Vec<Vec<u8>>> {
     let mut reader = RDWRecordReader::new(Cursor::new(bytes), false);
     let mut records = Vec::new();
     for _ in 0..limit {
         match reader.read_record() {
             Ok(Some(record)) => records.push(record.payload.clone()),
             Ok(None) => break,
-            Err(_) => return None,
+            Err(_) => {
+                if scope_complete || records.is_empty() {
+                    return None;
+                }
+                break;
+            }
         }
     }
     if records.is_empty() {
@@ -635,6 +688,7 @@ fn trial_decode(
     copybook: &Path,
     input: &Path,
     bytes: &[u8],
+    scope_complete: bool,
     format: RecordFormat,
     codepage: Codepage,
     lrecl: Option<u32>,
@@ -654,7 +708,14 @@ fn trial_decode(
         );
         return;
     }
-    let Some(records) = frame_records(&mut *diagnosis, bytes, format, lrecl, sample) else {
+    let Some(records) = frame_records(
+        &mut *diagnosis,
+        bytes,
+        scope_complete,
+        format,
+        lrecl,
+        sample,
+    ) else {
         return;
     };
     let options = DecodeOptions::new()

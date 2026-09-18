@@ -123,6 +123,33 @@ fn doctor_verbose_run_shows_probe_internals() {
 }
 
 #[test]
+fn doctor_large_file_diagnoses_bounded_scope() {
+    // A multi-megabyte extract must not be ingested whole: doctor inspects
+    // a bounded leading prefix and says so in the result.
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+    let record = std::fs::read(&data).expect("read fixture");
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mut big = Vec::new();
+    for _ in 0..30_000 {
+        big.extend_from_slice(&record);
+    }
+    let path = write_temp_file(&dir, "big.bin", &big);
+    cmd()
+        .args(["doctor"])
+        .arg(&copybook)
+        .arg(&path)
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("WARN").not())
+        .stdout(predicate::str::contains("healthy"))
+        .stdout(predicate::str::contains(format!(
+            "inspecting first 1048576 of {} bytes",
+            big.len()
+        )));
+}
+
+#[test]
 fn doctor_json_report_is_machine_readable() {
     let copybook = workspace_path("fixtures/copybooks/simple.cpy");
     let data = workspace_path("fixtures/data/simple.bin");

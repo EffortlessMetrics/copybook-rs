@@ -10,12 +10,19 @@
 use crate::exit_codes::ExitCode;
 use crate::write_stdout_all;
 use copybook::codec::diagnose::{
-    DiagnoseOptions, Diagnosis, DiagnosisFinding, DiagnosisStatus, diagnose, remediation_for,
+    DiagnoseOptions, Diagnosis, DiagnosisFinding, DiagnosisInput, DiagnosisStatus, diagnose,
+    remediation_for,
 };
 use copybook::codec::{Codepage, RecordFormat};
 use copybook::core::Dialect;
 use std::fmt::Write as _;
+use std::io::Read as _;
 use std::path::{Path, PathBuf};
+
+/// Diagnosis never ingests a whole extract: probes see this many leading
+/// bytes at most, while size-based checks use file metadata. The inspected
+/// scope is part of the rendered result.
+const INPUT_PREFIX_CAP: u64 = 1_048_576;
 
 /// Diagnose a copybook and optional data file.
 ///
@@ -115,8 +122,8 @@ fn run_inner(
 
     let input_bytes = match input {
         None => None,
-        Some(path) => match std::fs::read(&path) {
-            Ok(bytes) => Some((path, bytes)),
+        Some(path) => match read_input_prefix(&path) {
+            Ok((total_bytes, prefix)) => Some((path, total_bytes, prefix)),
             Err(error) => {
                 preload.findings.push(DiagnosisFinding {
                     check: "input-load",
@@ -132,7 +139,11 @@ fn run_inner(
     };
     let input_view = input_bytes
         .as_ref()
-        .map(|(path, bytes)| (path.as_path(), bytes.as_slice()));
+        .map(|(path, total_bytes, prefix)| DiagnosisInput {
+            path: path.as_path(),
+            prefix: prefix.as_slice(),
+            total_bytes: *total_bytes,
+        });
 
     let options = DiagnoseOptions {
         format,
@@ -144,6 +155,18 @@ fn run_inner(
     let mut diagnosis = diagnose(&copybook_text, copybook, input_view, &options);
     preload.findings.append(&mut diagnosis.findings);
     finish(&preload.findings, json)
+}
+
+/// Read file metadata plus a bounded leading prefix: diagnosis probes the
+/// prefix while size-based checks use the metadata length.
+fn read_input_prefix(path: &Path) -> anyhow::Result<(u64, Vec<u8>)> {
+    let total_bytes = std::fs::metadata(path)?.len();
+    let mut file = std::fs::File::open(path)?;
+    let mut prefix = Vec::new();
+    file.by_ref()
+        .take(INPUT_PREFIX_CAP)
+        .read_to_end(&mut prefix)?;
+    Ok((total_bytes, prefix))
 }
 
 /// Render findings and map the worst failure to its taxonomy exit code.

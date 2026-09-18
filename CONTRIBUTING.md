@@ -121,6 +121,14 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete reference.
 5. **Update docs** if you changed APIs or CLI commands
 6. **Fill out PR template** completely (see [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md))
 7. **Submit PR** with descriptive title
+8. **Complete the applicable contributor agreement**. Individual contributors
+   use the hosted CLA Assistant link and wait for `license/cla` to pass;
+   entity-owned contributions require the separate Corporate CLA and
+   authorization process before the covered contribution is submitted. A
+   covered corporate pull request remains blocked until maintainers verify the
+   private authorization record and approve the audited, pull-request-only
+   exception on the dedicated CLA ruleset. The contributor is not placed on the
+   CLA Assistant allowlist, and every ordinary review and CI rule still applies.
 
 ### Commit Messages
 
@@ -207,7 +215,28 @@ receipt at `scripts/bench/perf.json`; benchmark methodology remains in
 
 ## Contributor License Agreement
 
-Contributors must sign a CLA before contributions can be accepted. See [CLA.md](CLA.md) for details.
+Every intentionally submitted contribution must be covered by the applicable
+contributor agreement. Individual contributors sign the [Individual CLA](CLA.md)
+through the hosted CLA Assistant integration. After a pull request opens, follow
+the authenticated signing link, provide the required fields, and wait for
+`license/cla` to pass. Do not paste a manual signature, email address, or signing
+date into the pull request.
+
+If an employer or another entity owns or controls the relevant rights, do not use
+the individual form. Contact the maintainers privately before submitting the
+covered contribution so the separate Corporate CLA and authorization process can
+be completed.
+
+After a Corporate CLA is executed, the covered pull request remains blocked until
+maintainers verify the private authorization record and approve the audited,
+pull-request-only exception on the dedicated CLA ruleset. Corporate contributors
+are not placed on the CLA Assistant allowlist, and every ordinary review and CI
+rule still applies. Until that exception path is configured and approved for the
+pull request, the contribution cannot merge.
+
+See [CLA Assistant Operations](docs/CLA_OPERATIONS.md) for the service
+configuration, version record, corporate exception receipt, evidence exports,
+and bot-exemption policy.
 
 ## License
 

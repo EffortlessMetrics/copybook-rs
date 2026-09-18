@@ -450,6 +450,39 @@ Examples:
         #[arg(long, value_enum, default_value = "text")]
         format: crate::commands::explain::ExplainFormat,
     },
+    /// Compare two copybooks and fail CI on breaking scenario changes
+    #[command(after_help = "\
+Both copybooks are evaluated under identical options, so a reported
+change is always a copybook change, never an option skew.
+
+Exit codes:
+  0 = compatible under the --fail-on policy
+  3 = incompatible or inconclusive
+
+Examples:
+  copybook compat base.cpy head.cpy
+  copybook compat base.cpy head.cpy --fail-on any --format json")]
+    Compat {
+        /// Base (old) copybook file path
+        base: PathBuf,
+        /// Head (new) copybook file path
+        head: PathBuf,
+        /// Record format under evaluation for both sides
+        #[arg(long, default_value = "fixed")]
+        record_format: copybook::codec::RecordFormat,
+        /// Character encoding under evaluation for both sides
+        #[arg(long, default_value = "cp037", value_parser = crate::cli_config::parse_codepage)]
+        codepage: copybook::codec::Codepage,
+        /// Dialect lever under evaluation for both sides (n, 0, 1)
+        #[arg(long)]
+        dialect: Option<crate::cli_config::DialectPreference>,
+        /// Which changes fail: breaking (new refusals) or any (any worsening)
+        #[arg(long, value_enum, default_value = "breaking")]
+        fail_on: crate::commands::compat::FailOn,
+        /// Output format
+        #[arg(long, value_enum, default_value = "table")]
+        format: crate::commands::support::OutputFormat,
+    },
     /// Determinism validation for encode/decode operations
     #[command(after_help = "\
 Exit codes:
@@ -1136,6 +1169,7 @@ mod command_dispatch;
 mod commands {
     #[cfg(feature = "audit")]
     pub mod audit;
+    pub mod compat;
     pub mod decode;
     pub mod determinism;
     pub mod encode;

@@ -31,6 +31,7 @@
 //! [`crate::advise::AssessmentStatus::Unknown`], never rendered as certainty.
 
 use std::borrow::Cow;
+use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
@@ -108,6 +109,113 @@ pub fn derive_verdict(statuses: &[AssessmentStatus]) -> Verdict {
         return Verdict::SupportedWithLimits;
     }
     Verdict::Supported
+}
+
+// ---------------------------------------------------------------------------
+// Slice D: change comparison (base vs head copybook for `copybook compat`)
+// ---------------------------------------------------------------------------
+
+/// Severity rank for change comparison: higher is worse on the evaluated
+/// path. `NotApplicable` never participates in a comparison (see
+/// [`compare_assessments`]).
+#[must_use]
+#[inline]
+pub const fn status_rank(status: AssessmentStatus) -> u8 {
+    match status {
+        AssessmentStatus::Supported => 0,
+        AssessmentStatus::Limited => 1,
+        AssessmentStatus::Beta => 2,
+        AssessmentStatus::Unknown => 3,
+        AssessmentStatus::Rejected => 4,
+        AssessmentStatus::Invalid => 5,
+        AssessmentStatus::ToolFailure => 6,
+        AssessmentStatus::NotApplicable => 7,
+    }
+}
+
+/// One scenario whose outcome differs between two evaluations, sorted by
+/// `scenario_id` for determinism.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScenarioChange {
+    /// Scenario identifier from the scenario ledger.
+    pub scenario_id: String,
+    /// Outcome on the base (old) path.
+    pub base: AssessmentStatus,
+    /// Outcome on the head (new) path.
+    pub head: AssessmentStatus,
+}
+
+impl ScenarioChange {
+    /// True when the head outcome is worse than the base outcome. A newly
+    /// appearing refusal (`NotApplicable` to rejected/invalid/failure) is a
+    /// regression even though `NotApplicable` ranks lowest: the head
+    /// copybook fails somewhere the base never reached.
+    #[must_use]
+    #[inline]
+    pub const fn is_regression(&self) -> bool {
+        status_rank(self.head) > status_rank(self.base) || self.is_breaking()
+    }
+
+    /// True when the head outcome newly refuses input the base accepted.
+    #[must_use]
+    #[inline]
+    pub const fn is_breaking(&self) -> bool {
+        matches!(
+            self.head,
+            AssessmentStatus::Rejected | AssessmentStatus::Invalid | AssessmentStatus::ToolFailure
+        ) && !matches!(
+            self.base,
+            AssessmentStatus::Rejected | AssessmentStatus::Invalid | AssessmentStatus::ToolFailure
+        )
+    }
+}
+
+/// Compare two evaluated scenario sets by ID. Rows `NotApplicable` on both
+/// sides are skipped; a scenario present on only one side compares against
+/// `NotApplicable` on the other. Unchanged rows are omitted, so an empty
+/// result means no scenario moved.
+#[must_use]
+#[inline]
+pub fn compare_assessments(
+    base: &[ScenarioAssessment],
+    head: &[ScenarioAssessment],
+) -> Vec<ScenarioChange> {
+    use std::collections::BTreeMap;
+    let mut base_by_id: BTreeMap<&str, AssessmentStatus> = BTreeMap::new();
+    for item in base {
+        base_by_id.insert(item.scenario_id.as_str(), item.status);
+    }
+    let mut head_by_id: BTreeMap<&str, AssessmentStatus> = BTreeMap::new();
+    for item in head {
+        head_by_id.insert(item.scenario_id.as_str(), item.status);
+    }
+    let mut ids: BTreeSet<&str> = base_by_id.keys().copied().collect();
+    ids.extend(head_by_id.keys().copied());
+    let mut changes = Vec::new();
+    for id in ids {
+        let base_status = base_by_id
+            .get(id)
+            .copied()
+            .unwrap_or(AssessmentStatus::NotApplicable);
+        let head_status = head_by_id
+            .get(id)
+            .copied()
+            .unwrap_or(AssessmentStatus::NotApplicable);
+        if base_status == AssessmentStatus::NotApplicable
+            && head_status == AssessmentStatus::NotApplicable
+        {
+            continue;
+        }
+        if base_status == head_status {
+            continue;
+        }
+        changes.push(ScenarioChange {
+            scenario_id: id.to_string(),
+            base: base_status,
+            head: head_status,
+        });
+    }
+    changes
 }
 
 /// Per-scenario outcome. `Unknown` is the honest default for heuristic or
@@ -1581,5 +1689,74 @@ mod tests {
         let result = analyze(&input_with(vec![], None));
         assert_eq!(result.verdict, Verdict::PartialUnknown);
         assert!(result.scenarios.is_empty());
+    }
+
+    #[test]
+    fn compat_compare_empty_means_compatible() {
+        let changes = compare_assessments(&[], &[]);
+        assert!(changes.is_empty());
+    }
+
+    #[test]
+    fn compat_compare_reports_regression_sorted() {
+        use AssessmentStatus::{Limited, Rejected, Supported};
+        let base = vec![
+            assessment("struct.redefines.scalar", Supported),
+            assessment("struct.odo.tail_fixed", Supported),
+        ];
+        let head = vec![
+            assessment("struct.redefines.scalar", Rejected),
+            assessment("struct.odo.tail_fixed", Limited),
+        ];
+        let changes = compare_assessments(&base, &head);
+        assert_eq!(changes.len(), 2);
+        assert_eq!(changes[0].scenario_id, "struct.odo.tail_fixed");
+        assert_eq!(changes[1].scenario_id, "struct.redefines.scalar");
+        assert!(changes.iter().all(ScenarioChange::is_regression));
+        assert!(changes[1].is_breaking());
+        assert!(!changes[0].is_breaking());
+    }
+
+    #[test]
+    fn compat_compare_ignores_unchanged_and_inapplicable() {
+        use AssessmentStatus::{NotApplicable, Supported};
+        let base = vec![
+            assessment("struct.odo.tail_fixed", Supported),
+            assessment("format.vb.basic", NotApplicable),
+        ];
+        let head = vec![
+            assessment("struct.odo.tail_fixed", Supported),
+            assessment("format.vb.basic", NotApplicable),
+        ];
+        assert!(compare_assessments(&base, &head).is_empty());
+    }
+
+    #[test]
+    fn compat_compare_new_refusal_is_regression_not_improvement() {
+        use AssessmentStatus::{Invalid, NotApplicable, Supported};
+        let base = vec![assessment("unparsed", NotApplicable)];
+        let head = vec![assessment("unparsed", Invalid)];
+        let changes = compare_assessments(&base, &head);
+        assert_eq!(changes.len(), 1);
+        assert!(changes[0].is_breaking());
+        assert!(changes[0].is_regression());
+        // Newly applicable success is still an improvement.
+        let base = vec![assessment("unparsed", NotApplicable)];
+        let head = vec![assessment("unparsed", Supported)];
+        let changes = compare_assessments(&base, &head);
+        assert_eq!(changes.len(), 1);
+        assert!(!changes[0].is_regression());
+        assert!(!changes[0].is_breaking());
+    }
+
+    #[test]
+    fn compat_compare_improvement_is_not_regression() {
+        use AssessmentStatus::{Rejected, Supported};
+        let base = vec![assessment("struct.odo.tail_fixed", Rejected)];
+        let head = vec![assessment("struct.odo.tail_fixed", Supported)];
+        let changes = compare_assessments(&base, &head);
+        assert_eq!(changes.len(), 1);
+        assert!(!changes[0].is_regression());
+        assert!(!changes[0].is_breaking());
     }
 }

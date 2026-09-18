@@ -32,8 +32,8 @@ pub mod lib_api;
 pub mod runtime;
 /// Compatibility alias for the pre-0.6 memory module path.
 pub use runtime as memory;
-pub mod numeric;
 /// Numeric field decoding and encoding (zoned decimal, packed decimal, binary).
+pub mod numeric;
 /// Occurrence-bound failure explanation: why this record failed here.
 pub mod occurrence;
 /// Configuration types: codepage, record format, JSON modes, raw capture.

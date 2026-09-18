@@ -34,6 +34,28 @@ pub(crate) fn run_command(
             "determinism",
         ),
         Commands::Explain { code, format } => (commands::explain::run(&code, format), "explain"),
+        Commands::Doctor {
+            copybook,
+            input,
+            format,
+            codepage,
+            sample,
+            json,
+            strict_comments,
+            dialect,
+        } => (
+            commands::doctor::run(
+                &copybook,
+                input,
+                format,
+                codepage,
+                sample,
+                json,
+                strict_comments,
+                crate::cli_config::effective_dialect(dialect),
+            ),
+            "doctor",
+        ),
         Commands::Compat {
             base,
             head,

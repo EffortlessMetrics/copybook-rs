@@ -483,6 +483,41 @@ Examples:
         #[arg(long, value_enum, default_value = "table")]
         format: crate::commands::support::OutputFormat,
     },
+    /// Diagnose a copybook and data file: parse, framing, codepage, trial decode
+    #[command(after_help = "\
+Probes state their confidence and evidence; a guess is never certainty.
+
+Exit codes:
+  0 = healthy (warnings do not fail)
+  2/3/4/5 = worst failure mapped to its taxonomy family
+
+Examples:
+  copybook doctor customer.cpy data.bin
+  copybook doctor customer.cpy data.bin --format fixed --json")]
+    Doctor {
+        /// Copybook file path
+        copybook: PathBuf,
+        /// Input data file path (omit for copybook-only diagnosis)
+        input: Option<PathBuf>,
+        /// Record format: fixed, rdw (omit to probe)
+        #[arg(long)]
+        format: Option<RecordFormat>,
+        /// Character encoding (omit to probe): ascii, cp037, cp273, cp500, cp1047, or cp1140.
+        #[arg(long, value_parser = crate::cli_config::parse_codepage)]
+        codepage: Option<Codepage>,
+        /// Trial-decode this many leading records (0 skips trial decode)
+        #[arg(long, default_value = "3")]
+        sample: u32,
+        /// Emit machine-readable JSON report
+        #[arg(long)]
+        json: bool,
+        /// Disable inline comments (*>) - enforce COBOL-85 compatibility
+        #[arg(long)]
+        strict_comments: bool,
+        /// Dialect for ODO `min_count` interpretation (n=normative, 0=zero-tolerant, 1=one-tolerant)
+        #[arg(long, value_enum)]
+        dialect: Option<DialectPreference>,
+    },
     /// Determinism validation for encode/decode operations
     #[command(after_help = "\
 Exit codes:
@@ -1172,6 +1207,7 @@ mod commands {
     pub mod compat;
     pub mod decode;
     pub mod determinism;
+    pub mod doctor;
     pub mod encode;
     pub mod explain;
     pub mod inspect;

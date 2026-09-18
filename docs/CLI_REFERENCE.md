@@ -377,7 +377,7 @@ copybook determinism round-trip customer.cpy data.bin --output json
 ### explain
 Explain one stable error code: what it means, which diagnostic context it carries, and how to fix it. Content is generated from `docs/reference/ERROR_CODES.md`, so explanations never drift from the documented taxonomy.
 
-Occurrence mode (`--copybook` plus `--input`) re-runs decoding to the failing record and reports the strongest real context available: record index, physical file offset, field path, field byte range, and representation. Anything unknown stays unknown.
+Occurrence mode (`--copybook` plus `--input`) re-runs decoding to the failing record and reports the strongest real context available: record index, physical file offset, field path, field byte range, and representation. Anything unknown stays unknown. When the `[CODE]` filter matches nothing but other failures were seen, the output names the identities that were seen so the command can be retried without the filter.
 
 ```
 copybook explain <CODE> [--format text|json]

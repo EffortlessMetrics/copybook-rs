@@ -122,12 +122,19 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
 
     let (summary, write_to_stdout) =
         run_with_output(args.input, args.output, |input_file, output_writer| {
-            Ok(copybook::codec::decode_file_to_jsonl(
+            copybook::codec::decode_file_to_jsonl(
                 &working_schema,
                 input_file,
                 output_writer,
                 &options,
-            )?)
+            )
+            .map_err(|error| {
+                // Fatal read failures never reach the summary below, so the
+                // next step goes out with the error instead of after it.
+                let hint = explain_hint(&error.code().to_string(), args);
+                let _ = crate::write_stderr_all(format!("{hint}\n").as_bytes());
+                anyhow::Error::from(error)
+            })
         })?;
 
     // Print comprehensive summary (only when not writing to stdout)
@@ -152,12 +159,8 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
     if let Some(first) = summary.failures.first() {
         let _ = writeln!(
             failure_output,
-            "  Explain a failure: copybook explain {} --copybook {} --input {} --record-format {} --codepage {}",
-            first.error.code(),
-            args.copybook.display(),
-            args.input.display(),
-            format!("{:?}", args.format).to_lowercase(),
-            args.codepage,
+            "{}",
+            explain_hint(&first.error.code().to_string(), args)
         );
     }
     if !failure_output.is_empty() {
@@ -170,4 +173,17 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
     let exit_code =
         determine_exit_code(summary.has_warnings(), summary.has_errors(), ExitCode::Data);
     Ok(exit_code)
+}
+
+/// Pasteable next step for a decode failure: the exact `explain` command
+/// that re-runs decoding to the failing record. Shared by the per-record
+/// summary and the fatal read path so both point at the same command.
+fn explain_hint(code: &str, args: &DecodeArgs) -> String {
+    format!(
+        "  Explain a failure: copybook explain {code} --copybook {} --input {} --record-format {} --codepage {}",
+        args.copybook.display(),
+        args.input.display(),
+        format!("{:?}", args.format).to_lowercase(),
+        args.codepage,
+    )
 }

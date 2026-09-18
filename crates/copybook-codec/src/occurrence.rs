@@ -80,6 +80,10 @@ pub enum OccurrenceAbsence {
         scanned: u64,
         /// Scan bound that stopped the search, when hit.
         limit: Option<u64>,
+        /// Distinct identities observed but excluded by the code filter,
+        /// oldest first, so callers can name what was seen instead of
+        /// reporting an empty scope.
+        seen: Vec<String>,
     },
 }
 
@@ -116,6 +120,7 @@ pub fn explain_occurrence<R: Read>(
     let lrecl = schema.lrecl_fixed.map(u64::from);
     let mut scanned = 0u64;
     let mut rdw_offset = 0u64;
+    let mut seen: Vec<String> = Vec::new();
     let scan_limit = options.target_record.unwrap_or(OCCURRENCE_SCAN_CAP);
 
     loop {
@@ -123,11 +128,12 @@ pub fn explain_occurrence<R: Read>(
             return Ok(OccurrenceOutcome::Absent(OccurrenceAbsence::NotFound {
                 scanned,
                 limit: Some(scan_limit),
+                seen,
             }));
         }
         match iterator.read_raw_record() {
             Ok(None) => {
-                return Ok(finish_at_eof(scanned, options.target_record));
+                return Ok(finish_at_eof(scanned, options.target_record, seen));
             }
             Err(error) => {
                 let occurrence =
@@ -135,9 +141,13 @@ pub fn explain_occurrence<R: Read>(
                 if let Some(occurrence) = occurrence {
                     return Ok(OccurrenceOutcome::Found(occurrence));
                 }
+                if !code_matches(&error, options.code_filter.as_deref()) {
+                    note_seen(&mut seen, &error);
+                }
                 return Ok(OccurrenceOutcome::Absent(OccurrenceAbsence::NotFound {
                     scanned: scanned + 1,
                     limit: None,
+                    seen,
                 }));
             }
             Ok(Some(payload)) => {
@@ -165,6 +175,7 @@ pub fn explain_occurrence<R: Read>(
                     }
                     Err(error) => {
                         if !code_matches(&error, options.code_filter.as_deref()) {
+                            note_seen(&mut seen, &error);
                             continue;
                         }
                         let record_index = error
@@ -194,7 +205,7 @@ pub fn explain_occurrence<R: Read>(
 
 /// Terminal outcome when the input ends: the target is clean, missing, or
 /// no failure appeared in scope.
-fn finish_at_eof(scanned: u64, target_record: Option<u64>) -> OccurrenceOutcome {
+fn finish_at_eof(scanned: u64, target_record: Option<u64>, seen: Vec<String>) -> OccurrenceOutcome {
     match target_record {
         Some(target) if target <= scanned => {
             OccurrenceOutcome::Absent(OccurrenceAbsence::CleanRecord { record: target })
@@ -206,7 +217,21 @@ fn finish_at_eof(scanned: u64, target_record: Option<u64>) -> OccurrenceOutcome 
         None => OccurrenceOutcome::Absent(OccurrenceAbsence::NotFound {
             scanned,
             limit: None,
+            seen,
         }),
+    }
+}
+
+/// Remember one filtered-out identity, oldest first, bounded so a large
+/// file cannot grow the absence report without bound.
+fn note_seen(seen: &mut Vec<String>, error: &copybook_core::Error) {
+    const SEEN_CAP: usize = 5;
+    if seen.len() >= SEEN_CAP {
+        return;
+    }
+    let code = error.code().to_string();
+    if !seen.contains(&code) {
+        seen.push(code);
     }
 }
 

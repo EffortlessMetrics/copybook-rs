@@ -202,7 +202,7 @@ fn run_occurrence(
             format: record_format,
             codepage: args.codepage,
             target_record: args.record,
-            code_filter,
+            code_filter: code_filter.clone(),
         },
     )?;
 
@@ -210,7 +210,9 @@ fn run_occurrence(
         OccurrenceOutcome::Found(occurrence) => {
             render_occurrence(&occurrence, args, copybook, input)
         }
-        OccurrenceOutcome::Absent(absence) => render_absence(&absence, args.format),
+        OccurrenceOutcome::Absent(absence) => {
+            render_absence(&absence, code_filter.as_deref(), args.format)
+        }
     }
 }
 
@@ -300,8 +302,14 @@ fn render_occurrence(
     Ok(ExitCode::Ok)
 }
 
-/// Render a no-failure outcome with its reason.
-fn render_absence(absence: &OccurrenceAbsence, format: ExplainFormat) -> anyhow::Result<ExitCode> {
+/// Render a no-failure outcome with its reason. When a code filter
+/// excluded real failures, name what was seen so the operator can retry
+/// without the filter instead of concluding the file is clean.
+fn render_absence(
+    absence: &OccurrenceAbsence,
+    code_filter: Option<&str>,
+    format: ExplainFormat,
+) -> anyhow::Result<ExitCode> {
     let message = match absence {
         OccurrenceAbsence::CleanRecord { record } => {
             format!("Record {record} decoded without errors.")
@@ -309,12 +317,27 @@ fn render_absence(absence: &OccurrenceAbsence, format: ExplainFormat) -> anyhow:
         OccurrenceAbsence::BeyondEnd { requested, present } => {
             format!("Record {requested} does not exist; the input holds {present} record(s).")
         }
-        OccurrenceAbsence::NotFound { scanned, limit } => match limit {
-            Some(limit) => format!(
-                "No matching failure in the first {scanned} record(s); scan stopped at the {limit}-record scope bound."
-            ),
-            None => format!("No matching failure in the {scanned} record(s) scanned."),
-        },
+        OccurrenceAbsence::NotFound {
+            scanned,
+            limit,
+            seen,
+        } => {
+            let base = match limit {
+                Some(limit) => format!(
+                    "No matching failure in the first {scanned} record(s); scan stopped at the {limit}-record scope bound."
+                ),
+                None => format!("No matching failure in the {scanned} record(s) scanned."),
+            };
+            if seen.is_empty() {
+                base
+            } else {
+                let filter = code_filter.unwrap_or("requested");
+                format!(
+                    "No {filter} failure in the {scanned} record(s) scanned; failures seen with other identities: {}.",
+                    seen.join(", ")
+                )
+            }
+        }
     };
     let failing = matches!(
         absence,

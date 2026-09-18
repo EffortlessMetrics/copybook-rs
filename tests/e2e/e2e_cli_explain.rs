@@ -39,6 +39,17 @@ fn corrupted_comp3(dir: &tempfile::TempDir) -> (std::path::PathBuf, std::path::P
     (copybook, data)
 }
 
+const RDW_COPYBOOK: &str = "       01  REC.\n           05  FLD PIC X(10).\n";
+
+/// RDW fixture whose declared length (100) overruns the 10-byte payload.
+fn truncated_rdw(dir: &tempfile::TempDir) -> (std::path::PathBuf, std::path::PathBuf) {
+    let copybook = write_temp_file(dir, "rdw.cpy", RDW_COPYBOOK.as_bytes());
+    let mut data = vec![0x00, 0x64, 0x00, 0x00];
+    data.extend_from_slice(b"XXXXXXXXXX");
+    let data = write_temp_file(dir, "bad.bin", &data);
+    (copybook, data)
+}
+
 #[test]
 fn explain_full_code_text() {
     cmd()
@@ -233,6 +244,74 @@ fn explain_occurrence_needs_record_format() {
         .failure()
         .code(3)
         .stderr(predicate::str::contains("--record-format"));
+}
+
+#[test]
+fn explain_occurrence_framing_card_has_no_field_but_next_step() {
+    let dir = tempfile::TempDir::new().expect("temp dir");
+    let (copybook, data) = truncated_rdw(&dir);
+    cmd()
+        .args([
+            "explain",
+            "--copybook",
+            copybook.to_str().expect("copybook path"),
+            "--input",
+            data.to_str().expect("data path"),
+            "--record-format",
+            "rdw",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("CBKF221_RDW_UNDERFLOW"))
+        .stdout(predicate::str::contains("Physical offset: 0"))
+        .stdout(predicate::str::contains("Field: unknown"))
+        .stdout(predicate::str::contains("Next: copybook doctor"));
+}
+
+#[test]
+fn explain_occurrence_filter_mismatch_names_seen_identity() {
+    let dir = tempfile::TempDir::new().expect("temp dir");
+    let (copybook, data) = truncated_rdw(&dir);
+    cmd()
+        .args([
+            "explain",
+            "CBKF102",
+            "--copybook",
+            copybook.to_str().expect("copybook path"),
+            "--input",
+            data.to_str().expect("data path"),
+            "--record-format",
+            "rdw",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "failures seen with other identities",
+        ))
+        .stdout(predicate::str::contains("CBKF221_RDW_UNDERFLOW"));
+}
+
+#[test]
+fn decode_fatal_framing_failure_prints_explain_hint() {
+    let dir = tempfile::TempDir::new().expect("temp dir");
+    let (copybook, data) = truncated_rdw(&dir);
+    let out = dir.path().join("out.jsonl");
+    cmd()
+        .args([
+            "decode",
+            copybook.to_str().expect("copybook path"),
+            data.to_str().expect("data path"),
+            "-o",
+            out.to_str().expect("output path"),
+            "--format",
+            "rdw",
+        ])
+        .assert()
+        .failure()
+        .code(4)
+        .stderr(predicate::str::contains(
+            "Explain a failure: copybook explain CBKF102_RECORD_LENGTH_INVALID",
+        ));
 }
 
 #[test]

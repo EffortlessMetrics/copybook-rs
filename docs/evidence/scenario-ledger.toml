@@ -234,7 +234,7 @@ stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "No support-matrix feature ID exists for REDEFINES; this row owns structural status directly."
 shared_evidence_relationships = ["fixed-rdw:format.fixed.basic"]
 
-last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+last_verified_full_sha = "8cf1d5430d0c51638d1b2d480cddea314854fb3c"
 
 [[scenarios]]
 scenario_id = "struct.redefines.group"
@@ -317,7 +317,7 @@ stable_error_or_rejection_identity = "CBKE501_JSON_TYPE_MISMATCH"
 known_limitations_or_remediation = "Ambiguous multi-view encode is refused with CBKE501_JSON_TYPE_MISMATCH; single-view encode is covered by struct.redefines.scalar."
 shared_evidence_relationships = ["ledger:struct.redefines.scalar", "stable-error:CBKE501_JSON_TYPE_MISMATCH"]
 
-last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+last_verified_full_sha = "8cf1d5430d0c51638d1b2d480cddea314854fb3c"
 
 [[scenarios]]
 scenario_id = "struct.redefines.nested_supported"

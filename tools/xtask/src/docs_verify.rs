@@ -20,7 +20,7 @@ use xtask::perf;
 type Verifier = (&'static str, fn() -> Result<()>);
 
 pub(crate) fn run() -> Result<()> {
-    let checks: [Verifier; 20] = [
+    let checks: [Verifier; 21] = [
         (
             "workspace-version-and-msrv",
             verify_workspace_version_and_msrv,
@@ -32,6 +32,7 @@ pub(crate) fn run() -> Result<()> {
         ),
         ("error-code-inventory", verify_error_code_inventory),
         ("stable-error-registry", verify_stable_error_registry),
+        ("explain-knowledge", verify_explain_knowledge),
         ("scenario-ledger", verify_scenario_ledger),
         ("advise-projection", verify_advise_projection),
         ("corpus-manifest", verify_corpus),
@@ -2567,6 +2568,192 @@ fn verify_stable_error_anchors(root: &Path, registry: &StableErrorRegistry) -> R
         }
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Explain knowledge projection (#552): generated operator table for
+// `copybook explain`.
+// ---------------------------------------------------------------------------
+
+/// Authoritative operator knowledge source: per-code description, severity,
+/// context, and resolution.
+const EXPLAIN_KNOWLEDGE_SOURCE: &str = "docs/reference/ERROR_CODES.md";
+
+/// Generated projection path, relative to the workspace root. The file is
+/// compiled into `copybook-error`, so runtime explanation performs no
+/// repository-file I/O and registry-only installs work without `docs/`.
+const EXPLAIN_KNOWLEDGE_PATH: &str = "crates/copybook-error/src/explain.rs";
+
+/// One parsed operator knowledge row.
+struct ExplainRow {
+    code: String,
+    severity: String,
+    description: String,
+    context: String,
+    resolution: String,
+}
+
+pub(crate) fn sync_explain_knowledge_command() -> Result<()> {
+    let root = workspace_root();
+    let rendered = render_explain_knowledge(&root)?;
+    let path = root.join(EXPLAIN_KNOWLEDGE_PATH);
+    fs::write(&path, rendered)
+        .with_context(|| format!("writing explain knowledge {}", path.display()))?;
+    println!("explain knowledge synced: {EXPLAIN_KNOWLEDGE_PATH}");
+    Ok(())
+}
+
+fn verify_explain_knowledge() -> Result<()> {
+    let root = workspace_root();
+    let expected = render_explain_knowledge(&root)?;
+    let path = root.join(EXPLAIN_KNOWLEDGE_PATH);
+    let actual = fs::read_to_string(&path)
+        .with_context(|| format!("loading explain knowledge {}", path.display()))?;
+    if actual != expected {
+        bail!(
+            "explain knowledge is stale: `{EXPLAIN_KNOWLEDGE_PATH}` does not match `{EXPLAIN_KNOWLEDGE_SOURCE}` | run `cargo run -p xtask -- explain sync-knowledge`"
+        );
+    }
+    println!(
+        "explain knowledge verified: {} codes",
+        expected.matches("        code: ").count()
+    );
+    Ok(())
+}
+
+/// Render the generated explain module from the error-code reference.
+/// Coverage is closed against the `ErrorCode` enum: a documented code with
+/// no variant, or a variant with no documented row, fails loudly so the
+/// operator table can never silently drift from the taxonomy.
+fn render_explain_knowledge(root: &Path) -> Result<String> {
+    let source = fs::read_to_string(root.join(EXPLAIN_KNOWLEDGE_SOURCE))
+        .with_context(|| format!("loading {EXPLAIN_KNOWLEDGE_SOURCE}"))?;
+    let mut rows = parse_explain_knowledge(&source)?;
+    let error_source = fs::read_to_string(root.join("crates/copybook-error/src/lib.rs"))
+        .context("loading crates/copybook-error/src/lib.rs")?;
+    let expected: BTreeSet<String> = parse_error_code_variants(&error_source)?
+        .into_iter()
+        .collect();
+    let documented: BTreeSet<String> = rows.iter().map(|row| row.code.clone()).collect();
+    if documented != expected {
+        let missing: BTreeSet<_> = expected.difference(&documented).collect();
+        let extra: BTreeSet<_> = documented.difference(&expected).collect();
+        bail!(
+            "explain knowledge coverage drift: missing={missing:?} unknown={extra:?} | authoritative-source=crates/copybook-error/src/lib.rs and {EXPLAIN_KNOWLEDGE_SOURCE}"
+        );
+    }
+    rows.sort_by(|left, right| left.code.cmp(&right.code));
+    let mut out = String::new();
+    out.push_str(
+        "// SPDX-License-Identifier: AGPL-3.0-or-later\n\
+         //! Operator knowledge for `copybook explain`.\n\
+         //!\n\
+         //! DO NOT EDIT. Source: `docs/reference/ERROR_CODES.md`.\n\
+         //! Regenerate: `cargo run -p xtask -- explain sync-knowledge`.\n\
+         //! Freshness is enforced by `docs verify-all` (`explain-knowledge`).\n\
+         \n\
+         /// One operator knowledge row: what a stable error means and how to fix it.\n\
+         pub struct Explanation {\n\
+         \x20   /// Full stable error identity (e.g. `CBKE501_JSON_TYPE_MISMATCH`).\n\
+         \x20   pub code: &'static str,\n\
+         \x20   /// Severity verbatim from the error-code reference.\n\
+         \x20   pub severity: &'static str,\n\
+         \x20   /// What the error means, verbatim from the reference.\n\
+         \x20   pub description: &'static str,\n\
+         \x20   /// Diagnostic context the error carries, verbatim.\n\
+         \x20   pub context: &'static str,\n\
+         \x20   /// Operator remediation, verbatim from the reference.\n\
+         \x20   pub resolution: &'static str,\n\
+         }\n\
+         \n\
+         /// Full operator knowledge, sorted by code for determinism.\n\
+         pub const EXPLANATIONS: &[Explanation] = &[\n",
+    );
+    for row in &rows {
+        use std::fmt::Write as _;
+        let _ = writeln!(out, "    Explanation {{");
+        let _ = writeln!(out, "        code: {},", quoted(&row.code));
+        let _ = writeln!(out, "        severity: {},", quoted(&row.severity));
+        let _ = writeln!(out, "        description: {},", quoted(&row.description));
+        let _ = writeln!(out, "        context: {},", quoted(&row.context));
+        let _ = writeln!(out, "        resolution: {},", quoted(&row.resolution));
+        let _ = writeln!(out, "    }},");
+    }
+    out.push_str("];\n");
+    out.push_str(
+        "\n\
+         /// Look up operator knowledge by full code (`CBKE501_JSON_TYPE_MISMATCH`)\n\
+         /// or short code (`CBKE501`). Returns `None` for unknown identities.\n\
+         #[inline]\n\
+         #[must_use]\n\
+         pub fn explanation_for(code: &str) -> Option<&'static Explanation> {\n\
+         \x20   let upper = code.trim().to_ascii_uppercase();\n\
+         \x20   let short = upper.split('_').next().unwrap_or(&upper);\n\
+         \x20   EXPLANATIONS\n\
+         \x20       .iter()\n\
+         \x20       .find(|row| row.code == upper || row.code.split('_').next().unwrap_or(row.code) == short)\n\
+         }\n",
+    );
+    Ok(out)
+}
+
+/// Parse operator knowledge rows from the error-code reference. Every
+/// `#### CODE` section must carry single-line Description, Severity,
+/// Context, and Resolution fields; anything else fails loudly.
+fn parse_explain_knowledge(source: &str) -> Result<Vec<ExplainRow>> {
+    let heading_re = Regex::new(r"(?m)^#### ([A-Z][A-Z0-9_]*)\s*$")?;
+    let mut rows = Vec::new();
+    // Collect section bodies between `#### CODE` headings. Fenced example
+    // blocks are kept in the body: field lookup stops at the first fence,
+    // so operator fields can never come from examples.
+    let mut sections: Vec<(String, String)> = Vec::new();
+    let mut current: Option<(String, Vec<String>)> = None;
+    for line in source.lines() {
+        if let Some(capture) = heading_re.captures(line) {
+            if let Some((code, body)) = current.take() {
+                sections.push((code, body.join("\n")));
+            }
+            current = Some((capture[1].to_string(), Vec::new()));
+        } else if let Some((_, body)) = current.as_mut() {
+            body.push(line.to_string());
+        }
+    }
+    if let Some((code, body)) = current.take() {
+        sections.push((code, body.join("\n")));
+    }
+    for (code, body) in sections {
+        if !code.starts_with("CBK") {
+            continue;
+        }
+        let field = |name: &str| -> Result<String> {
+            let prefix = format!("**{name}**:");
+            for line in body.lines() {
+                if line.trim_start().starts_with("```") {
+                    break;
+                }
+                let trimmed = line.trim();
+                if let Some(value) = trimmed.strip_prefix(&prefix) {
+                    let value = value.trim();
+                    if value.is_empty() {
+                        bail!("explain knowledge entry `{code}` has an empty {name}");
+                    }
+                    return Ok(value.to_string());
+                }
+            }
+            bail!("explain knowledge entry `{code}` is missing {name}");
+        };
+        rows.push(ExplainRow {
+            code: code.clone(),
+            severity: field("Severity")?,
+            description: field("Description")?,
+            context: field("Context")?,
+            resolution: field("Resolution")?,
+        });
+    }
+    if rows.is_empty() {
+        bail!("no explain knowledge rows parsed from {EXPLAIN_KNOWLEDGE_SOURCE}");
+    }
+    Ok(rows)
 }
 
 const SCENARIO_LEDGER_PATH: &str = "docs/evidence/scenario-ledger.toml";

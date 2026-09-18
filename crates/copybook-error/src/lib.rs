@@ -12,6 +12,12 @@ use thiserror::Error;
 /// Result type alias for copybook operations
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Operator knowledge for `copybook explain`.
+///
+/// Generated from `docs/reference/ERROR_CODES.md`; see
+/// `cargo run -p xtask -- explain sync-knowledge`.
+pub mod explain;
+
 /// Main error type for copybook operations
 ///
 /// Uses thiserror for clean error handling with manual Display implementation

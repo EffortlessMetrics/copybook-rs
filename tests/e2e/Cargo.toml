@@ -131,6 +131,10 @@ name = "e2e_cli_support"
 path = "e2e_cli_support.rs"
 
 [[test]]
+name = "e2e_cli_explain"
+path = "e2e_cli_explain.rs"
+
+[[test]]
 name = "e2e_cli_inspect"
 path = "e2e_cli_inspect.rs"
 

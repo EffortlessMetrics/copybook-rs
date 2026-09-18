@@ -4,7 +4,8 @@
 //! This module owns the operator-diagnosis result: given copybook text and
 //! input bytes it stages the same checks a frustrated operator would run
 //! by hand (parse, record length, framing fit, codepage fit, trial decode)
-//! and records every outcome as a typed [`DiagnosisFinding`] with its
+//! and records every outcome as a typed
+//! [`DiagnosisFinding`](crate::diagnose::DiagnosisFinding) with its
 //! stable error identity, remediation from the shared explain table, and
 //! the exact next command to run. Callers render findings for humans and
 //! machines from this single result; no caller reimplements the probes.
@@ -63,7 +64,7 @@ pub struct DiagnosisFinding {
     pub check: &'static str,
     /// The outcome.
     pub status: DiagnosisStatus,
-    /// Human-readable detail, bounded to [`MAX_DETAIL_CHARS`] characters.
+    /// Human-readable detail, bounded to `MAX_DETAIL_CHARS` characters.
     pub detail: String,
     /// Stable error identity, when the outcome carries one.
     pub code: Option<String>,

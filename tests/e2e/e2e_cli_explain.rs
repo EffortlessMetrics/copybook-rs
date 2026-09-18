@@ -50,8 +50,8 @@ fn explain_json_format_is_machine_readable() {
         .assert()
         .success();
     let stdout = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&stdout)
-        .unwrap_or_else(|e| panic!("explain --format json should produce valid JSON: {e}"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout).expect("explain --format json should produce valid JSON");
     assert_eq!(parsed["code"], "CBKF104_RDW_SUSPECT_ASCII");
     assert_eq!(parsed["family"], "CBKF");
     assert!(

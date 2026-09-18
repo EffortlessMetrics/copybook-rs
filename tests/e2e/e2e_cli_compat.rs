@@ -73,8 +73,8 @@ fn compat_fail_on_any_json_reports_machine_verdict() {
         .failure()
         .code(3);
     let stdout = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&stdout)
-        .unwrap_or_else(|e| panic!("compat --format json should produce valid JSON: {e}"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout).expect("compat --format json should produce valid JSON");
     assert_eq!(parsed["verdict"], "incompatible");
     assert_eq!(parsed["fail_on"], "any");
     let changes = parsed["changes"].as_array().expect("changes array");

@@ -1,4 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+// Explicit `crate::numeric::` link targets below are redundant by label
+// resolution on some toolchains and unresolvable without them on others;
+// keep the resolving form and silence the style lint.
+#![allow(rustdoc::redundant_explicit_links)]
 //! # Numeric Type Codecs for COBOL Data
 //!
 //! This module provides encoding and decoding functions for the three main COBOL numeric

@@ -439,7 +439,7 @@ copybook doctor <COPYBOOK> [INPUT] [OPTIONS]
 - `[INPUT]` - Path to data file (omit for copybook-only diagnosis)
 
 **Options:**
-- `--format <FORMAT>` - Record format: fixed, rdw (omit to probe both framings)
+- `--format <FORMAT>` - Record format: fixed, rdw, vb (omit to probe all three framings; an ambiguous probe stays inconclusive instead of guessing)
 - `--codepage <CP>` - Character encoding: ascii, cp037, cp273, cp500, cp1047, cp1140 (omit to probe)
 - `--sample <N>` - Trial-decode this many leading records, 0 skips trial decode (default: 3)
 - `--json` - Emit a machine-readable JSON report

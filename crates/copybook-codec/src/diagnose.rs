@@ -12,7 +12,7 @@
 //! Probes that guess (format, codepage) always state their confidence and
 //! their evidence window; a guess is never rendered as certainty.
 
-use crate::record::RDWRecordReader;
+use crate::record::{RDWRecordReader, VbBlockReader};
 use crate::{Codepage, DecodeOptions, RecordFormat, UnmappablePolicy, decode_record};
 use copybook_core::Dialect;
 use copybook_error::explain::explanation_for;
@@ -251,7 +251,14 @@ pub fn diagnose(
     // Format: confirm the explicit choice or probe both framings.
     let resolved_format = match options.format {
         Some(given) => {
-            confirm_format(&mut diagnosis, given, bytes, total_bytes, lrecl);
+            confirm_format(
+                &mut diagnosis,
+                given,
+                bytes,
+                input.scope_complete(),
+                total_bytes,
+                lrecl,
+            );
             Some(given)
         }
         None => probe_format(
@@ -343,6 +350,7 @@ fn confirm_format(
     diagnosis: &mut Diagnosis,
     format: RecordFormat,
     bytes: &[u8],
+    scope_complete: bool,
     total_bytes: usize,
     lrecl: Option<u32>,
 ) {
@@ -407,36 +415,65 @@ fn confirm_format(
                         next: None,
                     },
                 );
-            } else {
-                push(
+            }
+            match read_rdw_records(bytes, 3, scope_complete, false) {
+                Some(records) => push(
                     &mut *diagnosis,
                     DiagnosisFinding {
                         check: "format-confirm",
                         status: DiagnosisStatus::Pass,
-                        detail: "RDW framing requested; header corruption not detected".to_string(),
+                        detail: format!("first {} record(s) frame as RDW", records.len()),
                         code: None,
                         remediation: String::new(),
                         next: None,
                     },
-                );
+                ),
+                None => push(
+                    &mut *diagnosis,
+                    DiagnosisFinding {
+                        check: "format-confirm",
+                        status: DiagnosisStatus::Warn,
+                        detail: "bytes do not frame as RDW records".to_string(),
+                        code: Some("CBKF221_RDW_UNDERFLOW".to_string()),
+                        remediation: remediation_for("CBKF221_RDW_UNDERFLOW"),
+                        next: None,
+                    },
+                ),
             }
         }
-        RecordFormat::Vb => push(
-            &mut *diagnosis,
-            DiagnosisFinding {
-                check: "format-confirm",
-                status: DiagnosisStatus::Warn,
-                detail: "VB framing is beta; framing proof is limited".to_string(),
-                code: None,
-                remediation: String::new(),
-                next: None,
-            },
-        ),
+        RecordFormat::Vb => match read_vb_records(bytes, 3, scope_complete, false) {
+            Some(records) => push(
+                &mut *diagnosis,
+                DiagnosisFinding {
+                    check: "format-confirm",
+                    status: DiagnosisStatus::Pass,
+                    detail: format!(
+                        "first {} record(s) frame as VB blocks (beta framing)",
+                        records.len()
+                    ),
+                    code: None,
+                    remediation: String::new(),
+                    next: None,
+                },
+            ),
+            None => push(
+                &mut *diagnosis,
+                DiagnosisFinding {
+                    check: "format-confirm",
+                    status: DiagnosisStatus::Warn,
+                    detail: "bytes do not frame as VB blocks".to_string(),
+                    code: Some("CBKF223_BDW_UNDERFLOW".to_string()),
+                    remediation: remediation_for("CBKF223_BDW_UNDERFLOW"),
+                    next: None,
+                },
+            ),
+        },
     }
 }
 
-/// Probe fixed vs RDW framing. Returns the winner, or `None` (with a fail
-/// finding) when the bytes fit neither framing.
+/// Probe fixed, RDW, and VB framing as peer candidates. A single fit
+/// resolves; no fit fails; several fits stay inconclusive (a fail finding
+/// with the pin command) instead of secretly continuing as one of them.
 fn probe_format(
     diagnosis: &mut Diagnosis,
     bytes: &[u8],
@@ -448,8 +485,8 @@ fn probe_format(
         Some(len) => len > 0 && total_bytes > 0 && total_bytes.is_multiple_of(len as usize),
         None => false,
     };
-    let rdw_records = read_rdw_records(bytes, 3, scope_complete);
-    let rdw_fits = rdw_records.is_some();
+    let rdw_fits = read_rdw_records(bytes, 3, scope_complete, true).is_some();
+    let vb_fits = read_vb_records(bytes, 3, scope_complete, true).is_some();
     if bytes.len() >= 4 && rdw_is_suspect_ascii_corruption_slice(&bytes[..4]) {
         push(
             &mut *diagnosis,
@@ -464,43 +501,90 @@ fn probe_format(
             },
         );
     }
-    match (fixed_fits, rdw_fits) {
-        (true, false) => {
-            probe_pass(diagnosis, "fixed");
-            Some(RecordFormat::Fixed)
+    let mut fits: Vec<RecordFormat> = Vec::new();
+    if fixed_fits {
+        fits.push(RecordFormat::Fixed);
+    }
+    if rdw_fits {
+        fits.push(RecordFormat::RDW);
+    }
+    if vb_fits {
+        fits.push(RecordFormat::Vb);
+    }
+    match fits.as_slice() {
+        [single] => {
+            probe_pass(diagnosis, format_probe_name(*single));
+            Some(*single)
         }
-        (false, true) => {
-            probe_pass(diagnosis, "rdw");
-            Some(RecordFormat::RDW)
-        }
-        (true, true) => {
-            push(
-                &mut *diagnosis,
-                DiagnosisFinding {
-                    check: "format-probe",
-                    status: DiagnosisStatus::Warn,
-                    detail: "bytes fit both fixed and RDW framing; pass --format explicitly"
-                        .to_string(),
-                    code: None,
-                    remediation: "Rerun with --format fixed or --format rdw to pin the framing."
-                        .to_string(),
-                    next: None,
-                },
-            );
-            Some(RecordFormat::Fixed)
-        }
-        (false, false) => {
+        [] => {
             push(&mut *diagnosis, DiagnosisFinding {
                 check: "format-probe",
                 status: DiagnosisStatus::Fail,
-                detail: "bytes fit neither fixed nor RDW framing".to_string(),
+                detail: "bytes fit neither fixed, RDW, nor VB framing".to_string(),
                 code: None,
-                remediation: "Check the transfer mode (binary, not text), the record length, and whether the file carries block headers."
+                remediation: "Check the transfer mode (binary, not text), the record length, and whether the file carries BDW block headers."
                     .to_string(),
                 next: None,
             });
             None
         }
+        several => {
+            let names: Vec<&str> = several
+                .iter()
+                .map(|format| format_probe_name(*format))
+                .collect();
+            let pins: Vec<String> = several
+                .iter()
+                .map(|format| format!("--format {}", format_flag_name(*format)))
+                .collect();
+            push(
+                &mut *diagnosis,
+                DiagnosisFinding {
+                    check: "format-probe",
+                    status: DiagnosisStatus::Fail,
+                    detail: format!(
+                        "bytes fit {} framing; rerun pinned, diagnosis stops here",
+                        join_probe_names(&names),
+                    ),
+                    code: None,
+                    remediation: format!("Rerun with {} to pin the framing.", pins.join(" or ")),
+                    next: None,
+                },
+            );
+            None
+        }
+    }
+}
+
+/// Display name of a framing candidate inside probe findings.
+fn format_probe_name(format: RecordFormat) -> &'static str {
+    match format {
+        RecordFormat::Fixed => "fixed",
+        RecordFormat::RDW => "RDW",
+        RecordFormat::Vb => "VB",
+    }
+}
+
+/// CLI spelling of a framing candidate for suggested commands.
+fn format_flag_name(format: RecordFormat) -> &'static str {
+    match format {
+        RecordFormat::Fixed => "fixed",
+        RecordFormat::RDW => "rdw",
+        RecordFormat::Vb => "vb",
+    }
+}
+
+/// Join candidate names the way the finding reads them.
+fn join_probe_names(names: &[&str]) -> String {
+    match names {
+        [] => "no".to_string(),
+        [single] => (*single).to_string(),
+        [first, second] => format!("{first} and {second}"),
+        [first, rest @ ..] => format!(
+            "{first}, {} and {}",
+            rest[..rest.len() - 1].join(", "),
+            rest[rest.len() - 1]
+        ),
     }
 }
 
@@ -554,8 +638,9 @@ fn frame_records(
                 return None;
             }
         },
-        RecordFormat::RDW | RecordFormat::Vb => {
-            let Some(records) = read_rdw_records(bytes, sample as usize, scope_complete) else {
+        RecordFormat::RDW => {
+            let Some(records) = read_rdw_records(bytes, sample as usize, scope_complete, false)
+            else {
                 push(
                     &mut *diagnosis,
                     DiagnosisFinding {
@@ -564,6 +649,24 @@ fn frame_records(
                         detail: "could not frame records for trial decode".to_string(),
                         code: Some("CBKF221_RDW_UNDERFLOW".to_string()),
                         remediation: remediation_for("CBKF221_RDW_UNDERFLOW"),
+                        next: None,
+                    },
+                );
+                return None;
+            };
+            records
+        }
+        RecordFormat::Vb => {
+            let Some(records) = read_vb_records(bytes, sample as usize, scope_complete, false)
+            else {
+                push(
+                    &mut *diagnosis,
+                    DiagnosisFinding {
+                        check: "trial-decode",
+                        status: DiagnosisStatus::Fail,
+                        detail: "could not frame VB blocks for trial decode".to_string(),
+                        code: Some("CBKF223_BDW_UNDERFLOW".to_string()),
+                        remediation: remediation_for("CBKF223_BDW_UNDERFLOW"),
                         next: None,
                     },
                 );
@@ -593,8 +696,43 @@ fn frame_records(
 /// When the inspected scope is truncated (`scope_complete` false), a framing
 /// error after at least one record ends the scope instead of failing: the
 /// tail was chosen away, not proven corrupt. A complete scope stays strict.
-fn read_rdw_records(bytes: &[u8], limit: usize, scope_complete: bool) -> Option<Vec<Vec<u8>>> {
-    let mut reader = RDWRecordReader::new(Cursor::new(bytes), false);
+/// `strict` selects candidate-grade headers (zero reserved, no ragged tail)
+/// for probing versus decode-faithful leniency for trial framing.
+fn read_rdw_records(
+    bytes: &[u8],
+    limit: usize,
+    scope_complete: bool,
+    strict: bool,
+) -> Option<Vec<Vec<u8>>> {
+    let mut reader = RDWRecordReader::new(Cursor::new(bytes), strict);
+    let mut records = Vec::new();
+    for _ in 0..limit {
+        match reader.read_record() {
+            Ok(Some(record)) => records.push(record.payload.clone()),
+            Ok(None) => break,
+            Err(_) => {
+                if scope_complete || records.is_empty() {
+                    return None;
+                }
+                break;
+            }
+        }
+    }
+    if records.is_empty() {
+        return None;
+    }
+    Some(records)
+}
+
+/// Read up to `limit` VB payloads through BDW blocks; same scope contract
+/// as [`read_rdw_records`]. VB is BDW plus nested RDW, never bare RDW.
+fn read_vb_records(
+    bytes: &[u8],
+    limit: usize,
+    scope_complete: bool,
+    strict: bool,
+) -> Option<Vec<Vec<u8>>> {
+    let mut reader = VbBlockReader::new(Cursor::new(bytes), strict);
     let mut records = Vec::new();
     for _ in 0..limit {
         match reader.read_record() {

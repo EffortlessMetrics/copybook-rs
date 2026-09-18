@@ -150,6 +150,48 @@ fn doctor_large_file_diagnoses_bounded_scope() {
 }
 
 #[test]
+fn doctor_vb_pair_is_healthy() {
+    // VB is a peer framing candidate (BDW plus nested RDW), not a failure.
+    let copybook = workspace_path("fixtures/corpus/mini.cpy");
+    let data = workspace_path("fixtures/corpus/mini_vb.bin");
+    cmd()
+        .args(["doctor"])
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("healthy"))
+        .stdout(predicate::str::contains("bytes fit VB framing"))
+        .stdout(predicate::str::contains("--format vb"));
+}
+
+#[test]
+fn doctor_ambiguous_framing_stays_inconclusive() {
+    // Bytes fitting both fixed (LRECL multiple) and RDW (valid headers)
+    // must not secretly continue as one of them: the probe fails with the
+    // pin command and no trial decode runs on a guess.
+    let copybook = workspace_path("fixtures/corpus/mini.cpy");
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mut bytes = Vec::new();
+    for payload in [b"ABCDEFGHIJ", b"KLMNOPQRST"] {
+        bytes.extend_from_slice(&[0, 10, 0, 0]);
+        bytes.extend_from_slice(payload);
+    }
+    let data = write_temp_file(&dir, "ambiguous.bin", &bytes);
+    cmd()
+        .args(["doctor"])
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .failure()
+        .code(4)
+        .stdout(predicate::str::contains("bytes fit fixed and RDW framing"))
+        .stdout(predicate::str::contains(
+            "Rerun with --format fixed or --format rdw",
+        ));
+}
+
+#[test]
 fn doctor_json_report_is_machine_readable() {
     let copybook = workspace_path("fixtures/copybooks/simple.cpy");
     let data = workspace_path("fixtures/data/simple.bin");

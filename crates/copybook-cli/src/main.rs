@@ -499,7 +499,7 @@ Examples:
         copybook: PathBuf,
         /// Input data file path (omit for copybook-only diagnosis)
         input: Option<PathBuf>,
-        /// Record format: fixed, rdw (omit to probe)
+        /// Record format: fixed, rdw, vb (omit to probe)
         #[arg(long)]
         format: Option<RecordFormat>,
         /// Character encoding (omit to probe): ascii, cp037, cp273, cp500, cp1047, or cp1140.

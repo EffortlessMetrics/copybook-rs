@@ -1,0 +1,9 @@
+kind: added
+body: '**cli**: judge the resolved record layout in `copybook compat`: both
+  sides are parsed through the same layout resolution advisory analysis uses
+  and diffed field-by-field (`copybook-core::schema_diff`). A removed,
+  moved, resized, or retyped field, or record-length drift, is incompatible
+  under every `--fail-on` policy; an overlapping `REDEFINES`-only addition
+  stays compatible. Table output gains a layout section; JSON gains additive
+  `schema_breaking` / `schema_changes`.'
+time: '2026-09-18T18:25:00Z'

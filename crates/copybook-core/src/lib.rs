@@ -148,6 +148,8 @@ pub mod pic;
 pub mod projection;
 /// Core schema types: [`Schema`], [`Field`], [`FieldKind`], and related structures.
 pub mod schema;
+/// Resolved-schema compatibility: layout diffs between two copybooks.
+pub mod schema_diff;
 /// COBOL feature support matrix and status registry.
 pub mod support_matrix;
 

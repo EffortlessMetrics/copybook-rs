@@ -88,6 +88,87 @@ fn compat_fail_on_any_json_reports_machine_verdict() {
     );
 }
 
+const RESIZED_HEAD_COPYBOOK: &str = "       01  REC.\n           05  FLD PIC X(12).\n";
+
+// Same bytes, new overlapping view: shifts no offset, grows no record.
+const REDEFINES_HEAD_COPYBOOK: &str = "       01  REC.\n           05  FLD PIC X(10).\n           05  FLD-N REDEFINES FLD PIC 9(10).\n";
+
+#[test]
+fn compat_identical_copybooks_report_layout_unchanged() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let base = write_temp_file(&dir, "base.cpy", BASE_COPYBOOK);
+    cmd()
+        .args(["compat"])
+        .arg(&base)
+        .arg(&base)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("record layout unchanged"));
+}
+
+#[test]
+fn compat_resized_field_is_incompatible() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let base = write_temp_file(&dir, "base.cpy", BASE_COPYBOOK);
+    let head = write_temp_file(&dir, "head.cpy", RESIZED_HEAD_COPYBOOK);
+    cmd()
+        .args(["compat"])
+        .arg(&base)
+        .arg(&head)
+        .assert()
+        .failure()
+        .code(3)
+        .stdout(predicate::str::contains("incompatible"))
+        .stdout(predicate::str::contains("record length"))
+        .stdout(predicate::str::contains("REC.FLD"))
+        .stdout(predicate::str::contains("breaking"));
+}
+
+#[test]
+fn compat_resized_field_json_names_schema_break() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let base = write_temp_file(&dir, "base.cpy", BASE_COPYBOOK);
+    let head = write_temp_file(&dir, "head.cpy", RESIZED_HEAD_COPYBOOK);
+    let assert = cmd()
+        .args(["compat"])
+        .arg(&base)
+        .arg(&head)
+        .args(["--format", "json"])
+        .assert()
+        .failure()
+        .code(3);
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout).expect("compat --format json is valid JSON");
+    assert_eq!(parsed["verdict"], "incompatible");
+    assert_eq!(parsed["schema_breaking"], true);
+    let schema_changes = parsed["schema_changes"]
+        .as_array()
+        .expect("schema_changes array");
+    assert!(
+        schema_changes
+            .iter()
+            .any(|change| change["field"] == "REC.FLD" && change["breaking"] == true),
+        "resized field must be a breaking schema change, got: {parsed}"
+    );
+}
+
+#[test]
+fn compat_redefines_only_addition_is_compatible() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let base = write_temp_file(&dir, "base.cpy", BASE_COPYBOOK);
+    let head = write_temp_file(&dir, "head.cpy", REDEFINES_HEAD_COPYBOOK);
+    cmd()
+        .args(["compat"])
+        .arg(&base)
+        .arg(&head)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("compatible"))
+        .stdout(predicate::str::contains("REC.FLD-N"))
+        .stdout(predicate::str::contains("(added)"));
+}
+
 #[test]
 fn compat_unreadable_base_exits_4() {
     let dir = tempfile::tempdir().expect("tempdir");

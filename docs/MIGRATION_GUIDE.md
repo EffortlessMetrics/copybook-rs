@@ -34,7 +34,7 @@ This guide helps users migrate from existing COBOL data processing tools to copy
 - **IBM COBOL Tools** (Enterprise COBOL, COBOL for z/OS)
 - **Micro Focus COBOL** (Visual COBOL, Net Express)
 - **Open Source Tools** (GnuCOBOL, cb2xml)
-- **Java Libraries** (COBOL copybook parsers)
+- **Java Libraries** (COBOL copybook parsers) — coming from JRecord specifically? See [Migrating from JRecord](JRECORD_MIGRATION.md) for the pinned differential, command translations, and boundaries
 - **Python Tools** (pycopybook, cobrix)
 - **Legacy Mainframe Utilities**
 

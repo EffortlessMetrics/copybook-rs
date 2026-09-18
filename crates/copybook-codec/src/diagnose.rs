@@ -1019,7 +1019,53 @@ fn suggested_decode(
 ) -> String {
     format!(
         "copybook decode {} {} --format {format} --codepage {codepage} --output out.jsonl",
-        copybook.display(),
-        input.display(),
+        shell_quote(copybook),
+        shell_quote(input),
     )
+}
+
+/// Render a path for a pasted shell command: bare when it carries only
+/// filename-safe characters, single-quoted otherwise, so a copied `next`
+/// command survives directories such as `Monthly Extract/`.
+fn shell_quote(path: &Path) -> String {
+    let text = path.display().to_string();
+    if text
+        .chars()
+        .all(|c| c.is_alphanumeric() || "-_./:+=".contains(c))
+    {
+        text
+    } else {
+        format!("'{}'", text.replace('\'', "'\\''"))
+    }
+}
+
+#[cfg(test)]
+mod shell_quote_tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn plain_paths_stay_bare() {
+        assert_eq!(shell_quote(Path::new("data/simple.bin")), "data/simple.bin");
+        assert_eq!(
+            shell_quote(Path::new("C:/extracts/a.cpy")),
+            "C:/extracts/a.cpy"
+        );
+    }
+
+    #[test]
+    fn spaced_paths_are_single_quoted() {
+        assert_eq!(
+            shell_quote(Path::new("Monthly Extract/data file.bin")),
+            "'Monthly Extract/data file.bin'"
+        );
+    }
+
+    #[test]
+    fn embedded_quotes_escape_safely() {
+        assert_eq!(
+            shell_quote(&PathBuf::from("it's/raw.bin")),
+            "'it'\\''s/raw.bin'"
+        );
+    }
 }

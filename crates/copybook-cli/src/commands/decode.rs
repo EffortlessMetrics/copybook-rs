@@ -14,6 +14,7 @@ use crate::{
 use copybook::codec::{
     Codepage, DecodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
+use std::fmt::Write as _;
 use std::path::PathBuf;
 use tracing::{Level, info};
 
@@ -148,6 +149,17 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
     // Failure detail goes to stderr so it survives `-o -` and shell redirection.
     let mut failure_output = String::new();
     append_record_failures(&mut failure_output, &summary)?;
+    if let Some(first) = summary.failures.first() {
+        let _ = writeln!(
+            failure_output,
+            "  Explain a failure: copybook explain {} --copybook {} --input {} --record-format {} --codepage {}",
+            first.error.code(),
+            args.copybook.display(),
+            args.input.display(),
+            format!("{:?}", args.format).to_lowercase(),
+            args.codepage,
+        );
+    }
     if !failure_output.is_empty() {
         write_stderr_all(failure_output.as_bytes())?;
     }

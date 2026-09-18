@@ -9,9 +9,34 @@
 
 use assert_cmd::Command;
 use predicates::prelude::*;
+use std::io::Write as _;
 
 fn cmd() -> Command {
     Command::cargo_bin("copybook").unwrap()
+}
+
+fn workspace_path(rel: &str) -> std::path::PathBuf {
+    // copybook-e2e lives at tests/e2e; fixtures live at the workspace root.
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(rel)
+}
+
+fn write_temp_file(dir: &tempfile::TempDir, name: &str, contents: &[u8]) -> std::path::PathBuf {
+    let path = dir.path().join(name);
+    let mut file = std::fs::File::create(&path).expect("create temp file");
+    file.write_all(contents).expect("write temp file");
+    path
+}
+
+/// COMP-3 fixture with an invalid sign nibble in DECIMAL-AMOUNT.
+fn corrupted_comp3(dir: &tempfile::TempDir) -> (std::path::PathBuf, std::path::PathBuf) {
+    let copybook = workspace_path("fixtures/copybooks/comp3_test.cpy");
+    let mut data =
+        std::fs::read(workspace_path("fixtures/data/comp3_test.bin")).expect("read fixture");
+    data[14] = (data[14] & 0xF0) | 0x07;
+    let data = write_temp_file(dir, "bad.bin", &data);
+    (copybook, data)
 }
 
 #[test]

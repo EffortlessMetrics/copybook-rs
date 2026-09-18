@@ -1,0 +1,9 @@
+kind: added
+body: '**cli**: add `copybook compat <BASE> <HEAD>` for CI gating on
+  copybook changes. Both sides are evaluated under identical options
+  through the advise domain, and scenario-level changes render as
+  compatible/incompatible with `--fail-on breaking` (new refusals, the
+  default) or `--fail-on any` (any worsening) policy in table and
+  `--format json` output. Exit 0 on compatible, 3 on incompatible or
+  inconclusive.'
+time: '2026-09-18T06:30:00Z'

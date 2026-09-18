@@ -34,6 +34,26 @@ pub(crate) fn run_command(
             "determinism",
         ),
         Commands::Explain { code, format } => (commands::explain::run(&code, format), "explain"),
+        Commands::Compat {
+            base,
+            head,
+            record_format,
+            codepage,
+            dialect,
+            fail_on,
+            format,
+        } => (
+            commands::compat::run(
+                &base,
+                &head,
+                &record_format.to_string(),
+                &codepage.to_string(),
+                dialect,
+                fail_on,
+                format,
+            ),
+            "compat",
+        ),
     }
 }
 

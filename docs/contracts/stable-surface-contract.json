@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-18T05:23:06.002143687+00:00",
+  "generated_at": "2026-09-18T06:21:30.030035731+00:00",
   "generated_by": "cargo run -p xtask -- docs contracts generate",
-  "source_revision": "8247d2f71e83f1cd99eb10d63bc5c3a9756aa7bb",
+  "source_revision": "780524cac7b2ed371c169eb551e98b6c030cf0bd",
   "source_paths": [
     "crates/copybook-cli/src/main.rs",
     "crates/copybook-cli/src/exit_codes.rs",
@@ -21,6 +21,7 @@
       "verify",
       "support",
       "explain",
+      "compat",
       "determinism"
     ],
     "options": [
@@ -39,6 +40,7 @@
       "enable-category",
       "enable-features",
       "fail-fast",
+      "fail-on",
       "feature-flags-config",
       "features",
       "float-format",

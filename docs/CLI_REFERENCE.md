@@ -398,6 +398,35 @@ copybook explain CBKE501_JSON_TYPE_MISMATCH
 copybook explain cbkd411 --format json
 ```
 
+### compat
+Compare two copybooks (base vs head) and fail CI on breaking scenario changes. Both sides are evaluated under identical options, so a reported change is always a copybook change, never an option skew.
+
+```
+copybook compat <BASE> <HEAD> [OPTIONS]
+```
+
+**Arguments:**
+- `<BASE>` - Base (old) copybook file path
+- `<HEAD>` - Head (new) copybook file path
+
+**Options:**
+- `--record-format <FORMAT>` - Record format under evaluation for both sides: fixed, rdw (default: fixed)
+- `--codepage <CP>` - Character encoding under evaluation for both sides (default: cp037)
+- `--dialect <MODE>` - Dialect lever under evaluation for both sides: n, 0, 1
+- `--fail-on <LEVEL>` - Which changes fail: breaking (new refusals: Rejected, Invalid, ToolFailure), any (any worsening, including new limits, beta, or unknown) (default: breaking)
+- `--format <FORMAT>` - Output rendering: table, json (default: table)
+
+**Exit codes:** 0 = compatible under the `--fail-on` policy, 3 = incompatible, inconclusive (base itself does not analyze), or usage error.
+
+**Examples:**
+```bash
+# Gate a copybook change in CI (breaking refusals fail the build)
+copybook compat main.cpy feature.cpy
+
+# Strictest policy with machine-readable output
+copybook compat main.cpy feature.cpy --fail-on any --format json
+```
+
 ### audit
 Enterprise audit system for regulatory compliance (SOX, HIPAA, GDPR, PCI DSS), performance auditing, security monitoring, and data lineage tracking.
 

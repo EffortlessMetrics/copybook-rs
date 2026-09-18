@@ -18,17 +18,16 @@ use copybook::support_matrix::advise::{
 use std::fmt::Write as _;
 use std::path::Path;
 
-/// Run advisory analysis for one copybook under the requested options.
-///
-/// The dialect lever selects layout interpretation before extraction, so the
-/// evaluated dialect is the analyzed dialect, not a label.
-pub fn run_advise(
+/// Analyze one copybook under the requested options and return the
+/// deterministic [`AdviseResult`]. Shared by `support --advise` and
+/// `compat`: both evaluate identical effective options, so a comparison
+/// never confuses an option change with a copybook change.
+pub(crate) fn analyze_copybook(
     copybook: &Path,
     format: &str,
     codepage: &str,
     dialect: Option<crate::cli_config::DialectPreference>,
-    output: OutputFormat,
-) -> anyhow::Result<ExitCode> {
+) -> anyhow::Result<AdviseResult> {
     use crate::cli_config::DialectPreference;
     let core_dialect = match dialect {
         None | Some(DialectPreference::N) => copybook::core::Dialect::Normative,
@@ -92,7 +91,21 @@ pub fn run_advise(
     if let Some(schema) = &schema {
         input.copybook_fingerprint = Some(schema.fingerprint.clone());
     }
-    let result = analyze(&input);
+    Ok(analyze(&input))
+}
+
+/// Run advisory analysis for one copybook under the requested options.
+///
+/// The dialect lever selects layout interpretation before extraction, so the
+/// evaluated dialect is the analyzed dialect, not a label.
+pub fn run_advise(
+    copybook: &Path,
+    format: &str,
+    codepage: &str,
+    dialect: Option<crate::cli_config::DialectPreference>,
+    output: OutputFormat,
+) -> anyhow::Result<ExitCode> {
+    let result = analyze_copybook(copybook, format, codepage, dialect)?;
 
     match output {
         OutputFormat::Table => {

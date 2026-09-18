@@ -2543,7 +2543,7 @@ fn validate_stable_error_registry(
                 entry.code
             );
         }
-        if entry.evidence_status != "not_emitted" && reason_present {
+        if entry.evidence_status != "not_emitted" && entry.reason.is_some() {
             bail!(
                 "stable error registry entry `{}` carries a reason but is not not_emitted",
                 entry.code
@@ -5692,6 +5692,16 @@ CBK999_OUTSIDE,
         )
         .expect("parse registry fixture");
         let expected = BTreeSet::from(["CBKD302_EDITED_PIC_NOT_IMPLEMENTED".to_string()]);
+        assert!(validate_stable_error_registry(&registry, &expected).is_err());
+    }
+
+    #[test]
+    fn stable_error_registry_rejects_direct_entry_with_empty_reason() {
+        let registry: StableErrorRegistry = toml::from_str(
+            "schema_version = 1\nscope = 'stable-errors'\n\n[[errors]]\ncode = 'CBKP001_SYNTAX'\nstability_class = 'stable'\nevidence_status = 'direct'\nreason = ''\n",
+        )
+        .expect("parse registry fixture");
+        let expected = BTreeSet::from(["CBKP001_SYNTAX".to_string()]);
         assert!(validate_stable_error_registry(&registry, &expected).is_err());
     }
 

@@ -369,12 +369,12 @@ freeze clock before the ledger reconciliation (item 5) is complete.
   #996, #1000; #982 merged), the fixed/RDW pipeline coordinator is closed
   (#572), and preflight freshness/aggregation is done (#992, closed).
   Remaining: the `support --advise` defect cluster (#977–#981, #983), the
-  deferred #552 surfaces (`explain`, `compat`, `doctor`), the final
-  evidence repair (#1078, which reconciles the non-emitted error identities
-  and the last two #983 rows, then closes #576 → #983 → the #551
-  evidence-spine handoff), governance beta criteria (#985), and the #946
-  commercial-relicensing audit receipt (human-gated). Completing this
-  release finishes #551/#552, which unblocks the freeze clock.
+  deferred #552 surfaces (`explain`, `compat`, `doctor`), governance beta
+  criteria (#985), and the #946 commercial-relicensing audit receipt
+  (human-gated). The final evidence repair (#1078) reconciled the
+  non-emitted error identities and the last two #983 rows; #576 → #983 →
+  the #551 evidence-spine handoff close from merged-main evidence.
+  Completing this release finishes #551/#552, which unblocks the freeze clock.
 - **v0.10.0** (after 0.9.0): stabilization cut — the four-week freeze (#544),
   registry-only release-candidate proof (#545), and the #189 go/no-go record
   run under 0.x numbering. Performance (#188) and adapter graduation (#553)

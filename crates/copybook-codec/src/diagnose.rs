@@ -273,10 +273,10 @@ pub fn diagnose(
         return diagnosis;
     };
 
-    // Codepage: confirm the explicit choice implicitly via trial decode, or
-    // probe all six codepages over a byte window and state the confidence.
-    let resolved_codepage = match options.codepage {
-        Some(given) => given,
+    // Codepage: the explicit choice is pinned; a probe winner is only a
+    // candidate until the trial decode corroborates it.
+    let (resolved_codepage, codepage_pinned) = match options.codepage {
+        Some(given) => (given, true),
         None => probe_codepage(&mut diagnosis, bytes),
     };
 
@@ -289,6 +289,7 @@ pub fn diagnose(
         input.scope_complete(),
         resolved_format,
         resolved_codepage,
+        codepage_pinned,
         lrecl,
         options.sample,
     );
@@ -770,9 +771,12 @@ fn printable_score(text: &str) -> f64 {
     f64::from(printable) / f64::from(total)
 }
 
-/// Probe all six codepages over a byte window. Always states the winner,
-/// the runner-up margin, and the confidence; never asserts certainty.
-fn probe_codepage(diagnosis: &mut Diagnosis, bytes: &[u8]) -> Codepage {
+/// Probe all six codepages over a byte window. A high-confidence winner
+/// resolves; a low-confidence round names its leading candidates and stays
+/// unresolved (warn, never pass-as-certain). Returns the winner alongside
+/// whether it is pinned: only pinned codepages silently configure the
+/// trial decode.
+fn probe_codepage(diagnosis: &mut Diagnosis, bytes: &[u8]) -> (Codepage, bool) {
     use Codepage::{ASCII, CP037, CP273, CP500, CP1047, CP1140};
     let window = &bytes[..bytes.len().min(CODEPAGE_PROBE_WINDOW)];
     let ascii_text = String::from_utf8_lossy(window).into_owned();
@@ -792,28 +796,41 @@ fn probe_codepage(diagnosis: &mut Diagnosis, bytes: &[u8]) -> Codepage {
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     let (winner, winner_score) = scored[0];
-    let runner_up = scored.get(1).map_or(0.0, |item| item.1);
-    let margin = winner_score - runner_up;
-    let confidence = if margin >= CODEPAGE_CONFIDENCE_MARGIN {
-        "high"
-    } else {
-        "low"
-    };
+    // Six candidates are always scored, so the runner-up exists.
+    let (runner_up_codepage, runner_up_score) = scored[1];
+    let margin = winner_score - runner_up_score;
+    if margin >= CODEPAGE_CONFIDENCE_MARGIN {
+        push(
+            &mut *diagnosis,
+            DiagnosisFinding {
+                check: "codepage-probe",
+                status: DiagnosisStatus::Pass,
+                detail: format!(
+                    "{winner} wins over {} bytes with high confidence (score {winner_score:.2}, margin {margin:.2}); heuristic, pass --codepage to pin it",
+                    window.len(),
+                ),
+                code: None,
+                remediation: String::new(),
+                next: None,
+            },
+        );
+        return (winner, true);
+    }
     push(
         &mut *diagnosis,
         DiagnosisFinding {
             check: "codepage-probe",
-            status: DiagnosisStatus::Pass,
+            status: DiagnosisStatus::Warn,
             detail: format!(
-                "{winner} wins over {} bytes with {confidence} confidence (score {winner_score:.2}, margin {margin:.2}); heuristic, pass --codepage to pin it",
+                "no reliable winner over {} bytes; leading candidates {winner} ({winner_score:.2}) and {runner_up_codepage} ({runner_up_score:.2}); trial decode proceeds under {winner} without pinning it",
                 window.len(),
             ),
             code: None,
-            remediation: String::new(),
+            remediation: "Rerun with --codepage to pin the encoding.".to_string(),
             next: None,
         },
     );
-    winner
+    (winner, false)
 }
 
 /// Trial-decode the first `sample` records under the resolved options.
@@ -829,6 +846,7 @@ fn trial_decode(
     scope_complete: bool,
     format: RecordFormat,
     codepage: Codepage,
+    codepage_pinned: bool,
     lrecl: Option<u32>,
     sample: u32,
 ) {
@@ -867,12 +885,21 @@ fn trial_decode(
                 DiagnosisFinding {
                     check: "trial-decode",
                     status: DiagnosisStatus::Fail,
-                    detail: format!(
-                        "record {} of {} failed: {}",
-                        index + 1,
-                        records.len(),
-                        truncate_detail(error.to_string()),
-                    ),
+                    detail: if codepage_pinned {
+                        format!(
+                            "record {} of {} failed: {}",
+                            index + 1,
+                            records.len(),
+                            truncate_detail(error.to_string()),
+                        )
+                    } else {
+                        format!(
+                            "record {} of {} failed under unpinned codepage {codepage}: {}; rerun with --codepage to rule out a mismatch",
+                            index + 1,
+                            records.len(),
+                            truncate_detail(error.to_string()),
+                        )
+                    },
                     code: Some(code.clone()),
                     remediation: remediation_for(&code),
                     next: Some(suggested_decode(copybook, input, format, codepage)),
@@ -886,7 +913,14 @@ fn trial_decode(
         DiagnosisFinding {
             check: "trial-decode",
             status: DiagnosisStatus::Pass,
-            detail: format!("first {} record(s) decode", records.len()),
+            detail: if codepage_pinned {
+                format!("first {} record(s) decode", records.len())
+            } else {
+                format!(
+                    "first {} record(s) decode under {codepage}, corroborating the leading candidate without pinning it",
+                    records.len(),
+                )
+            },
             code: None,
             remediation: String::new(),
             next: Some(suggested_decode(copybook, input, format, codepage)),

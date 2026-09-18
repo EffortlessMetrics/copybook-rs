@@ -192,6 +192,40 @@ fn doctor_ambiguous_framing_stays_inconclusive() {
 }
 
 #[test]
+fn doctor_low_confidence_codepage_names_candidates() {
+    // A tied probe must not silently configure the trial: it warns with
+    // the leading candidates, and the trial corroborates without pinning.
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+    cmd()
+        .args(["doctor"])
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("no reliable winner"))
+        .stdout(predicate::str::contains("leading candidates"))
+        .stdout(predicate::str::contains(
+            "corroborating the leading candidate without pinning it",
+        ));
+}
+
+#[test]
+fn doctor_high_confidence_codepage_resolves() {
+    let copybook = workspace_path("fixtures/corpus/mini.cpy");
+    let data = workspace_path("fixtures/corpus/mini_rdw.bin");
+    cmd()
+        .args(["doctor"])
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "ascii wins over 36 bytes with high confidence",
+        ));
+}
+
+#[test]
 fn doctor_json_report_is_machine_readable() {
     let copybook = workspace_path("fixtures/copybooks/simple.cpy");
     let data = workspace_path("fixtures/data/simple.bin");

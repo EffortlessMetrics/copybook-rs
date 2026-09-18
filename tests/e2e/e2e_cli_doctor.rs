@@ -237,8 +237,8 @@ fn doctor_json_report_is_machine_readable() {
         .assert()
         .success();
     let stdout = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&stdout)
-        .unwrap_or_else(|e| panic!("doctor --json should produce valid JSON: {e}"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout).expect("doctor --json should produce valid JSON");
     assert_eq!(parsed["verdict"], "healthy");
     let findings = parsed["findings"].as_array().expect("findings array");
     assert!(

@@ -137,6 +137,7 @@ impl Diagnosis {
 /// names its stable error identity with remediation from the shared
 /// explain table.
 #[inline]
+#[must_use]
 pub fn diagnose(
     copybook_text: &str,
     copybook_path: &Path,
@@ -145,37 +146,10 @@ pub fn diagnose(
 ) -> Diagnosis {
     let mut diagnosis = Diagnosis::default();
 
-    let schema = match parse_schema(copybook_text, options.strict_comments, options.dialect) {
-        Ok(schema) => {
-            push(
-                &mut diagnosis,
-                DiagnosisFinding {
-                    check: "copybook-parse",
-                    status: DiagnosisStatus::Pass,
-                    detail: "copybook parses".to_string(),
-                    code: None,
-                    remediation: String::new(),
-                    next: None,
-                },
-            );
-            schema
-        }
-        Err((code, detail)) => {
-            push(
-                &mut diagnosis,
-                DiagnosisFinding {
-                    check: "copybook-parse",
-                    status: DiagnosisStatus::Fail,
-                    detail,
-                    code: Some(code.clone()),
-                    remediation: remediation_for(&code),
-                    next: Some(format!("copybook parse {}", copybook_path.display())),
-                },
-            );
-            return diagnosis;
-        }
+    let Some(schema) = diagnose_schema(&mut diagnosis, copybook_text, copybook_path, options)
+    else {
+        return diagnosis;
     };
-
     let lrecl = schema.lrecl_fixed;
     push(
         &mut diagnosis,
@@ -192,61 +166,12 @@ pub fn diagnose(
         },
     );
 
-    let Some(input) = input else {
-        push(
-            &mut diagnosis,
-            DiagnosisFinding {
-                check: "input",
-                status: DiagnosisStatus::Pass,
-                detail: "no data file given; copybook-only diagnosis".to_string(),
-                code: None,
-                remediation: String::new(),
-                next: Some(format!(
-                    "copybook doctor {} <DATA>",
-                    copybook_path.display()
-                )),
-            },
-        );
+    // Size-based checks see the whole file; content probes see the prefix.
+    let Some(input) = diagnose_input_scope(&mut diagnosis, copybook_path, input) else {
         return diagnosis;
     };
-
-    if input.total_bytes == 0 {
-        push(
-            &mut diagnosis,
-            DiagnosisFinding {
-                check: "input-load",
-                status: DiagnosisStatus::Fail,
-                detail: "data file is empty".to_string(),
-                code: Some("CBKF001_FILE_READ_ERROR".to_string()),
-                remediation: remediation_for("CBKF001_FILE_READ_ERROR"),
-                next: None,
-            },
-        );
-        return diagnosis;
-    }
-    push(
-        &mut diagnosis,
-        DiagnosisFinding {
-            check: "input-load",
-            status: DiagnosisStatus::Pass,
-            detail: if input.scope_complete() {
-                format!("read {} bytes", input.total_bytes)
-            } else {
-                format!(
-                    "inspecting first {} of {} bytes; later bytes unscanned",
-                    input.prefix.len(),
-                    input.total_bytes
-                )
-            },
-            code: None,
-            remediation: String::new(),
-            next: None,
-        },
-    );
-
-    // Size-based checks see the whole file; content probes see the prefix.
     let bytes = input.prefix;
-    let total_bytes = input.total_bytes as usize;
+    let total_bytes = input.total_bytes;
 
     // Format: confirm the explicit choice or probe both framings.
     let resolved_format = match options.format {
@@ -298,6 +223,106 @@ pub fn diagnose(
 
 fn push(diagnosis: &mut Diagnosis, finding: DiagnosisFinding) {
     diagnosis.findings.push(finding);
+}
+
+/// Parse the copybook, recording the pass or fail finding. Returns `None`
+/// when diagnosis cannot continue past this stage.
+fn diagnose_schema(
+    diagnosis: &mut Diagnosis,
+    copybook_text: &str,
+    copybook_path: &Path,
+    options: &DiagnoseOptions,
+) -> Option<copybook_core::Schema> {
+    match parse_schema(copybook_text, options.strict_comments, options.dialect) {
+        Ok(schema) => {
+            push(
+                &mut *diagnosis,
+                DiagnosisFinding {
+                    check: "copybook-parse",
+                    status: DiagnosisStatus::Pass,
+                    detail: "copybook parses".to_string(),
+                    code: None,
+                    remediation: String::new(),
+                    next: None,
+                },
+            );
+            Some(schema)
+        }
+        Err((code, detail)) => {
+            push(
+                &mut *diagnosis,
+                DiagnosisFinding {
+                    check: "copybook-parse",
+                    status: DiagnosisStatus::Fail,
+                    detail,
+                    code: Some(code.clone()),
+                    remediation: remediation_for(&code),
+                    next: Some(format!("copybook parse {}", copybook_path.display())),
+                },
+            );
+            None
+        }
+    }
+}
+
+/// Record the input scope, passing the input through when diagnosis can
+/// continue. Copybook-only and empty inputs terminate here.
+fn diagnose_input_scope<'a>(
+    diagnosis: &mut Diagnosis,
+    copybook_path: &Path,
+    input: Option<DiagnosisInput<'a>>,
+) -> Option<DiagnosisInput<'a>> {
+    let Some(input) = input else {
+        push(
+            &mut *diagnosis,
+            DiagnosisFinding {
+                check: "input",
+                status: DiagnosisStatus::Pass,
+                detail: "no data file given; copybook-only diagnosis".to_string(),
+                code: None,
+                remediation: String::new(),
+                next: Some(format!(
+                    "copybook doctor {} <DATA>",
+                    copybook_path.display()
+                )),
+            },
+        );
+        return None;
+    };
+    if input.total_bytes == 0 {
+        push(
+            &mut *diagnosis,
+            DiagnosisFinding {
+                check: "input-load",
+                status: DiagnosisStatus::Fail,
+                detail: "data file is empty".to_string(),
+                code: Some("CBKF001_FILE_READ_ERROR".to_string()),
+                remediation: remediation_for("CBKF001_FILE_READ_ERROR"),
+                next: None,
+            },
+        );
+        return None;
+    }
+    push(
+        &mut *diagnosis,
+        DiagnosisFinding {
+            check: "input-load",
+            status: DiagnosisStatus::Pass,
+            detail: if input.scope_complete() {
+                format!("read {} bytes", input.total_bytes)
+            } else {
+                format!(
+                    "inspecting first {} of {} bytes; later bytes unscanned",
+                    input.prefix.len(),
+                    input.total_bytes
+                )
+            },
+            code: None,
+            remediation: String::new(),
+            next: None,
+        },
+    );
+    Some(input)
 }
 
 fn truncate_detail(detail: String) -> String {
@@ -352,123 +377,130 @@ fn confirm_format(
     format: RecordFormat,
     bytes: &[u8],
     scope_complete: bool,
-    total_bytes: usize,
+    total_bytes: u64,
     lrecl: Option<u32>,
 ) {
     match format {
-        RecordFormat::Fixed => match lrecl {
-            Some(len) => {
-                let len = len as usize;
-                if len > 0 && total_bytes.is_multiple_of(len) {
-                    push(
-                        &mut *diagnosis,
-                        DiagnosisFinding {
-                            check: "format-confirm",
-                            status: DiagnosisStatus::Pass,
-                            detail: format!(
-                                "file size {total_bytes} is a multiple of record length {len}"
-                            ),
-                            code: None,
-                            remediation: String::new(),
-                            next: None,
-                        },
-                    );
-                } else {
-                    push(
-                        &mut *diagnosis,
-                        DiagnosisFinding {
-                            check: "format-confirm",
-                            status: DiagnosisStatus::Warn,
-                            detail: format!(
-                                "file size {total_bytes} is not a multiple of record length {len}"
-                            ),
-                            code: Some("CBKR101_FIXED_RECORD_ERROR".to_string()),
-                            remediation: remediation_for("CBKR101_FIXED_RECORD_ERROR"),
-                            next: None,
-                        },
-                    );
-                }
-            }
-            None => push(
-                &mut *diagnosis,
-                DiagnosisFinding {
-                    check: "format-confirm",
-                    status: DiagnosisStatus::Warn,
-                    detail: "variable-length layout with fixed framing requested".to_string(),
-                    code: None,
-                    remediation:
-                        "Use RDW framing for variable records, or check the ODO definition."
-                            .to_string(),
-                    next: None,
-                },
-            ),
-        },
-        RecordFormat::RDW => {
-            if bytes.len() >= 4 && rdw_is_suspect_ascii_corruption_slice(&bytes[..4]) {
-                push(
-                    &mut *diagnosis,
-                    DiagnosisFinding {
-                        check: "format-confirm",
-                        status: DiagnosisStatus::Warn,
-                        detail: "first RDW header looks ASCII-corrupted".to_string(),
-                        code: Some("CBKF104_RDW_SUSPECT_ASCII".to_string()),
-                        remediation: remediation_for("CBKF104_RDW_SUSPECT_ASCII"),
-                        next: None,
-                    },
-                );
-            }
-            match read_rdw_records(bytes, 3, scope_complete, false) {
-                Some(records) => push(
-                    &mut *diagnosis,
-                    DiagnosisFinding {
-                        check: "format-confirm",
-                        status: DiagnosisStatus::Pass,
-                        detail: format!("first {} record(s) frame as RDW", records.len()),
-                        code: None,
-                        remediation: String::new(),
-                        next: None,
-                    },
+        RecordFormat::Fixed => confirm_fixed(diagnosis, total_bytes, lrecl),
+        RecordFormat::RDW => confirm_rdw(diagnosis, bytes, scope_complete),
+        RecordFormat::Vb => confirm_vb(diagnosis, bytes, scope_complete),
+    }
+}
+
+/// Confirm an explicit fixed request against the full file size.
+fn confirm_fixed(diagnosis: &mut Diagnosis, total_bytes: u64, lrecl: Option<u32>) {
+    let Some(len) = lrecl.map(u64::from) else {
+        push(
+            &mut *diagnosis,
+            DiagnosisFinding {
+                check: "format-confirm",
+                status: DiagnosisStatus::Warn,
+                detail: "variable-length layout with fixed framing requested".to_string(),
+                code: None,
+                remediation: "Use RDW framing for variable records, or check the ODO definition."
+                    .to_string(),
+                next: None,
+            },
+        );
+        return;
+    };
+    if len > 0 && total_bytes.is_multiple_of(len) {
+        push(
+            &mut *diagnosis,
+            DiagnosisFinding {
+                check: "format-confirm",
+                status: DiagnosisStatus::Pass,
+                detail: format!("file size {total_bytes} is a multiple of record length {len}"),
+                code: None,
+                remediation: String::new(),
+                next: None,
+            },
+        );
+    } else {
+        push(
+            &mut *diagnosis,
+            DiagnosisFinding {
+                check: "format-confirm",
+                status: DiagnosisStatus::Warn,
+                detail: format!("file size {total_bytes} is not a multiple of record length {len}"),
+                code: Some("CBKR101_FIXED_RECORD_ERROR".to_string()),
+                remediation: remediation_for("CBKR101_FIXED_RECORD_ERROR"),
+                next: None,
+            },
+        );
+    }
+}
+
+/// Confirm an explicit RDW request with positive framing evidence: records
+/// must actually frame, not merely dodge one corruption signature.
+fn confirm_rdw(diagnosis: &mut Diagnosis, bytes: &[u8], scope_complete: bool) {
+    if bytes.len() >= 4 && rdw_is_suspect_ascii_corruption_slice(&bytes[..4]) {
+        push(
+            &mut *diagnosis,
+            DiagnosisFinding {
+                check: "format-confirm",
+                status: DiagnosisStatus::Warn,
+                detail: "first RDW header looks ASCII-corrupted".to_string(),
+                code: Some("CBKF104_RDW_SUSPECT_ASCII".to_string()),
+                remediation: remediation_for("CBKF104_RDW_SUSPECT_ASCII"),
+                next: None,
+            },
+        );
+    }
+    match read_rdw_records(bytes, 3, scope_complete, false) {
+        Some(records) => push(
+            &mut *diagnosis,
+            DiagnosisFinding {
+                check: "format-confirm",
+                status: DiagnosisStatus::Pass,
+                detail: format!("first {} record(s) frame as RDW", records.len()),
+                code: None,
+                remediation: String::new(),
+                next: None,
+            },
+        ),
+        None => push(
+            &mut *diagnosis,
+            DiagnosisFinding {
+                check: "format-confirm",
+                status: DiagnosisStatus::Warn,
+                detail: "bytes do not frame as RDW records".to_string(),
+                code: Some("CBKF221_RDW_UNDERFLOW".to_string()),
+                remediation: remediation_for("CBKF221_RDW_UNDERFLOW"),
+                next: None,
+            },
+        ),
+    }
+}
+
+/// Confirm an explicit VB request with positive block-framing evidence.
+fn confirm_vb(diagnosis: &mut Diagnosis, bytes: &[u8], scope_complete: bool) {
+    match read_vb_records(bytes, 3, scope_complete, false) {
+        Some(records) => push(
+            &mut *diagnosis,
+            DiagnosisFinding {
+                check: "format-confirm",
+                status: DiagnosisStatus::Pass,
+                detail: format!(
+                    "first {} record(s) frame as VB blocks (beta framing)",
+                    records.len()
                 ),
-                None => push(
-                    &mut *diagnosis,
-                    DiagnosisFinding {
-                        check: "format-confirm",
-                        status: DiagnosisStatus::Warn,
-                        detail: "bytes do not frame as RDW records".to_string(),
-                        code: Some("CBKF221_RDW_UNDERFLOW".to_string()),
-                        remediation: remediation_for("CBKF221_RDW_UNDERFLOW"),
-                        next: None,
-                    },
-                ),
-            }
-        }
-        RecordFormat::Vb => match read_vb_records(bytes, 3, scope_complete, false) {
-            Some(records) => push(
-                &mut *diagnosis,
-                DiagnosisFinding {
-                    check: "format-confirm",
-                    status: DiagnosisStatus::Pass,
-                    detail: format!(
-                        "first {} record(s) frame as VB blocks (beta framing)",
-                        records.len()
-                    ),
-                    code: None,
-                    remediation: String::new(),
-                    next: None,
-                },
-            ),
-            None => push(
-                &mut *diagnosis,
-                DiagnosisFinding {
-                    check: "format-confirm",
-                    status: DiagnosisStatus::Warn,
-                    detail: "bytes do not frame as VB blocks".to_string(),
-                    code: Some("CBKF223_BDW_UNDERFLOW".to_string()),
-                    remediation: remediation_for("CBKF223_BDW_UNDERFLOW"),
-                    next: None,
-                },
-            ),
-        },
+                code: None,
+                remediation: String::new(),
+                next: None,
+            },
+        ),
+        None => push(
+            &mut *diagnosis,
+            DiagnosisFinding {
+                check: "format-confirm",
+                status: DiagnosisStatus::Warn,
+                detail: "bytes do not frame as VB blocks".to_string(),
+                code: Some("CBKF223_BDW_UNDERFLOW".to_string()),
+                remediation: remediation_for("CBKF223_BDW_UNDERFLOW"),
+                next: None,
+            },
+        ),
     }
 }
 
@@ -479,11 +511,14 @@ fn probe_format(
     diagnosis: &mut Diagnosis,
     bytes: &[u8],
     scope_complete: bool,
-    total_bytes: usize,
+    total_bytes: u64,
     lrecl: Option<u32>,
 ) -> Option<RecordFormat> {
     let fixed_fits = match lrecl {
-        Some(len) => len > 0 && total_bytes > 0 && total_bytes.is_multiple_of(len as usize),
+        Some(len) => {
+            let len = u64::from(len);
+            len > 0 && total_bytes > 0 && total_bytes.is_multiple_of(len)
+        }
         None => false,
     };
     let rdw_fits = read_rdw_records(bytes, 3, scope_complete, true).is_some();
@@ -879,46 +914,93 @@ fn trial_decode(
         .with_codepage(codepage);
     for (index, record) in records.iter().enumerate() {
         if let Err(error) = decode_record(schema, record, &options) {
-            let code = error.code().to_string();
-            push(
+            push_trial_failure(
                 &mut *diagnosis,
-                DiagnosisFinding {
-                    check: "trial-decode",
-                    status: DiagnosisStatus::Fail,
-                    detail: if codepage_pinned {
-                        format!(
-                            "record {} of {} failed: {}",
-                            index + 1,
-                            records.len(),
-                            truncate_detail(error.to_string()),
-                        )
-                    } else {
-                        format!(
-                            "record {} of {} failed under unpinned codepage {codepage}: {}; rerun with --codepage to rule out a mismatch",
-                            index + 1,
-                            records.len(),
-                            truncate_detail(error.to_string()),
-                        )
-                    },
-                    code: Some(code.clone()),
-                    remediation: remediation_for(&code),
-                    next: Some(suggested_decode(copybook, input, format, codepage)),
-                },
+                copybook,
+                input,
+                format,
+                codepage,
+                codepage_pinned,
+                index,
+                records.len(),
+                &error.to_string(),
+                &error.code().to_string(),
             );
             return;
         }
     }
+    push_trial_success(
+        &mut *diagnosis,
+        copybook,
+        input,
+        format,
+        codepage,
+        codepage_pinned,
+        records.len(),
+    );
+}
+
+/// Record a trial-decode failure with its stable identity, remediation, and
+/// the exact decode command that reproduces it.
+#[allow(clippy::too_many_arguments)]
+fn push_trial_failure(
+    diagnosis: &mut Diagnosis,
+    copybook: &Path,
+    input: &Path,
+    format: RecordFormat,
+    codepage: Codepage,
+    codepage_pinned: bool,
+    index: usize,
+    total: usize,
+    rendered: &str,
+    code: &str,
+) {
+    push(
+        &mut *diagnosis,
+        DiagnosisFinding {
+            check: "trial-decode",
+            status: DiagnosisStatus::Fail,
+            detail: if codepage_pinned {
+                format!(
+                    "record {} of {total} failed: {}",
+                    index + 1,
+                    truncate_detail(rendered.to_string()),
+                )
+            } else {
+                format!(
+                    "record {} of {total} failed under unpinned codepage {codepage}: {}; rerun with --codepage to rule out a mismatch",
+                    index + 1,
+                    truncate_detail(rendered.to_string()),
+                )
+            },
+            code: Some(code.to_string()),
+            remediation: remediation_for(code),
+            next: Some(suggested_decode(copybook, input, format, codepage)),
+        },
+    );
+}
+
+/// Record a trial-decode success, naming the corroboration when the
+/// codepage was a leading candidate rather than a pinned choice.
+fn push_trial_success(
+    diagnosis: &mut Diagnosis,
+    copybook: &Path,
+    input: &Path,
+    format: RecordFormat,
+    codepage: Codepage,
+    codepage_pinned: bool,
+    total: usize,
+) {
     push(
         &mut *diagnosis,
         DiagnosisFinding {
             check: "trial-decode",
             status: DiagnosisStatus::Pass,
             detail: if codepage_pinned {
-                format!("first {} record(s) decode", records.len())
+                format!("first {total} record(s) decode")
             } else {
                 format!(
-                    "first {} record(s) decode under {codepage}, corroborating the leading candidate without pinning it",
-                    records.len(),
+                    "first {total} record(s) decode under {codepage}, corroborating the leading candidate without pinning it",
                 )
             },
             code: None,

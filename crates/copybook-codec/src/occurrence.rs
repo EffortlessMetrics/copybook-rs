@@ -110,6 +110,8 @@ pub enum OccurrenceOutcome {
 /// opened (unsupported framing for the schema) or an I/O failure stops
 /// the scan; per-record decode failures are reported as
 /// [`OccurrenceOutcome::Found`], not errors.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn explain_occurrence<R: Read>(
     reader: R,
     schema: &Schema,

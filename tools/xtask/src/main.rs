@@ -65,6 +65,7 @@ fn main() -> Result<()> {
         ["docs", "verify-stable-errors"] => docs_verify::verify_stable_error_registry_command(),
         ["docs", "verify-scenario-ledger"] => docs_verify::verify_scenario_ledger_command(),
         ["advise", "sync-projection"] => docs_verify::sync_advise_projection_command(),
+        ["explain", "sync-knowledge"] => docs_verify::sync_explain_knowledge_command(),
         ["docs", "verify-corpus"] => docs_verify::verify_corpus_command(),
         ["corpus", "receipt", rest @ ..] => corpus::run_receipt(rest),
         ["docs", "verify-support-matrix"] => verify_support_matrix(),

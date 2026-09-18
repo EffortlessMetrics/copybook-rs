@@ -374,6 +374,30 @@ copybook determinism decode customer.cpy data.bin --format fixed
 copybook determinism round-trip customer.cpy data.bin --output json
 ```
 
+### explain
+Explain one stable error code: what it means, which diagnostic context it carries, and how to fix it. Content is generated from `docs/reference/ERROR_CODES.md`, so explanations never drift from the documented taxonomy.
+
+```
+copybook explain <CODE> [--format text|json]
+```
+
+**Arguments:**
+- `<CODE>` - Stable error identity: full (`CBKE501_JSON_TYPE_MISMATCH`) or short (`CBKE501`), case-insensitive
+
+**Options:**
+- `--format <FORMAT>` - Output rendering: text, json (default: text)
+
+**Exit codes:** 0 = known identity explained, 3 = unknown identity.
+
+**Examples:**
+```bash
+# What does this decode failure mean?
+copybook explain CBKE501_JSON_TYPE_MISMATCH
+
+# Machine-readable explanation for tooling
+copybook explain cbkd411 --format json
+```
+
 ### audit
 Enterprise audit system for regulatory compliance (SOX, HIPAA, GDPR, PCI DSS), performance auditing, security monitoring, and data lineage tracking.
 

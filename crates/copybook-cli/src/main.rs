@@ -438,6 +438,18 @@ Field Projection:
         #[command(flatten)]
         args: crate::commands::support::SupportArgs,
     },
+    /// Explain a stable error code: what it means and how to fix it
+    #[command(after_help = "\
+Examples:
+  copybook explain CBKE501_JSON_TYPE_MISMATCH
+  copybook explain cbke501 --format json")]
+    Explain {
+        /// Stable error identity: full (`CBKE501_JSON_TYPE_MISMATCH`) or short (`CBKE501`)
+        code: String,
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: crate::commands::explain::ExplainFormat,
+    },
     /// Determinism validation for encode/decode operations
     #[command(after_help = "\
 Exit codes:
@@ -1127,6 +1139,7 @@ mod commands {
     pub mod decode;
     pub mod determinism;
     pub mod encode;
+    pub mod explain;
     pub mod inspect;
     pub mod parse;
     pub mod support;

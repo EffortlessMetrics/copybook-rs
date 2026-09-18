@@ -33,6 +33,7 @@ pub(crate) fn run_command(
             commands::determinism::run(&command, feature_flags),
             "determinism",
         ),
+        Commands::Explain { code, format } => (commands::explain::run(&code, format), "explain"),
     }
 }
 

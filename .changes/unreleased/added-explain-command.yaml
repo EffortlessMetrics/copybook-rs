@@ -1,0 +1,9 @@
+kind: added
+body: '**cli**: add `copybook explain <CODE>` for operator lookup of stable
+  error identities (full `CBKE501_JSON_TYPE_MISMATCH` or short `CBKE501`,
+  case-insensitive) with text and `--format json` rendering. Content is
+  generated from `docs/reference/ERROR_CODES.md` into `copybook-error` and
+  freshness-pinned by the new `explain-knowledge` verify lane, so
+  explanations cannot drift from the documented taxonomy. Unknown identities
+  exit 3.'
+time: '2026-09-18T05:30:00Z'

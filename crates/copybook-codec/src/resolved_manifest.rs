@@ -334,7 +334,7 @@ impl ResolvedManifest {
     /// exceeds [`MAX_MANIFEST_FIELDS`], or the serialized form exceeds
     /// [`MAX_MANIFEST_BYTES`].
     #[inline]
-    #[must_use]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn generate(inputs: GenerateInputs<'_>) -> Result<Self, ManifestError> {
         let effective =
             resolve_effective_dialect(inputs.bundle.declared_dialect(), Some(inputs.dialect.value))
@@ -425,7 +425,7 @@ impl ResolvedManifest {
     /// Returns [`ManifestError::ManifestTooLarge`] when the serialized form
     /// exceeds [`MAX_MANIFEST_BYTES`].
     #[inline]
-    #[must_use]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn to_json(&self) -> Result<Vec<u8>, ManifestError> {
         let serialized = assemble_document(self)?;
         if serialized.len() > MAX_MANIFEST_BYTES {
@@ -448,7 +448,7 @@ impl ResolvedManifest {
     /// unsupported version, stability class, or fingerprint algorithm, or
     /// fails fingerprint verification.
     #[inline]
-    #[must_use]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn from_json(bytes: &[u8]) -> Result<Self, ManifestError> {
         if bytes.len() > MAX_MANIFEST_BYTES {
             return Err(ManifestError::ManifestTooLarge { found: bytes.len() });

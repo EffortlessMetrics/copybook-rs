@@ -150,6 +150,8 @@ pub mod projection;
 pub mod schema;
 /// Resolved-schema compatibility: layout diffs between two copybooks.
 pub mod schema_diff;
+/// Path-independent source bundle identity for copybook provenance.
+pub mod source_bundle;
 /// COBOL feature support matrix and status registry.
 pub mod support_matrix;
 
@@ -159,6 +161,11 @@ pub use feature_flags::{Feature, FeatureCategory, FeatureFlags, FeatureFlagsHand
 pub use parser::ParseOptions;
 pub use projection::project_schema;
 pub use schema::{Field, FieldKind, Occurs, Schema, SignPlacement, SignSeparateInfo, TailODO};
+pub use source_bundle::{
+    BundleError, DialectProvenance, EffectiveDialect, IncludeEdge, IncludeSupport,
+    LineEndingHandling, SourceBundle, SourceUnit, TextPolicy, logical_id_for_path,
+    resolve_effective_dialect,
+};
 
 /// Parse a COBOL copybook into a structured schema
 ///

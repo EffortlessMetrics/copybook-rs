@@ -2,14 +2,9 @@
 <h1 align="center">copybook-rs</h1>
 
 <p align="center">
-  <em>Deterministic COBOL copybook parsing and mainframe record conversion.</em>
-</p>
-
-<p align="center">
-  <a href="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml"><img src="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml/badge.svg?branch=main&event=push" alt="CI Quick" /></a>
+  <a href="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml"><img src="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml/badge.svg?branch=main&event=push" alt="CI" /></a>
   <a href="https://codecov.io/gh/EffortlessMetrics/copybook-rs"><img src="https://codecov.io/gh/EffortlessMetrics/copybook-rs/branch/main/graph/badge.svg" alt="Codecov" /></a>
-  <a href="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/security-scan.yml"><img src="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/security-scan.yml/badge.svg" alt="Security Audit" /></a>
-  <a href="https://github.com/EffortlessMetrics/copybook-rs/blob/main/.github/dependabot.yml"><img src="https://img.shields.io/badge/dependencies-Dependabot-blue.svg" alt="Dependabot" /></a>
+  <a href="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/security-scan.yml"><img src="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/security-scan.yml/badge.svg" alt="Security" /></a>
 </p>
 
 <p align="center">
@@ -19,11 +14,13 @@
 </p>
 
 <p align="center">
-  <a href="https://doc.rust-lang.org/cargo/reference/manifest.html#the-rust-version-field"><img src="https://img.shields.io/badge/MSRV-1.98-blue.svg" alt="MSRV 1.98" /></a>
-  <a href="#license"><img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg" alt="License: AGPL-3.0-or-later" /></a>
+  <a href="https://doc.rust-lang.org/cargo/reference/manifest.html#the-rust-version-field"><img src="https://img.shields.io/badge/MSRV-1.98-blue.svg" alt="MSRV" /></a>
+  <a href="#license"><img src="https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg" alt="License: AGPL-3.0-or-later" /></a>
 </p>
 
-**copybook-rs turns COBOL copybooks and fixed-length or RDW mainframe records into JSON you can trust — byte-for-byte deterministic.**
+---
+
+`copybook-rs` is a Rust toolkit for parsing COBOL copybooks and deterministic conversion of fixed-length and RDW mainframe records to and from JSON.
 
 It does not run COBOL. It makes mainframe data reviewable outside the mainframe.
 

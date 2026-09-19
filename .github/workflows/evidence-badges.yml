@@ -40,6 +40,7 @@ env:
 jobs:
   generate:
     name: Generate evidence endpoints
+    if: ${{ github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -126,10 +127,11 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Download generated endpoints
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8

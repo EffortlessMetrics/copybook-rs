@@ -53,7 +53,8 @@ pub use iterator::{RecordIterator, iter_records, iter_records_from_file};
 pub use lib_api::{
     MAX_CAPTURED_FAILURES, RecordFailure, RunSummary, decode_file_to_jsonl,
     decode_file_to_jsonl_with_policy, decode_record, decode_record_with_scratch,
-    encode_jsonl_to_file, encode_record,
+    encode_jsonl_to_file, encode_jsonl_to_file_with_policy, encode_record,
+    encode_record_with_policy,
 };
 
 pub use numeric::{SmallDecimal, ZonedEncodingInfo};

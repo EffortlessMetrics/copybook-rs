@@ -19,6 +19,7 @@
 //! [#1129]: https://github.com/EffortlessMetrics/copybook-rs/issues/1129
 //! [#1008]: https://github.com/EffortlessMetrics/copybook-rs/issues/1008
 
+use super::RecordFormat;
 use copybook_error::{Error, ErrorCode, ErrorContext};
 use core::fmt;
 
@@ -136,6 +137,48 @@ impl ExecutionPolicy {
             byte_offset: Some(0),
             line_number: None,
             details: Some(format!("lrecl {lrecl}, bound {cap}")),
+        }))
+    }
+
+    /// Reject an encoded logical payload longer than the reviewed bound.
+    ///
+    /// Runs after field encoding (or raw-payload validation) but before any
+    /// record header/payload pair is written, so an over-cap record never
+    /// crosses the output boundary. A payload that fits (or no reviewed
+    /// bound) passes silently.
+    ///
+    /// # Errors
+    ///
+    /// Returns `CBKF226_RECORD_BOUND_EXCEEDED` when the produced logical
+    /// payload exceeds the reviewed bound.
+    #[must_use = "Handle the Result or propagate the error"]
+    #[inline]
+    pub fn check_encoded_payload(
+        self,
+        payload_len: usize,
+        format: RecordFormat,
+        record_index: Option<u64>,
+    ) -> Result<(), Error> {
+        let Some(cap) = self.maximum_record_length else {
+            return Ok(());
+        };
+        if u64::try_from(payload_len).is_ok_and(|declared| declared <= cap) {
+            return Ok(());
+        }
+        Err(Error::new(
+            ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED,
+            format!(
+                "encode record{} produces {payload_len} payload bytes, exceeding the reviewed bound of {cap} ({format:?} payload)",
+                record_index.map_or(String::new(), |index| format!(" {index}")),
+                cap = cap,
+            ),
+        )
+        .with_context(ErrorContext {
+            record_index,
+            field_path: None,
+            byte_offset: None,
+            line_number: None,
+            details: Some(format!("produced {payload_len}, bound {cap}")),
         }))
     }
 }

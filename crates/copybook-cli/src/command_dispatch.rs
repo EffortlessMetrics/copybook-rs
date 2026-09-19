@@ -342,6 +342,25 @@ fn run_encode_command(command: Commands, feature_flags: &FeatureFlags) -> Comman
         Ok(common) => common,
         Err(error) => return profile_failure("encode", &error),
     };
+    // Same inputs as `encode::run`'s own error-policy computation, so the
+    // direct (profile-less) policy agrees with the run by construction.
+    let strict_mode =
+        effective_error_policy(strict, fail_fast || !no_fail_fast, common.max_errors).strict_mode;
+    let execution_policy = match crate::profile_inputs::resolve_policy(loaded.as_ref(), strict_mode)
+    {
+        Ok(policy) => policy,
+        Err(error) => {
+            return profile_failure(
+                "encode",
+                &crate::profile_inputs::ProfileInputError::Invalid {
+                    path: profile
+                        .as_ref()
+                        .map_or("<profile>".to_string(), |path| path.display().to_string()),
+                    message: error.to_string(),
+                },
+            );
+        }
+    };
     (
         commands::encode::run(
             &copybook,
@@ -354,6 +373,7 @@ fn run_encode_command(command: Commands, feature_flags: &FeatureFlags) -> Comman
                 bwz_encode,
                 strict,
                 max_errors: common.max_errors,
+                execution_policy,
                 // Stopping on the first failure is the default, so only `--no-fail-fast`
                 // changes anything. clap rejects the two together, so this cannot be
                 // ambiguous.

@@ -31,6 +31,7 @@ pub struct EncodeCliOptions<'a> {
     pub float_format: FloatFormat,
     pub dialect: copybook::core::dialect::Dialect,
     pub select: &'a [String],
+    pub execution_policy: copybook::codec::ExecutionPolicy,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -76,11 +77,12 @@ pub fn run(
 
     let (summary, write_to_stdout) =
         run_with_output(input, output, |input_file, output_writer| {
-            Ok(copybook::codec::encode_jsonl_to_file(
+            Ok(copybook::codec::encode_jsonl_to_file_with_policy(
                 &working_schema,
                 input_file,
                 output_writer,
                 &encode_options,
+                options.execution_policy,
             )?)
         })?;
 

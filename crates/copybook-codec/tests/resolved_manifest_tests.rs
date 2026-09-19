@@ -58,7 +58,7 @@ fn generate_manifest() -> ResolvedManifest {
 }
 
 #[test]
-fn manifest_binds_inputs_layout_and_support() {
+fn cobol_manifest_binds_inputs_layout_and_support() {
     let manifest = generate_manifest();
 
     assert_eq!(manifest.schema_version, 1);
@@ -114,7 +114,7 @@ fn manifest_binds_inputs_layout_and_support() {
 }
 
 #[test]
-fn manifest_round_trip_verifies() {
+fn cobol_manifest_round_trip_verifies() {
     let manifest = generate_manifest();
     let json = manifest.to_json().expect("manifest serializes");
     let parsed = ResolvedManifest::from_json(&json).expect("manifest verifies");
@@ -123,34 +123,35 @@ fn manifest_round_trip_verifies() {
 }
 
 #[test]
-fn manifest_json_shape_matches_reference_schema() {
+fn cobol_manifest_json_shape_matches_reference_schema() {
     // Guards drift between `to_json` output and `schemas/resolved-manifest.json`;
     // the schema file is reference-only (the Rust type is authoritative).
     let manifest = generate_manifest();
     let value: serde_json::Value =
         serde_json::from_slice(&manifest.to_json().expect("serializes")).expect("json parses");
     let object = value.as_object().expect("top-level object");
-    for key in [
-        "schema_version",
-        "stability_class",
-        "fingerprint_algo",
-        "inputs",
-        "fields",
-        "record_len",
-        "lrecl",
-        "numeric_details",
-        "odo_details",
-        "condition_usages",
-        "support",
-        "manifest_fingerprint",
-    ] {
-        assert!(object.contains_key(key), "missing key {key}");
+    // Read the reference schema so schema-only drift fails this guard.
+    let schema_path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../schemas/resolved-manifest.json"
+    );
+    let schema_text = std::fs::read_to_string(schema_path).expect("reference schema reads");
+    let schema: serde_json::Value =
+        serde_json::from_str(&schema_text).expect("reference schema parses");
+    let required: Vec<&str> = schema["required"]
+        .as_array()
+        .expect("schema has required keys")
+        .iter()
+        .map(|key| key.as_str().expect("required key is a string"))
+        .collect();
+    for key in &required {
+        assert!(object.contains_key(*key), "missing key {key}");
     }
-    assert_eq!(object.len(), 12, "unexpected keys: {object:?}");
+    assert_eq!(object.len(), required.len(), "unexpected keys: {object:?}");
 }
 
 #[test]
-fn manifest_rejects_tampered_body() {
+fn cobol_manifest_rejects_tampered_body() {
     let manifest = generate_manifest();
     let mut value: serde_json::Value =
         serde_json::from_slice(&manifest.to_json().expect("serializes")).expect("json parses");
@@ -164,7 +165,7 @@ fn manifest_rejects_tampered_body() {
 }
 
 #[test]
-fn manifest_rejects_unknown_version() {
+fn cobol_manifest_rejects_unknown_version() {
     let manifest = generate_manifest();
     let mut value: serde_json::Value =
         serde_json::from_slice(&manifest.to_json().expect("serializes")).expect("json parses");
@@ -183,7 +184,32 @@ fn manifest_rejects_unknown_version() {
 }
 
 #[test]
-fn manifest_rejects_malformed_json() {
+fn cobol_manifest_rejects_unknown_keys() {
+    let manifest = generate_manifest();
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&manifest.to_json().expect("serializes")).expect("json parses");
+    value["injected_property"] = serde_json::json!("not part of the contract");
+    let injected = serde_json::to_vec(&value).expect("re-serializes");
+    let err = ResolvedManifest::from_json(&injected).expect_err("unknown keys fail");
+    assert!(
+        matches!(err, ManifestError::MalformedManifest { .. }),
+        "got {err}"
+    );
+}
+
+#[test]
+fn cobol_manifest_rejects_oversized_input() {
+    use copybook_codec::resolved_manifest::MAX_MANIFEST_BYTES;
+    let oversized = vec![b' '; MAX_MANIFEST_BYTES + 1];
+    let err = ResolvedManifest::from_json(&oversized).expect_err("oversized fails");
+    assert!(
+        matches!(err, ManifestError::ManifestTooLarge { .. }),
+        "got {err}"
+    );
+}
+
+#[test]
+fn cobol_manifest_rejects_malformed_json() {
     let err = ResolvedManifest::from_json(b"{not json").expect_err("malformed fails");
     assert!(
         matches!(err, ManifestError::MalformedManifest { .. }),
@@ -218,7 +244,7 @@ fn framing_spelling(kind: FramingKind) -> String {
 }
 
 #[test]
-fn manifest_records_reviewed_profile_journey() {
+fn cobol_manifest_records_reviewed_profile_journey() {
     let profile = InterpretationProfile::parse(JOURNEY_PROFILE).expect("profile parses");
     let bundle = SourceBundle::single("REC", MANIFEST_COPYBOOK.as_bytes())
         .expect("single-unit bundle builds");
@@ -277,7 +303,7 @@ fn manifest_records_reviewed_profile_journey() {
 }
 
 #[test]
-fn manifest_journey_flag_conflict_fails_resolution() {
+fn cobol_manifest_journey_flag_conflict_fails_resolution() {
     let profile = InterpretationProfile::parse(JOURNEY_PROFILE).expect("profile parses");
     let conflict = resolve_field(
         "framing.kind",
@@ -291,7 +317,7 @@ fn manifest_journey_flag_conflict_fails_resolution() {
 }
 
 #[test]
-fn manifest_conflict_error_renders_both_dialects() {
+fn cobol_manifest_conflict_error_renders_both_dialects() {
     // No public bundle constructor declares a dialect today, so the
     // `DialectConflict` arm only triggers for stored bundles carrying a valid
     // declaration; the mapping itself is covered here through its message.

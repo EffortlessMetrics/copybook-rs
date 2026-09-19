@@ -30,6 +30,10 @@ pub const RESOLVED_MANIFEST_STABILITY_CLASS: &str = "stable";
 /// Hash algorithm used for [`ResolvedManifest::manifest_fingerprint`].
 pub const RESOLVED_MANIFEST_FINGERPRINT_ALGO: &str = "sha256-v1";
 /// Maximum number of flattened layout fields admitted into a manifest.
+///
+/// The bound applies to `fields` only, matching `schemas/resolved-manifest.json`;
+/// detail vectors stay proportional (at most a fixed few entries per field) and
+/// the serialized byte bound caps the total.
 pub const MAX_MANIFEST_FIELDS: usize = 4096;
 /// Maximum JSON byte length of a serialized manifest.
 pub const MAX_MANIFEST_BYTES: usize = 1_048_576;
@@ -46,9 +50,9 @@ pub enum ManifestError {
     },
     /// Dialect resolution failed in a way no known variant describes.
     DialectResolutionFailed,
-    /// The flattened layout exceeds [`MAX_MANIFEST_FIELDS`].
+    /// The flattened layout fields exceed [`MAX_MANIFEST_FIELDS`].
     TooManyFields {
-        /// Number of entries the resolved layout contains.
+        /// Number of fields the resolved layout contains.
         found: usize,
     },
     /// The serialized manifest exceeds [`MAX_MANIFEST_BYTES`].
@@ -87,7 +91,7 @@ impl fmt::Display for ManifestError {
             }
             Self::TooManyFields { found } => write!(
                 f,
-                "resolved layout has {found} entries, exceeding the limit of {MAX_MANIFEST_FIELDS}"
+                "resolved layout has {found} fields, exceeding the limit of {MAX_MANIFEST_FIELDS}"
             ),
             Self::ManifestTooLarge { found } => write!(
                 f,
@@ -112,6 +116,7 @@ impl std::error::Error for ManifestError {}
 
 /// One resolved value plus the layer that supplied it, as recorded.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ManifestValue<T> {
     /// Resolved value.
     pub value: T,
@@ -121,6 +126,7 @@ pub struct ManifestValue<T> {
 
 /// Effective dialect with both provenance chains recorded.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ManifestDialect {
     /// Effective dialect in profile spelling.
     pub value: String,
@@ -132,6 +138,7 @@ pub struct ManifestDialect {
 
 /// Resolved inputs captured for one manifest.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ManifestInputs {
     /// Bundle fingerprint the schema was resolved from.
     pub bundle_fingerprint: String,
@@ -147,6 +154,7 @@ pub struct ManifestInputs {
 
 /// One flattened layout field with its physical bounds.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ManifestField {
     /// Dotted field path.
     pub path: String,
@@ -170,6 +178,7 @@ pub struct ManifestField {
 
 /// Numeric usage detail for one flattened field.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ManifestNumericDetail {
     /// Dotted field path.
     pub path: String,
@@ -185,6 +194,7 @@ pub struct ManifestNumericDetail {
 
 /// ODO (OCCURS DEPENDING ON) usage detail for one flattened field.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ManifestOdoDetail {
     /// Dotted field path.
     pub path: String,
@@ -200,6 +210,7 @@ pub struct ManifestOdoDetail {
 
 /// Level-88 condition-name usage: which fields carry condition names.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ManifestConditionUsage {
     /// Dotted path of the condition-name field.
     pub path: String,
@@ -207,6 +218,7 @@ pub struct ManifestConditionUsage {
 
 /// Support classification of one feature referenced by the resolved schema.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ManifestSupportEntry {
     /// Feature identifier in kebab-case.
     pub feature: String,
@@ -234,6 +246,7 @@ pub struct GenerateInputs<'a> {
 /// values with provenance, flattened layout with physical bounds, and support
 /// classification, bound together by a fingerprint.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ResolvedManifest {
     /// Manifest document schema version.
     pub schema_version: u32,
@@ -263,6 +276,7 @@ pub struct ResolvedManifest {
 
 /// Stored manifest document: the serializable form plus its fingerprint.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct StoredManifest {
     #[serde(flatten)]
     body: StoredManifestBody,
@@ -271,6 +285,7 @@ struct StoredManifest {
 
 /// Stored manifest body: every [`ResolvedManifest`] field except the fingerprint.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct StoredManifestBody {
     schema_version: u32,
     stability_class: String,
@@ -352,8 +367,20 @@ impl ResolvedManifest {
             manifest_fingerprint: String::new(),
         };
         let body = StoredManifestBody::from_manifest(&manifest);
-        let serialized =
+        let body_bytes =
             serde_json::to_vec(&body).map_err(|err| ManifestError::MalformedManifest {
+                reason: err.to_string(),
+            })?;
+        manifest.manifest_fingerprint = fingerprint_bytes(&body_bytes);
+        // Bound the final emitted representation (pretty JSON with fingerprint),
+        // not the compact fingerprinted body, so `generate` never returns a
+        // manifest that `to_json` would reject.
+        let stored = StoredManifest {
+            body,
+            manifest_fingerprint: manifest.manifest_fingerprint.clone(),
+        };
+        let serialized =
+            serde_json::to_vec_pretty(&stored).map_err(|err| ManifestError::MalformedManifest {
                 reason: err.to_string(),
             })?;
         if serialized.len() > MAX_MANIFEST_BYTES {
@@ -361,7 +388,6 @@ impl ResolvedManifest {
                 found: serialized.len(),
             });
         }
-        manifest.manifest_fingerprint = fingerprint_bytes(&serialized);
         Ok(manifest)
     }
 
@@ -468,16 +494,11 @@ struct FlatLayout {
 }
 
 impl FlatLayout {
-    /// Number of manifest entries accumulated so far.
-    fn len(&self) -> usize {
-        self.fields.len() + self.numerics.len() + self.odos.len() + self.conditions.len()
-    }
-
-    /// Record one entry, enforcing [`MAX_MANIFEST_FIELDS`].
-    fn push_counted(&self) -> Result<(), ManifestError> {
-        if self.len() >= MAX_MANIFEST_FIELDS {
+    /// Record one field, enforcing [`MAX_MANIFEST_FIELDS`].
+    fn push_field_counted(&self) -> Result<(), ManifestError> {
+        if self.fields.len() >= MAX_MANIFEST_FIELDS {
             return Err(ManifestError::TooManyFields {
-                found: self.len() + 1,
+                found: self.fields.len() + 1,
             });
         }
         Ok(())
@@ -627,7 +648,7 @@ fn flatten_fields(
     flat: &mut FlatLayout,
 ) -> Result<(), ManifestError> {
     for field in fields {
-        flat.push_counted()?;
+        flat.push_field_counted()?;
         flat.fields.push(ManifestField {
             path: field.path.clone(),
             level: field.level,
@@ -640,7 +661,6 @@ fn flatten_fields(
             blank_when_zero: field.blank_when_zero,
         });
         if let Some(detail) = numeric_detail(&field.path, &field.kind) {
-            flat.push_counted()?;
             flat.numerics.push(detail);
         }
         let field_odo_depth = if let Some(Occurs::ODO {
@@ -649,7 +669,6 @@ fn flatten_fields(
             counter_path,
         }) = &field.occurs
         {
-            flat.push_counted()?;
             flat.odos.push(ManifestOdoDetail {
                 path: field.path.clone(),
                 counter_path: counter_path.clone(),
@@ -666,7 +685,6 @@ fn flatten_fields(
             odo_depth
         };
         if matches!(field.kind, FieldKind::Condition { .. }) {
-            flat.push_counted()?;
             flat.conditions.push(ManifestConditionUsage {
                 path: field.path.clone(),
             });

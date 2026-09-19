@@ -4,6 +4,7 @@
   "title": "ResolvedManifest",
   "description": "Stable resolved-schema manifest snapshot (#1117). Stability class: stable. Reference for the copybook_codec::resolved_manifest::ResolvedManifest contract; the Rust type is authoritative.",
   "type": "object",
+  "additionalProperties": false,
   "required": [
     "schema_version",
     "stability_class",
@@ -36,6 +37,7 @@
     },
     "inputs": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "bundle_fingerprint",
         "encoding",
@@ -54,6 +56,7 @@
         },
         "dialect": {
           "type": "object",
+          "additionalProperties": false,
           "required": ["value", "source", "provenance"],
           "properties": {
             "value": {
@@ -85,6 +88,7 @@
       "maxItems": 4096,
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": [
           "path",
           "level",
@@ -123,6 +127,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["path", "digits", "scale", "signed", "encoding"],
         "properties": {
           "path": {"type": "string"},
@@ -137,6 +142,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["path", "counter_path", "min_count", "max_count", "is_tail"],
         "properties": {
           "path": {"type": "string"},
@@ -151,6 +157,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["path"],
         "properties": {
           "path": {"type": "string"}
@@ -161,6 +168,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["feature", "status"],
         "properties": {
           "feature": {
@@ -183,6 +191,7 @@
   "$defs": {
     "resolved_string": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["value", "source"],
       "properties": {
         "value": {"type": "string"},
@@ -191,6 +200,7 @@
     },
     "resolved_u64": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["value", "source"],
       "properties": {
         "value": {"type": "integer", "minimum": 0},

@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/EffortlessMetrics/copybook-rs/schemas/resolved-manifest.json",
+  "title": "ResolvedManifest",
+  "description": "Stable resolved-schema manifest snapshot (#1117). Stability class: stable. Reference for the copybook_codec::resolved_manifest::ResolvedManifest contract; the Rust type is authoritative.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "stability_class",
+    "fingerprint_algo",
+    "inputs",
+    "fields",
+    "record_len",
+    "lrecl",
+    "numeric_details",
+    "odo_details",
+    "condition_usages",
+    "support",
+    "manifest_fingerprint"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Manifest document schema version."
+    },
+    "stability_class": {
+      "type": "string",
+      "const": "stable",
+      "description": "Stability class of the v1 manifest contract."
+    },
+    "fingerprint_algo": {
+      "type": "string",
+      "const": "sha256-v1",
+      "description": "Fingerprint algorithm binding the manifest body."
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "bundle_fingerprint",
+        "encoding",
+        "dialect",
+        "framing",
+        "record_bound"
+      ],
+      "properties": {
+        "bundle_fingerprint": {
+          "type": "string",
+          "description": "SourceBundle fingerprint the schema was resolved from."
+        },
+        "encoding": {
+          "$ref": "#/$defs/resolved_string",
+          "description": "Effective encoding plus its resolution layer."
+        },
+        "dialect": {
+          "type": "object",
+          "required": ["value", "source", "provenance"],
+          "properties": {
+            "value": {
+              "type": "string",
+              "description": "Effective dialect in profile spelling."
+            },
+            "source": {
+              "type": "string",
+              "description": "Resolution layer in OptionSource display spelling."
+            },
+            "provenance": {
+              "type": "string",
+              "description": "Dialect selection provenance in canonical kebab-case."
+            }
+          }
+        },
+        "framing": {
+          "$ref": "#/$defs/resolved_string",
+          "description": "Effective framing plus its resolution layer."
+        },
+        "record_bound": {
+          "$ref": "#/$defs/resolved_u64",
+          "description": "Effective record bound plus its resolution layer."
+        }
+      }
+    },
+    "fields": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "level",
+          "offset",
+          "len",
+          "end",
+          "kind",
+          "redefines",
+          "synchronized",
+          "blank_when_zero"
+        ],
+        "properties": {
+          "path": {"type": "string"},
+          "level": {"type": "integer", "minimum": 0, "maximum": 255},
+          "offset": {"type": "integer", "minimum": 0},
+          "len": {"type": "integer", "minimum": 0},
+          "end": {"type": "integer", "minimum": 0},
+          "kind": {"type": "string"},
+          "redefines": {"type": ["string", "null"]},
+          "synchronized": {"type": "boolean"},
+          "blank_when_zero": {"type": "boolean"}
+        }
+      }
+    },
+    "record_len": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Maximum field end offset across the flattened layout, in bytes."
+    },
+    "lrecl": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Declared fixed record length, when the schema states one."
+    },
+    "numeric_details": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "digits", "scale", "signed", "encoding"],
+        "properties": {
+          "path": {"type": "string"},
+          "digits": {"type": "integer", "minimum": 0},
+          "scale": {"type": "integer"},
+          "signed": {"type": "boolean"},
+          "encoding": {"type": "string"}
+        }
+      }
+    },
+    "odo_details": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "counter_path", "min_count", "max_count", "is_tail"],
+        "properties": {
+          "path": {"type": "string"},
+          "counter_path": {"type": "string"},
+          "min_count": {"type": "integer", "minimum": 0},
+          "max_count": {"type": "integer", "minimum": 0},
+          "is_tail": {"type": "boolean"}
+        }
+      }
+    },
+    "condition_usages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": {"type": "string"}
+        }
+      }
+    },
+    "support": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["feature", "status"],
+        "properties": {
+          "feature": {
+            "type": "string",
+            "description": "Feature identifier in kebab-case."
+          },
+          "status": {
+            "type": "string",
+            "description": "Support status in kebab-case."
+          }
+        }
+      }
+    },
+    "manifest_fingerprint": {
+      "type": "string",
+      "pattern": "^sha256-v1:[a-f0-9]{64}$",
+      "description": "Self-fingerprint binding every field above."
+    }
+  },
+  "$defs": {
+    "resolved_string": {
+      "type": "object",
+      "required": ["value", "source"],
+      "properties": {
+        "value": {"type": "string"},
+        "source": {"type": "string"}
+      }
+    },
+    "resolved_u64": {
+      "type": "object",
+      "required": ["value", "source"],
+      "properties": {
+        "value": {"type": "integer", "minimum": 0},
+        "source": {"type": "string"}
+      }
+    }
+  }
+}

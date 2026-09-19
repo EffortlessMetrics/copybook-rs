@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/EffortlessMetrics/copybook-rs/schemas/resolved-manifest.json",
   "title": "ResolvedManifest",
-  "description": "Stable resolved-schema manifest snapshot (#1117). Stability class: stable. Reference for the copybook_codec::resolved_manifest::ResolvedManifest contract; the Rust type is authoritative.",
+  "description": "Resolved-schema manifest snapshot (#1117). Stability class: beta (evolving; see the copybook_codec::resolved_manifest evolution rules). Reference for the copybook_codec::resolved_manifest::ResolvedManifest contract; the Rust type is authoritative.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -27,8 +27,8 @@
     },
     "stability_class": {
       "type": "string",
-      "const": "stable",
-      "description": "Stability class of the v1 manifest contract."
+      "const": "beta",
+      "description": "Stability class of the v1 manifest contract (beta while the bound profile contract settles)."
     },
     "fingerprint_algo": {
       "type": "string",
@@ -78,8 +78,10 @@
           "description": "Effective framing plus its resolution layer."
         },
         "record_bound": {
-          "$ref": "#/$defs/resolved_u64",
-          "type": ["object", "null"],
+          "anyOf": [
+            {"$ref": "#/$defs/resolved_u64"},
+            {"type": "null"}
+          ],
           "description": "Effective record bound plus its resolution layer; null when the run is uncapped."
         }
       }

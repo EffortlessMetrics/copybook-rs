@@ -1,14 +1,45 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #![allow(clippy::missing_inline_in_public_items)]
-//! Resolved-schema manifest: a stable, reviewable snapshot of one resolved schema.
+//! Resolved-schema manifest: a reviewable snapshot of one resolved schema.
 //!
 //! The manifest binds the four resolved-schema facts an operator reviews: the
 //! input bundle fingerprint, the effective option values with provenance (from
 //! [`resolve`](crate::options::resolve) layers), the resolved layout (field
 //! paths with offsets, lengths, and physical bounds), and the support
 //! classification drawn from the static support matrix. It is the inspectable
-//! artifact behind `copybook parse --emit-manifest` and the `ResolvedManifest`
+//! artifact behind `inspect --emit-manifest` and the `ResolvedManifest`
 //! contract of #1117.
+//!
+//! ## Maturity
+//!
+//! The contract is evolving: [`RESOLVED_MANIFEST_STABILITY_CLASS`] is `beta`
+//! until the profile contract it binds settles. Do not treat a beta manifest
+//! as a frozen interchange format.
+//!
+//! ## Canonical form and tamper evidence
+//!
+//! The fingerprint covers the canonical body bytes: the manifest body as JSON
+//! with object keys sorted recursively ([`canonical_bytes`]). Key order in a
+//! stored document never affects verification. Every body property, including
+//! properties a reader does not understand, feeds the fingerprint, so an
+//! injected property without a regenerated fingerprint fails verification.
+//!
+//! ## Evolution rules
+//!
+//! Readers ignore properties they do not understand (after the fingerprint
+//! verifies), so additive changes are new optional properties: old readers
+//! verify and read new documents, ignoring what they cannot interpret.
+//! Incompatible changes are a schema version bump, a stability-class change,
+//! a fingerprint-algorithm change, a removed or retyped property, or a
+//! property whose meaning changes. Unknown schema versions, stability
+//! classes, and fingerprint algorithms are rejected explicitly, never
+//! guessed.
+//!
+//! ## Fingerprint discipline
+//!
+//! [`ResolvedManifest`] carries no cached digest: [`ResolvedManifest::fingerprint`]
+//! recomputes it from the current body on every call, so a mutated value can
+//! never serialize under a stale digest.
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -25,9 +56,10 @@ use crate::options::resolve::{OptionSource, Resolved};
 
 /// Schema version of the resolved-manifest JSON document.
 pub const RESOLVED_MANIFEST_SCHEMA_VERSION: u32 = 1;
-/// Stability class of the resolved-manifest contract.
-pub const RESOLVED_MANIFEST_STABILITY_CLASS: &str = "stable";
-/// Hash algorithm used for [`ResolvedManifest::manifest_fingerprint`].
+/// Stability class of the resolved-manifest contract: beta while the bound
+/// profile contract settles (see the module-level maturity note).
+pub const RESOLVED_MANIFEST_STABILITY_CLASS: &str = "beta";
+/// Hash algorithm used for [`ResolvedManifest::fingerprint`].
 pub const RESOLVED_MANIFEST_FINGERPRINT_ALGO: &str = "sha256-v1";
 /// Maximum number of flattened layout fields admitted into a manifest.
 ///
@@ -70,6 +102,16 @@ pub enum ManifestError {
         /// Version the stored document declares.
         found: u32,
     },
+    /// Stored manifest declares an unexpected stability class.
+    UnsupportedStabilityClass {
+        /// Class the stored document declares.
+        found: String,
+    },
+    /// Stored manifest declares an unexpected fingerprint algorithm.
+    UnsupportedFingerprintAlgo {
+        /// Algorithm the stored document declares.
+        found: String,
+    },
     /// Stored manifest fingerprint does not match the recomputed value.
     FingerprintMismatch {
         /// Fingerprint declared by the stored document.
@@ -104,6 +146,14 @@ impl fmt::Display for ManifestError {
                 f,
                 "unsupported resolved-manifest version {found}; this build reads version {RESOLVED_MANIFEST_SCHEMA_VERSION}"
             ),
+            Self::UnsupportedStabilityClass { found } => write!(
+                f,
+                "unsupported resolved-manifest stability class {found:?}; this build reads {RESOLVED_MANIFEST_STABILITY_CLASS:?} (regenerate the manifest)"
+            ),
+            Self::UnsupportedFingerprintAlgo { found } => write!(
+                f,
+                "unsupported resolved-manifest fingerprint algorithm {found:?}; this build reads {RESOLVED_MANIFEST_FINGERPRINT_ALGO:?} (regenerate the manifest)"
+            ),
             Self::FingerprintMismatch { expected, actual } => write!(
                 f,
                 "resolved-manifest fingerprint mismatch: expected {expected}, recomputed {actual}"
@@ -115,8 +165,7 @@ impl fmt::Display for ManifestError {
 impl std::error::Error for ManifestError {}
 
 /// One resolved value plus the layer that supplied it, as recorded.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManifestValue<T> {
     /// Resolved value.
     pub value: T,
@@ -125,8 +174,7 @@ pub struct ManifestValue<T> {
 }
 
 /// Effective dialect with both provenance chains recorded.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManifestDialect {
     /// Effective dialect in profile spelling.
     pub value: String,
@@ -137,8 +185,7 @@ pub struct ManifestDialect {
 }
 
 /// Resolved inputs captured for one manifest.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManifestInputs {
     /// Bundle fingerprint the schema was resolved from.
     pub bundle_fingerprint: String,
@@ -154,8 +201,7 @@ pub struct ManifestInputs {
 }
 
 /// One flattened layout field with its physical bounds.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManifestField {
     /// Dotted field path.
     pub path: String,
@@ -178,8 +224,7 @@ pub struct ManifestField {
 }
 
 /// Numeric usage detail for one flattened field.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManifestNumericDetail {
     /// Dotted field path.
     pub path: String,
@@ -194,8 +239,7 @@ pub struct ManifestNumericDetail {
 }
 
 /// ODO (OCCURS DEPENDING ON) usage detail for one flattened field.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManifestOdoDetail {
     /// Dotted field path.
     pub path: String,
@@ -210,16 +254,14 @@ pub struct ManifestOdoDetail {
 }
 
 /// Level-88 condition-name usage: which fields carry condition names.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManifestConditionUsage {
     /// Dotted path of the condition-name field.
     pub path: String,
 }
 
 /// Support classification of one feature referenced by the resolved schema.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManifestSupportEntry {
     /// Feature identifier in kebab-case.
     pub feature: String,
@@ -244,11 +286,15 @@ pub struct GenerateInputs<'a> {
     pub schema: &'a Schema,
 }
 
-/// A stable, reviewable snapshot of one resolved schema: inputs, effective
-/// values with provenance, flattened layout with physical bounds, and support
-/// classification, bound together by a fingerprint.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+/// A reviewable snapshot of one resolved schema: inputs, effective values
+/// with provenance, flattened layout with physical bounds, and support
+/// classification.
+///
+/// The value carries no cached digest. [`ResolvedManifest::fingerprint`]
+/// recomputes the canonical fingerprint from the current body on every call,
+/// and [`ResolvedManifest::to_json`] embeds the recomputed digest, so a
+/// mutated value can never serialize under a stale fingerprint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResolvedManifest {
     /// Manifest document schema version.
     pub schema_version: u32,
@@ -272,35 +318,10 @@ pub struct ResolvedManifest {
     pub condition_usages: Vec<ManifestConditionUsage>,
     /// Support classifications for features the schema references.
     pub support: Vec<ManifestSupportEntry>,
-    /// Self-fingerprint binding every field above.
-    pub manifest_fingerprint: String,
 }
 
-/// Stored manifest document: the serializable form plus its fingerprint.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct StoredManifest {
-    #[serde(flatten)]
-    body: StoredManifestBody,
-    manifest_fingerprint: String,
-}
-
-/// Stored manifest body: every [`ResolvedManifest`] field except the fingerprint.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct StoredManifestBody {
-    schema_version: u32,
-    stability_class: String,
-    fingerprint_algo: String,
-    inputs: ManifestInputs,
-    fields: Vec<ManifestField>,
-    record_len: u32,
-    lrecl: Option<u32>,
-    numeric_details: Vec<ManifestNumericDetail>,
-    odo_details: Vec<ManifestOdoDetail>,
-    condition_usages: Vec<ManifestConditionUsage>,
-    support: Vec<ManifestSupportEntry>,
-}
+/// Top-level fingerprint property of a stored manifest document.
+const FINGERPRINT_PROPERTY: &str = "manifest_fingerprint";
 
 impl ResolvedManifest {
     /// Generate a manifest from resolved inputs, binding all four fact classes.
@@ -335,7 +356,7 @@ impl ResolvedManifest {
         let support = support_entries(&flat.feature_ids);
         let record_len = flat.fields.iter().map(|field| field.end).max().unwrap_or(0);
 
-        let mut manifest = Self {
+        let manifest = Self {
             schema_version: RESOLVED_MANIFEST_SCHEMA_VERSION,
             stability_class: RESOLVED_MANIFEST_STABILITY_CLASS.to_owned(),
             fingerprint_algo: RESOLVED_MANIFEST_FINGERPRINT_ALGO.to_owned(),
@@ -366,25 +387,11 @@ impl ResolvedManifest {
             odo_details: flat.odos,
             condition_usages: flat.conditions,
             support,
-            manifest_fingerprint: String::new(),
         };
-        let body = StoredManifestBody::from_manifest(&manifest);
-        let body_bytes =
-            serde_json::to_vec(&body).map_err(|err| ManifestError::MalformedManifest {
-                reason: err.to_string(),
-            })?;
-        manifest.manifest_fingerprint = fingerprint_bytes(&body_bytes);
         // Bound the final emitted representation (pretty JSON with fingerprint),
-        // not the compact fingerprinted body, so `generate` never returns a
-        // manifest that `to_json` would reject.
-        let stored = StoredManifest {
-            body,
-            manifest_fingerprint: manifest.manifest_fingerprint.clone(),
-        };
-        let serialized =
-            serde_json::to_vec_pretty(&stored).map_err(|err| ManifestError::MalformedManifest {
-                reason: err.to_string(),
-            })?;
+        // not an intermediate body, so `generate` never returns a manifest
+        // that `to_json` would reject.
+        let serialized = assemble_document(&manifest)?;
         if serialized.len() > MAX_MANIFEST_BYTES {
             return Err(ManifestError::ManifestTooLarge {
                 found: serialized.len(),
@@ -393,21 +400,28 @@ impl ResolvedManifest {
         Ok(manifest)
     }
 
+    /// Canonical fingerprint of this manifest body: `sha256-v1` over the
+    /// canonical body bytes (see [`canonical_bytes`]).
+    ///
+    /// The digest is recomputed on every call; the value carries no cached
+    /// fingerprint that a later mutation could stale.
+    #[must_use]
+    pub fn fingerprint(&self) -> String {
+        let body = serde_json::to_value(self).unwrap_or(serde_json::Value::Null);
+        fingerprint_value(&body)
+    }
+
     /// Serialize this manifest to canonical JSON, enforcing the size bound.
+    ///
+    /// The embedded fingerprint is recomputed from the current body, so even
+    /// a mutated value serializes under a consistent digest.
     ///
     /// # Errors
     ///
     /// Returns [`ManifestError::ManifestTooLarge`] when the serialized form
     /// exceeds [`MAX_MANIFEST_BYTES`].
     pub fn to_json(&self) -> Result<Vec<u8>, ManifestError> {
-        let stored = StoredManifest {
-            body: StoredManifestBody::from_manifest(self),
-            manifest_fingerprint: self.manifest_fingerprint.clone(),
-        };
-        let serialized =
-            serde_json::to_vec_pretty(&stored).map_err(|err| ManifestError::MalformedManifest {
-                reason: err.to_string(),
-            })?;
+        let serialized = assemble_document(self)?;
         if serialized.len() > MAX_MANIFEST_BYTES {
             return Err(ManifestError::ManifestTooLarge {
                 found: serialized.len(),
@@ -416,73 +430,111 @@ impl ResolvedManifest {
         Ok(serialized)
     }
 
-    /// Parse and verify a stored manifest: version and fingerprint.
+    /// Parse and verify a stored manifest: contract identity, then fingerprint.
+    ///
+    /// Unknown body properties are verified by the fingerprint and then
+    /// ignored, so additive properties do not break older readers (see the
+    /// module-level evolution rules).
     ///
     /// # Errors
     ///
     /// Returns [`ManifestError`] when the document is malformed, declares an
-    /// unsupported version, or fails fingerprint verification.
+    /// unsupported version, stability class, or fingerprint algorithm, or
+    /// fails fingerprint verification.
     pub fn from_json(bytes: &[u8]) -> Result<Self, ManifestError> {
         if bytes.len() > MAX_MANIFEST_BYTES {
             return Err(ManifestError::ManifestTooLarge { found: bytes.len() });
         }
-        let stored: StoredManifest =
+        let document: serde_json::Value =
             serde_json::from_slice(bytes).map_err(|err| ManifestError::MalformedManifest {
                 reason: err.to_string(),
             })?;
-        if stored.body.schema_version != RESOLVED_MANIFEST_SCHEMA_VERSION {
-            return Err(ManifestError::UnsupportedManifestVersion {
-                found: stored.body.schema_version,
-            });
-        }
-        let body_bytes =
-            serde_json::to_vec(&stored.body).map_err(|err| ManifestError::MalformedManifest {
+        let body = document
+            .as_object()
+            .ok_or_else(|| ManifestError::MalformedManifest {
+                reason: "manifest document is not a JSON object".to_owned(),
+            })?;
+        let fingerprint = body
+            .get(FINGERPRINT_PROPERTY)
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| ManifestError::MalformedManifest {
+                reason: "manifest document has no string manifest_fingerprint".to_owned(),
+            })?
+            .to_owned();
+        let manifest: Self = serde_json::from_value(serde_json::Value::Object(body.clone()))
+            .map_err(|err| ManifestError::MalformedManifest {
                 reason: err.to_string(),
             })?;
-        let recomputed = fingerprint_bytes(&body_bytes);
-        if recomputed != stored.manifest_fingerprint {
+        if manifest.schema_version != RESOLVED_MANIFEST_SCHEMA_VERSION {
+            return Err(ManifestError::UnsupportedManifestVersion {
+                found: manifest.schema_version,
+            });
+        }
+        if manifest.stability_class != RESOLVED_MANIFEST_STABILITY_CLASS {
+            return Err(ManifestError::UnsupportedStabilityClass {
+                found: manifest.stability_class.clone(),
+            });
+        }
+        if manifest.fingerprint_algo != RESOLVED_MANIFEST_FINGERPRINT_ALGO {
+            return Err(ManifestError::UnsupportedFingerprintAlgo {
+                found: manifest.fingerprint_algo.clone(),
+            });
+        }
+        let mut unsigned = body.clone();
+        unsigned.remove(FINGERPRINT_PROPERTY);
+        let recomputed = fingerprint_value(&serde_json::Value::Object(unsigned));
+        if recomputed != fingerprint {
             return Err(ManifestError::FingerprintMismatch {
-                expected: stored.manifest_fingerprint,
+                expected: fingerprint,
                 actual: recomputed,
             });
         }
-        Ok(stored.body.into_manifest(stored.manifest_fingerprint))
+        Ok(manifest)
     }
 }
 
-impl StoredManifestBody {
-    fn from_manifest(manifest: &ResolvedManifest) -> Self {
-        Self {
-            schema_version: manifest.schema_version,
-            stability_class: manifest.stability_class.clone(),
-            fingerprint_algo: manifest.fingerprint_algo.clone(),
-            inputs: manifest.inputs.clone(),
-            fields: manifest.fields.clone(),
-            record_len: manifest.record_len,
-            lrecl: manifest.lrecl,
-            numeric_details: manifest.numeric_details.clone(),
-            odo_details: manifest.odo_details.clone(),
-            condition_usages: manifest.condition_usages.clone(),
-            support: manifest.support.clone(),
-        }
-    }
+/// Serialize one manifest to its stored document form: the body plus the
+/// recomputed fingerprint, pretty-printed.
+fn assemble_document(manifest: &ResolvedManifest) -> Result<Vec<u8>, ManifestError> {
+    let fingerprint = manifest.fingerprint();
+    let mut document =
+        serde_json::to_value(manifest).map_err(|err| ManifestError::MalformedManifest {
+            reason: err.to_string(),
+        })?;
+    document[FINGERPRINT_PROPERTY] = serde_json::Value::String(fingerprint);
+    serde_json::to_vec_pretty(&document).map_err(|err| ManifestError::MalformedManifest {
+        reason: err.to_string(),
+    })
+}
 
-    fn into_manifest(self, manifest_fingerprint: String) -> ResolvedManifest {
-        ResolvedManifest {
-            schema_version: self.schema_version,
-            stability_class: self.stability_class,
-            fingerprint_algo: self.fingerprint_algo,
-            inputs: self.inputs,
-            fields: self.fields,
-            record_len: self.record_len,
-            lrecl: self.lrecl,
-            numeric_details: self.numeric_details,
-            odo_details: self.odo_details,
-            condition_usages: self.condition_usages,
-            support: self.support,
-            manifest_fingerprint,
+/// Canonical body bytes: JSON with object keys sorted recursively, so stored
+/// key order never affects the fingerprint.
+fn canonical_bytes(value: &serde_json::Value) -> Vec<u8> {
+    serde_json::to_vec(&sorted_value(value)).unwrap_or_default()
+}
+
+/// Recursively sort every object in a JSON value by key.
+fn sorted_value(value: &serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Object(object) => {
+            let mut sorted = serde_json::Map::with_capacity(object.len());
+            let mut keys: Vec<&str> = object.keys().map(String::as_str).collect();
+            keys.sort_unstable();
+            for key in keys {
+                sorted.insert(key.to_owned(), sorted_value(&object[key]));
+            }
+            serde_json::Value::Object(sorted)
         }
+        serde_json::Value::Array(items) => {
+            serde_json::Value::Array(items.iter().map(sorted_value).collect())
+        }
+        _ => value.clone(),
     }
+}
+
+/// `sha256-v1` fingerprint of canonical JSON bytes.
+fn fingerprint_value(value: &serde_json::Value) -> String {
+    fingerprint_bytes(&canonical_bytes(value))
 }
 
 /// Flattened layout accumulation during one [`ResolvedManifest::generate`].
@@ -697,4 +749,100 @@ fn flatten_fields(
         flatten_fields(&field.children, field_odo_depth, flat)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonical_bytes_ignore_key_order() {
+        let first = serde_json::json!({"b": 1, "a": {"d": [1, 2], "c": "x"}});
+        let second = serde_json::json!({"a": {"c": "x", "d": [1, 2]}, "b": 1});
+        assert_eq!(canonical_bytes(&first), canonical_bytes(&second));
+        // Arrays keep their order: only object keys sort.
+        let reordered = serde_json::json!({"a": {"c": "x", "d": [2, 1]}, "b": 1});
+        assert_ne!(canonical_bytes(&first), canonical_bytes(&reordered));
+    }
+
+    #[test]
+    fn additive_properties_verify_and_read() {
+        // An additive property (unknown to this reader) verifies when the
+        // fingerprint covers it, and reads back with known facts intact.
+        let body = serde_json::json!({
+            "schema_version": RESOLVED_MANIFEST_SCHEMA_VERSION,
+            "stability_class": RESOLVED_MANIFEST_STABILITY_CLASS,
+            "fingerprint_algo": RESOLVED_MANIFEST_FINGERPRINT_ALGO,
+            "inputs": {
+                "bundle_fingerprint": "bundle",
+                "encoding": {"value": "cp037", "source": "profile"},
+                "dialect": {"value": "normative", "source": "profile", "provenance": "profile-selected"},
+                "framing": {"value": "fixed", "source": "profile"},
+                "record_bound": {"value": 32760, "source": "profile"}
+            },
+            "fields": [],
+            "record_len": 0,
+            "lrecl": serde_json::Value::Null,
+            "numeric_details": [],
+            "odo_details": [],
+            "condition_usages": [],
+            "support": [],
+            "future_additive_prop": {"note": "added by a newer writer"}
+        });
+        let fingerprint = fingerprint_value(&body);
+        let document = serde_json::json!({
+            "schema_version": RESOLVED_MANIFEST_SCHEMA_VERSION,
+            "stability_class": RESOLVED_MANIFEST_STABILITY_CLASS,
+            "fingerprint_algo": RESOLVED_MANIFEST_FINGERPRINT_ALGO,
+            "inputs": body["inputs"],
+            "fields": [],
+            "record_len": 0,
+            "lrecl": serde_json::Value::Null,
+            "numeric_details": [],
+            "odo_details": [],
+            "condition_usages": [],
+            "support": [],
+            "future_additive_prop": {"note": "added by a newer writer"},
+            "manifest_fingerprint": fingerprint
+        });
+        let bytes = serde_json::to_vec(&document).expect("document serializes");
+        let manifest = ResolvedManifest::from_json(&bytes).expect("extended doc verifies");
+        assert_eq!(manifest.record_len, 0);
+        assert!(manifest.fields.is_empty());
+    }
+
+    #[test]
+    fn unsigned_extra_property_breaks_verification() {
+        // A full valid body is fingerprinted, then an extra property is
+        // injected without updating the digest: verification must fail.
+        let body = serde_json::json!({
+            "schema_version": RESOLVED_MANIFEST_SCHEMA_VERSION,
+            "stability_class": RESOLVED_MANIFEST_STABILITY_CLASS,
+            "fingerprint_algo": RESOLVED_MANIFEST_FINGERPRINT_ALGO,
+            "inputs": {
+                "bundle_fingerprint": "bundle",
+                "encoding": {"value": "cp037", "source": "profile"},
+                "dialect": {"value": "normative", "source": "profile", "provenance": "profile-selected"},
+                "framing": {"value": "fixed", "source": "profile"},
+                "record_bound": {"value": 32760, "source": "profile"}
+            },
+            "fields": [],
+            "record_len": 0,
+            "lrecl": serde_json::Value::Null,
+            "numeric_details": [],
+            "odo_details": [],
+            "condition_usages": [],
+            "support": []
+        });
+        let fingerprint = fingerprint_value(&body);
+        let mut document = body;
+        document["injected"] = serde_json::Value::Bool(true);
+        document["manifest_fingerprint"] = serde_json::Value::String(fingerprint);
+        let bytes = serde_json::to_vec(&document).expect("document serializes");
+        let error = ResolvedManifest::from_json(&bytes).expect_err("injection fails");
+        assert!(
+            matches!(error, ManifestError::FingerprintMismatch { .. }),
+            "got {error}"
+        );
+    }
 }

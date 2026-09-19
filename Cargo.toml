@@ -84,6 +84,7 @@ copybook-support-matrix = { version = "=0.8.1", path = "crates/copybook-support-
 # Core dependencies
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.150", features = ["preserve_order"] }
+jsonschema = "0.46"
 serde_plain = "1.0.2"
 thiserror = "2.0.18"
 tracing = "0.1.44"

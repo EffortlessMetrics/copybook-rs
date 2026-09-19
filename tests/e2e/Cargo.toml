@@ -186,6 +186,10 @@ path = "e2e_uselesskey_runtime_fixtures.rs"
 name = "e2e_cli_profile"
 path = "e2e_cli_profile.rs"
 
+[[test]]
+name = "e2e_cli_inspect_manifest"
+path = "e2e_cli_inspect_manifest.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

@@ -181,20 +181,90 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
         strict,
         strict_comments,
         dialect,
+        profile,
+        emit_manifest,
     } = command
     else {
         return dispatch_mismatch("inspect");
     };
 
-    let effective_dialect = effective_dialect(dialect);
-    (
-        commands::inspect::run(
+    if let Some(manifest_path) = emit_manifest {
+        return run_inspect_emit_manifest(
             &copybook,
             codepage,
             strict,
             strict_comments,
+            dialect,
+            profile.as_ref(),
+            &manifest_path,
+            feature_flags,
+        );
+    }
+
+    let effective_dialect = effective_dialect(dialect);
+    (
+        commands::inspect::run(
+            &copybook,
+            codepage.unwrap_or(copybook::codec::Codepage::CP037),
+            strict,
+            strict_comments,
             effective_dialect,
             feature_flags,
+        ),
+        "inspect",
+    )
+}
+
+/// Inspect with manifest emission: resolve the reviewed inputs with provenance
+/// and emit the layout report plus the manifest file.
+#[allow(clippy::too_many_arguments)]
+fn run_inspect_emit_manifest(
+    copybook: &std::path::PathBuf,
+    codepage: Option<copybook::codec::Codepage>,
+    strict: bool,
+    strict_comments: bool,
+    dialect: Option<crate::DialectPreference>,
+    profile: Option<&std::path::PathBuf>,
+    manifest_path: &std::path::PathBuf,
+    feature_flags: &copybook::core::FeatureFlags,
+) -> CommandOutcome {
+    if copybook.as_os_str() == "-" {
+        return profile_failure(
+            "inspect",
+            &crate::profile_inputs::ProfileInputError::Missing {
+                message:
+                    "--emit-manifest requires a copybook file; stdin has no stable source identity"
+                        .to_string(),
+            },
+        );
+    }
+    if profile.is_none() {
+        return profile_failure(
+            "inspect",
+            &crate::profile_inputs::ProfileInputError::Missing {
+                message: "--emit-manifest requires --profile".to_string(),
+            },
+        );
+    }
+    let loaded = match crate::profile_inputs::load_profile(profile.map(std::path::PathBuf::as_path))
+    {
+        Ok(loaded) => loaded,
+        Err(error) => return profile_failure("inspect", &error),
+    };
+    let common =
+        match crate::profile_inputs::resolve_common(None, codepage, dialect, None, loaded.as_ref())
+        {
+            Ok(common) => common,
+            Err(error) => return profile_failure("inspect", &error),
+        };
+    (
+        commands::inspect::run_with_manifest(
+            copybook,
+            &common,
+            strict,
+            strict_comments,
+            feature_flags,
+            manifest_path,
         ),
         "inspect",
     )

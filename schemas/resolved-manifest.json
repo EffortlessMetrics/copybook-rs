@@ -79,7 +79,8 @@
         },
         "record_bound": {
           "$ref": "#/$defs/resolved_u64",
-          "description": "Effective record bound plus its resolution layer."
+          "type": ["object", "null"],
+          "description": "Effective record bound plus its resolution layer; null when the run is uncapped."
         }
       }
     },

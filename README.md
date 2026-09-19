@@ -154,6 +154,7 @@ See [COBOL_SUPPORT_MATRIX.md](docs/reference/COBOL_SUPPORT_MATRIX.md) for the fu
 | Document | Description |
 |----------|-------------|
 | [Getting Started](docs/tutorials/getting-started.md) | Tutorial with bundled fixtures |
+| [Migrating from JRecord](docs/JRECORD_MIGRATION.md) | Adoption route for Java/mainframe users, pinned to differential evidence |
 | [Documentation Start](docs/START_HERE.md) | Hand-maintained documentation entry point |
 | [CLI Reference](docs/CLI_REFERENCE.md) | Command-line interface documentation |
 | [Library API](docs/reference/LIBRARY_API.md) | Rust library API reference |

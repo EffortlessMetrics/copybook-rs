@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-19T04:12:04.137237190+00:00",
+  "generated_at": "2026-09-19T05:26:18.082781955+00:00",
   "generated_by": "cargo run -p xtask -- docs contracts generate",
-  "source_revision": "77fadec2d0f8ce80c1b20c7f7233fe18d36930e2",
+  "source_revision": "8ff1c7d09302030a310a0081c84d9f1c1c78a178",
   "source_paths": [
     "crates/copybook-cli/src/main.rs",
     "crates/copybook-cli/src/exit_codes.rs",

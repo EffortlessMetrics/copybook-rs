@@ -115,10 +115,14 @@ fn reviewed_strict_policy_fails_nonzero_reserved() {
         &options,
         policy,
     );
-    match result {
-        Err(error) => assert_eq!(error.code, ErrorCode::CBKR211_RDW_RESERVED_NONZERO),
-        Ok(_) => panic!("expected error CBKR211_RDW_RESERVED_NONZERO"),
-    }
+    assert!(
+        result.is_err(),
+        "reviewed strict policy should fail nonzero reserved bytes"
+    );
+    assert_eq!(
+        result.unwrap_err().code,
+        ErrorCode::CBKR211_RDW_RESERVED_NONZERO
+    );
 }
 
 #[test]
@@ -145,10 +149,14 @@ fn legacy_and_reviewed_agree_on_equal_facts() {
         reviewed,
     );
     for result in [strict_result, reviewed_result] {
-        match result {
-            Err(error) => assert_eq!(error.code, ErrorCode::CBKR211_RDW_RESERVED_NONZERO),
-            Ok(_) => panic!("expected error CBKR211_RDW_RESERVED_NONZERO"),
-        }
+        assert!(
+            result.is_err(),
+            "equal strict facts should fail nonzero reserved bytes alike"
+        );
+        assert_eq!(
+            result.unwrap_err().code,
+            ErrorCode::CBKR211_RDW_RESERVED_NONZERO
+        );
     }
     // Lenient direct behavior and a lenient reviewed policy succeed alike.
     let direct_result = decode_file_to_jsonl(

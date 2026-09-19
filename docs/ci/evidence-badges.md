@@ -57,6 +57,15 @@ unsafe-review badges --root . --out <dir>
 
 That is the provider-owned repo projection.
 
+The provider's exact-identity suppression ledger is used only for reviewed
+detector false positives. The current ledger suppresses four
+`std::sync::RwLock::read()` calls in
+`crates/copybook-core/src/feature_flags.rs` that unsafe-review 0.5.0
+misclassifies as `raw_pointer_read`. Each suppression carries the exact card
+identity, a concrete source receipt, and a review date. These entries remove
+known detector noise from the actionable badge count; they do not baseline
+real unsafe debt or certify the surrounding code as safe.
+
 ### RIPR test-efficiency portability boundary
 
 `ripr+` requires `target/ripr/reports/test-efficiency.json`. In RIPR 0.10.0,

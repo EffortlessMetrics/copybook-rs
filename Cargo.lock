@@ -1033,9 +1033,15 @@ dependencies = [
 name = "copybook-options"
 version = "0.8.1"
 dependencies = [
+ "copybook-charset",
  "copybook-codec",
+ "copybook-core",
+ "hex",
  "proptest",
+ "serde",
  "serde_json",
+ "sha2",
+ "toml",
 ]
 
 [[package]]

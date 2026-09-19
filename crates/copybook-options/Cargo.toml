@@ -21,7 +21,13 @@ all-features = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
+copybook-charset.workspace = true
 copybook-codec.workspace = true
+copybook-core.workspace = true
+hex.workspace = true
+serde.workspace = true
+sha2.workspace = true
+toml.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

@@ -5,6 +5,7 @@
 *.sh text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
+*.toml text eol=lf
 test-data/*.bin binary
 test-data/test_filler_behavior binary
 tools/copybook-bench/test_fixtures/external_input/*.bin binary

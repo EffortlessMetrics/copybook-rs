@@ -1837,6 +1837,8 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
 ///
 /// Returns the record-encoding error, or `CBKF226_RECORD_BOUND_EXCEEDED`
 /// when the produced payload exceeds the reviewed bound.
+#[must_use = "Handle the Result or propagate the error"]
+#[inline]
 pub fn encode_record_with_policy(
     schema: &Schema,
     json: &Value,
@@ -4380,6 +4382,8 @@ pub fn encode_jsonl_to_file(
 /// # Errors
 ///
 /// Returns the input, encoding, or bound error that stops the run.
+#[must_use = "Handle the Result or propagate the error"]
+#[inline]
 pub fn encode_jsonl_to_file_with_policy(
     schema: &Schema,
     input: impl Read,

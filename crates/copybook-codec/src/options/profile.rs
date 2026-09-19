@@ -200,6 +200,8 @@ impl InterpretationProfile {
     /// Returns [`ProfileError`] when the TOML is malformed, carries unknown
     /// keys or values, declares an unreadable schema version, or violates a
     /// documented limit bound.
+    #[must_use = "Handle the Result or propagate the error"]
+    #[inline]
     pub fn parse(text: &str) -> Result<Self, ProfileError> {
         let profile: Self =
             toml::from_str(text).map_err(|error| ProfileError::InvalidToml(error.to_string()))?;
@@ -213,6 +215,8 @@ impl InterpretationProfile {
     ///
     /// Returns [`ProfileError::UnsupportedVersion`] or
     /// [`ProfileError::LimitOutOfRange`] on violation.
+    #[must_use = "Handle the Result or propagate the error"]
+    #[inline]
     pub fn validate(&self) -> Result<(), ProfileError> {
         if self.schema_version != PROFILE_SCHEMA_VERSION {
             return Err(ProfileError::UnsupportedVersion {
@@ -243,6 +247,8 @@ impl InterpretationProfile {
     ///
     /// Returns [`ProfileError::InvalidToml`] when serialization fails; the
     /// current field types cannot fail, so this is defensive.
+    #[must_use = "Handle the Result or propagate the error"]
+    #[inline]
     pub fn to_canonical_toml(&self) -> Result<String, ProfileError> {
         toml::to_string(self).map_err(|error| ProfileError::InvalidToml(error.to_string()))
     }

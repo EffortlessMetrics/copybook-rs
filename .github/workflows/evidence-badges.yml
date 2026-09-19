@@ -12,6 +12,7 @@ on:
       - "scripts/ci/test_generate_ripr_test_efficiency_inventory.py"
       - ".github/workflows/evidence-badges.yml"
       - "docs/ci/evidence-badges.md"
+      - "policy/unsafe-review-suppressions.toml"
   push:
     branches: [main]
     paths:
@@ -21,6 +22,7 @@ on:
       - "scripts/ci/generate_ripr_test_efficiency_inventory.py"
       - ".github/workflows/evidence-badges.yml"
       - "docs/ci/evidence-badges.md"
+      - "policy/unsafe-review-suppressions.toml"
   workflow_dispatch:
   schedule:
     - cron: "17 8 * * 1"

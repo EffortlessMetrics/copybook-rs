@@ -40,10 +40,7 @@ fn rdw_record(payload_len: u16, payload: &[u8]) -> Vec<u8> {
 }
 
 fn expect_bound_exceeded<T>(result: Result<T, copybook_core::Error>) {
-    assert!(
-        result.is_err(),
-        "expected CBKF226_RECORD_BOUND_EXCEEDED"
-    );
+    assert!(result.is_err(), "expected CBKF226_RECORD_BOUND_EXCEEDED");
     if let Err(error) = result {
         assert_eq!(error.code, ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED);
     }

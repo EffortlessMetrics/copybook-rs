@@ -1,0 +1,8 @@
+kind: fixed
+body: '**api**: restored the public `Result`-contract annotations (`#[inline]`
+  / `#[must_use]`) on the profile surface
+  (`InterpretationProfile::parse`/`validate`/`to_canonical_toml`,
+  `resolve_field`) and the encode `*_with_policy` entrypoints, so the
+  public-Result documentation gate passes and dropped results fail
+  closed at compile time.'
+time: '2026-09-19T13:10:00Z'

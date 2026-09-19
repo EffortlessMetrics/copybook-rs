@@ -107,6 +107,8 @@ impl std::error::Error for ConflictError {}
 /// # Errors
 ///
 /// Returns [`ConflictError`] when the flag and the profile disagree.
+#[must_use = "Handle the Result or propagate the error"]
+#[inline]
 pub fn resolve_field<T>(
     field: &'static str,
     flag: Option<T>,

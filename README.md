@@ -2,6 +2,10 @@
 <h1 align="center">copybook-rs</h1>
 
 <p align="center">
+  <em>Deterministic COBOL copybook parsing and mainframe record conversion.</em>
+</p>
+
+<p align="center">
   <a href="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml"><img src="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml/badge.svg?branch=main&event=push" alt="CI" /></a>
   <a href="https://codecov.io/gh/EffortlessMetrics/copybook-rs"><img src="https://codecov.io/gh/EffortlessMetrics/copybook-rs/branch/main/graph/badge.svg" alt="Codecov" /></a>
   <a href="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/security-scan.yml"><img src="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/security-scan.yml/badge.svg" alt="Security" /></a>

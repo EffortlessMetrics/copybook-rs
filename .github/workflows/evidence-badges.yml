@@ -73,24 +73,6 @@ jobs:
             --root . \
             --output target/evidence-badges
 
-      - name: Check committed endpoints on reviewable commits
-        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
-        run: |
-          set -euo pipefail
-          missing=0
-          for file in ripr.json ripr-plus.json unsafe-review.json unsafe-review-plus.json; do
-            if [ ! -f "badges/${file}" ]; then
-              echo "bootstrap: badges/${file} is not committed yet"
-              missing=1
-            fi
-          done
-          if [ "${missing}" -eq 0 ]; then
-            python3 scripts/ci/evidence_badges.py check \
-              target/evidence-badges badges
-          else
-            echo "bootstrap PR: generated endpoints will be captured from the workflow artifact"
-          fi
-
       - name: Summarize endpoint values
         run: |
           set -euo pipefail
@@ -115,6 +97,24 @@ jobs:
           path: target/evidence-badges/
           retention-days: 30
           if-no-files-found: error
+
+      - name: Check committed endpoints on reviewable commits
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for file in ripr.json ripr-plus.json unsafe-review.json unsafe-review-plus.json; do
+            if [ ! -f "badges/${file}" ]; then
+              echo "bootstrap: badges/${file} is not committed yet"
+              missing=1
+            fi
+          done
+          if [ "${missing}" -eq 0 ]; then
+            python3 scripts/ci/evidence_badges.py check \
+              target/evidence-badges badges
+          else
+            echo "bootstrap PR: generated endpoints are available in the workflow artifact"
+          fi
 
   refresh:
     name: Open badge refresh PR

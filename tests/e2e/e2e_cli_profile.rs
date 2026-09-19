@@ -579,3 +579,85 @@ fn encode_missing_format_without_profile() {
         .code(3)
         .stderr(predicate::str::contains("--format"));
 }
+
+#[test]
+fn encode_profile_cap_below_lrecl_fails_without_output() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
+    let input = write_temp_file(&dir, "input.jsonl", SIMPLE_JSONL.as_bytes());
+    let profile = write_temp_file(
+        &dir,
+        "profile.toml",
+        capped_profile("fixed", "ascii", 14).as_bytes(),
+    );
+    let out = dir.path().join("out.bin");
+
+    cmd()
+        .args(["encode", "--profile"])
+        .arg(&profile)
+        .arg(&cpy)
+        .arg(&input)
+        .args(["--output"])
+        .arg(&out)
+        .assert()
+        .failure()
+        .code(4)
+        .stderr(predicate::str::contains("CBKF226_RECORD_BOUND_EXCEEDED"));
+    assert!(!out.exists(), "pre-execution failure leaves output absent");
+}
+
+#[test]
+fn encode_profile_cap_at_lrecl_succeeds() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
+    let input = write_temp_file(&dir, "input.jsonl", SIMPLE_JSONL.as_bytes());
+    let profile = write_temp_file(
+        &dir,
+        "profile.toml",
+        capped_profile("fixed", "ascii", 15).as_bytes(),
+    );
+    let out = dir.path().join("out.bin");
+
+    cmd()
+        .args(["encode", "--profile"])
+        .arg(&profile)
+        .arg(&cpy)
+        .arg(&input)
+        .args(["--output"])
+        .arg(&out)
+        .assert()
+        .success();
+    assert_eq!(
+        std::fs::read(&out).expect("read output"),
+        expected_simple_record()
+    );
+}
+
+#[test]
+fn encode_profile_rdw_over_cap_lenient_counts_failure() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", b"       01  REC PIC X(8).\n");
+    let input = write_temp_file(&dir, "input.jsonl", b"{\"REC\": \"RECORD01\"}\n");
+    let profile = write_temp_file(
+        &dir,
+        "profile.toml",
+        capped_profile("rdw", "ascii", 7).as_bytes(),
+    );
+    let out = dir.path().join("out.bin");
+
+    cmd()
+        .args(["encode", "--profile"])
+        .arg(&profile)
+        .arg(&cpy)
+        .arg(&input)
+        .args(["--no-fail-fast", "--output"])
+        .arg(&out)
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicate::str::contains("CBKF226_RECORD_BOUND_EXCEEDED"));
+    assert!(
+        std::fs::read(&out).expect("read output").is_empty(),
+        "over-cap record leaves no bytes behind"
+    );
+}

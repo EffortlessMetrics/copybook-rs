@@ -680,13 +680,16 @@ enabling full `--strict` record handling. `"lenient"` keeps the current
 warn-and-continue behavior. `limits.maximum_record_length` is enforced
 on decode/verify read paths: a fixed layout above the cap fails before
 input is consumed and an over-cap RDW/VB record fails with
-`CBKF226_RECORD_BOUND_EXCEEDED`. Encode enforcement follows separately.
+`CBKF226_RECORD_BOUND_EXCEEDED`, and on encode paths: a fixed layout
+above the cap fails before input is consumed and an over-cap produced
+or replayed payload fails with the same code.
 
-All keys except `decode.json_numbers` apply to `encode` as well,
-with one exception: `limits.maximum_record_length` is accepted and
-validated but not enforced by `encode` (encode enforcement follows
-separately). `framing.reserved_bytes` has no effect on encode (writers
-emit zero reserved bytes).
+All keys except `decode.json_numbers` apply to `encode` as well.
+`limits.maximum_record_length` is enforced on encode paths: a fixed
+layout above the cap fails before input is consumed and an over-cap
+produced or replayed payload fails with
+`CBKF226_RECORD_BOUND_EXCEEDED`. `framing.reserved_bytes` has no effect
+on encode (writers emit zero reserved bytes).
 
 ```toml
 schema_version = 1

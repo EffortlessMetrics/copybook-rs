@@ -1823,6 +1823,36 @@ fn condition_value(values: &[String], prefix: &str) -> Value {
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> Result<Vec<u8>> {
+    encode_record_impl(schema, json, options, ExecutionPolicy::direct(false), None)
+}
+
+/// Encode one JSON record under a reviewed [`ExecutionPolicy`].
+///
+/// The reviewed `maximum_record_length` bound governs the logical payload
+/// bytes produced for the record: field-encoded payloads and raw-replay
+/// payloads are validated before any record header/payload pair is written.
+/// An over-cap record fails with `CBKF226_RECORD_BOUND_EXCEEDED`.
+///
+/// # Errors
+///
+/// Returns the record-encoding error, or `CBKF226_RECORD_BOUND_EXCEEDED`
+/// when the produced payload exceeds the reviewed bound.
+pub fn encode_record_with_policy(
+    schema: &Schema,
+    json: &Value,
+    options: &EncodeOptions,
+    policy: ExecutionPolicy,
+) -> Result<Vec<u8>> {
+    encode_record_impl(schema, json, options, policy, None)
+}
+
+fn encode_record_impl(
+    schema: &Schema,
+    json: &Value,
+    options: &EncodeOptions,
+    policy: ExecutionPolicy,
+    record_index: Option<u64>,
+) -> Result<Vec<u8>> {
     let root_obj = json.as_object().ok_or_else(|| {
         Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
@@ -1844,10 +1874,11 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
         json
     };
 
-    if let Some(raw_replay) =
+    if let Some((framed, payload_len)) =
         encode_raw_replay(root_obj, fields_value, schema, encoding_metadata, options)?
     {
-        return Ok(raw_replay);
+        policy.check_encoded_payload(payload_len, options.format, record_index)?;
+        return Ok(framed);
     }
 
     // No raw data or not using raw - encode from fields
@@ -1857,10 +1888,12 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
     match options.format {
         RecordFormat::Fixed => {
             let payload = encode_fields_to_bytes(schema, fields_value, encoding_metadata, options)?;
+            policy.check_encoded_payload(payload.len(), options.format, record_index)?;
             Ok(payload)
         }
         RecordFormat::RDW => {
             let payload = encode_fields_to_bytes(schema, fields_value, encoding_metadata, options)?;
+            policy.check_encoded_payload(payload.len(), options.format, record_index)?;
 
             // Create RDW record
             let rdw_record = crate::record::RDWRecord::try_new(payload)?;
@@ -1871,6 +1904,7 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
         }
         RecordFormat::Vb => {
             let payload = encode_fields_to_bytes(schema, fields_value, encoding_metadata, options)?;
+            policy.check_encoded_payload(payload.len(), options.format, record_index)?;
 
             // Frame one record inside one BDW block.
             let mut block = Vec::new();
@@ -1894,13 +1928,15 @@ fn parse_raw_capture(root: &serde_json::Map<String, Value>) -> Result<Option<Raw
     }
 }
 
+/// Replay captured raw bytes, reporting the framed bytes alongside the
+/// logical payload length the reviewed record bound governs.
 fn encode_raw_replay(
     root: &serde_json::Map<String, Value>,
     fields: &Value,
     schema: &Schema,
     encoding_metadata: Option<&serde_json::Map<String, Value>>,
     options: &EncodeOptions,
-) -> Result<Option<Vec<u8>>> {
+) -> Result<Option<(Vec<u8>, usize)>> {
     if !options.use_raw {
         return Ok(None);
     }
@@ -1921,6 +1957,18 @@ fn encode_raw_replay(
             )
         })?;
 
+    // Logical payload length governs the reviewed bound, independent of
+    // framing: bare `Record` captures replay the bytes as the payload, while
+    // `RecordRDW` captures carry a header the replay validators parse.
+    // The parse calls below re-validate header consistency; they cannot
+    // disagree with the replay below because both read the same bytes.
+    let payload_len = match (options.format, capture) {
+        (RecordFormat::Fixed, _)
+        | (RecordFormat::RDW | RecordFormat::Vb, Some(RawCapture::Record)) => raw_data.len(),
+        (RecordFormat::RDW, _) => parse_raw_rdw_frame(&raw_data)?.1.len(),
+        (RecordFormat::Vb, _) => parse_vb_raw_rdw_frame(&raw_data)?.1.len(),
+    };
+
     match options.format {
         RecordFormat::Fixed => encode_fixed_raw_replay(raw_data, capture),
         RecordFormat::RDW => encode_rdw_raw_replay(
@@ -1933,7 +1981,7 @@ fn encode_raw_replay(
         ),
         RecordFormat::Vb => encode_vb_raw_replay(raw_data, capture),
     }
-    .map(Some)
+    .map(|framed| Some((framed, payload_len)))
 }
 
 /// Replay captured VB raw bytes into one BDW block.
@@ -4032,6 +4080,7 @@ fn write_json_record<W: Write>(output: &mut W, value: &Value) -> Result<()> {
 fn encode_worker_pool(
     schema: &Schema,
     options: &EncodeOptions,
+    policy: ExecutionPolicy,
 ) -> crate::memory::WorkerPool<Value, Result<Vec<u8>>> {
     let workers = effective_worker_count(options.threads);
     let channel_capacity = workers.saturating_mul(4).max(1);
@@ -4044,7 +4093,9 @@ fn encode_worker_pool(
         channel_capacity,
         max_window_size,
         move |json_value: Value, _scratch: &mut crate::memory::ScratchBuffers| {
-            encode_record(&schema, &json_value, &options)
+            // Worker tasks carry no stream position: bound failures name the
+            // format, produced length, and bound without a record index.
+            encode_record_impl(&schema, &json_value, &options, policy, None)
         },
     )
 }
@@ -4142,11 +4193,12 @@ fn process_encode_jsonl_parallel<R: BufRead, W: Write>(
     reader: R,
     output: &mut W,
     options: &EncodeOptions,
+    policy: ExecutionPolicy,
     summary: &mut RunSummary,
 ) -> Result<u64> {
     let workers = effective_worker_count(options.threads);
     let batch_capacity = workers.saturating_mul(4).max(1);
-    let mut pool = encode_worker_pool(schema, options);
+    let mut pool = encode_worker_pool(schema, options, policy);
     let mut records_seen = 0_u64;
     let mut records_before_batch = 0_u64;
     let mut batch_len = 0_usize;
@@ -4300,46 +4352,11 @@ pub fn encode_jsonl_to_file(
     summary.set_schema_fingerprint(schema.fingerprint.clone());
 
     let reader = BufReader::new(input);
+    let policy = ExecutionPolicy::direct(false);
     let record_count = if options.threads > 1 {
-        process_encode_jsonl_parallel(schema, reader, &mut output, options, &mut summary)?
+        process_encode_jsonl_parallel(schema, reader, &mut output, options, policy, &mut summary)?
     } else {
-        let mut records_seen = 0u64;
-        let mut records_processed = 0u64;
-
-        for line in reader.lines() {
-            let line =
-                line.map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-
-            if line.trim().is_empty() {
-                continue;
-            }
-
-            records_seen += 1;
-
-            // Parse JSON
-            let json_value: Value = serde_json::from_str(&line)
-                .map_err(|e| Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, e.to_string()))?;
-
-            // Encode to binary
-            match encode_record(schema, &json_value, options) {
-                Ok(binary_data) => {
-                    output.write_all(&binary_data).map_err(|e| {
-                        Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                    })?;
-                    summary.bytes_processed += binary_data.len() as u64;
-                    records_processed += 1;
-                }
-                Err(error) => {
-                    summary.note_failure(records_seen, &error);
-                    telemetry::record_error(error.family_prefix());
-                    if options.strict_mode {
-                        break;
-                    }
-                }
-            }
-        }
-
-        records_processed
+        process_encode_jsonl_sequential(schema, reader, &mut output, options, policy, &mut summary)?
     };
 
     summary.records_processed = record_count;
@@ -4348,6 +4365,98 @@ pub fn encode_jsonl_to_file(
     summary.calculate_throughput();
 
     Ok(summary)
+}
+
+/// Encode JSONL records under a reviewed [`ExecutionPolicy`].
+///
+/// The reviewed `maximum_record_length` bound governs the logical payload
+/// bytes produced for every record on Fixed, RDW, and VB paths, including
+/// `--use-raw` replay: an over-cap record fails with
+/// `CBKF226_RECORD_BOUND_EXCEEDED` before its bytes reach the output. A
+/// fixed layout the cap cannot hold fails pre-execution, before input is
+/// consumed, leaving output absent. Per-record failures follow the
+/// configured fail-fast/error-budget policy with exact accounting.
+///
+/// # Errors
+///
+/// Returns the input, encoding, or bound error that stops the run.
+pub fn encode_jsonl_to_file_with_policy(
+    schema: &Schema,
+    input: impl Read,
+    mut output: impl Write,
+    options: &EncodeOptions,
+    policy: ExecutionPolicy,
+) -> Result<RunSummary> {
+    let start_time = std::time::Instant::now();
+    let mut summary = RunSummary::with_threads(effective_worker_count(options.threads));
+    summary.set_schema_fingerprint(schema.fingerprint.clone());
+
+    if options.format == RecordFormat::Fixed
+        && let Some(lrecl) = schema.lrecl_fixed
+    {
+        policy.check_fixed_lrecl(lrecl)?;
+    }
+
+    let reader = BufReader::new(input);
+    let record_count = if options.threads > 1 {
+        process_encode_jsonl_parallel(schema, reader, &mut output, options, policy, &mut summary)?
+    } else {
+        process_encode_jsonl_sequential(schema, reader, &mut output, options, policy, &mut summary)?
+    };
+
+    summary.records_processed = record_count;
+    let elapsed_ms = start_time.elapsed().as_millis();
+    summary.processing_time_ms = u64::try_from(elapsed_ms).unwrap_or(u64::MAX);
+    summary.calculate_throughput();
+
+    Ok(summary)
+}
+
+fn process_encode_jsonl_sequential<R: BufRead, W: Write>(
+    schema: &Schema,
+    reader: R,
+    output: &mut W,
+    options: &EncodeOptions,
+    policy: ExecutionPolicy,
+    summary: &mut RunSummary,
+) -> Result<u64> {
+    let mut records_seen = 0u64;
+    let mut records_processed = 0u64;
+
+    for line in reader.lines() {
+        let line =
+            line.map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        records_seen += 1;
+
+        // Parse JSON
+        let json_value: Value = serde_json::from_str(&line)
+            .map_err(|e| Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, e.to_string()))?;
+
+        // Encode to binary
+        match encode_record_impl(schema, &json_value, options, policy, Some(records_seen)) {
+            Ok(binary_data) => {
+                output
+                    .write_all(&binary_data)
+                    .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+                summary.bytes_processed += binary_data.len() as u64;
+                records_processed += 1;
+            }
+            Err(error) => {
+                summary.note_failure(records_seen, &error);
+                telemetry::record_error(error.family_prefix());
+                if options.strict_mode {
+                    break;
+                }
+            }
+        }
+    }
+
+    Ok(records_processed)
 }
 
 /// Helper function to format zoned decimal with proper digit padding

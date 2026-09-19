@@ -38,7 +38,7 @@ stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "CLI layer rides the format plane (see relationships); row-level CLI anchors pending. Round-trip is directly evidenced; unseen-payload counter validity is out of scope."
 shared_evidence_relationships = ["fixed-rdw:format.fixed.basic"]
 
-last_verified_full_sha = "10f5166520d63da45c6e77c064e0a7c76139e7cb"
+last_verified_full_sha = "77fadec2d0f8ce80c1b20c7f7233fe18d36930e2"
 
 [[scenarios]]
 scenario_id = "struct.odo.tail_rdw_variable"
@@ -69,7 +69,7 @@ stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "Parallel proof is decode-side; layout and CLI ride linked plane rows."
 shared_evidence_relationships = ["fixed-rdw:format.rdw.odo_variable"]
 
-last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+last_verified_full_sha = "77fadec2d0f8ce80c1b20c7f7233fe18d36930e2"
 
 [[scenarios]]
 scenario_id = "struct.odo.counter_array_consistency"
@@ -97,7 +97,7 @@ stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "Exact mismatch rejection code to be linked during #576 reconciliation."
 shared_evidence_relationships = ["fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.odo_variable"]
 
-last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+last_verified_full_sha = "77fadec2d0f8ce80c1b20c7f7233fe18d36930e2"
 
 [[scenarios]]
 scenario_id = "struct.odo.not_tail"
@@ -234,7 +234,7 @@ stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "No support-matrix feature ID exists for REDEFINES; this row owns structural status directly."
 shared_evidence_relationships = ["fixed-rdw:format.fixed.basic"]
 
-last_verified_full_sha = "4f8114f07fd088705c24e0c4613a09969bc95fef"
+last_verified_full_sha = "77fadec2d0f8ce80c1b20c7f7233fe18d36930e2"
 
 [[scenarios]]
 scenario_id = "struct.redefines.group"
@@ -264,7 +264,7 @@ stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "Declaration-order and named-view contract asserted by the decode anchor; see the support matrix structural note."
 shared_evidence_relationships = ["fixed-rdw:format.fixed.basic"]
 
-last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+last_verified_full_sha = "77fadec2d0f8ce80c1b20c7f7233fe18d36930e2"
 
 [[scenarios]]
 scenario_id = "struct.redefines.short_equal_long"
@@ -366,7 +366,7 @@ stable_error_or_rejection_identity = "none"
 known_limitations_or_remediation = "Raw-data precedence is the pinned policy; unsupported interaction shapes reject in their own rows."
 shared_evidence_relationships = ["ledger:struct.redefines.scalar", "fixed-rdw:format.fixed.basic", "fixed-rdw:format.rdw.basic"]
 
-last_verified_full_sha = "2cde1ed1aa699fca10c41ee6298670a5458e98f3"
+last_verified_full_sha = "77fadec2d0f8ce80c1b20c7f7233fe18d36930e2"
 
 [[scenarios]]
 scenario_id = "struct.renames.r1_r3"

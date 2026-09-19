@@ -671,10 +671,14 @@ flags are the per-run overrides. Exactly one value wins per field:
 
 A flag that disagrees with the profile is a contradiction, not a
 precedence decision: the run stops with exit code 3 and subcode `402`,
-naming the profile key and both values. An unreadable or invalid profile
-is also exit 3 (subcode `403`). A flag equal to the profile value agrees
-and the run proceeds. `--strict` and `--fail-fast` are orthogonal to the
-profile and pass through unchanged (there is no profile counterpart yet).
+naming the profile key and both values. An invalid profile is also exit 3
+(subcode `403`); an unreadable profile path is exit 3 with the distinct
+subcode `405`, and a set-but-unknown `COPYBOOK_DIALECT` value is exit 3
+with subcode `406` — the environment is only consulted (and only rejected)
+when neither the flag nor the profile supplies the value. A flag equal to
+the profile value agrees and the run proceeds. `--strict` and `--fail-fast`
+are orthogonal to the profile and pass through unchanged (there is no
+profile counterpart yet).
 
 Profile keys and their flag equivalents:
 

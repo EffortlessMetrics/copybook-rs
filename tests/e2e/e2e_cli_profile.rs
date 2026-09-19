@@ -145,6 +145,30 @@ fn decode_profile_equal_flags_agree() {
 }
 
 #[test]
+fn decode_profile_dialect_survives_invalid_env() {
+    // Precedence is flag > profile > env: when the profile supplies a
+    // dialect, an unrelated invalid COPYBOOK_DIALECT must not abort the run
+    // (#1126). The environment is only rejected when it is actually
+    // consulted.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let out = dir.path().join("out.jsonl");
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+
+    cmd()
+        .env("COPYBOOK_DIALECT", "unsupported")
+        .args(["decode", "--profile"])
+        .arg(&profile)
+        .args(["--output"])
+        .arg(&out)
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .success();
+}
+
+#[test]
 fn decode_profile_format_conflict() {
     let dir = tempfile::tempdir().expect("tempdir");
     let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
@@ -204,7 +228,8 @@ fn decode_profile_missing_file() {
         .assert()
         .failure()
         .code(3)
-        .stderr(predicate::str::contains("profile"));
+        .stderr(predicate::str::contains("profile"))
+        .stderr(predicate::str::contains("subcode=405"));
 }
 
 #[test]
@@ -226,7 +251,8 @@ fn decode_profile_invalid_toml() {
         .assert()
         .failure()
         .code(3)
-        .stderr(predicate::str::contains("profile"));
+        .stderr(predicate::str::contains("profile"))
+        .stderr(predicate::str::contains("subcode=403"));
 }
 
 #[test]

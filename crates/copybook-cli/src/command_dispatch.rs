@@ -63,59 +63,8 @@ pub(crate) fn run_command(
             commands::determinism::run(&command, feature_flags),
             "determinism",
         ),
-        Commands::Doctor {
-            copybook,
-            input,
-            format,
-            codepage,
-            sample,
-            json,
-            strict_comments,
-            dialect,
-            emit_profile,
-        } => (
-            commands::doctor::run(
-                &copybook,
-                input,
-                format,
-                codepage,
-                sample,
-                json,
-                strict_comments,
-                crate::cli_config::effective_dialect(dialect),
-                verbose,
-                emit_profile,
-                dialect,
-            ),
-            "doctor",
-        ),
-        Commands::Explain {
-            code,
-            format,
-            copybook,
-            input,
-            record,
-            record_format,
-            codepage,
-            strict,
-            strict_comments,
-            dialect,
-        } => (
-            commands::explain::run(&commands::explain::ExplainArgs {
-                code,
-                format,
-                copybook,
-                input,
-                record,
-                record_format,
-                codepage,
-                strict,
-                strict_comments,
-                dialect: crate::cli_config::effective_dialect(dialect).into(),
-                feature_flags,
-            }),
-            "explain",
-        ),
+        command @ Commands::Doctor { .. } => run_doctor_command(command, verbose),
+        command @ Commands::Explain { .. } => run_explain_command(command, feature_flags),
         Commands::Compat {
             base,
             head,
@@ -148,6 +97,83 @@ fn dispatch_mismatch(operation: &'static str) -> CommandOutcome {
     )
 }
 
+fn run_doctor_command(command: Commands, verbose: bool) -> CommandOutcome {
+    let Commands::Doctor {
+        copybook,
+        input,
+        format,
+        codepage,
+        sample,
+        json,
+        strict_comments,
+        dialect,
+        emit_profile,
+    } = command
+    else {
+        return dispatch_mismatch("doctor");
+    };
+
+    let resolved = match crate::cli_config::effective_dialect(dialect) {
+        Ok(dialect) => dialect,
+        Err(error) => return dialect_env_failure("doctor", &error),
+    };
+    (
+        commands::doctor::run(
+            &copybook,
+            input,
+            format,
+            codepage,
+            sample,
+            json,
+            strict_comments,
+            resolved,
+            verbose,
+            emit_profile,
+            dialect,
+        ),
+        "doctor",
+    )
+}
+
+fn run_explain_command(command: Commands, feature_flags: &FeatureFlags) -> CommandOutcome {
+    let Commands::Explain {
+        code,
+        format,
+        copybook,
+        input,
+        record,
+        record_format,
+        codepage,
+        strict,
+        strict_comments,
+        dialect,
+    } = command
+    else {
+        return dispatch_mismatch("explain");
+    };
+
+    let resolved = match crate::cli_config::effective_dialect(dialect) {
+        Ok(dialect) => dialect,
+        Err(error) => return dialect_env_failure("explain", &error),
+    };
+    (
+        commands::explain::run(&commands::explain::ExplainArgs {
+            code,
+            format,
+            copybook,
+            input,
+            record,
+            record_format,
+            codepage,
+            strict,
+            strict_comments,
+            dialect: copybook::core::dialect::Dialect::from(resolved),
+            feature_flags,
+        }),
+        "explain",
+    )
+}
+
 fn run_parse_command(command: Commands, feature_flags: &FeatureFlags) -> CommandOutcome {
     let Commands::Parse {
         copybook,
@@ -160,7 +186,10 @@ fn run_parse_command(command: Commands, feature_flags: &FeatureFlags) -> Command
         return dispatch_mismatch("parse");
     };
 
-    let effective_dialect = effective_dialect(dialect);
+    let effective_dialect = match effective_dialect(dialect) {
+        Ok(dialect) => dialect,
+        Err(error) => return dialect_env_failure("parse", &error),
+    };
     (
         commands::parse::run(
             &copybook,
@@ -203,7 +232,10 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
         );
     }
 
-    let effective_dialect = effective_dialect(dialect);
+    let effective_dialect = match effective_dialect(dialect) {
+        Ok(dialect) => dialect,
+        Err(error) => return dialect_env_failure("inspect", &error),
+    };
     (
         commands::inspect::run(
             &copybook,
@@ -215,6 +247,27 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
         ),
         "inspect",
     )
+}
+
+/// An environment input naming no known value. Dispatch renders this as
+/// structured diagnostics with an `Encode` (validation) exit, never as a
+/// silent default or an internal error.
+fn dialect_env_failure(
+    op: &'static str,
+    error: &crate::cli_config::DialectEnvError,
+) -> CommandOutcome {
+    let message = error.to_string();
+    let diagnostics = crate::ExitDiagnostics::new(
+        crate::ExitCode::Encode,
+        &message,
+        op,
+        "", // op_stage will be overridden by emit_exit_diagnostics_stage
+        tracing::Level::ERROR,
+        crate::ExitCode::Encode.as_i32(),
+    )
+    .with_subcode(Some(crate::subcode::ENV_INVALID));
+    crate::emit_exit_diagnostics_stage(&diagnostics, crate::Stage::Execute);
+    (Ok(crate::ExitCode::Encode), op)
 }
 
 /// A refused `--emit-manifest` target: an existing file without

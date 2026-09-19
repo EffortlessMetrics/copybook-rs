@@ -604,8 +604,25 @@ fn env_var_invalid_dialect_produces_error() {
         .arg(temp_path(&dir, "schema.cpy"))
         .output()
         .expect("run parse");
-    // Invalid env var should produce error or be silently ignored (no panic).
-    assert_no_panic(&stderr_str(&output));
+    // An env value naming no known dialect is rejected explicitly: validation
+    // exit (3), ENV_INVALID subcode (406), named variable and accepted values.
+    // It never falls back to the normative default silently.
+    assert_eq!(
+        output.status.code(),
+        Some(3),
+        "stderr: {}",
+        stderr_str(&output)
+    );
+    let stderr = stderr_str(&output);
+    assert!(
+        stderr.contains("invalid COPYBOOK_DIALECT"),
+        "stderr names the rejected variable: {stderr}"
+    );
+    assert!(
+        stderr.contains("subcode=406"),
+        "stderr carries the ENV_INVALID subcode: {stderr}"
+    );
+    assert_no_panic(&stderr);
 }
 
 // =========================================================================

@@ -200,6 +200,10 @@ pub enum ReservedPolicy {
     Lenient,
 }
 
+/// Maximum accepted profile document size in bytes: profiles are small
+/// reviewed TOML documents, never data payloads.
+pub const MAX_PROFILE_BYTES: u64 = 1_048_576;
+
 /// Failure to parse or validate a profile document.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProfileError {
@@ -217,6 +221,11 @@ pub enum ProfileError {
         /// Value found in the document.
         value: u64,
     },
+    /// The document exceeds [`MAX_PROFILE_BYTES`].
+    ProfileTooLarge {
+        /// Document size in bytes.
+        found: u64,
+    },
 }
 
 impl fmt::Display for ProfileError {
@@ -233,6 +242,12 @@ impl fmt::Display for ProfileError {
                     "profile {field} value {value} is outside its documented bound"
                 )
             }
+            Self::ProfileTooLarge { found } => {
+                write!(
+                    f,
+                    "profile document is {found} bytes, exceeding the limit of {MAX_PROFILE_BYTES}"
+                )
+            }
         }
     }
 }
@@ -244,12 +259,17 @@ impl InterpretationProfile {
     ///
     /// # Errors
     ///
-    /// Returns [`ProfileError`] when the TOML is malformed, carries unknown
-    /// keys or values, declares an unreadable schema version, or violates a
+    /// Returns [`ProfileError`] when the document exceeds
+    /// [`MAX_PROFILE_BYTES`], the TOML is malformed, carries unknown keys or
+    /// values, declares an unreadable schema version, or violates a
     /// documented limit bound.
     #[must_use = "Handle the Result or propagate the error"]
     #[inline]
     pub fn parse(text: &str) -> Result<Self, ProfileError> {
+        let len = u64::try_from(text.len()).unwrap_or(u64::MAX);
+        if len > MAX_PROFILE_BYTES {
+            return Err(ProfileError::ProfileTooLarge { found: len });
+        }
         let profile: Self =
             toml::from_str(text).map_err(|error| ProfileError::InvalidToml(error.to_string()))?;
         profile.validate()?;

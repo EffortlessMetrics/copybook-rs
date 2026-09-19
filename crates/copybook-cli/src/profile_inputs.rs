@@ -101,6 +101,8 @@ pub(crate) enum ProfileInputError {
     Conflict(ConflictError),
     /// A required value is missing and no layer supplies it.
     Missing { message: String },
+    /// An environment input names no known value.
+    Env(crate::cli_config::DialectEnvError),
 }
 
 impl std::fmt::Display for ProfileInputError {
@@ -114,6 +116,7 @@ impl std::fmt::Display for ProfileInputError {
             }
             Self::Conflict(conflict) => write!(formatter, "{conflict}"),
             Self::Missing { message, .. } => write!(formatter, "{message}"),
+            Self::Env(error) => write!(formatter, "{error}"),
         }
     }
 }
@@ -122,10 +125,10 @@ impl ProfileInputError {
     /// Machine sub-code for structured diagnostics (`4xx` policy range).
     pub(crate) fn subcode(&self) -> u16 {
         match self {
-            Self::Unreadable { .. } | Self::Invalid { .. } | Self::Missing { .. } => {
-                crate::subcode::PROFILE_INVALID
-            }
+            Self::Unreadable { .. } => crate::subcode::PROFILE_UNREADABLE,
+            Self::Invalid { .. } | Self::Missing { .. } => crate::subcode::PROFILE_INVALID,
             Self::Conflict(_) => crate::subcode::PROFILE_CONFLICT,
+            Self::Env(_) => crate::subcode::ENV_INVALID,
         }
     }
 }
@@ -153,17 +156,17 @@ pub(crate) fn load_profile(
         .map(Some)
 }
 
-/// Ambient `COPYBOOK_DIALECT` input, if set. An invalid value says nothing
-/// (the default applies); changing that silent fallback is out of scope for
-/// profile consumption.
-fn dialect_env() -> Option<Dialect> {
-    let value = std::env::var("COPYBOOK_DIALECT").ok()?;
-    match value.trim().to_ascii_lowercase().as_str() {
-        "0" => Some(Dialect::ZeroTolerant),
-        "1" => Some(Dialect::OneTolerant),
-        "n" | "normative" => Some(Dialect::Normative),
-        _ => None,
-    }
+/// Ambient `COPYBOOK_DIALECT` input, if set.
+///
+/// # Errors
+///
+/// Returns [`ProfileInputError::Env`] when the variable is set but names no
+/// known dialect: an invalid value is rejected explicitly, never a silent
+/// default.
+fn dialect_env() -> Result<Option<Dialect>, ProfileInputError> {
+    crate::cli_config::parse_dialect_env(std::env::var_os(crate::cli_config::DIALECT_ENV_VAR))
+        .map(|option| option.map(Dialect::from))
+        .map_err(ProfileInputError::Env)
 }
 
 /// Resolve the framing inputs shared by `decode` and `verify`.
@@ -213,11 +216,20 @@ pub(crate) fn resolve_common(
     )
     .map_err(ProfileInputError::Conflict)?;
 
+    // The environment is consulted only when neither the flag nor the
+    // profile supplies a dialect: a higher-precedence value wins without
+    // forcing an unrelated invalid `COPYBOOK_DIALECT` to abort the run.
+    let profile_dialect = profile.map(|profile| Dialect::from(profile.source.dialect));
+    let env_dialect = if dialect_flag.is_none() && profile_dialect.is_none() {
+        dialect_env()?
+    } else {
+        None
+    };
     let dialect = resolve_field(
         DIALECT_PROFILE_KEY,
         dialect_flag.map(Dialect::from),
-        profile.map(|profile| Dialect::from(profile.source.dialect)),
-        dialect_env(),
+        profile_dialect,
+        env_dialect,
         Dialect::Normative,
     )
     .map_err(ProfileInputError::Conflict)?;
@@ -424,7 +436,7 @@ mod tests {
         let error = load_profile(Some(Path::new("/nonexistent/profile.toml")))
             .expect_err("missing file must fail");
         assert!(matches!(error, ProfileInputError::Unreadable { .. }));
-        assert_eq!(error.subcode(), crate::subcode::PROFILE_INVALID);
+        assert_eq!(error.subcode(), crate::subcode::PROFILE_UNREADABLE);
     }
 
     #[test]

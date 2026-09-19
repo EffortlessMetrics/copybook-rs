@@ -42,7 +42,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -53,19 +53,12 @@ jobs:
           python3 scripts/ci/test_generate_ripr_test_efficiency_inventory.py
           python3 scripts/ci/test_evidence_badges.py
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: evidence-badge-tools
-
       - name: Install pinned evidence tools
         run: |
           set -euo pipefail
-          cargo install "ripr@${RIPR_VERSION}" --locked
-          cargo install "unsafe-review@${UNSAFE_REVIEW_VERSION}" --locked
+          rustup toolchain install stable --profile minimal
+          cargo +stable install ripr --version "${RIPR_VERSION}" --locked
+          cargo +stable install unsafe-review --version "${UNSAFE_REVIEW_VERSION}" --locked
           ripr --version
           unsafe-review --version
 
@@ -112,7 +105,7 @@ jobs:
           PY
 
       - name: Upload generated evidence
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: evidence-badges-${{ github.run_id }}
           path: target/evidence-badges/
@@ -136,7 +129,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download generated endpoints
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: evidence-badges-${{ github.run_id }}
           path: target/evidence-badges
@@ -161,6 +154,7 @@ jobs:
           fi
 
           branch="automation/evidence-badges"
+          gh auth setup-git
           git config user.name "EffortlessSteven"
           git config user.email "15812269+EffortlessSteven@users.noreply.github.com"
           git switch -C "${branch}"

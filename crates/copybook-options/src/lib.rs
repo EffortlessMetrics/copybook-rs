@@ -6,3 +6,4 @@
 pub use copybook_codec::options::*;
 
 pub mod profile;
+pub mod resolve;

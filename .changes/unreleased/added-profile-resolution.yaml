@@ -1,0 +1,8 @@
+kind: added
+body: '**options**: effective-option resolution
+  (`copybook_options::resolve`): one value per field across explicit flag,
+  reviewed profile, environment, and product default, with the supplying
+  layer reported. A flag that disagrees with the profile fails with a
+  `ConflictError` naming the field and both values instead of applying a
+  silent precedence.'
+time: '2026-09-19T02:30:00Z'

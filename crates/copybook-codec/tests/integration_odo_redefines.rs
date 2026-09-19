@@ -40,6 +40,7 @@ fn test_odo_redefines_integration() {
         emit_meta: false,
         emit_raw: RawMode::Off,
         strict_mode: false,
+        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: UnmappablePolicy::Error,
         threads: 1,
@@ -80,6 +81,7 @@ fn test_comprehensive_error_context() {
         emit_meta: false,
         emit_raw: RawMode::Off,
         strict_mode: true, // Strict mode to trigger errors
+        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: UnmappablePolicy::Error,
         threads: 1,

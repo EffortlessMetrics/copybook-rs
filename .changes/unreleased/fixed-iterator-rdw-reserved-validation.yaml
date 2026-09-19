@@ -1,0 +1,11 @@
+kind: fixed
+body: '**codec**: the record iterator (`RecordIterator`, used by `verify`
+  and occurrence paths) now validates RDW reserved bytes with the same
+  contract as the bulk decode path: non-zero reserved bytes fail with
+  `CBKR211_RDW_RESERVED_NONZERO` in strict framing mode and warn-and-continue
+  otherwise. Previously the iterator never validated reserved bytes, so
+  `verify` could not catch framing the bulk decoder rejects under
+  `--strict`. Strict framing now follows `strict_mode` or the new
+  `DecodeOptions::strict_reserved_bytes` knob (serde-defaulted, so stored
+  option documents still parse).'
+time: '2026-09-19T04:00:00Z'

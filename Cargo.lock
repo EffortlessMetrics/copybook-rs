@@ -840,6 +840,7 @@ dependencies = [
  "copybook-audit",
  "copybook-codec",
  "copybook-governance",
+ "copybook-options",
  "metrics",
  "metrics-exporter-prometheus",
  "os_pipe",

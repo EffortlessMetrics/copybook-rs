@@ -40,6 +40,7 @@ pub struct DecodeArgs<'a> {
     pub preferred_zoned_encoding: copybook::codec::ZonedEncodingFormat,
     pub float_format: FloatFormat,
     pub strict_policy: bool,
+    pub strict_reserved_bytes: bool,
     pub dialect: copybook::core::dialect::Dialect,
     pub select: &'a [String],
     pub feature_flags: &'a copybook::core::FeatureFlags,
@@ -116,6 +117,7 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
         .with_strict_mode(error_policy.strict_mode)
         .with_max_errors(error_policy.max_errors)
         .with_unmappable_policy(args.on_decode_unmappable)
+        .with_strict_reserved_bytes(args.strict_reserved_bytes)
         .with_threads(args.threads)
         .with_preserve_zoned_encoding(args.preserve_zoned_encoding)
         .with_preferred_zoned_encoding(args.preferred_zoned_encoding)

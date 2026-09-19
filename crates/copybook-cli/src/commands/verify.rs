@@ -103,6 +103,7 @@ pub struct VerifyOptions<'a> {
     pub max_errors: u32,
     pub sample: u32,
     pub strict_comments: bool,
+    pub strict_reserved_bytes: bool,
     pub dialect: copybook::core::dialect::Dialect,
     pub select: &'a [String],
 }
@@ -151,6 +152,7 @@ pub fn run(
         .with_emit_meta(false)
         .with_emit_raw(RawMode::Off)
         .with_strict_mode(opts.strict)
+        .with_strict_reserved_bytes(opts.strict_reserved_bytes)
         .with_max_errors(Some(u64::from(opts.max_errors)))
         .with_unmappable_policy(UnmappablePolicy::Error)
         .with_threads(1) // Single-threaded for deterministic error reporting

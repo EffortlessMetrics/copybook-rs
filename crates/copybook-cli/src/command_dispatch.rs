@@ -13,6 +13,34 @@ use std::convert::TryFrom;
 
 type CommandOutcome = (anyhow::Result<ExitCode>, &'static str);
 
+/// Render a `--profile` load/resolution failure as structured diagnostics.
+///
+/// Profile problems are invalid run configuration (validation failure,
+/// exit 3), never an internal error: the operator must edit the flag or
+/// the profile so they agree.
+fn profile_failure(
+    op: &'static str,
+    error: &crate::profile_inputs::ProfileInputError,
+) -> CommandOutcome {
+    let message = match error {
+        crate::profile_inputs::ProfileInputError::Conflict(_) => {
+            format!("{error} (edit the profile or the corresponding command flag so they agree)")
+        }
+        _ => error.to_string(),
+    };
+    let diagnostics = crate::ExitDiagnostics::new(
+        ExitCode::Encode,
+        &message,
+        op,
+        "", // op_stage will be overridden by emit_exit_diagnostics_stage
+        tracing::Level::ERROR,
+        ExitCode::Encode.as_i32(),
+    )
+    .with_subcode(Some(error.subcode()));
+    crate::emit_exit_diagnostics_stage(&diagnostics, crate::Stage::Execute);
+    (Ok(ExitCode::Encode), op)
+}
+
 pub(crate) fn run_command(
     command: Commands,
     strict_policy: bool,
@@ -177,6 +205,7 @@ fn run_decode_command(
         copybook,
         input,
         output,
+        profile,
         format,
         codepage,
         json_number,
@@ -199,29 +228,51 @@ fn run_decode_command(
         return dispatch_mismatch("decode");
     };
 
-    let effective_dialect = effective_dialect(dialect);
+    let loaded = match crate::profile_inputs::load_profile(profile.as_deref()) {
+        Ok(loaded) => loaded,
+        Err(error) => return profile_failure("decode", &error),
+    };
+    let common = match crate::profile_inputs::resolve_common(
+        format,
+        codepage,
+        dialect,
+        max_errors,
+        loaded.as_ref(),
+    ) {
+        Ok(common) => common,
+        Err(error) => return profile_failure("decode", &error),
+    };
+    let decode_only = match crate::profile_inputs::resolve_decode(
+        json_number,
+        on_decode_unmappable,
+        loaded.as_ref(),
+    ) {
+        Ok(decode_only) => decode_only,
+        Err(error) => return profile_failure("decode", &error),
+    };
     (
         commands::decode::run(&commands::decode::DecodeArgs {
             copybook: &copybook,
             input: &input,
             output: &output,
-            format,
-            codepage,
-            json_number,
+            format: common.format,
+            codepage: common.codepage,
+            json_number: decode_only.json_number,
             strict,
-            max_errors,
+            max_errors: common.max_errors,
             fail_fast,
             emit_filler,
             emit_meta,
             emit_raw,
-            on_decode_unmappable,
+            on_decode_unmappable: decode_only.unmappable,
             threads,
             strict_comments,
             preserve_zoned_encoding,
             preferred_zoned_encoding: preferred_zoned_encoding_cli.into(),
             float_format,
             strict_policy,
-            dialect: effective_dialect.into(),
+            strict_reserved_bytes: common.strict_reserved_bytes,
+            dialect: common.dialect,
             select: &select,
             feature_flags,
         }),
@@ -308,6 +359,7 @@ fn run_verify_command(command: Commands, feature_flags: &FeatureFlags) -> Comman
         copybook,
         input,
         report,
+        profile,
         format,
         codepage,
         strict,
@@ -321,8 +373,23 @@ fn run_verify_command(command: Commands, feature_flags: &FeatureFlags) -> Comman
         return dispatch_mismatch("verify");
     };
 
-    let effective_dialect = effective_dialect(dialect);
-    let value = max_errors.unwrap_or(10);
+    let loaded = match crate::profile_inputs::load_profile(profile.as_deref()) {
+        Ok(loaded) => loaded,
+        Err(error) => return profile_failure("verify", &error),
+    };
+    let common = match crate::profile_inputs::resolve_common(
+        format,
+        codepage,
+        dialect,
+        max_errors,
+        loaded.as_ref(),
+    ) {
+        Ok(common) => common,
+        Err(error) => return profile_failure("verify", &error),
+    };
+    // Verify keeps its historical default budget of 10 when neither a flag
+    // nor a profile sets one.
+    let value = common.max_errors.unwrap_or(10);
     let Ok(normalized_max_errors) = u32::try_from(value) else {
         return (
             Err(anyhow!(
@@ -334,13 +401,14 @@ fn run_verify_command(command: Commands, feature_flags: &FeatureFlags) -> Comman
     };
 
     let opts = commands::verify::VerifyOptions {
-        format,
-        codepage,
+        format: common.format,
+        codepage: common.codepage,
         strict,
         max_errors: normalized_max_errors,
         sample: sample.unwrap_or(5),
         strict_comments,
-        dialect: effective_dialect.into(),
+        strict_reserved_bytes: common.strict_reserved_bytes,
+        dialect: common.dialect,
         select: &select,
     };
     (

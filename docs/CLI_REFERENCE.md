@@ -107,7 +107,8 @@ copybook decode <COPYBOOK> <DATA> [OPTIONS]
 
 **Output:**
 - `-o, --output <FILE>` - Output JSONL file (required; use `-` for stdout)
-- `--format <FORMAT>` - Record format: fixed, rdw (required)
+- `--profile <FILE>` - Reviewed interpretation profile (TOML); supplies framing, decode options, dialect, and error budget (see Interpretation Profiles)
+- `--format <FORMAT>` - Record format: fixed, rdw (required unless `--profile` supplies framing)
 - `--select <FIELD[,FIELD...]>` - Include only specific fields in output (comma-separated or repeated); ODO counters and parent groups are included automatically
 
 **Character Encoding:**
@@ -187,6 +188,10 @@ copybook decode customer.cpy data.bin \
   --format fixed \
   --select "CUSTOMER-ID,BALANCE" \
   --output selected.jsonl
+
+# Decode from a reviewed interpretation profile (no --format needed)
+copybook decode --profile customer.toml customer.cpy data.bin \
+  --output data.jsonl
 ```
 
 ### encode
@@ -278,7 +283,8 @@ copybook verify <COPYBOOK> <DATA> [OPTIONS]
 - `<DATA>` - Path to binary data file
 
 **Options:**
-- `--format <FORMAT>` - Record format: fixed, rdw (required)
+- `--profile <FILE>` - Reviewed interpretation profile (TOML); supplies framing, codepage, dialect, and error budget (see Interpretation Profiles)
+- `--format <FORMAT>` - Record format: fixed, rdw (required unless `--profile` supplies framing)
 - `--codepage <CP>` - Character encoding (default: cp037)
 - `--strict` - Enable strict mode validation
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility (affects copybook parsing only, not data validation)
@@ -627,6 +633,66 @@ The `--dialect` flag is supported on all copybook-processing commands:
 - `decode`
 - `encode`
 - `verify`
+
+## Interpretation Profiles
+
+`decode` and `verify` accept `--profile <FILE>`, a reviewed TOML document
+that records what a copybook and its bytes mean: framing, decode options,
+dialect, and error budget. The profile is the reviewed intent; command
+flags are the per-run overrides. Exactly one value wins per field:
+
+1. Explicit command flag (strongest)
+2. Reviewed profile
+3. Ambient environment (`COPYBOOK_DIALECT` only)
+4. Product default
+
+A flag that disagrees with the profile is a contradiction, not a
+precedence decision: the run stops with exit code 3 and subcode `402`,
+naming the profile key and both values. An unreadable or invalid profile
+is also exit 3 (subcode `403`). A flag equal to the profile value agrees
+and the run proceeds. `--strict` and `--fail-fast` are orthogonal to the
+profile and pass through unchanged (there is no profile counterpart yet).
+
+Profile keys and their flag equivalents:
+
+| Profile key | Flag | Default without profile |
+| --- | --- | --- |
+| `framing.kind` (`fixed`, `rdw`, `vb`) | `--format` | none (`--format` required) |
+| `decode.codepage` | `--codepage` | `cp037` |
+| `decode.unmappable` | `--on-decode-unmappable` | `error` |
+| `decode.json_numbers` (`decode` only) | `--json-number` | `lossless` |
+| `source.dialect` | `--dialect` | `n` (normative) |
+| `limits.maximum_errors` | `--max-errors` | unlimited (`decode`), `10` (`verify`) |
+
+`framing.reserved_bytes = "strict"` fails non-zero RDW/BDW reserved bytes
+(`CBKR211_RDW_RESERVED_NONZERO` / `CBKF225_BDW_RESERVED_NONZERO`) without
+enabling full `--strict` record handling. `"lenient"` keeps the current
+warn-and-continue behavior. `limits.maximum_record_length` is validated
+when the profile loads but is not yet enforced against records.
+
+```toml
+schema_version = 1
+[source]
+dialect = "normative"
+[framing]
+kind = "fixed"
+reserved_bytes = "lenient"
+[decode]
+codepage = "cp037"
+unmappable = "error"
+json_numbers = "lossless"
+[limits]
+maximum_record_length = 32760
+maximum_errors = 100
+```
+
+```bash
+# Decode entirely from reviewed intent (no --format needed)
+copybook decode --profile customer.toml customer.cpy extract.dat -o extract.jsonl
+
+# Verify against the same reviewed intent
+copybook verify --profile customer.toml customer.cpy extract.dat
+```
 
 ## Environment Variables
 

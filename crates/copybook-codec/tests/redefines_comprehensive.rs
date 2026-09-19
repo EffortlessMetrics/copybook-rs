@@ -148,6 +148,7 @@ fn test_redefines_decode_all_views() -> TestResult {
         emit_meta: false,
         emit_raw: RawMode::Off,
         strict_mode: false,
+        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
@@ -273,6 +274,7 @@ fn test_redefines_raw_data_precedence() -> TestResult {
         emit_meta: false,
         emit_raw: RawMode::Record, // Capture raw data
         strict_mode: false,
+        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
@@ -338,6 +340,7 @@ fn test_redefines_round_trip_preservation() -> TestResult {
         emit_meta: false,
         emit_raw: RawMode::Record,
         strict_mode: false,
+        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,

@@ -133,36 +133,100 @@ pub struct EffectiveDialect {
 /// text policy, and intrinsic dialect declaration. Display paths,
 /// timestamps, and [`labels`](SourceBundle::labels) are excluded by
 /// construction.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SourceBundle {
     /// Bundle contract version ([`SOURCE_BUNDLE_SCHEMA_VERSION`]).
-    pub schema_version: u32,
+    schema_version: u32,
     /// Stability class ([`SOURCE_BUNDLE_STABILITY_CLASS`]).
-    pub stability_class: String,
+    stability_class: String,
     /// Logical identity of the root unit.
-    pub root: String,
+    root: String,
     /// Ordered material source units. Ordering is semantic (include order
     /// when includes exist); single-source bundles hold the root alone.
-    pub units: Vec<SourceUnit>,
+    units: Vec<SourceUnit>,
     /// Include-collection support state.
-    pub include_support: IncludeSupport,
+    include_support: IncludeSupport,
     /// Include/copy edges. Always empty while unsupported.
-    pub include_edges: Vec<IncludeEdge>,
+    include_edges: Vec<IncludeEdge>,
     /// Declared but unresolvable includes. Always empty while unsupported.
-    pub unresolved_includes: Vec<String>,
+    unresolved_includes: Vec<String>,
     /// Source text policy used for parsing.
-    pub text_policy: TextPolicy,
+    text_policy: TextPolicy,
     /// Dialect declaration intrinsic to the source set, if any. The current
     /// parser detects no source directives, so this is always `None`;
     /// `Some` is reserved for intrinsic declarations.
-    pub declared_dialect: Option<Dialect>,
+    declared_dialect: Option<Dialect>,
     /// Optional non-sensitive provenance labels. Explicitly excluded from
     /// the fingerprint; identity must never depend on them.
-    pub labels: BTreeMap<String, String>,
+    labels: BTreeMap<String, String>,
     /// Fingerprint algorithm ([`SOURCE_BUNDLE_FINGERPRINT_ALGO`]).
-    pub fingerprint_algo: String,
+    fingerprint_algo: String,
     /// Bundle fingerprint: SHA-256 over the canonical identity bytes.
-    pub fingerprint: String,
+    /// Private so identity fields and the cached digest cannot drift apart:
+    /// mutation goes through constructors, and deserialization revalidates.
+    fingerprint: String,
+}
+
+/// Stored bundle representation. Deserialization validates through this
+/// shape and never trusts a stored fingerprint.
+#[derive(Debug, Deserialize)]
+struct StoredBundle {
+    schema_version: u32,
+    stability_class: String,
+    root: String,
+    units: Vec<SourceUnit>,
+    include_support: IncludeSupport,
+    include_edges: Vec<IncludeEdge>,
+    unresolved_includes: Vec<String>,
+    text_policy: TextPolicy,
+    declared_dialect: Option<Dialect>,
+    labels: BTreeMap<String, String>,
+    fingerprint_algo: String,
+    fingerprint: String,
+}
+
+impl<'de> Deserialize<'de> for SourceBundle {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error as _;
+        let stored = StoredBundle::deserialize(deserializer)?;
+        if stored.schema_version != SOURCE_BUNDLE_SCHEMA_VERSION {
+            return Err(D::Error::custom(format!(
+                "unsupported source bundle schema version {}",
+                stored.schema_version
+            )));
+        }
+        if stored.fingerprint_algo != SOURCE_BUNDLE_FINGERPRINT_ALGO {
+            return Err(D::Error::custom(format!(
+                "unsupported source bundle fingerprint algorithm {}",
+                stored.fingerprint_algo
+            )));
+        }
+        let bundle = Self {
+            schema_version: stored.schema_version,
+            stability_class: stored.stability_class,
+            root: stored.root,
+            units: stored.units,
+            include_support: stored.include_support,
+            include_edges: stored.include_edges,
+            unresolved_includes: stored.unresolved_includes,
+            text_policy: stored.text_policy,
+            declared_dialect: stored.declared_dialect,
+            labels: stored.labels,
+            fingerprint_algo: stored.fingerprint_algo,
+            fingerprint: stored.fingerprint,
+        };
+        bundle.validate_stored().map_err(D::Error::custom)?;
+        let recomputed = bundle.identity_fingerprint();
+        if recomputed != bundle.fingerprint {
+            return Err(D::Error::custom(
+                "source bundle fingerprint does not match identity fields",
+            ));
+        }
+        Ok(bundle)
+    }
 }
 
 /// Bundle construction or dialect-resolution failure.
@@ -349,6 +413,139 @@ impl SourceBundle {
         self.fingerprint.as_str()
     }
 
+    /// Bundle contract version.
+    #[must_use]
+    #[inline]
+    pub fn schema_version(&self) -> u32 {
+        self.schema_version
+    }
+
+    /// Stability class of the bundle contract.
+    #[must_use]
+    #[inline]
+    pub fn stability_class(&self) -> &str {
+        self.stability_class.as_str()
+    }
+
+    /// Logical identity of the root unit.
+    #[must_use]
+    #[inline]
+    pub fn root(&self) -> &str {
+        self.root.as_str()
+    }
+
+    /// Ordered material source units.
+    #[must_use]
+    #[inline]
+    pub fn units(&self) -> &[SourceUnit] {
+        self.units.as_slice()
+    }
+
+    /// Include-collection support state.
+    #[must_use]
+    #[inline]
+    pub fn include_support(&self) -> IncludeSupport {
+        self.include_support
+    }
+
+    /// Include/copy edges (empty while unsupported).
+    #[must_use]
+    #[inline]
+    pub fn include_edges(&self) -> &[IncludeEdge] {
+        self.include_edges.as_slice()
+    }
+
+    /// Declared but unresolvable includes (empty while unsupported).
+    #[must_use]
+    #[inline]
+    pub fn unresolved_includes(&self) -> &[String] {
+        self.unresolved_includes.as_slice()
+    }
+
+    /// Source text policy used for parsing.
+    #[must_use]
+    #[inline]
+    pub fn text_policy(&self) -> &TextPolicy {
+        &self.text_policy
+    }
+
+    /// Dialect declaration intrinsic to the source set, if any.
+    #[must_use]
+    #[inline]
+    pub fn declared_dialect(&self) -> Option<Dialect> {
+        self.declared_dialect
+    }
+
+    /// Non-sensitive provenance labels (excluded from identity).
+    #[must_use]
+    #[inline]
+    pub fn labels(&self) -> &BTreeMap<String, String> {
+        &self.labels
+    }
+
+    /// Attach a non-identity provenance label. Labels never affect the
+    /// fingerprint, so post-construction labeling cannot stale identity.
+    #[must_use]
+    #[inline]
+    pub fn with_label(mut self, key: String, value: String) -> Self {
+        self.labels.insert(key, value);
+        self
+    }
+
+    /// Fingerprint algorithm identifier.
+    #[must_use]
+    #[inline]
+    pub fn fingerprint_algo(&self) -> &str {
+        self.fingerprint_algo.as_str()
+    }
+
+    /// Validate stored shape invariants: non-empty units with unique,
+    /// non-empty identities inside bounds, root addressing a unit, and
+    /// empty include state while collection is unsupported.
+    fn validate_stored(&self) -> Result<(), String> {
+        if self.units.is_empty() {
+            return Err("source bundle has no source units".to_string());
+        }
+        if self.units.len() > MAX_BUNDLE_UNITS {
+            return Err(format!(
+                "source bundle exceeds {} source units",
+                MAX_BUNDLE_UNITS
+            ));
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        let mut total: u64 = 0;
+        for unit in &self.units {
+            if unit.logical_id.is_empty() {
+                return Err("source unit logical identity is empty".to_string());
+            }
+            if !seen.insert(unit.logical_id.as_str()) {
+                return Err("duplicate source unit logical identity".to_string());
+            }
+            if unit.byte_len > MAX_SOURCE_UNIT_BYTES {
+                return Err(format!(
+                    "source unit exceeds {MAX_SOURCE_UNIT_BYTES} raw bytes"
+                ));
+            }
+            total = total.saturating_add(unit.byte_len);
+        }
+        if total > MAX_BUNDLE_BYTES {
+            return Err(format!(
+                "source bundle exceeds {MAX_BUNDLE_BYTES} raw bytes"
+            ));
+        }
+        if !self.units.iter().any(|unit| unit.logical_id == self.root) {
+            return Err("source bundle root addresses no unit".to_string());
+        }
+        if self.include_support == IncludeSupport::Unsupported
+            && (!self.include_edges.is_empty() || !self.unresolved_includes.is_empty())
+        {
+            return Err(
+                "source bundle carries include state while collection is unsupported".to_string(),
+            );
+        }
+        Ok(())
+    }
+
     /// Canonical identity bytes: the exact bytes the fingerprint covers.
     ///
     /// Field order follows declaration order with sorted label keys, so
@@ -466,17 +663,17 @@ mod tests {
     }
 
     #[test]
-    fn single_reproduces_raw_source_fingerprint() {
+    fn cobol_bundle_reproduces_raw_source_fingerprint() {
         use sha2::{Digest, Sha256};
         let expected = format!("{:x}", Sha256::digest(SIMPLE));
         let bundle = simple_bundle();
         assert_eq!(bundle.source_fingerprint(), expected);
-        assert_eq!(bundle.units.len(), 1);
-        assert_eq!(bundle.root, "simple.cpy");
+        assert_eq!(bundle.units().len(), 1);
+        assert_eq!(bundle.root(), "simple.cpy");
     }
 
     #[test]
-    fn bundle_fingerprint_is_deterministic_and_distinct() {
+    fn cobol_bundle_fingerprint_deterministic_and_distinct() {
         let first = simple_bundle();
         let second = simple_bundle();
         assert_eq!(first.fingerprint(), second.fingerprint());
@@ -489,7 +686,7 @@ mod tests {
     }
 
     #[test]
-    fn same_bytes_different_paths_share_identity() {
+    fn cobol_bundle_same_bytes_share_identity_across_paths() {
         let left =
             SourceBundle::single(logical_id_for_path(Path::new("/tmp/a/simple.cpy")), SIMPLE)
                 .expect("valid bundle");
@@ -502,7 +699,7 @@ mod tests {
     }
 
     #[test]
-    fn changed_byte_changes_identity() {
+    fn cobol_bundle_changed_byte_changes_identity() {
         let mut altered = SIMPLE.to_vec();
         altered[10] = b'X';
         let other = SourceBundle::single("simple.cpy", &altered).expect("valid bundle");
@@ -514,7 +711,7 @@ mod tests {
     }
 
     #[test]
-    fn line_ending_change_changes_raw_identity() {
+    fn cobol_bundle_line_ending_change_changes_raw_identity() {
         let parts: Vec<&[u8]> = SIMPLE.split(|byte| *byte == b'\n').collect();
         let crlf = parts.join(b"\r\n".as_slice());
         let bundle = SourceBundle::single("simple.cpy", &crlf).expect("valid bundle");
@@ -526,16 +723,14 @@ mod tests {
     }
 
     #[test]
-    fn labels_do_not_affect_identity() {
-        let mut labeled = simple_bundle();
-        labeled
-            .labels
-            .insert("operator".to_string(), "payroll-team".to_string());
+    fn cobol_bundle_labels_excluded_from_identity() {
+        let labeled =
+            simple_bundle().with_label("operator".to_string(), "payroll-team".to_string());
         assert_eq!(labeled.fingerprint(), simple_bundle().fingerprint());
     }
 
     #[test]
-    fn structural_failures_are_deterministic() {
+    fn cobol_bundle_structural_failures_deterministic() {
         assert_eq!(
             SourceBundle::from_units(&[]).expect_err("no units"),
             BundleError::NoUnits
@@ -558,7 +753,7 @@ mod tests {
     }
 
     #[test]
-    fn oversize_unit_fails() {
+    fn cobol_bundle_oversize_unit_fails() {
         let big = vec![b' '; (MAX_SOURCE_UNIT_BYTES + 1) as usize];
         assert_eq!(
             SourceBundle::single("big.cpy", &big).expect_err("oversize"),
@@ -569,7 +764,7 @@ mod tests {
     }
 
     #[test]
-    fn dialect_agreement_matrix() {
+    fn cobol_bundle_dialect_agreement_matrix() {
         let selected =
             resolve_effective_dialect(None, Some(Dialect::ZeroTolerant)).expect("profile-selected");
         assert_eq!(selected.dialect, Dialect::ZeroTolerant);
@@ -601,7 +796,7 @@ mod tests {
     }
 
     #[test]
-    fn canonical_json_round_trips_with_required_keys() {
+    fn cobol_bundle_canonical_json_round_trips() {
         let rendered = simple_bundle().canonical_json().expect("rendering");
         let parsed: serde_json::Value = serde_json::from_str(&rendered).expect("JSON");
         for key in [
@@ -623,16 +818,46 @@ mod tests {
     }
 
     #[test]
-    fn include_state_records_unsupported() {
+    fn cobol_bundle_deserialize_rejects_tampered_fingerprint() {
+        let rendered = simple_bundle().canonical_json().expect("rendering");
+        let mut value: serde_json::Value = serde_json::from_str(&rendered).expect("JSON");
+        value["fingerprint"] = serde_json::Value::String("0".repeat(64));
+        let tampered = serde_json::to_string(&value).expect("rendering");
+        let result: Result<SourceBundle, _> = serde_json::from_str(&tampered);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn cobol_bundle_deserialize_rejects_tampered_units() {
+        let rendered = simple_bundle().canonical_json().expect("rendering");
+        let mut value: serde_json::Value = serde_json::from_str(&rendered).expect("JSON");
+        value["units"][0]["sha256"] = serde_json::Value::String("1".repeat(64));
+        let tampered = serde_json::to_string(&value).expect("rendering");
+        let result: Result<SourceBundle, _> = serde_json::from_str(&tampered);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn cobol_bundle_deserialize_rejects_unknown_version() {
+        let rendered = simple_bundle().canonical_json().expect("rendering");
+        let mut value: serde_json::Value = serde_json::from_str(&rendered).expect("JSON");
+        value["schema_version"] = serde_json::Value::Number(999.into());
+        let tampered = serde_json::to_string(&value).expect("rendering");
+        let result: Result<SourceBundle, _> = serde_json::from_str(&tampered);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn cobol_bundle_include_state_records_unsupported() {
         let bundle = simple_bundle();
-        assert_eq!(bundle.include_support, IncludeSupport::Unsupported);
-        assert!(bundle.include_edges.is_empty());
-        assert!(bundle.unresolved_includes.is_empty());
+        assert_eq!(bundle.include_support(), IncludeSupport::Unsupported);
+        assert!(bundle.include_edges().is_empty());
+        assert!(bundle.unresolved_includes().is_empty());
         assert_eq!(BUNDLE_INCLUDE_DEPTH_LIMIT, 0);
     }
 
     #[test]
-    fn logical_id_for_path_uses_file_name_only() {
+    fn cobol_bundle_logical_id_uses_file_name_only() {
         assert_eq!(
             logical_id_for_path(Path::new("/tmp/a/simple.cpy")),
             "simple.cpy"

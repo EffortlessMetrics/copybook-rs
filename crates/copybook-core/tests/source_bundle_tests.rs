@@ -14,7 +14,7 @@ use std::path::Path;
 const SIMPLE_CPY: &[u8] = b"       01  REC.\n           05  NAME     PIC X(10).\n";
 
 #[test]
-fn bundle_bytes_parse_through_supported_api() {
+fn cobol_bundle_bytes_parse_through_supported_api() {
     let bundle = SourceBundle::single("simple.cpy", SIMPLE_CPY).expect("bundle");
     let text = std::str::from_utf8(SIMPLE_CPY).expect("UTF-8");
     let schema = parse_copybook(text).expect("schema");
@@ -24,7 +24,7 @@ fn bundle_bytes_parse_through_supported_api() {
 }
 
 #[test]
-fn path_independent_identity_across_directories() {
+fn cobol_bundle_identity_path_independent_across_directories() {
     let left = SourceBundle::single(
         logical_id_for_path(Path::new("/work/a/simple.cpy")),
         SIMPLE_CPY,
@@ -40,14 +40,14 @@ fn path_independent_identity_across_directories() {
 }
 
 #[test]
-fn undeclared_bundle_with_profile_selection_agrees() {
+fn cobol_bundle_undeclared_with_profile_selection_agrees() {
     let effective = resolve_effective_dialect(None, Some(copybook_core::Dialect::ZeroTolerant))
         .expect("agreement");
     assert_eq!(effective.dialect, copybook_core::Dialect::ZeroTolerant);
 }
 
 #[test]
-fn canonical_evidence_is_stable_json() {
+fn cobol_bundle_canonical_evidence_stable_json() {
     let bundle = SourceBundle::single("simple.cpy", SIMPLE_CPY).expect("bundle");
     let first = bundle.canonical_json().expect("rendering");
     let second = SourceBundle::single("simple.cpy", SIMPLE_CPY)

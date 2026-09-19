@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml"><img src="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml/badge.svg" alt="CI Quick" /></a>
+  <a href="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml"><img src="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml/badge.svg?branch=main&event=push" alt="CI Quick" /></a>
   <a href="https://codecov.io/gh/EffortlessMetrics/copybook-rs"><img src="https://codecov.io/gh/EffortlessMetrics/copybook-rs/branch/main/graph/badge.svg" alt="Codecov" /></a>
   <a href="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/security-scan.yml"><img src="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/security-scan.yml/badge.svg" alt="Security Audit" /></a>
   <a href="https://github.com/EffortlessMetrics/copybook-rs/blob/main/.github/dependabot.yml"><img src="https://img.shields.io/badge/dependencies-Dependabot-blue.svg" alt="Dependabot" /></a>

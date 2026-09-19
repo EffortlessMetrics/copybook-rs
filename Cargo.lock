@@ -840,7 +840,6 @@ dependencies = [
  "copybook-audit",
  "copybook-codec",
  "copybook-governance",
- "copybook-options",
  "metrics",
  "metrics-exporter-prometheus",
  "os_pipe",
@@ -891,6 +890,7 @@ dependencies = [
  "smallvec",
  "tempfile",
  "thiserror",
+ "toml",
  "tracing",
  "tracing-subscriber",
 ]

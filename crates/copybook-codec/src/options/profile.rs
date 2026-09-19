@@ -17,7 +17,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use copybook_options::profile::InterpretationProfile;
+//! use copybook_codec::options::profile::InterpretationProfile;
 //!
 //! let profile = InterpretationProfile::parse(
 //!     "schema_version = 1\n[source]\ndialect = \"normative\"\n[framing]\nkind = \"rdw\"\nreserved_bytes = \"lenient\"\n[decode]\ncodepage = \"cp037\"\nunmappable = \"error\"\njson_numbers = \"lossless\"\n[limits]\nmaximum_record_length = 32760\nmaximum_errors = 100\n",
@@ -29,8 +29,8 @@
 use std::fmt;
 use std::str::FromStr;
 
+use super::{JsonNumberMode, RecordFormat};
 use copybook_charset::{Codepage, UnmappablePolicy};
-use copybook_codec::options::{JsonNumberMode, RecordFormat};
 use copybook_core::dialect::Dialect;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de as serde_de};
 use sha2::{Digest, Sha256};

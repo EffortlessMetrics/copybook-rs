@@ -42,7 +42,6 @@ copybook = { workspace = true }
 # forwarding (cargo features cannot route through a facade re-export);
 # all code paths use the canonical facade above.
 copybook-codec = { workspace = true }
-copybook-options = { workspace = true }
 copybook-governance = { workspace = true }
 copybook-arrow = { workspace = true, optional = true }
 copybook-audit = { workspace = true, optional = true }

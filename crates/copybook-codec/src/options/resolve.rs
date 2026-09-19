@@ -27,7 +27,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use copybook_options::resolve::{OptionSource, resolve_field};
+//! use copybook_codec::options::resolve::{OptionSource, resolve_field};
 //!
 //! let resolved = resolve_field("framing", Some("rdw"), Some("rdw"), None, "fixed")
 //!     .expect("equal values agree");

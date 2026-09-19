@@ -4,6 +4,3 @@
 //! The option contracts are owned by [`copybook_codec::options`].
 
 pub use copybook_codec::options::*;
-
-pub mod profile;
-pub mod resolve;

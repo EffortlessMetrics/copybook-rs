@@ -6,15 +6,13 @@
 //! environment, and product defaults form four layers; exactly one value
 //! per field wins, and a flag that disagrees with the profile is a
 //! contradiction, not a precedence decision. See
-//! [`copybook_options::resolve`] for the layer ordering.
-//!
-//! [`copybook_options::resolve`]: https://docs.rs/copybook-options/latest/copybook_options/resolve/
+//! [`copybook::codec::options::resolve`] for the layer ordering.
 
 use crate::cli_config::DialectPreference;
+use copybook::codec::options::profile::{InterpretationProfile, ReservedPolicy};
+use copybook::codec::options::resolve::{ConflictError, resolve_field};
 use copybook::codec::{Codepage, JsonNumberMode, RecordFormat, UnmappablePolicy};
 use copybook::core::dialect::Dialect;
-use copybook_options::profile::{InterpretationProfile, ReservedPolicy};
-use copybook_options::resolve::{ConflictError, resolve_field};
 use std::path::Path;
 
 /// Profile keys a flag conflict names. The corresponding command flag is the
@@ -253,7 +251,7 @@ pub(crate) fn resolve_decode(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use copybook_options::profile::FramingKind;
+    use copybook::codec::options::profile::FramingKind;
 
     const PROFILE_TOML: &str = "schema_version = 1\n[source]\ndialect = \"zero-tolerant\"\n[framing]\nkind = \"rdw\"\nreserved_bytes = \"strict\"\n[decode]\ncodepage = \"cp037\"\nunmappable = \"error\"\njson_numbers = \"lossless\"\n[limits]\nmaximum_record_length = 32760\nmaximum_errors = 100\n";
 

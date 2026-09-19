@@ -254,8 +254,9 @@ retagging, or a yank.
 ## 6c) Prebuilt CLI binaries
 
 The `release-binaries` publish job builds `copybook-cli` in release mode
-for three triples — `x86_64-unknown-linux-gnu` (ubuntu),
-`aarch64-apple-darwin` (macOS), `x86_64-pc-windows-msvc` (Windows) — and
+for four triples — `x86_64-unknown-linux-gnu` (ubuntu),
+`aarch64-apple-darwin` (macOS Apple Silicon), `x86_64-apple-darwin`
+(macOS Intel), `x86_64-pc-windows-msvc` (Windows) — and
 attaches `copybook-<version>-<triple>.tar.gz` plus `.sha256` to the GitHub
 release after `github-release` creates it. Each leg packages with
 `scripts/ci/package_binaries.sh`, verifies the checksum, extracts, and

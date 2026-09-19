@@ -334,8 +334,7 @@ mod tests {
             "source.dialect",
         ];
         assert_eq!(
-            keys,
-            expected,
+            keys, expected,
             "new profile field needs doctor provenance (PINNED/REVIEW note)"
         );
     }

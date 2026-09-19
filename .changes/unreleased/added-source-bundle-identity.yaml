@@ -1,0 +1,11 @@
+kind: added
+body: '**core**: new path-independent `SourceBundle` identity for copybook
+  provenance (`copybook_core::SourceBundle`). One-source bundles reproduce
+  the existing raw source fingerprint and add a distinct deterministic
+  bundle fingerprint covering units, include state, text policy, and
+  intrinsic dialect declaration -- never local paths or timestamps.
+  Include collection is explicitly unsupported; dialect
+  declaration/selection agreement and conflict resolve through
+  `resolve_effective_dialect`. Foundation for the resolved-schema
+  manifest.'
+time: '2026-09-19T13:40:00Z'

@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/EffortlessMetrics/copybook-rs/schemas/source-bundle.json",
+  "title": "SourceBundle",
+  "description": "Path-independent source bundle identity for copybook provenance (#1116). Stability class: beta. Reference for the copybook_core::SourceBundle contract; the Rust type is authoritative.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "stability_class",
+    "root",
+    "units",
+    "include_support",
+    "include_edges",
+    "unresolved_includes",
+    "text_policy",
+    "declared_dialect",
+    "labels",
+    "fingerprint_algo",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Bundle contract version."
+    },
+    "stability_class": {
+      "type": "string",
+      "const": "beta",
+      "description": "Stability class of the v1 bundle contract."
+    },
+    "root": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Logical identity of the root unit. Never a workstation path."
+    },
+    "units": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "description": "Ordered material source units; ordering is semantic.",
+      "items": {
+        "type": "object",
+        "required": ["logical_id", "sha256", "byte_len"],
+        "properties": {
+          "logical_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Path-independent logical identity."
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "Lowercase hex SHA-256 over the unit's raw bytes."
+          },
+          "byte_len": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 16777216,
+            "description": "Raw byte length."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "include_support": {
+      "type": "string",
+      "const": "Unsupported",
+      "description": "Include collection is unsupported; the graph is empty."
+    },
+    "include_edges": {
+      "type": "array",
+      "maxItems": 0,
+      "description": "Include/copy edges; empty while unsupported.",
+      "items": {
+        "type": "object",
+        "required": ["from", "to"],
+        "properties": {
+          "from": {"type": "string"},
+          "to": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "unresolved_includes": {
+      "type": "array",
+      "maxItems": 0,
+      "description": "Declared but unresolvable includes; empty while unsupported.",
+      "items": {"type": "string"}
+    },
+    "text_policy": {
+      "type": "object",
+      "required": ["encoding", "line_endings"],
+      "properties": {
+        "encoding": {
+          "type": "string",
+          "const": "utf-8",
+          "description": "Text encoding the bytes were read with."
+        },
+        "line_endings": {
+          "type": "string",
+          "const": "PreserveRaw",
+          "description": "Raw bytes hashed as read; the lexer accepts LF and CRLF."
+        }
+      },
+      "additionalProperties": false
+    },
+    "declared_dialect": {
+      "type": ["string", "null"],
+      "enum": ["Normative", "ZeroTolerant", "OneTolerant", null],
+      "description": "Dialect declaration intrinsic to the source set, if any. The current parser detects none, so this is null."
+    },
+    "labels": {
+      "type": "object",
+      "description": "Optional non-sensitive provenance labels, explicitly excluded from the fingerprint.",
+      "additionalProperties": {"type": "string"}
+    },
+    "fingerprint_algo": {
+      "type": "string",
+      "const": "sha256-canonical-json-v1",
+      "description": "Fingerprint algorithm over the canonical identity bytes."
+    },
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Bundle fingerprint: SHA-256 over the canonical identity bytes."
+    }
+  },
+  "additionalProperties": false
+}

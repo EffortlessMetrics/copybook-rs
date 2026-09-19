@@ -298,6 +298,48 @@ mod tests {
         assert_eq!(drafted.profile.source.dialect, SourceDialect::ZeroTolerant);
     }
 
+    /// Every leaf key the doctor emits must stay review-visible: a future
+    /// additive profile field keeps compiling through defaults-based
+    /// construction, so this inventory fails until its provenance
+    /// (PINNED/REVIEW note) is wired into the draft.
+    #[test]
+    fn drafted_profile_keys_all_carry_provenance() {
+        let drafted = assemble(&healthy_fixed(), None).expect("healthy evidence assembles");
+        let canonical = drafted
+            .profile
+            .to_canonical_toml()
+            .expect("canonical renders");
+        let table: toml::Table = canonical.parse().expect("canonical parses");
+        let mut keys = Vec::new();
+        for (section, value) in &table {
+            match value {
+                toml::Value::Table(inner) => {
+                    for key in inner.keys() {
+                        keys.push(format!("{section}.{key}"));
+                    }
+                }
+                _ => keys.push(section.clone()),
+            }
+        }
+        keys.sort();
+        let expected = [
+            "decode.codepage",
+            "decode.json_numbers",
+            "decode.unmappable",
+            "framing.kind",
+            "framing.reserved_bytes",
+            "limits.maximum_errors",
+            "limits.maximum_record_length",
+            "schema_version",
+            "source.dialect",
+        ];
+        assert_eq!(
+            keys,
+            expected,
+            "new profile field needs doctor provenance (PINNED/REVIEW note)"
+        );
+    }
+
     #[test]
     fn nonzero_reserved_marks_review() {
         let mut evidence = healthy_fixed();

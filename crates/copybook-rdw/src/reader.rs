@@ -14,6 +14,7 @@ pub struct RDWRecordReader<R: Read> {
     input: BufReader<R>,
     record_count: u64,
     strict_mode: bool,
+    max_record_length: Option<u64>,
 }
 
 impl<R: Read> RDWRecordReader<R> {
@@ -25,7 +26,20 @@ impl<R: Read> RDWRecordReader<R> {
             input: BufReader::with_capacity(RDW_READER_BUF_CAPACITY, input),
             record_count: 0,
             strict_mode,
+            max_record_length: None,
         }
+    }
+
+    /// Cap the logical record payload bytes accepted per record.
+    ///
+    /// A declared payload longer than the cap fails with
+    /// `CBKF226_RECORD_BOUND_EXCEEDED` before any payload allocation or
+    /// read. `None` (the default) keeps architectural behavior.
+    #[inline]
+    #[must_use]
+    pub fn with_max_record_length(mut self, cap: Option<u64>) -> Self {
+        self.max_record_length = cap;
+        self
     }
 
     #[inline]
@@ -161,6 +175,7 @@ impl<R: Read> RDWRecordReader<R> {
 
         self.validate_reserved(reserved)?;
         self.reject_ascii_corruption(header)?;
+        self.enforce_record_bound(length)?;
 
         if length == 0 {
             debug!("Zero-length RDW record {}", self.record_count);
@@ -205,6 +220,33 @@ impl<R: Read> RDWRecordReader<R> {
             self.record_count, reserved
         );
         Ok(())
+    }
+
+    /// Reject a declared payload longer than the reviewed record bound.
+    ///
+    /// Runs before any payload allocation or read, so an over-cap record
+    /// never crosses the promised boundary.
+    fn enforce_record_bound(&self, length: u16) -> Result<()> {
+        let Some(cap) = self.max_record_length else {
+            return Ok(());
+        };
+        if u64::from(length) <= cap {
+            return Ok(());
+        }
+        Err(Error::new(
+            ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED,
+            format!(
+                "RDW record {} declares {} payload bytes, exceeding the reviewed bound of {cap}",
+                self.record_count, length,
+            ),
+        )
+        .with_context(ErrorContext {
+            record_index: Some(self.record_count),
+            field_path: None,
+            byte_offset: Some(4),
+            line_number: None,
+            details: Some(format!("declared {length}, bound {cap}")),
+        }))
     }
 
     fn reject_ascii_corruption(&self, header: [u8; RDW_HEADER_LEN]) -> Result<()> {

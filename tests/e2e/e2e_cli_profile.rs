@@ -429,6 +429,138 @@ fn encode_profile_codepage_conflict() {
         .stderr(predicate::str::contains("decode.codepage"));
 }
 
+/// Profile with a caller-selected record bound over the 15-byte layout.
+fn capped_profile(kind: &str, codepage: &str, cap: u64) -> String {
+    format!(
+        "\
+schema_version = 1
+[source]
+dialect = \"normative\"
+[framing]
+kind = \"{kind}\"
+reserved_bytes = \"lenient\"
+[decode]
+codepage = \"{codepage}\"
+unmappable = \"error\"
+json_numbers = \"lossless\"
+[limits]
+maximum_record_length = {cap}
+maximum_errors = 100
+"
+    )
+}
+
+/// One RDW record with zero reserved bytes: header `00 0F 00 00`
+/// (payload length 15) plus the 15-byte ASCII payload.
+fn rdw_record_zero_reserved() -> Vec<u8> {
+    let mut data = vec![0x00, 0x0F, 0x00, 0x00];
+    let mut payload = vec![b' '; 15];
+    for (i, b) in "ALICE".bytes().enumerate() {
+        payload[i] = b;
+    }
+    for (i, b) in "00100".bytes().enumerate() {
+        payload[10 + i] = b;
+    }
+    data.extend_from_slice(&payload);
+    data
+}
+
+#[test]
+fn decode_profile_cap_at_lrecl_succeeds() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
+    let input = write_temp_file(&dir, "input.bin", b"ALICE     00100");
+    let profile = write_temp_file(
+        &dir,
+        "profile.toml",
+        capped_profile("fixed", "ascii", 15).as_bytes(),
+    );
+    let out = dir.path().join("out.jsonl");
+
+    cmd()
+        .args(["decode", "--profile"])
+        .arg(&profile)
+        .arg(&cpy)
+        .arg(&input)
+        .args(["--output"])
+        .arg(&out)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Records with errors: 0"));
+}
+
+#[test]
+fn decode_profile_cap_below_lrecl_fails_without_output() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
+    let input = write_temp_file(&dir, "input.bin", b"ALICE     00100");
+    let profile = write_temp_file(
+        &dir,
+        "profile.toml",
+        capped_profile("fixed", "ascii", 14).as_bytes(),
+    );
+    let out = dir.path().join("out.jsonl");
+
+    cmd()
+        .args(["decode", "--profile"])
+        .arg(&profile)
+        .arg(&cpy)
+        .arg(&input)
+        .args(["--output"])
+        .arg(&out)
+        .assert()
+        .failure()
+        .code(4)
+        .stderr(predicate::str::contains("CBKF226_RECORD_BOUND_EXCEEDED"));
+    assert!(!out.exists(), "pre-execution failure leaves output absent");
+}
+
+#[test]
+fn decode_profile_rdw_over_cap_fails() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
+    let input = write_temp_file(&dir, "input.bin", &rdw_record_zero_reserved());
+    let profile = write_temp_file(
+        &dir,
+        "profile.toml",
+        capped_profile("rdw", "ascii", 14).as_bytes(),
+    );
+    let out = dir.path().join("out.jsonl");
+
+    cmd()
+        .args(["decode", "--profile"])
+        .arg(&profile)
+        .arg(&cpy)
+        .arg(&input)
+        .args(["--output"])
+        .arg(&out)
+        .assert()
+        .failure()
+        .code(4)
+        .stderr(predicate::str::contains("CBKF226_RECORD_BOUND_EXCEEDED"));
+}
+
+#[test]
+fn verify_profile_cap_below_lrecl_fails() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
+    let input = write_temp_file(&dir, "input.bin", b"ALICE     00100");
+    let profile = write_temp_file(
+        &dir,
+        "profile.toml",
+        capped_profile("fixed", "ascii", 14).as_bytes(),
+    );
+
+    cmd()
+        .args(["verify", "--profile"])
+        .arg(&profile)
+        .arg(&cpy)
+        .arg(&input)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("CBKF226_RECORD_BOUND_EXCEEDED"));
+}
+
 #[test]
 fn encode_missing_format_without_profile() {
     let dir = tempfile::tempdir().expect("tempdir");

@@ -1,0 +1,8 @@
+kind: added
+body: '**codec/cli**: `limits.maximum_record_length` is now enforced on
+  decode/verify read paths. A fixed layout above the cap fails with
+  `CBKF226_RECORD_BOUND_EXCEEDED` before input is consumed (output stays
+  absent); an over-cap RDW/VB record fails with the same identity before
+  allocation. Direct (profile-less) runs keep architectural behavior.
+  Encode-side enforcement follows separately.'
+time: '2026-09-19T10:15:00Z'

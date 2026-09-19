@@ -408,6 +408,7 @@ impl ErrorReporter {
             | ErrorCode::CBKF222_BDW_LENGTH_INVALID
             | ErrorCode::CBKF223_BDW_UNDERFLOW
             | ErrorCode::CBKF224_RDW_BEYOND_BLOCK
+            | ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED
             | ErrorCode::CBKA001_BASELINE_ERROR
             | ErrorCode::CBKW001_SCHEMA_CONVERSION
             | ErrorCode::CBKW002_TYPE_MAPPING

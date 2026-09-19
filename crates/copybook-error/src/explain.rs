@@ -253,6 +253,13 @@ pub const EXPLANATIONS: &[Explanation] = &[
         resolution: "Check for data corruption or use --emit-raw",
     },
     Explanation {
+        code: "CBKF226_RECORD_BOUND_EXCEEDED",
+        severity: "Fatal",
+        description: "Record exceeds the reviewed maximum_record_length bound from an interpretation profile",
+        context: "Record format and layer, record index where known, declared or observed length, selected bound",
+        resolution: "Raise limits.maximum_record_length to the feed's cap or fix the over-cap record",
+    },
+    Explanation {
         code: "CBKI001_INVALID_STATE",
         severity: "Fatal",
         description: "Iterator detected an invalid state (e.g., fixed-format without configured LRECL)",

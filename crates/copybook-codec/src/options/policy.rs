@@ -19,6 +19,7 @@
 //! [#1129]: https://github.com/EffortlessMetrics/copybook-rs/issues/1129
 //! [#1008]: https://github.com/EffortlessMetrics/copybook-rs/issues/1008
 
+use copybook_error::{Error, ErrorCode, ErrorContext};
 use core::fmt;
 
 /// Upper bound profile documents may declare for
@@ -102,6 +103,40 @@ impl ExecutionPolicy {
     #[inline]
     pub const fn framing_strict(self, strict_mode: bool) -> bool {
         strict_mode || self.reserved_strict
+    }
+
+    /// Reject a fixed layout whose LRECL exceeds the reviewed bound.
+    ///
+    /// Runs before any input is consumed, so a profile/layout mismatch
+    /// leaves output absent. A layout that fits (or no reviewed bound)
+    /// passes silently.
+    ///
+    /// # Errors
+    ///
+    /// Returns `CBKF226_RECORD_BOUND_EXCEEDED` when the layout requires
+    /// more payload bytes per record than the reviewed bound allows.
+    #[must_use = "Handle the Result or propagate the error"]
+    #[inline]
+    pub fn check_fixed_lrecl(self, lrecl: u32) -> Result<(), Error> {
+        let Some(cap) = self.maximum_record_length else {
+            return Ok(());
+        };
+        if u64::from(lrecl) <= cap {
+            return Ok(());
+        }
+        Err(Error::new(
+            ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED,
+            format!(
+                "fixed layout requires {lrecl} bytes per record, exceeding the reviewed bound of {cap}"
+            ),
+        )
+        .with_context(ErrorContext {
+            record_index: None,
+            field_path: None,
+            byte_offset: Some(0),
+            line_number: None,
+            details: Some(format!("lrecl {lrecl}, bound {cap}")),
+        }))
     }
 }
 

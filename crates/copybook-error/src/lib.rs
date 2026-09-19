@@ -272,6 +272,8 @@ pub enum ErrorCode {
     CBKF224_RDW_BEYOND_BLOCK,
     /// CBKF225: BDW reserved bytes are nonzero under strict policy
     CBKF225_BDW_RESERVED_NONZERO,
+    /// CBKF226: record exceeds the reviewed `maximum_record_length` bound
+    CBKF226_RECORD_BOUND_EXCEEDED,
 
     // =============================================================================
     // Audit Errors (CBKA*) - Performance and compliance audit operations
@@ -364,6 +366,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKF223_BDW_UNDERFLOW => "CBKF223_BDW_UNDERFLOW",
             ErrorCode::CBKF224_RDW_BEYOND_BLOCK => "CBKF224_RDW_BEYOND_BLOCK",
             ErrorCode::CBKF225_BDW_RESERVED_NONZERO => "CBKF225_BDW_RESERVED_NONZERO",
+            ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED => "CBKF226_RECORD_BOUND_EXCEEDED",
             ErrorCode::CBKA001_BASELINE_ERROR => "CBKA001_BASELINE_ERROR",
             ErrorCode::CBKW001_SCHEMA_CONVERSION => "CBKW001_SCHEMA_CONVERSION",
             ErrorCode::CBKW002_TYPE_MAPPING => "CBKW002_TYPE_MAPPING",
@@ -442,7 +445,8 @@ impl ErrorCode {
             | Self::CBKF222_BDW_LENGTH_INVALID
             | Self::CBKF223_BDW_UNDERFLOW
             | Self::CBKF224_RDW_BEYOND_BLOCK
-            | Self::CBKF225_BDW_RESERVED_NONZERO => "CBKF",
+            | Self::CBKF225_BDW_RESERVED_NONZERO
+            | Self::CBKF226_RECORD_BOUND_EXCEEDED => "CBKF",
             Self::CBKA001_BASELINE_ERROR => "CBKA",
             Self::CBKW001_SCHEMA_CONVERSION
             | Self::CBKW002_TYPE_MAPPING

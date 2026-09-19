@@ -3297,7 +3297,7 @@ pub fn decode_file_to_jsonl_with_policy(
 
     match options.format {
         RecordFormat::Fixed => {
-            process_fixed_records(schema, input, &mut output, options, &mut summary)?;
+            process_fixed_records(schema, input, &mut output, options, policy, &mut summary)?;
         }
         RecordFormat::RDW => {
             process_rdw_records(schema, input, &mut output, options, policy, &mut summary)?;
@@ -3339,13 +3339,15 @@ fn process_fixed_records<R: Read, W: Write>(
     reader: R,
     output: &mut W,
     options: &DecodeOptions,
+    policy: ExecutionPolicy,
     summary: &mut RunSummary,
 ) -> Result<()> {
     if options.threads > 1 {
-        return process_fixed_records_parallel(schema, reader, output, options, summary);
+        return process_fixed_records_parallel(schema, reader, output, options, policy, summary);
     }
 
     let mut reader = crate::file::fixed::reader(reader, schema)?;
+    policy.check_fixed_lrecl(reader.lrecl())?;
     let mut scratch = crate::memory::ScratchBuffers::new();
     let mut record_index = 0u64;
     let mut record_offset = 0u64;
@@ -3499,9 +3501,11 @@ fn process_fixed_records_parallel<R: Read, W: Write>(
     reader: R,
     output: &mut W,
     options: &DecodeOptions,
+    policy: ExecutionPolicy,
     summary: &mut RunSummary,
 ) -> Result<()> {
     let mut reader = crate::file::fixed::reader(reader, schema)?;
+    policy.check_fixed_lrecl(reader.lrecl())?;
     let workers = effective_worker_count(options.threads);
     let batch_capacity = workers.saturating_mul(4).max(1);
     let mut pool = decode_worker_pool(schema, options);
@@ -3600,7 +3604,8 @@ fn process_rdw_records<R: Read, W: Write>(
     }
 
     let mut reader =
-        crate::record::RDWRecordReader::new(reader, policy.framing_strict(options.strict_mode));
+        crate::record::RDWRecordReader::new(reader, policy.framing_strict(options.strict_mode))
+            .with_max_record_length(policy.maximum_record_length());
     let mut scratch = crate::memory::ScratchBuffers::new();
     let mut record_index = 0u64;
     let mut record_offset = 0u64;
@@ -3678,7 +3683,8 @@ fn process_vb_records<R: Read, W: Write>(
     }
 
     let mut reader =
-        crate::record::VbBlockReader::new(reader, policy.framing_strict(options.strict_mode));
+        crate::record::VbBlockReader::new(reader, policy.framing_strict(options.strict_mode))
+            .with_max_record_length(policy.maximum_record_length());
     let mut scratch = crate::memory::ScratchBuffers::new();
     let mut record_index = 0u64;
 
@@ -3766,7 +3772,8 @@ fn process_vb_records_parallel<R: Read, W: Write>(
     summary: &mut RunSummary,
 ) -> Result<()> {
     let mut reader =
-        crate::record::VbBlockReader::new(reader, policy.framing_strict(options.strict_mode));
+        crate::record::VbBlockReader::new(reader, policy.framing_strict(options.strict_mode))
+            .with_max_record_length(policy.maximum_record_length());
     let workers = effective_worker_count(options.threads);
     let batch_capacity = workers.saturating_mul(4).max(1);
     let mut pool = decode_worker_pool(schema, options);
@@ -3901,7 +3908,8 @@ fn process_rdw_records_parallel<R: Read, W: Write>(
     summary: &mut RunSummary,
 ) -> Result<()> {
     let mut reader =
-        crate::record::RDWRecordReader::new(reader, policy.framing_strict(options.strict_mode));
+        crate::record::RDWRecordReader::new(reader, policy.framing_strict(options.strict_mode))
+            .with_max_record_length(policy.maximum_record_length());
     let workers = effective_worker_count(options.threads);
     let batch_capacity = workers.saturating_mul(4).max(1);
     let mut pool = decode_worker_pool(schema, options);

@@ -749,6 +749,18 @@ Warning: CBKF225_BDW_RESERVED_NONZERO at block 1
 Reserved bytes: 0x1234 (expected 0x0000)
 ```
 
+#### CBKF226_RECORD_BOUND_EXCEEDED
+**Description**: Record exceeds the reviewed maximum_record_length bound from an interpretation profile
+**Severity**: Fatal
+**Context**: Record format and layer, record index where known, declared or observed length, selected bound
+**Resolution**: Raise limits.maximum_record_length to the feed's cap or fix the over-cap record
+
+```
+Error: CBKF226_RECORD_BOUND_EXCEEDED at record 2
+Declared: 9 payload bytes
+Bound: 8
+```
+
 ### Audit Errors (CBKA*)
 
 Errors in performance and compliance audit operations.
@@ -912,6 +924,13 @@ The complete command-level table, including `CBK?` and command-specific
 - Check for non-standard RDW format
 - Verify variable-length record format
 
+#### "CBKF226_RECORD_BOUND_EXCEEDED"
+**Problem**: Record exceeds the reviewed maximum_record_length bound
+**Solutions**:
+- Raise `limits.maximum_record_length` to the feed's cap
+- Fix or remove the over-cap record
+- Verify the profile matches the feed's layout
+
 #### "CBKS301_ODO_CLIPPED"
 **Problem**: ODO counter exceeds maximum
 **Solutions**:
@@ -976,7 +995,7 @@ The complete command-level table, including `CBK?` and command-specific
 
 ## Error Code Index
 
-All 70 stable error codes across 10 families:
+All 71 stable error codes across 10 families:
 
 | Code | Category | Severity | Description |
 |------|----------|----------|-------------|
@@ -1044,6 +1063,7 @@ All 70 stable error codes across 10 families:
 | CBKF223 | File | Error (lenient), Fatal (strict) | BDW block underflow (beta) |
 | CBKF224 | File | Error (lenient), Fatal (strict) | Nested RDW escapes BDW block (beta) |
 | CBKF225 | File | Warning (lenient), Fatal (strict) | BDW reserved bytes non-zero (beta) |
+| CBKF226 | Record | Fatal | Record exceeds the reviewed maximum_record_length bound |
 | CBKA001 | Audit | Error | Performance baseline error |
 | CBKW001 | Arrow/Writer | Error | Arrow schema conversion failed |
 | CBKW002 | Arrow/Writer | Error | No Arrow type mapping for field kind |

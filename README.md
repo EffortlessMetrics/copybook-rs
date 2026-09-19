@@ -6,7 +6,7 @@
 <h1 align="center">copybook-rs</h1>
 
 <p align="center">
-  <em>Inspect, convert, and round-trip COBOL-described mainframe records.</em>
+  <em>Inspect, convert, and round-trip mainframe records defined by COBOL copybooks.</em>
 </p>
 
 <p align="center">
@@ -47,7 +47,7 @@ provides verification and deterministic round-trip checks for supported paths.
 
 ## The first useful run
 
-Install the CLI, fetch the bundled EBCDIC fixture, and decode it:
+Install the CLI with Rust 1.98 or newer, fetch the bundled EBCDIC fixture, and decode it:
 
 ```bash
 cargo install copybook-cli@0.8.1 --locked
@@ -78,17 +78,18 @@ field.
 | Area | Supported surface |
 | --- | --- |
 | **Record framing** | Fixed, RDW, VB/BDW |
-| **Text** | ASCII, CP037, CP273, CP500, CP1047, CP1140 |
+| **Codepages** | ASCII, CP037, CP273, CP500, CP1047, CP1140 |
 | **Storage** | DISPLAY, zoned decimal, COMP-3, BINARY, COMP-1/COMP-2, edited PIC |
 | **Structure** | REDEFINES, fixed OCCURS, tail-position ODO, Level-88, RENAMES R1-R3 |
 
 Deliberate boundaries include nested ODO O5/O6, ODO over REDEFINES, RENAMES
 R4-R6 interactions with REDEFINES/OCCURS, and `EXTERNAL` / `GLOBAL`.
 
-Check a copybook directly:
+Check a copybook against the framing and codepage you intend to use:
 
 ```bash
-copybook support --advise your-copybook.cpy
+copybook support --advise your-copybook.cpy \
+  --record-format fixed --codepage cp037
 ```
 
 The [COBOL support matrix](docs/reference/COBOL_SUPPORT_MATRIX.md) is the
@@ -103,7 +104,7 @@ governed construct-level contract.
 | Convert records to JSONL | `copybook decode` |
 | Encode JSONL back to records | `copybook encode` |
 | Validate records without converting them | `copybook verify` |
-| Check deterministic byte fidelity | `copybook determinism round-trip` |
+| Check round-trip byte fidelity | `copybook determinism round-trip` |
 | Explain a stable failure | `copybook explain` |
 | Check a copybook change for breakage | `copybook compat` |
 
@@ -131,7 +132,7 @@ for specialized use. See the [library API](docs/reference/LIBRARY_API.md).
 
 Engineering Preview means the CLI and library expose stable contracts while the
 COBOL support envelope remains preview-level. Validate representative
-production copybooks and records before unattended production adoption.
+production copybooks and records before unattended production use.
 
 | Need | Go to |
 | --- | --- |

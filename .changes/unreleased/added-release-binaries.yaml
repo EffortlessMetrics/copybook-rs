@@ -1,0 +1,7 @@
+kind: added
+body: '**dist**: attach prebuilt `copybook` CLI binaries to GitHub releases
+  (`copybook-<version>-<triple>.tar.gz` plus `.sha256` for Linux x86_64,
+  macOS Apple Silicon, and Windows x86_64). Each leg smokes its own binary
+  (`--version`, `explain`, `doctor`, and `decode` over the bundled demo
+  fixtures) before upload.'
+time: '2026-09-18T06:35:00Z'

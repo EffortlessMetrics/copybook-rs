@@ -478,6 +478,12 @@ jobs:
         print(f"cargo install copybook-cli@{version}")
         print("```")
         print("")
+        print("**Prebuilt binaries** (`copybook-{version}-<triple>.tar.gz` + `.sha256`, attached below):")
+        print("")
+        print("- Linux x86_64: `x86_64-unknown-linux-gnu`")
+        print("- macOS Apple Silicon: `aarch64-apple-darwin`")
+        print("- Windows x86_64: `x86_64-pc-windows-msvc`")
+        print("")
         print(f"**Published Crates ({len(crates)}):**")
         print("")
         print("| Crate | crates.io | docs.rs |")
@@ -521,6 +527,76 @@ jobs:
         echo "Uploaded acceptance evidence assets to release ${tag}"
         sha256sum "${EVIDENCE_DIR}/acceptance-receipt-${RELEASE_TAG}.json" \
           "${EVIDENCE_DIR}/docs-availability-${RELEASE_TAG}.json"
+
+  release-binaries:
+    # Prebuilt CLI binaries for the no-Rust-toolchain install path. Runs
+    # after the release exists so assets upload onto it; each leg smokes
+    # its own binary before upload. See docs/RELEASE_RUNBOOK.md.
+    runs-on: ${{ matrix.runner }}
+    needs: [github-release]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+          - runner: macos-latest
+            triple: aarch64-apple-darwin
+          - runner: windows-latest
+            triple: x86_64-pc-windows-msvc
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+        ref: ${{ env.RELEASE_TAG }}
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.triple }}
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: release-binaries-${{ matrix.triple }}
+    - name: Build release CLI binary
+      run: cargo build --release -p copybook-cli --target ${{ matrix.triple }}
+    - name: Package binary tarball
+      shell: bash
+      run: |
+        chmod +x scripts/ci/package_binaries.sh
+        scripts/ci/package_binaries.sh \
+          "${RELEASE_TAG}" "${{ matrix.triple }}" "target/${{ matrix.triple }}/release"
+    - name: Smoke-test packaged binary
+      shell: bash
+      run: |
+        set -euo pipefail
+        version="${RELEASE_TAG#v}"
+        archive="copybook-${version}-${{ matrix.triple }}.tar.gz"
+        if command -v sha256sum >/dev/null 2>&1; then
+          sha256sum -c "${archive}.sha256"
+        else
+          shasum -a 256 -c "${archive}.sha256"
+        fi
+        stage="$(mktemp -d)"
+        tar -xzf "${archive}" -C "${stage}"
+        bin="${stage}/copybook"
+        if [[ "${{ matrix.triple }}" == *-pc-windows-* ]]; then
+          bin="${stage}/copybook.exe"
+        fi
+        "${bin}" --version
+        "${bin}" explain CBKE501 --format json
+        "${bin}" doctor fixtures/copybooks/simple.cpy fixtures/data/simple.bin
+        "${bin}" decode fixtures/copybooks/simple.cpy fixtures/data/simple.bin \
+          --format fixed --codepage cp037 --output "${stage}/out.jsonl"
+        test -s "${stage}/out.jsonl"
+    - name: Upload binary assets to release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        version="${RELEASE_TAG#v}"
+        archive="copybook-${version}-${{ matrix.triple }}.tar.gz"
+        gh release upload "${RELEASE_TAG}" "${archive}" "${archive}.sha256" --clobber
+        echo "Uploaded ${archive} (+ .sha256) to release ${RELEASE_TAG}"
 
   notify-success:
     runs-on: ubuntu-latest

@@ -1,0 +1,9 @@
+kind: fixed
+body: '**profile**: interpretation-profile and environment failures carry
+  stable machine identities. An unreadable profile path reports
+  `PROFILE_UNREADABLE` (405) instead of sharing `PROFILE_INVALID` (403)
+  with invalid contents; an invalid `COPYBOOK_DIALECT` value is rejected
+  with `ENV_INVALID` (406) instead of silently falling back to the
+  normative default; profile documents past 1 MiB are refused before
+  parsing. All paths exit Encode (3) with structured diagnostics.'
+time: '2026-09-19T23:10:00Z'

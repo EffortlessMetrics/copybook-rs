@@ -8,7 +8,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use copybook_codec::options::profile::InterpretationProfile;
+use copybook_codec::options::profile::{InterpretationProfile, MAX_PROFILE_BYTES, ProfileError};
 
 fn fixture(name: &str) -> String {
     let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -71,5 +71,28 @@ fn material_change_moves_fingerprint() {
     assert_ne!(
         other.fingerprint().expect("fingerprints"),
         base.fingerprint().expect("fingerprints")
+    );
+}
+
+#[test]
+fn oversize_document_rejects_before_parsing() {
+    // A document past MAX_PROFILE_BYTES is refused with its size attached,
+    // without TOML parsing ever running: profiles are small reviewed
+    // documents, never data payloads.
+    let mut oversized = fixture("base.toml");
+    let padding = "# pad\n".repeat(256 * 1024);
+    oversized.push_str(&padding);
+    assert!(
+        u64::try_from(oversized.len()).unwrap_or(0) > MAX_PROFILE_BYTES,
+        "test document must exceed the bound"
+    );
+    let result = InterpretationProfile::parse(&oversized);
+    assert!(
+        matches!(
+            result,
+            Err(ProfileError::ProfileTooLarge { found })
+                if found == u64::try_from(oversized.len()).unwrap_or(0)
+        ),
+        "expected ProfileTooLarge with the document size, got {result:?}"
     );
 }

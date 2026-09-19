@@ -229,12 +229,18 @@ fn dialect_cli_precedence_is_observable() -> TestResult<()> {
     env_cmd.env("COPYBOOK_DIALECT", "0");
     assert_eq!(parsed_tail_min_count(&mut env_cmd, &copybook_path)?, 0);
 
+    // An env value naming no known dialect is rejected explicitly (#1126):
+    // validation exit with the ENV_INVALID subcode, never a silent
+    // normative fallback.
     let mut invalid_env_cmd = bin();
     invalid_env_cmd.env("COPYBOOK_DIALECT", "unsupported");
-    assert_eq!(
-        parsed_tail_min_count(&mut invalid_env_cmd, &copybook_path)?,
-        5
-    );
+    invalid_env_cmd.arg("parse").arg(&copybook_path);
+    invalid_env_cmd
+        .assert()
+        .failure()
+        .code(CBKE)
+        .stderr(contains("invalid COPYBOOK_DIALECT"))
+        .stderr(contains("subcode=406"));
 
     let zero_min_copybook = tmp.path().join("zero-min-schema.cpy");
     write_file(

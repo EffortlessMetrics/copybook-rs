@@ -64,6 +64,13 @@ pub mod subcode {
     /// path that can hold a manifest (`-` would mix the manifest with the
     /// layout report on stdout).
     pub const MANIFEST_TARGET_REFUSED: u16 = 404;
+    /// Policy enforcement: the profile file cannot be read. Distinct from
+    /// `PROFILE_INVALID`: a missing or unreadable path is not invalid
+    /// contents, and default machine output stays path-safe.
+    pub const PROFILE_UNREADABLE: u16 = 405;
+    /// Policy enforcement: an environment input (today `COPYBOOK_DIALECT`)
+    /// names no known value. Rejected explicitly; never a silent default.
+    pub const ENV_INVALID: u16 = 406;
 }
 
 fn invocation_id() -> &'static str {

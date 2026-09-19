@@ -335,20 +335,123 @@ pub(crate) fn list_all_features(flags: &FeatureFlags) {
     .unwrap();
 }
 
-/// Get effective dialect from CLI flag or environment variable
-///
-/// Precedence: CLI flag > `COPYBOOK_DIALECT` env var > default (Normative)
-pub(crate) fn effective_dialect(cli_dialect: Option<DialectPreference>) -> DialectPreference {
-    if let Some(dialect) = cli_dialect {
-        return dialect;
+/// Environment variable selecting the ODO `min_count` dialect.
+pub(crate) const DIALECT_ENV_VAR: &str = "COPYBOOK_DIALECT";
+
+/// Accepted `COPYBOOK_DIALECT` spellings, in canonical order.
+pub(crate) const DIALECT_ENV_ACCEPTED: &[&str] = &["n", "normative", "0", "1"];
+
+/// A `COPYBOOK_DIALECT` value naming no known dialect.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DialectEnvError {
+    /// Raw environment value.
+    pub value: String,
+}
+
+impl std::fmt::Display for DialectEnvError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "invalid {var} {:?}: expected one of {}",
+            self.value,
+            DIALECT_ENV_ACCEPTED.join(", "),
+            var = DIALECT_ENV_VAR,
+        )
     }
-    if let Ok(env_val) = std::env::var("COPYBOOK_DIALECT") {
-        match env_val.trim().to_ascii_lowercase().as_str() {
-            "0" => DialectPreference::Zero,
-            "1" => DialectPreference::One,
-            _ => DialectPreference::N, // Default to normative on invalid value
+}
+
+impl std::error::Error for DialectEnvError {}
+
+/// Parse one `COPYBOOK_DIALECT` value: `None` when unset.
+///
+/// # Errors
+///
+/// Returns [`DialectEnvError`] when the variable is set but names no known
+/// dialect — including a set but non-Unicode value, which is never confused
+/// with unset. An invalid value is rejected explicitly; it never falls back
+/// to the default silently.
+pub(crate) fn parse_dialect_env(
+    value: Option<std::ffi::OsString>,
+) -> Result<Option<DialectPreference>, DialectEnvError> {
+    let Some(raw) = value else {
+        return Ok(None);
+    };
+    let Some(text) = raw.to_str() else {
+        return Err(DialectEnvError {
+            value: raw.to_string_lossy().into_owned(),
+        });
+    };
+    match text.trim().to_ascii_lowercase().as_str() {
+        "0" => Ok(Some(DialectPreference::Zero)),
+        "1" => Ok(Some(DialectPreference::One)),
+        "n" | "normative" => Ok(Some(DialectPreference::N)),
+        _ => Err(DialectEnvError {
+            value: text.to_string(),
+        }),
+    }
+}
+
+/// Get effective dialect from CLI flag or environment variable.
+///
+/// Precedence: CLI flag > `COPYBOOK_DIALECT` env var > default (Normative).
+///
+/// # Errors
+///
+/// Returns [`DialectEnvError`] when the environment variable is set but
+/// invalid.
+pub(crate) fn effective_dialect(
+    cli_dialect: Option<DialectPreference>,
+) -> Result<DialectPreference, DialectEnvError> {
+    if let Some(dialect) = cli_dialect {
+        return Ok(dialect);
+    }
+    Ok(parse_dialect_env(std::env::var_os(DIALECT_ENV_VAR))?.unwrap_or(DialectPreference::N))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unset_env_falls_back_to_default() {
+        assert_eq!(parse_dialect_env(None), Ok(None));
+    }
+
+    #[test]
+    fn known_spellings_parse() {
+        for (input, expected) in [
+            ("n", DialectPreference::N),
+            ("normative", DialectPreference::N),
+            ("0", DialectPreference::Zero),
+            ("1", DialectPreference::One),
+            (" 1 ", DialectPreference::One),
+        ] {
+            assert_eq!(
+                parse_dialect_env(Some(std::ffi::OsString::from(input))),
+                Ok(Some(expected)),
+                "input {input:?}"
+            );
         }
-    } else {
-        DialectPreference::N // Default to normative
+    }
+
+    #[test]
+    fn unknown_spelling_rejects() {
+        let error =
+            parse_dialect_env(Some(std::ffi::OsString::from("unsupported"))).expect_err("rejects");
+        assert_eq!(
+            error,
+            DialectEnvError {
+                value: "unsupported".to_string(),
+            }
+        );
+    }
+
+    /// A set but non-Unicode value is invalid input, never "unset".
+    #[cfg(unix)]
+    #[test]
+    fn non_unicode_env_rejects() {
+        use std::os::unix::ffi::OsStringExt;
+        let raw = std::ffi::OsString::from_vec(vec![0xff, 0xfe]);
+        assert!(parse_dialect_env(Some(raw)).is_err());
     }
 }

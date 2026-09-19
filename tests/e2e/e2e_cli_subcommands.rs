@@ -123,6 +123,40 @@ fn parse_produces_valid_json_schema() {
         .stdout(predicate::str::contains("AGE"));
 }
 
+/// A copybook with a truncated PIC clause (missing closing paren).
+const BROKEN_CPY: &str = "\
+       01  REC.
+           05  FLD PIC X(10.
+";
+
+#[test]
+fn parse_failure_points_at_identity_explanation() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("broken.cpy"), BROKEN_CPY).unwrap();
+    cmd()
+        .args(["parse"])
+        .arg(p(&dir, "broken.cpy"))
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "Explain a failure: copybook explain CBKP101_INVALID_PIC",
+        ));
+}
+
+#[test]
+fn inspect_failure_points_at_identity_explanation() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("broken.cpy"), BROKEN_CPY).unwrap();
+    cmd()
+        .args(["inspect"])
+        .arg(p(&dir, "broken.cpy"))
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "Explain a failure: copybook explain CBKP101_INVALID_PIC",
+        ));
+}
+
 #[test]
 fn parse_output_is_valid_json() {
     let dir = setup_simple();

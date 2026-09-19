@@ -1,0 +1,7 @@
+kind: added
+body: '**cli**: every failure surface now prints a pasteable `copybook explain ...`
+  next step: `parse` and `inspect` point a broken copybook at the identity
+  explanation, `encode` points JSON-side failures (including `--fail-fast`
+  bails) at theirs, sharing one `Explain a failure:` hint shape with the
+  existing `decode`/`verify` occurrence hints.'
+time: '2026-09-18T20:20:56Z'

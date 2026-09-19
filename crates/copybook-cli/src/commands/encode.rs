@@ -102,6 +102,16 @@ pub fn run(
     // Report which records failed and why, not just how many.
     let mut failure_output = String::new();
     append_record_failures(&mut failure_output, &summary)?;
+    if let Some(first) = summary.failures.first() {
+        // Encode failures live on the JSON side, so occurrence mode does not
+        // apply: point at the identity explanation, which names the code,
+        // the fix, and nothing it cannot establish.
+        let _ = writeln!(
+            failure_output,
+            "  Explain a failure: copybook explain {}",
+            first.error.code(),
+        );
+    }
     if !failure_output.is_empty() {
         write_stderr_all(failure_output.as_bytes())?;
     }
@@ -139,7 +149,12 @@ pub fn run(
     // the user their bad input was a bug in copybook-rs. Lead with the stable code.
     if options.fail_fast && summary.has_errors() {
         if let Some(first) = summary.failures.first() {
-            bail!("{} (record {})", first.error, first.record_index);
+            bail!(
+                "{} (record {})\n  Explain a failure: copybook explain {}",
+                first.error,
+                first.record_index,
+                first.error.code()
+            );
         }
         bail!(
             "{}: encoding failed with {} error(s)",

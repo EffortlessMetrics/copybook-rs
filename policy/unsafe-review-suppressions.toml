@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+schema_version = "0.1"
+policy = "unsafe-review-suppressions"
+owner = "copybook-core"
+status = "active"
+
+# unsafe-review 0.5.0 currently classifies std::sync::RwLock::read() calls in
+# FeatureFlagsHandle as raw_pointer_read operations. These are exact, review-
+# dated detector false-positive suppressions; they are not baseline debt and do
+# not assert that unrelated unsafe code is safe.
+
+[[entries]]
+card_id = "UR-copybook-rs-crates-copybook-core-src-feature-flags-rs-is-enabled-operation-raw_pointer_read-read-eeda3efda819-pointer_validity-c1"
+owner = "copybook-core"
+reason = "unsafe-review 0.5.0 detector false positive: FeatureFlagsHandle::flags is std::sync::RwLock<FeatureFlags>; this call is the safe RwLock::read method, not raw-pointer memory access"
+evidence = "doc: crates/copybook-core/src/feature_flags.rs FeatureFlagsHandle::is_enabled reads std::sync::RwLock<FeatureFlags>"
+review_after = "2026-12-15"
+
+[[entries]]
+card_id = "UR-copybook-rs-crates-copybook-core-src-feature-flags-rs-is-enabled-operation-raw_pointer_read-read-141fc1b57b2e-pointer_validity-c1"
+owner = "copybook-core"
+reason = "unsafe-review 0.5.0 detector false positive: FeatureFlagsHandle::flags is std::sync::RwLock<FeatureFlags>; this call is the safe RwLock::read method, not raw-pointer memory access"
+evidence = "doc: crates/copybook-core/src/feature_flags.rs FeatureFlagsHandle::is_enabled reads std::sync::RwLock<FeatureFlags>"
+review_after = "2026-12-15"
+
+[[entries]]
+card_id = "UR-copybook-rs-crates-copybook-core-src-feature-flags-rs-snapshot-operation-raw_pointer_read-read-d0fdcde92bd4-pointer_validity-c1"
+owner = "copybook-core"
+reason = "unsafe-review 0.5.0 detector false positive: FeatureFlagsHandle::flags is std::sync::RwLock<FeatureFlags>; this call is the safe RwLock::read method, not raw-pointer memory access"
+evidence = "doc: crates/copybook-core/src/feature_flags.rs FeatureFlagsHandle::snapshot reads std::sync::RwLock<FeatureFlags>"
+review_after = "2026-12-15"
+
+[[entries]]
+card_id = "UR-copybook-rs-crates-copybook-core-src-feature-flags-rs-snapshot-operation-raw_pointer_read-read-141fc1b57b2e-pointer_validity-c1"
+owner = "copybook-core"
+reason = "unsafe-review 0.5.0 detector false positive: FeatureFlagsHandle::flags is std::sync::RwLock<FeatureFlags>; this call is the safe RwLock::read method, not raw-pointer memory access"
+evidence = "doc: crates/copybook-core/src/feature_flags.rs FeatureFlagsHandle::snapshot reads std::sync::RwLock<FeatureFlags>"
+review_after = "2026-12-15"

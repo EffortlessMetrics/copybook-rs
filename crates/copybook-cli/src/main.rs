@@ -574,6 +574,12 @@ Examples:
         /// Dialect for ODO `min_count` interpretation (n=normative, 0=zero-tolerant, 1=one-tolerant)
         #[arg(long, value_enum)]
         dialect: Option<DialectPreference>,
+        /// Draft an interpretation profile from a healthy diagnosis and write
+        /// it to this path. Keys the probes established are marked PINNED;
+        /// defaults and leading candidates are marked REVIEW for the operator
+        /// to decide. Nothing is emitted when the diagnosis has failures.
+        #[arg(long, value_name = "PROFILE")]
+        emit_profile: Option<PathBuf>,
     },
     /// Determinism validation for encode/decode operations
     #[command(after_help = "\
@@ -1257,6 +1263,7 @@ fn is_consumer_closed(err: &io::Error) -> bool {
 
 mod cli_config;
 mod command_dispatch;
+mod profile_generate;
 mod profile_inputs;
 
 mod commands {

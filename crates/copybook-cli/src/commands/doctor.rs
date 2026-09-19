@@ -10,8 +10,8 @@
 use crate::exit_codes::ExitCode;
 use crate::write_stdout_all;
 use copybook::codec::diagnose::{
-    DiagnoseOptions, Diagnosis, DiagnosisFinding, DiagnosisInput, DiagnosisStatus, diagnose,
-    remediation_for,
+    DiagnoseOptions, Diagnosis, DiagnosisEvidence, DiagnosisFinding, DiagnosisInput,
+    DiagnosisStatus, diagnose, remediation_for,
 };
 use copybook::codec::{Codepage, RecordFormat};
 use copybook::core::Dialect;
@@ -43,6 +43,8 @@ pub fn run(
     strict_comments: bool,
     dialect: crate::DialectPreference,
     verbose: bool,
+    emit_profile: Option<PathBuf>,
+    dialect_flag: Option<crate::DialectPreference>,
 ) -> anyhow::Result<ExitCode> {
     if verbose {
         return run_inner(
@@ -54,6 +56,8 @@ pub fn run(
             json,
             strict_comments,
             dialect,
+            emit_profile,
+            dialect_flag,
         );
     }
     let quiet = tracing_subscriber::fmt()
@@ -71,6 +75,8 @@ pub fn run(
             json,
             strict_comments,
             dialect,
+            emit_profile,
+            dialect_flag,
         )
     })
 }
@@ -85,6 +91,8 @@ fn run_inner(
     json: bool,
     strict_comments: bool,
     dialect: crate::DialectPreference,
+    emit_profile: Option<PathBuf>,
+    dialect_flag: Option<crate::DialectPreference>,
 ) -> anyhow::Result<ExitCode> {
     let core_dialect = match dialect {
         crate::DialectPreference::N => Dialect::Normative,
@@ -104,6 +112,7 @@ fn run_inner(
                     remediation: remediation_for("CBKF001_FILE_READ_ERROR"),
                     next: None,
                 }],
+                evidence: DiagnosisEvidence::default(),
             };
             return finish(&diagnosis.findings, json);
         }
@@ -118,6 +127,7 @@ fn run_inner(
             remediation: String::new(),
             next: None,
         }],
+        evidence: DiagnosisEvidence::default(),
     };
 
     let input_bytes = match input {
@@ -153,8 +163,65 @@ fn run_inner(
         dialect: core_dialect,
     };
     let mut diagnosis = diagnose(&copybook_text, copybook, input_view, &options);
+    let mut emit_failed = false;
+    if let Some(path) = emit_profile {
+        emit_failed = !emit_drafted_profile(&diagnosis, dialect_flag, &path);
+    }
     preload.findings.append(&mut diagnosis.findings);
-    finish(&preload.findings, json)
+    let exit = finish(&preload.findings, json)?;
+    if emit_failed && exit == ExitCode::Ok {
+        // A failed profile write is an orchestration error, not a record
+        // diagnosis: escalate the way unclassifiable failures do.
+        return Ok(ExitCode::Internal);
+    }
+    Ok(exit)
+}
+
+/// Draft an interpretation profile from a healthy diagnosis and write it.
+///
+/// Returns whether a profile was written. Refusals (failing findings or
+/// unestablished framing/codepage) and write errors report to stderr and
+/// return `false`; the diagnosis exit code is left to [`finish`], except
+/// that a failed write escalates a healthy verdict (see [`run_inner`]).
+fn emit_drafted_profile(
+    diagnosis: &Diagnosis,
+    dialect_flag: Option<crate::DialectPreference>,
+    path: &Path,
+) -> bool {
+    if diagnosis.has_failures() {
+        eprintln!("profile not emitted: diagnosis has failures; fix them and rerun");
+        return false;
+    }
+    let Some(drafted) = crate::profile_generate::assemble(&diagnosis.evidence, dialect_flag) else {
+        eprintln!("profile not emitted: framing or codepage was never established");
+        return false;
+    };
+    let rendered = crate::profile_generate::render(&drafted);
+    match std::fs::write(path, rendered) {
+        Ok(()) => {
+            if drafted.needs_review {
+                eprintln!(
+                    "profile drafted: {} ({} key(s) need review)",
+                    path.display(),
+                    drafted
+                        .notes
+                        .iter()
+                        .filter(|note| note.starts_with("REVIEW"))
+                        .count()
+                );
+            } else {
+                eprintln!("profile drafted: {} (fully pinned)", path.display());
+            }
+            true
+        }
+        Err(error) => {
+            eprintln!(
+                "profile not emitted: cannot write {}: {error}",
+                path.display()
+            );
+            false
+        }
+    }
 }
 
 /// Read file metadata plus a bounded leading prefix: diagnosis probes the

@@ -226,6 +226,130 @@ fn doctor_high_confidence_codepage_resolves() {
 }
 
 #[test]
+fn doctor_emit_profile_drafts_reviewable_file() {
+    // A healthy diagnosis drafts a profile: established keys are PINNED,
+    // the unpinned leading codepage is REVIEW, and the draft feeds back
+    // into `decode --profile` unchanged.
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+    let dir = tempfile::tempdir().expect("tempdir");
+    let draft = dir.path().join("draft.toml");
+    cmd()
+        .args(["doctor"])
+        .arg(&copybook)
+        .arg(&data)
+        .arg("--emit-profile")
+        .arg(&draft)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("healthy"))
+        .stderr(predicate::str::contains("profile drafted"))
+        .stderr(predicate::str::contains("need review"));
+    let rendered = std::fs::read_to_string(&draft).expect("draft written");
+    assert!(
+        rendered.contains("# PINNED framing.kind=fixed"),
+        "framing pinned, got:\n{rendered}"
+    );
+    assert!(
+        rendered.contains("# REVIEW decode.codepage="),
+        "leading codepage needs review, got:\n{rendered}"
+    );
+    assert!(rendered.contains("schema_version = 1"), "got:\n{rendered}");
+    assert!(rendered.contains("kind = \"fixed\""), "got:\n{rendered}");
+    assert!(
+        rendered.contains("codepage = \"cp037\""),
+        "got:\n{rendered}"
+    );
+    assert!(
+        rendered.contains("maximum_record_length = 50"),
+        "got:\n{rendered}"
+    );
+    let out = dir.path().join("out.jsonl");
+    cmd()
+        .args(["decode"])
+        .arg(&copybook)
+        .arg(&data)
+        .arg("--profile")
+        .arg(&draft)
+        .arg("--output")
+        .arg(&out)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Records with errors: 0"));
+}
+
+#[test]
+fn doctor_emit_profile_fully_pinned_with_flags() {
+    // Explicit --format/--codepage pin every probed key: no REVIEW lines.
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+    let dir = tempfile::tempdir().expect("tempdir");
+    let draft = dir.path().join("pinned.toml");
+    cmd()
+        .args(["doctor"])
+        .arg(&copybook)
+        .arg(&data)
+        .args(["--format", "fixed", "--codepage", "cp037"])
+        .arg("--emit-profile")
+        .arg(&draft)
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("fully pinned"));
+    let rendered = std::fs::read_to_string(&draft).expect("draft written");
+    assert!(
+        !rendered.lines().any(|line| line.starts_with("# REVIEW")),
+        "no review lines expected, got:\n{rendered}"
+    );
+    assert!(
+        rendered.contains("# PINNED decode.codepage=cp037 (explicit --codepage flag)"),
+        "got:\n{rendered}"
+    );
+}
+
+#[test]
+fn doctor_emit_profile_refuses_on_failure() {
+    // A failing diagnosis emits nothing and keeps its own exit code.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let bad = write_temp_file(&dir, "bad.cpy", b"THIS IS NOT A COPYBOOK ((( ");
+    let data = workspace_path("fixtures/data/simple.bin");
+    let draft = dir.path().join("refused.toml");
+    cmd()
+        .args(["doctor"])
+        .arg(&bad)
+        .arg(&data)
+        .arg("--emit-profile")
+        .arg(&draft)
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicate::str::contains("profile not emitted"));
+    assert!(!draft.exists(), "no draft may be written on failure");
+}
+
+#[test]
+fn doctor_emit_profile_write_failure_escalates() {
+    // A healthy diagnosis that cannot write its draft keeps the stderr
+    // report but escalates to an orchestration error (exit 5), not a
+    // record diagnosis.
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+    let dir = tempfile::tempdir().expect("tempdir");
+    let missing = dir.path().join("no-such-dir").join("draft.toml");
+    cmd()
+        .args(["doctor"])
+        .arg(&copybook)
+        .arg(&data)
+        .arg("--emit-profile")
+        .arg(&missing)
+        .assert()
+        .failure()
+        .code(5)
+        .stderr(predicate::str::contains(
+            "profile not emitted: cannot write",
+        ));
+}
+
+#[test]
 fn doctor_json_report_is_machine_readable() {
     let copybook = workspace_path("fixtures/copybooks/simple.cpy");
     let data = workspace_path("fixtures/data/simple.bin");

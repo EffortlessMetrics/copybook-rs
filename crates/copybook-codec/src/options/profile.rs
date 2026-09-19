@@ -82,9 +82,9 @@ pub struct SourceSection {
 pub struct FramingSection {
     /// Record framing kind.
     pub kind: FramingKind,
-    /// Reserved-bytes policy. Lenient matches current decoder behavior
-    /// (reserved bytes accepted as-is); strict is reserved for slice 3
-    /// consumption and currently behaves identically.
+    /// Reserved-bytes policy. Lenient warns and continues on non-zero
+    /// framing reserved bytes; strict fails with `CBKR211`/`CBKF225`
+    /// without enabling full strict record handling.
     pub reserved_bytes: ReservedPolicy,
 }
 
@@ -300,6 +300,26 @@ impl From<FramingKind> for RecordFormat {
             FramingKind::Fixed => Self::Fixed,
             FramingKind::Rdw => Self::RDW,
             FramingKind::Vb => Self::Vb,
+        }
+    }
+}
+
+impl From<RecordFormat> for FramingKind {
+    fn from(value: RecordFormat) -> Self {
+        match value {
+            RecordFormat::Fixed => Self::Fixed,
+            RecordFormat::RDW => Self::Rdw,
+            RecordFormat::Vb => Self::Vb,
+        }
+    }
+}
+
+impl From<Dialect> for SourceDialect {
+    fn from(value: Dialect) -> Self {
+        match value {
+            Dialect::Normative => Self::Normative,
+            Dialect::ZeroTolerant => Self::ZeroTolerant,
+            Dialect::OneTolerant => Self::OneTolerant,
         }
     }
 }

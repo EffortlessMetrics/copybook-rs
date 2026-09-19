@@ -468,6 +468,7 @@ copybook doctor <COPYBOOK> [INPUT] [OPTIONS]
 - `--json` - Emit a machine-readable JSON report
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
 - `--dialect <MODE>` - Dialect mode: n (normative), 0 (zero-tolerant), 1 (one-tolerant)
+- `--emit-profile <PROFILE>` - Draft an interpretation profile from a healthy diagnosis and write it to this path. Keys the probes established are marked `PINNED`; defaults and leading candidates are marked `REVIEW` for the operator to decide. Nothing is emitted when the diagnosis has failures.
 
 **Exit codes:** 0 = healthy (warnings do not fail), 2/3/4/5 = worst failure mapped to its taxonomy family.
 
@@ -478,6 +479,10 @@ copybook doctor customer.cpy data.bin
 
 # Copybook-only check, machine-readable full diagnosis
 copybook doctor customer.cpy --json
+
+# Draft a profile from a healthy diagnosis, then review and reuse it
+copybook doctor customer.cpy data.bin --format fixed --codepage cp037 --emit-profile customer.toml
+copybook decode customer.cpy data.bin --profile customer.toml --output out.jsonl
 ```
 
 ### audit

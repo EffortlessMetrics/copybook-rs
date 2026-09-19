@@ -1,0 +1,9 @@
+kind: added
+body: '**codec**: new stable `ResolvedManifest` snapshot binding the four
+  resolved-schema facts operators review: the input bundle fingerprint, the
+  effective encoding/dialect/framing/record-bound values with resolution
+  provenance, the flattened layout with physical offsets and bounds, and the
+  static-matrix support classification (`copybook_codec::resolved_manifest`).
+  Manifests serialize to fingerprinted JSON (`sha256-v1`) and verify on load,
+  rejecting tampered bodies, unknown versions, and malformed documents.'
+time: '2026-09-19T14:30:00Z'

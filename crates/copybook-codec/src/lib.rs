@@ -40,6 +40,8 @@ pub mod occurrence;
 pub mod options;
 /// Record-level binary decode/encode logic.
 pub mod record;
+/// Stable resolved-schema manifest snapshots.
+pub mod resolved_manifest;
 /// Zoned decimal overpunch character handling.
 pub mod zoned_overpunch;
 

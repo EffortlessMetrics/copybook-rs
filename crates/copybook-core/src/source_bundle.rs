@@ -118,7 +118,7 @@ pub enum DialectProvenance {
 }
 
 /// Effective dialect plus where it came from.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EffectiveDialect {
     /// The dialect interpretation must use.
     pub dialect: Dialect,

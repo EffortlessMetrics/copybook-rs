@@ -6,7 +6,7 @@
 <h1 align="center">copybook-rs</h1>
 
 <p align="center">
-  <em>Deterministic COBOL copybook parsing and mainframe record conversion.</em>
+  <em>Inspect, convert, and round-trip COBOL-described mainframe records.</em>
 </p>
 
 <p align="center">
@@ -28,59 +28,91 @@
 
 ---
 
-`copybook-rs` is a Rust toolkit for parsing COBOL copybooks and deterministic conversion of fixed-length and RDW mainframe records to and from JSON.
+`copybook-rs` reads COBOL copybooks and fixed, RDW, or VB mainframe record
+files, decodes supported records to JSONL, and can encode them back against the
+same layout.
 
-It does not run COBOL. It makes mainframe data reviewable outside the mainframe.
+**Engineering Preview · v0.8.1.** It does not run COBOL or require mainframe
+access.
 
-The first useful run should feel small:
+## The problem
 
-```text
-one copybook
--> one record file
--> one JSONL line per record
--> the same bytes every time
-```
+A copybook describes the record, but the extract is still encoded bytes.
+EBCDIC, packed decimal, record framing, overlays, and variable structures still
+have to be interpreted correctly. Getting the framing, codepage, or layout
+wrong can make the output wrong even when the file is readable.
 
-## Prerequisites
-
-- **Rust ≥ 1.98** (2024 edition). Check with `rustc --version`; update with `rustup update stable`.
-- A COBOL copybook (`.cpy`) and a fixed-length or RDW record file. No mainframe access needed.
+`copybook-rs` resolves the layout explicitly, decodes records against it, and
+provides verification and deterministic round-trip checks for supported paths.
 
 ## The first useful run
 
-Install the CLI from crates.io and decode an EBCDIC file to JSON:
+Install the CLI, fetch the bundled EBCDIC fixture, and decode it:
 
 ```bash
 cargo install copybook-cli@0.8.1 --locked
 
-# Fetch the example fixtures (or use your own copybook + data)
 curl -LO https://github.com/EffortlessMetrics/copybook-rs/raw/v0.8.1/fixtures/copybooks/simple.cpy
 curl -LO https://github.com/EffortlessMetrics/copybook-rs/raw/v0.8.1/fixtures/data/simple.bin
 
-# Decode EBCDIC fixture to JSON
 copybook decode simple.cpy simple.bin \
   --format fixed --codepage cp037 \
   --output demo.jsonl
 
-# View the result
 cat demo.jsonl
-# {"CUSTOMER-ID":"123456","CUSTOMER-NAME":"John Smith",...,"ACCOUNT-BALANCE":"12345.67",...}
+# {"CUSTOMER-ID":"123456",...,"ACCOUNT-BALANCE":"12345.67",...}
 ```
 
-The bundled `simple.cpy` / `simple.bin` pair demonstrates EBCDIC-to-JSON conversion with COMP-3 packed-decimal fields.
+Then check the supported decode/encode path against the original bytes:
 
-You work in five key terms. Everything else in this README and the reference
-docs expands on them:
+```bash
+copybook determinism round-trip simple.cpy simple.bin \
+  --format fixed --codepage cp037
+```
 
-| Term | One-line meaning |
+The fixture includes EBCDIC text, zoned numerics, and a COMP-3 packed-decimal
+field.
+
+## Can it handle my files?
+
+| Area | Supported surface |
 | --- | --- |
-| **copybook** | the COBOL record description — the schema source of truth |
-| **layout** | the resolved byte map: offsets, lengths, REDEFINES, OCCURS |
-| **record** | one fixed-length (or RDW-framed) byte slice decoded against a layout |
-| **codepage** | the EBCDIC/ASCII mapping (CP037/CP273/CP500/CP1047/CP1140) applied to text |
-| **round-trip** | decode-then-encode reproducing the input bytes exactly |
+| **Record framing** | Fixed, RDW, VB/BDW |
+| **Text** | ASCII, CP037, CP273, CP500, CP1047, CP1140 |
+| **Storage** | DISPLAY, zoned decimal, COMP-3, BINARY, COMP-1/COMP-2, edited PIC |
+| **Structure** | REDEFINES, fixed OCCURS, tail-position ODO, Level-88, RENAMES R1-R3 |
 
-For Rust library use, depend on the canonical facade:
+Deliberate boundaries include nested ODO O5/O6, ODO over REDEFINES, RENAMES
+R4-R6 interactions with REDEFINES/OCCURS, and `EXTERNAL` / `GLOBAL`.
+
+Check a copybook directly:
+
+```bash
+copybook support --advise your-copybook.cpy
+```
+
+The [COBOL support matrix](docs/reference/COBOL_SUPPORT_MATRIX.md) is the
+governed construct-level contract.
+
+## Common jobs
+
+| Need | Start with |
+| --- | --- |
+| Figure out an unfamiliar extract | `copybook doctor` |
+| See field offsets and storage layout | `copybook inspect` |
+| Convert records to JSONL | `copybook decode` |
+| Encode JSONL back to records | `copybook encode` |
+| Validate records without converting them | `copybook verify` |
+| Check deterministic byte fidelity | `copybook determinism round-trip` |
+| Explain a stable failure | `copybook explain` |
+| Check a copybook change for breakage | `copybook compat` |
+
+See the [CLI reference](docs/CLI_REFERENCE.md) for exact arguments and output
+contracts.
+
+## Use it from Rust
+
+Depend on the canonical facade:
 
 ```toml
 [dependencies]
@@ -88,98 +120,38 @@ copybook = "=0.8.1"
 ```
 
 ```rust
-use copybook::core::parse_copybook;
 use copybook::codec::{decode_record, DecodeOptions};
+use copybook::core::parse_copybook;
 ```
 
-(`copybook-rs` is a redirect/search alias for the same API; `copybook-core` /
-`copybook-codec` remain available as intentional granular crates.)
+Most users should depend on `copybook`; lower-level crates remain available
+for specialized use. See the [library API](docs/reference/LIBRARY_API.md).
 
-To build from source instead, clone the repo, `git checkout v0.8.1`, and
-`cargo build --release`; the binary is `./target/release/copybook`.
+## Status and documentation
 
-## Status
+Engineering Preview means the CLI and library expose stable contracts while the
+COBOL support envelope remains preview-level. Validate representative
+production copybooks and records before unattended production adoption.
 
-Engineering Preview (v0.8.1). Stable CLI and library APIs; feature completeness
-is preview-level. See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and
-known limitations.
-
-## How copybook-rs works (reference)
-
-> Internal vocabulary and capability detail live here and below. The first
-> screen above is all a new user needs to start.
-
-`copybook-core` parses the copybook into a schema and resolves it to a byte
-layout; `copybook-codec` decodes each record slice against that layout
-(charset conversion, COMP-3/zoned/overpunch numerics, edited PIC, ODO and
-REDEFINES handling) and emits canonical JSONL. `copybook-cli` orchestrates the
-pipeline: `parse`, `inspect`, `decode`, `encode`, `verify`, `determinism`,
-`support`, and `audit`.
-
-## Where it fits
-
-```text
-generic ETL:     moves bytes; schema is your problem
-copybook-rs:     the copybook IS the schema, bytes round-trip exactly
-COBOL runtime:   executes programs; needs the mainframe
-```
-
-`copybook-rs` is offline and read-only by default: no network, no mainframe
-connection, no source edits. Raw-capture modes embed record bytes as base64 —
-treat outputs as sensitive when inputs are.
-
-## What it supports
-
-### Supported
-
-- **Data types**: DISPLAY, Zoned Decimal, COMP-3, BINARY, COMP-1/COMP-2, Edited PIC
-- **Structure**: REDEFINES, OCCURS (fixed), ODO (tail position), Level-88, RENAMES (R1-R3)
-- **Formats**: Fixed-length and RDW records; CP037/CP273/CP500/CP1047/CP1140
-- **Features**: Field projection (`--select`), Dialect lever (`--dialect`), Deterministic round-trip
-
-### Not supported (by design)
-
-- Nested ODO (O5/O6), ODO over REDEFINES
-- RENAMES with REDEFINES/OCCURS (R4-R6)
-- EXTERNAL / GLOBAL clauses
-
-See [COBOL_SUPPORT_MATRIX.md](docs/reference/COBOL_SUPPORT_MATRIX.md) for the full feature matrix.
-
-## Exit codes
-
-| Code | Tag  | Meaning (1-liner) | Test |
-|----:|:----:|--------------------|------|
-| 2 | CBKD | Data quality failure | exit_code_mapping::exit_code_cbkd_is_2 |
-| 3 | CBKE | Encode/validation failure | exit_code_mapping::exit_code_cbke_is_3 |
-| 4 | CBKF | File read or record format/RDW failure | exit_code_mapping::exit_code_cbkf_is_4 |
-| 5 | CBKI | Internal orchestration error | exit_code_mapping::exit_code_cbki_is_5 |
-
-## Documentation
-
-| Document | Description |
-|----------|-------------|
-| [Getting Started](docs/tutorials/getting-started.md) | Tutorial with bundled fixtures |
-| [Migrating from JRecord](docs/JRECORD_MIGRATION.md) | Adoption route for Java/mainframe users, pinned to differential evidence |
-| [Documentation Start](docs/START_HERE.md) | Hand-maintained documentation entry point |
-| [CLI Reference](docs/CLI_REFERENCE.md) | Command-line interface documentation |
-| [Library API](docs/reference/LIBRARY_API.md) | Rust library API reference |
-| [Error Codes](docs/reference/ERROR_CODES.md) | Error taxonomy |
-| [Support Matrix](docs/reference/COBOL_SUPPORT_MATRIX.md) | COBOL feature coverage |
-| [Engineering Report](docs/REPORT.md) | Readiness and current engineering status |
-| [Stability Guarantees](docs/STABILITY_GUARANTEES.md) | API stability contract and versioning policy |
-| [Support Policy](docs/SUPPORT_POLICY.md) | Release support windows and response times |
-| [Roadmap](docs/ROADMAP.md) | Project status and what's next |
+| Need | Go to |
+| --- | --- |
+| Walk through the CLI | [Getting Started](docs/tutorials/getting-started.md) |
+| Check exact command behavior | [CLI Reference](docs/CLI_REFERENCE.md) |
+| Check COBOL feature support | [Support Matrix](docs/reference/COBOL_SUPPORT_MATRIX.md) |
+| Embed the library | [Library API](docs/reference/LIBRARY_API.md) |
+| Migrate from JRecord | [JRecord Migration](docs/JRECORD_MIGRATION.md) |
+| Evaluate adoption and current limits | [Engineering Report](docs/REPORT.md) · [Roadmap](docs/ROADMAP.md) |
 
 ## Development
 
 ```bash
-just build    # cargo build --workspace
-just test     # cargo nextest run
-just lint     # clippy, pedantic
-just fmt      # rustfmt
+just build
+just test
+just lint
+just fmt
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full development workflow.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor workflow.
 
 ## License
 

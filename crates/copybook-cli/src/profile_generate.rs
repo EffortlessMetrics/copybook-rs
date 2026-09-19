@@ -16,7 +16,7 @@ use copybook::codec::options::profile::{
     LimitsSection, MAX_PROFILE_RECORD_LENGTH, PROFILE_SCHEMA_VERSION, ReservedPolicy,
     SourceDialect, SourceSection,
 };
-use copybook::codec::{JsonNumberMode, UnmappablePolicy};
+use copybook::codec::{Codepage, JsonNumberMode, RecordFormat, UnmappablePolicy};
 use copybook::core::dialect::Dialect;
 
 /// A drafted profile plus its per-key provenance notes.
@@ -39,140 +39,18 @@ pub(crate) fn assemble(
 ) -> Option<DraftedProfile> {
     let format = evidence.format?;
     let codepage = evidence.codepage?;
-    let mut notes = Vec::new();
-    let mut needs_review = false;
-
-    if evidence.format_explicit {
-        pin(
-            &mut notes,
-            format!("framing.kind={format} (explicit --format flag)"),
-        );
-    } else {
-        pin(
-            &mut notes,
-            format!("framing.kind={format} (single probe fit)"),
-        );
-    }
-
-    if evidence.codepage_pinned {
-        if evidence.codepage_explicit {
-            pin(
-                &mut notes,
-                format!("decode.codepage={codepage} (explicit --codepage flag)"),
-            );
-        } else {
-            pin(
-                &mut notes,
-                format!("decode.codepage={codepage} (confident probe winner, trial-corroborated)"),
-            );
-        }
-    } else {
-        review(
-            &mut notes,
-            &mut needs_review,
-            format!(
-                "decode.codepage={codepage} is only the leading candidate; rerun doctor --codepage {codepage} to pin it"
-            ),
-        );
-    }
-
-    let dialect = match dialect_flag.map(Dialect::from) {
-        Some(dialect) => {
-            pin(
-                &mut notes,
-                format!(
-                    "source.dialect={} (explicit --dialect flag)",
-                    SourceDialect::from(dialect)
-                ),
-            );
-            dialect
-        }
-        None if evidence.variable_layout => {
-            review(
-                &mut notes,
-                &mut needs_review,
-                "source.dialect=normative is a default; variable-length layout means ODO min_count interpretation may matter (n, 0, 1)"
-                    .to_string(),
-            );
-            Dialect::Normative
-        }
-        None => {
-            pin(
-                &mut notes,
-                "source.dialect=normative (default; inert for fixed layouts)".to_string(),
-            );
-            Dialect::Normative
-        }
+    let mut drafter = Drafter {
+        evidence,
+        dialect_flag,
+        notes: Vec::new(),
+        needs_review: false,
     };
-
-    if evidence.reserved_nonzero_observed {
-        review(
-            &mut notes,
-            &mut needs_review,
-            "framing.reserved_bytes=lenient despite non-zero reserved bytes in the probe; switch to strict only if the feed guarantees zero reserved bytes"
-                .to_string(),
-        );
-    } else {
-        pin(
-            &mut notes,
-            "framing.reserved_bytes=lenient (no non-zero reserved bytes in the probe)".to_string(),
-        );
-    }
-
-    let maximum_record_length = match evidence.record_length {
-        Some(established) if established <= MAX_PROFILE_RECORD_LENGTH => {
-            if evidence.record_length_exact {
-                pin(
-                    &mut notes,
-                    format!("limits.maximum_record_length={established} (exact fixed LRECL)"),
-                );
-            } else {
-                pin(
-                    &mut notes,
-                    format!(
-                        "limits.maximum_record_length={established} (largest observed RDW wire record)"
-                    ),
-                );
-            }
-            established
-        }
-        Some(oversize) => {
-            review(
-                &mut notes,
-                &mut needs_review,
-                format!(
-                    "limits.maximum_record_length capped at {MAX_PROFILE_RECORD_LENGTH}: observed {oversize} exceeds the profile bound"
-                ),
-            );
-            MAX_PROFILE_RECORD_LENGTH
-        }
-        None => {
-            review(
-                &mut notes,
-                &mut needs_review,
-                format!(
-                    "limits.maximum_record_length={MAX_PROFILE_RECORD_LENGTH} is uncapped: no record length established (VB framing or no trial); set the feed's cap"
-                ),
-            );
-            MAX_PROFILE_RECORD_LENGTH
-        }
-    };
-
-    pin(
-        &mut notes,
-        format!(
-            "limits.maximum_errors={DEFAULT_PROFILE_ERRORS} (default budget; tune to the feed)"
-        ),
-    );
-    pin(
-        &mut notes,
-        "decode.unmappable=error (default; no probe distinguishes policies)".to_string(),
-    );
-    pin(
-        &mut notes,
-        "decode.json_numbers=lossless (default; decode-only)".to_string(),
-    );
-
+    drafter.note_framing(format);
+    drafter.note_codepage(codepage);
+    let dialect = drafter.resolve_dialect();
+    drafter.note_reserved();
+    let maximum_record_length = drafter.resolve_record_length();
+    drafter.note_defaults();
     Some(DraftedProfile {
         profile: InterpretationProfile {
             schema_version: PROFILE_SCHEMA_VERSION,
@@ -193,20 +71,122 @@ pub(crate) fn assemble(
                 maximum_errors: DEFAULT_PROFILE_ERRORS,
             },
         },
-        notes,
-        needs_review,
+        notes: drafter.notes,
+        needs_review: drafter.needs_review,
     })
 }
 
-/// Record a decided key with no remaining review.
-fn pin(notes: &mut Vec<String>, note: String) {
-    notes.push(format!("PINNED {note}"));
+/// One draft in progress: evidence plus the provenance notes so far.
+struct Drafter<'a> {
+    evidence: &'a DiagnosisEvidence,
+    dialect_flag: Option<DialectPreference>,
+    notes: Vec<String>,
+    needs_review: bool,
 }
 
-/// Record a key the operator must still decide on.
-fn review(notes: &mut Vec<String>, needs_review: &mut bool, note: String) {
-    *needs_review = true;
-    notes.push(format!("REVIEW {note}"));
+impl Drafter<'_> {
+    /// Record a decided key with no remaining review.
+    fn pin(&mut self, note: &str) {
+        self.notes.push(format!("PINNED {note}"));
+    }
+
+    /// Record a key the operator must still decide on.
+    fn review(&mut self, note: &str) {
+        self.needs_review = true;
+        self.notes.push(format!("REVIEW {note}"));
+    }
+
+    fn note_framing(&mut self, format: RecordFormat) {
+        if self.evidence.format_explicit {
+            self.pin(&format!("framing.kind={format} (explicit --format flag)"));
+        } else {
+            self.pin(&format!("framing.kind={format} (single probe fit)"));
+        }
+    }
+
+    fn note_codepage(&mut self, codepage: Codepage) {
+        if self.evidence.codepage_pinned {
+            if self.evidence.codepage_explicit {
+                self.pin(&format!(
+                    "decode.codepage={codepage} (explicit --codepage flag)"
+                ));
+            } else {
+                self.pin(&format!(
+                    "decode.codepage={codepage} (confident probe winner, trial-corroborated)"
+                ));
+            }
+        } else {
+            self.review(&format!(
+                "decode.codepage={codepage} is only the leading candidate; rerun doctor --codepage {codepage} to pin it"
+            ));
+        }
+    }
+
+    fn resolve_dialect(&mut self) -> Dialect {
+        if let Some(flag) = self.dialect_flag {
+            let dialect = Dialect::from(flag);
+            self.pin(&format!(
+                "source.dialect={} (explicit --dialect flag)",
+                SourceDialect::from(dialect)
+            ));
+            return dialect;
+        }
+        if self.evidence.variable_layout {
+            self.review(
+                "source.dialect=normative is a default; variable-length layout means ODO min_count interpretation may matter (n, 0, 1)",
+            );
+        } else {
+            self.pin("source.dialect=normative (default; inert for fixed layouts)");
+        }
+        Dialect::Normative
+    }
+
+    fn note_reserved(&mut self) {
+        if self.evidence.reserved_nonzero_observed {
+            self.review(
+                "framing.reserved_bytes=lenient despite non-zero reserved bytes in the probe; switch to strict only if the feed guarantees zero reserved bytes",
+            );
+        } else {
+            self.pin("framing.reserved_bytes=lenient (no non-zero reserved bytes in the probe)");
+        }
+    }
+
+    fn resolve_record_length(&mut self) -> u64 {
+        match self.evidence.record_length {
+            Some(established) if established <= MAX_PROFILE_RECORD_LENGTH => {
+                if self.evidence.record_length_exact {
+                    self.pin(&format!(
+                        "limits.maximum_record_length={established} (exact fixed LRECL)"
+                    ));
+                } else {
+                    self.pin(&format!(
+                        "limits.maximum_record_length={established} (largest observed RDW wire record)"
+                    ));
+                }
+                established
+            }
+            Some(oversize) => {
+                self.review(&format!(
+                    "limits.maximum_record_length capped at {MAX_PROFILE_RECORD_LENGTH}: observed {oversize} exceeds the profile bound"
+                ));
+                MAX_PROFILE_RECORD_LENGTH
+            }
+            None => {
+                self.review(&format!(
+                    "limits.maximum_record_length={MAX_PROFILE_RECORD_LENGTH} is uncapped: no record length established (VB framing or no trial); set the feed's cap"
+                ));
+                MAX_PROFILE_RECORD_LENGTH
+            }
+        }
+    }
+
+    fn note_defaults(&mut self) {
+        self.pin(&format!(
+            "limits.maximum_errors={DEFAULT_PROFILE_ERRORS} (default budget; tune to the feed)"
+        ));
+        self.pin("decode.unmappable=error (default; no probe distinguishes policies)");
+        self.pin("decode.json_numbers=lossless (default; decode-only)");
+    }
 }
 
 /// Render a drafted profile: a provenance header plus canonical TOML.
@@ -228,7 +208,8 @@ pub(crate) fn render(drafted: &DraftedProfile) -> String {
     match drafted.profile.to_canonical_toml() {
         Ok(toml) => rendered.push_str(&toml),
         Err(error) => {
-            rendered.push_str(&format!("# ERROR rendering profile TOML: {error}\n"));
+            use std::fmt::Write as _;
+            let _ = writeln!(rendered, "# ERROR rendering profile TOML: {error}");
         }
     }
     if !rendered.ends_with('\n') {

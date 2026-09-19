@@ -141,6 +141,7 @@ impl Diagnosis {
 /// not establish that input, and callers must refuse or mark review rather
 /// than fill a default silently.
 #[derive(Clone, Debug, Default)]
+#[allow(clippy::struct_excessive_bools)] // Each flag qualifies its paired observation; enums would split the pairs
 pub struct DiagnosisEvidence {
     /// Confirmed framing: the explicit `--format` choice or the single
     /// probe fit. `None` when framing is unconfirmed (diagnosis stops).

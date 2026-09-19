@@ -325,6 +325,28 @@ configuration-token conversion before a decode, encode, record-framing, or
 infrastructure operation begins. Serde deserialization is a separate rejection
 path and is not converted to `ParseCodecOptionError`.
 
+### Interpretation profiles
+
+Reviewed interpretation intent is owned by `copybook-codec`; the preferred
+facade path is `copybook::codec::options::profile::InterpretationProfile`
+(also reachable as `copybook_codec::options::profile`, with the compatibility
+`copybook_options` package forwarding the same contract).
+
+- Build profiles through `InterpretationProfile::parse`,
+  `InterpretationProfile::product_defaults` with field overwrites, or a
+  future builder. The structs are `#[non_exhaustive]`: struct literals are
+  not part of the contract, so additive fields cannot break external
+  construction.
+- `to_canonical_toml` renders the exact bytes `fingerprint` digests
+  (declaration-order sections and keys, LF endings, one trailing newline);
+  equivalent intent under reordered keys, comments, or CRLF endings yields
+  byte-identical canonical form. `fingerprint` returns the SHA-256 hex
+  digest, or an error when canonicalization fails — never an empty-input
+  fallback.
+- Stability is beta on every layer (wire schema, Rust API,
+  canonicalization, fingerprint); migration while beta means regeneration,
+  never silent acceptance. Unknown TOML keys are rejected.
+
 ## Codepage Notes
 
 copybook-rs ships with an explicit allowlist of production codepages. The encoder/decoder

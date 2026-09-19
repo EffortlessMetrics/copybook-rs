@@ -1,0 +1,14 @@
+# Leading comment: equivalent intent, hostile formatting.
+schema_version = 1
+[limits]
+maximum_errors = 100 # trailing comment
+maximum_record_length = 32760
+[decode]
+json_numbers = "lossless"
+unmappable = "error"
+codepage = "cp037"
+[framing]
+reserved_bytes = "lenient"
+kind = "rdw"
+[source]
+dialect = "normative"

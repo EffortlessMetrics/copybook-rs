@@ -11,12 +11,13 @@
 
 use crate::cli_config::DialectPreference;
 use copybook::codec::diagnose::DiagnosisEvidence;
+#[cfg(test)]
+use copybook::codec::options::profile::ReservedPolicy;
 use copybook::codec::options::profile::{
-    DEFAULT_PROFILE_ERRORS, DecodeSection, FramingKind, FramingSection, InterpretationProfile,
-    LimitsSection, MAX_PROFILE_RECORD_LENGTH, PROFILE_SCHEMA_VERSION, ReservedPolicy,
-    SourceDialect, SourceSection,
+    DEFAULT_PROFILE_ERRORS, FramingKind, InterpretationProfile, MAX_PROFILE_RECORD_LENGTH,
+    SourceDialect,
 };
-use copybook::codec::{Codepage, JsonNumberMode, RecordFormat, UnmappablePolicy};
+use copybook::codec::{Codepage, RecordFormat};
 use copybook::core::dialect::Dialect;
 
 /// A drafted profile plus its per-key provenance notes.
@@ -51,26 +52,16 @@ pub(crate) fn assemble(
     drafter.note_reserved();
     let maximum_record_length = drafter.resolve_record_length();
     drafter.note_defaults();
+    // Struct literals are not part of the profile contract (the structs are
+    // #[non_exhaustive]): draft from the product defaults and overwrite every
+    // decided field, so additive profile fields keep compiling here.
+    let mut profile = InterpretationProfile::product_defaults();
+    profile.source.dialect = SourceDialect::from(dialect);
+    profile.framing.kind = FramingKind::from(format);
+    profile.decode.codepage = codepage;
+    profile.limits.maximum_record_length = maximum_record_length;
     Some(DraftedProfile {
-        profile: InterpretationProfile {
-            schema_version: PROFILE_SCHEMA_VERSION,
-            source: SourceSection {
-                dialect: SourceDialect::from(dialect),
-            },
-            framing: FramingSection {
-                kind: FramingKind::from(format),
-                reserved_bytes: ReservedPolicy::Lenient,
-            },
-            decode: DecodeSection {
-                codepage,
-                unmappable: UnmappablePolicy::Error,
-                json_numbers: JsonNumberMode::Lossless,
-            },
-            limits: LimitsSection {
-                maximum_record_length,
-                maximum_errors: DEFAULT_PROFILE_ERRORS,
-            },
-        },
+        profile,
         notes: drafter.notes,
         needs_review: drafter.needs_review,
     })

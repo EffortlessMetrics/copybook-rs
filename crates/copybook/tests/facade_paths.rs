@@ -14,6 +14,7 @@ fn preferred_paths_resolve_to_true_owners() {
     let _ = std::any::type_name::<error::ErrorCode>();
     let _ = std::any::type_name::<charset::Codepage>();
     let _ = std::any::type_name::<codec::options::DecodeOptions>();
+    let _ = std::any::type_name::<codec::options::profile::InterpretationProfile>();
     let _ = std::any::type_name::<framing::fixed::FixedRecordReader<std::io::Cursor<Vec<u8>>>>();
     let _ = std::any::type_name::<framing::rdw::RdwHeader>();
 }

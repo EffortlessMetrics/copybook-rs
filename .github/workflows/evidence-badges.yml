@@ -31,6 +31,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_TOOLCHAIN: "1.98.0"
   RIPR_VERSION: "0.10.0"
   UNSAFE_REVIEW_VERSION: "0.5.0"
 
@@ -56,9 +57,9 @@ jobs:
       - name: Install pinned evidence tools
         run: |
           set -euo pipefail
-          rustup toolchain install stable --profile minimal
-          cargo +stable install ripr --version "${RIPR_VERSION}" --locked
-          cargo +stable install unsafe-review --version "${UNSAFE_REVIEW_VERSION}" --locked
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+          cargo +"${RUST_TOOLCHAIN}" install ripr --version "${RIPR_VERSION}" --locked
+          cargo +"${RUST_TOOLCHAIN}" install unsafe-review --version "${UNSAFE_REVIEW_VERSION}" --locked
           ripr --version
           unsafe-review --version
 

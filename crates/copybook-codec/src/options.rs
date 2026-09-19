@@ -7,9 +7,10 @@
 //! surface used by the codec and CLI layers. The former `copybook-options`
 //! package forwards to this module for compatibility.
 //!
-//! [`profile`] holds versioned interpretation profiles (reviewed framing,
-//! decode options, dialect, and limits); [`resolve`] resolves one effective
-//! value per field across flag, profile, environment, and default layers.
+//! [`crate::options::profile`] holds versioned interpretation profiles
+//! (reviewed framing, decode options, dialect, and limits);
+//! [`crate::options::resolve`] resolves one effective value per field
+//! across flag, profile, environment, and default layers.
 #![allow(clippy::missing_inline_in_public_items)]
 
 mod parse_error;

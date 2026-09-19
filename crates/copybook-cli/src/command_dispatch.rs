@@ -261,6 +261,7 @@ fn run_inspect_emit_manifest(
         commands::inspect::run_with_manifest(
             copybook,
             &common,
+            loaded.as_ref(),
             strict,
             strict_comments,
             feature_flags,

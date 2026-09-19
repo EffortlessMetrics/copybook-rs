@@ -1,0 +1,12 @@
+kind: changed
+body: '**codec**: resolved-schema manifest v2 identity content (#1117 slice
+  2). `inputs` now binds the source bundle as a versioned object with root
+  unit, the reviewed profile as version plus canonical fingerprint (absent
+  for profile-less runs), and the generating tool name plus package version;
+  the manifest adds the recomputed canonical schema fingerprint, static
+  minimum extent (`record_len_min`, null for ODO-variable layouts), level-66
+  RENAMES aliases, REDEFINES storage groups, and an explicit
+  `source_spans: unavailable` marker. Version 1 documents are rejected with
+  their generation named. The reference schema
+  (`schemas/resolved-manifest.json`) tracks the v2 wire shape.'
+time: '2026-09-19T19:30:00Z'

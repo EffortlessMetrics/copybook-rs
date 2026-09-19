@@ -54,10 +54,16 @@ use copybook_core::source_bundle::{
 };
 use copybook_core::support_matrix::{FeatureId, SupportStatus, find_feature_by_id};
 
+use crate::options::profile::InterpretationProfile;
 use crate::options::resolve::{OptionSource, Resolved};
 
 /// Schema version of the resolved-manifest JSON document.
-pub const RESOLVED_MANIFEST_SCHEMA_VERSION: u32 = 1;
+///
+/// Version 2 restructures `inputs` for identity: the bundle becomes a
+/// versioned fingerprinted object, and profile, tool, and canonical schema
+/// identities join the contract. Version 1 documents are rejected explicitly;
+/// regenerate them.
+pub const RESOLVED_MANIFEST_SCHEMA_VERSION: u32 = 2;
 /// Stability class of the resolved-manifest contract: beta while the bound
 /// profile contract settles (see the module-level maturity note).
 pub const RESOLVED_MANIFEST_STABILITY_CLASS: &str = "beta";
@@ -186,11 +192,44 @@ pub struct ManifestDialect {
     pub provenance: String,
 }
 
+/// Source-bundle identity the schema was resolved from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ManifestBundle {
+    /// Bundle contract version.
+    pub schema_version: u32,
+    /// Bundle fingerprint.
+    pub fingerprint: String,
+    /// Logical id of the bundle's root unit (the resolved layout's root).
+    pub root_unit: String,
+}
+
+/// Reviewed-profile identity the effective values were resolved from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ManifestProfile {
+    /// Profile contract version.
+    pub schema_version: u32,
+    /// Profile fingerprint over its canonical rendering.
+    pub fingerprint: String,
+}
+
+/// Tool identity that generated the manifest.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ManifestTool {
+    /// Tool name (e.g. `copybook`).
+    pub name: String,
+    /// Tool package version that generated the manifest.
+    pub version: String,
+}
+
 /// Resolved inputs captured for one manifest.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManifestInputs {
-    /// Bundle fingerprint the schema was resolved from.
-    pub bundle_fingerprint: String,
+    /// Source-bundle identity the schema was resolved from.
+    pub bundle: ManifestBundle,
+    /// Reviewed-profile identity (`None` for profile-less direct runs).
+    pub profile: Option<ManifestProfile>,
+    /// Tool identity that generated the manifest.
+    pub tool: ManifestTool,
     /// Encoding actually used plus its source.
     pub encoding: ManifestValue<String>,
     /// Dialect actually used plus both provenance chains.
@@ -271,10 +310,44 @@ pub struct ManifestSupportEntry {
     pub status: String,
 }
 
+/// Level-66 RENAMES alias over one byte range.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ManifestRenames {
+    /// Dotted path of the level-66 alias field.
+    pub path: String,
+    /// Byte offset of the aliased range.
+    pub offset: u32,
+    /// Byte length of the aliased range.
+    pub length: u32,
+    /// Dotted paths covered by the alias, in layout order.
+    pub members: Vec<String>,
+}
+
+/// One REDEFINES storage location and every view overlaid on it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ManifestStorageGroup {
+    /// Dotted path of the redefined (storage owner) field.
+    pub storage: String,
+    /// Every field occupying the storage in layout order: the owner first,
+    /// then each redefining view.
+    pub views: Vec<String>,
+}
+
+/// Per-field source-span availability: the schema carries no source spans,
+///
+/// so the manifest states that explicitly rather than omitting the fact.
+pub const MANIFEST_SOURCE_SPANS: &str = "unavailable";
+
 /// Inputs accepted by [`ResolvedManifest::generate`].
 pub struct GenerateInputs<'a> {
     /// Source bundle the schema was parsed from.
     pub bundle: &'a SourceBundle,
+    /// Reviewed profile the effective values were resolved from (`None` for
+    /// profile-less direct runs: the manifest then records no profile
+    /// identity).
+    pub profile: Option<&'a InterpretationProfile>,
+    /// Tool identity generating the manifest (name and package version).
+    pub tool: ManifestTool,
     /// Effective encoding after flag/profile/env/default resolution.
     pub encoding: Resolved<String>,
     /// Selected dialect after flag/profile/env/default resolution.
@@ -306,18 +379,32 @@ pub struct ResolvedManifest {
     pub fingerprint_algo: String,
     /// Resolved inputs with per-value provenance.
     pub inputs: ManifestInputs,
+    /// Canonical schema fingerprint (SHA-256 over the schema's canonical
+    /// JSON, recomputed at generation: stored schema fingerprints are never
+    /// trusted).
+    pub schema_fingerprint: String,
     /// Flattened layout fields with physical bounds.
     pub fields: Vec<ManifestField>,
     /// Maximum field end offset across the flattened layout, in bytes.
     pub record_len: u32,
+    /// Static minimum record extent in bytes (`None` for variable layouts:
+    /// any ODO makes the floor counter-dependent). Fixed layouts report the
+    /// maximum: their extent never varies.
+    pub record_len_min: Option<u32>,
     /// Declared fixed record length (`lrecl`), if the schema states one.
     pub lrecl: Option<u32>,
+    /// Per-field source-span availability (see [`MANIFEST_SOURCE_SPANS`]).
+    pub source_spans: String,
     /// Numeric usage details.
     pub numeric_details: Vec<ManifestNumericDetail>,
     /// ODO usage details.
     pub odo_details: Vec<ManifestOdoDetail>,
     /// Level-88 condition-name usages.
     pub condition_usages: Vec<ManifestConditionUsage>,
+    /// Level-66 RENAMES aliases, in layout order.
+    pub renames: Vec<ManifestRenames>,
+    /// REDEFINES storage locations with every overlaid view, in layout order.
+    pub redefines_groups: Vec<ManifestStorageGroup>,
     /// Support classifications for features the schema references.
     pub support: Vec<ManifestSupportEntry>,
 }
@@ -359,13 +446,30 @@ impl ResolvedManifest {
         }
         let support = support_entries(&flat.feature_ids);
         let record_len = flat.fields.iter().map(|field| field.end).max().unwrap_or(0);
+        // ODO makes the extent counter-dependent: only fixed layouts (no ODO
+        // anywhere, including tail ODO) admit a static minimum.
+        let record_len_min = if flat.odos.is_empty() {
+            Some(record_len)
+        } else {
+            None
+        };
+        let redefines_groups = storage_groups(&flat.fields);
 
         let manifest = Self {
             schema_version: RESOLVED_MANIFEST_SCHEMA_VERSION,
             stability_class: RESOLVED_MANIFEST_STABILITY_CLASS.to_owned(),
             fingerprint_algo: RESOLVED_MANIFEST_FINGERPRINT_ALGO.to_owned(),
             inputs: ManifestInputs {
-                bundle_fingerprint: inputs.bundle.fingerprint().to_owned(),
+                bundle: ManifestBundle {
+                    schema_version: inputs.bundle.schema_version(),
+                    fingerprint: inputs.bundle.fingerprint().to_owned(),
+                    root_unit: inputs.bundle.root().to_owned(),
+                },
+                profile: inputs.profile.map(|profile| ManifestProfile {
+                    schema_version: profile.schema_version,
+                    fingerprint: profile.fingerprint(),
+                }),
+                tool: inputs.tool,
                 encoding: ManifestValue {
                     value: inputs.encoding.value,
                     source: source_str(inputs.encoding.source),
@@ -384,12 +488,17 @@ impl ResolvedManifest {
                     source: source_str(bound.source),
                 }),
             },
+            schema_fingerprint: schema_fingerprint(inputs.schema),
             fields: flat.fields,
             record_len,
+            record_len_min,
             lrecl: inputs.schema.lrecl_fixed,
+            source_spans: MANIFEST_SOURCE_SPANS.to_owned(),
             numeric_details: flat.numerics,
             odo_details: flat.odos,
             condition_usages: flat.conditions,
+            renames: flat.renames,
+            redefines_groups,
             support,
         };
         // Bound the final emitted representation (pretty JSON with fingerprint),
@@ -469,23 +578,33 @@ impl ResolvedManifest {
                 reason: "manifest document has no string manifest_fingerprint".to_owned(),
             })?
             .to_owned();
-        let manifest: Self = serde_json::from_value(serde_json::Value::Object(body.clone()))
-            .map_err(|err| ManifestError::MalformedManifest {
-                reason: err.to_string(),
-            })?;
-        if manifest.schema_version != RESOLVED_MANIFEST_SCHEMA_VERSION {
-            return Err(ManifestError::UnsupportedManifestVersion {
-                found: manifest.schema_version,
-            });
+        // Contract identity reads raw values before the typed parse, so a
+        // document from another contract generation reports its version
+        // rather than a shape error.
+        let version = body
+            .get("schema_version")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|version| u32::try_from(version).ok())
+            .unwrap_or(0);
+        if version != RESOLVED_MANIFEST_SCHEMA_VERSION {
+            return Err(ManifestError::UnsupportedManifestVersion { found: version });
         }
-        if manifest.stability_class != RESOLVED_MANIFEST_STABILITY_CLASS {
+        let stability = body
+            .get("stability_class")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        if stability != RESOLVED_MANIFEST_STABILITY_CLASS {
             return Err(ManifestError::UnsupportedStabilityClass {
-                found: manifest.stability_class.clone(),
+                found: stability.to_owned(),
             });
         }
-        if manifest.fingerprint_algo != RESOLVED_MANIFEST_FINGERPRINT_ALGO {
+        let algo = body
+            .get("fingerprint_algo")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        if algo != RESOLVED_MANIFEST_FINGERPRINT_ALGO {
             return Err(ManifestError::UnsupportedFingerprintAlgo {
-                found: manifest.fingerprint_algo.clone(),
+                found: algo.to_owned(),
             });
         }
         let mut unsigned = body.clone();
@@ -497,6 +616,10 @@ impl ResolvedManifest {
                 actual: recomputed,
             });
         }
+        let manifest: Self = serde_json::from_value(serde_json::Value::Object(body.clone()))
+            .map_err(|err| ManifestError::MalformedManifest {
+                reason: err.to_string(),
+            })?;
         Ok(manifest)
     }
 }
@@ -552,6 +675,7 @@ struct FlatLayout {
     numerics: Vec<ManifestNumericDetail>,
     odos: Vec<ManifestOdoDetail>,
     conditions: Vec<ManifestConditionUsage>,
+    renames: Vec<ManifestRenames>,
     feature_ids: Vec<FeatureId>,
 }
 
@@ -601,6 +725,44 @@ fn provenance_str(provenance: DialectProvenance) -> String {
 /// [`SupportStatus`] in the matrix kebab-case spelling.
 fn status_str(status: SupportStatus) -> String {
     serde_plain::to_string(&status).unwrap_or_else(|_| "unknown".to_owned())
+}
+
+/// Canonical schema fingerprint: SHA-256 over the schema's canonical JSON.
+///
+/// Recomputed from the schema value at generation time; a stored schema
+/// fingerprint is never trusted. The digest is bare lowercase hex, matching
+/// the schema's own fingerprint spelling (unlike the manifest fingerprint,
+/// which carries the `sha256-v1:` prefix).
+fn schema_fingerprint(schema: &Schema) -> String {
+    let digest = Sha256::digest(schema.create_canonical_json().as_bytes());
+    hex::encode(digest)
+}
+
+/// REDEFINES storage groups among flattened fields.
+///
+/// Fields sharing one storage location group under the redefined target;
+/// groups sort by storage path, and each group's views list the owner first
+/// followed by redefining views in layout order.
+fn storage_groups(fields: &[ManifestField]) -> Vec<ManifestStorageGroup> {
+    use std::collections::BTreeMap;
+    let mut views: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for field in fields {
+        if let Some(target) = field.redefines.as_deref() {
+            views.entry(target).or_default().push(field.path.as_str());
+        }
+    }
+    views
+        .into_iter()
+        .map(|(storage, redefiners)| {
+            let mut ordered = Vec::with_capacity(redefiners.len() + 1);
+            ordered.push(storage.to_owned());
+            ordered.extend(redefiners.iter().map(ToString::to_string));
+            ManifestStorageGroup {
+                storage: storage.to_owned(),
+                views: ordered,
+            }
+        })
+        .collect()
 }
 
 /// Build support entries for referenced features, preserving first-seen order.
@@ -751,6 +913,14 @@ fn flatten_fields(
                 path: field.path.clone(),
             });
         }
+        if let Some(aliased) = &field.resolved_renames {
+            flat.renames.push(ManifestRenames {
+                path: field.path.clone(),
+                offset: aliased.offset,
+                length: aliased.length,
+                members: aliased.members.clone(),
+            });
+        }
         if let Some(feature) = kind_feature(&field.kind) {
             flat.feature_ids.push(feature);
         }
@@ -773,46 +943,45 @@ mod tests {
         assert_ne!(canonical_bytes(&first), canonical_bytes(&reordered));
     }
 
-    #[test]
-    fn additive_properties_verify_and_read() {
-        // An additive property (unknown to this reader) verifies when the
-        // fingerprint covers it, and reads back with known facts intact.
-        let body = serde_json::json!({
+    /// Minimal version-2 body every wire test builds on.
+    fn test_body() -> serde_json::Value {
+        serde_json::json!({
             "schema_version": RESOLVED_MANIFEST_SCHEMA_VERSION,
             "stability_class": RESOLVED_MANIFEST_STABILITY_CLASS,
             "fingerprint_algo": RESOLVED_MANIFEST_FINGERPRINT_ALGO,
             "inputs": {
-                "bundle_fingerprint": "bundle",
+                "bundle": {"schema_version": 1, "fingerprint": "bundle", "root_unit": "REC"},
+                "profile": {"schema_version": 1, "fingerprint": "profile"},
+                "tool": {"name": "copybook-test", "version": "0.0.0"},
                 "encoding": {"value": "cp037", "source": "profile"},
                 "dialect": {"value": "normative", "source": "profile", "provenance": "profile-selected"},
                 "framing": {"value": "fixed", "source": "profile"},
                 "record_bound": {"value": 32760, "source": "profile"}
             },
+            "schema_fingerprint": "0e53dc4531f43574f6b5944646ef2180fb191ade8e087989c0ae321b3a33ba33",
             "fields": [],
             "record_len": 0,
+            "record_len_min": 0,
             "lrecl": serde_json::Value::Null,
+            "source_spans": MANIFEST_SOURCE_SPANS,
             "numeric_details": [],
             "odo_details": [],
             "condition_usages": [],
-            "support": [],
-            "future_additive_prop": {"note": "added by a newer writer"}
-        });
+            "renames": [],
+            "redefines_groups": [],
+            "support": []
+        })
+    }
+
+    #[test]
+    fn additive_properties_verify_and_read() {
+        // An additive property (unknown to this reader) verifies when the
+        // fingerprint covers it, and reads back with known facts intact.
+        let mut body = test_body();
+        body["future_additive_prop"] = serde_json::json!({"note": "added by a newer writer"});
         let fingerprint = fingerprint_value(&body);
-        let document = serde_json::json!({
-            "schema_version": RESOLVED_MANIFEST_SCHEMA_VERSION,
-            "stability_class": RESOLVED_MANIFEST_STABILITY_CLASS,
-            "fingerprint_algo": RESOLVED_MANIFEST_FINGERPRINT_ALGO,
-            "inputs": body["inputs"],
-            "fields": [],
-            "record_len": 0,
-            "lrecl": serde_json::Value::Null,
-            "numeric_details": [],
-            "odo_details": [],
-            "condition_usages": [],
-            "support": [],
-            "future_additive_prop": {"note": "added by a newer writer"},
-            "manifest_fingerprint": fingerprint
-        });
+        let mut document = body;
+        document["manifest_fingerprint"] = serde_json::Value::String(fingerprint);
         let bytes = serde_json::to_vec(&document).expect("document serializes");
         let manifest = ResolvedManifest::from_json(&bytes).expect("extended doc verifies");
         assert_eq!(manifest.record_len, 0);
@@ -823,25 +992,7 @@ mod tests {
     fn unsigned_extra_property_breaks_verification() {
         // A full valid body is fingerprinted, then an extra property is
         // injected without updating the digest: verification must fail.
-        let body = serde_json::json!({
-            "schema_version": RESOLVED_MANIFEST_SCHEMA_VERSION,
-            "stability_class": RESOLVED_MANIFEST_STABILITY_CLASS,
-            "fingerprint_algo": RESOLVED_MANIFEST_FINGERPRINT_ALGO,
-            "inputs": {
-                "bundle_fingerprint": "bundle",
-                "encoding": {"value": "cp037", "source": "profile"},
-                "dialect": {"value": "normative", "source": "profile", "provenance": "profile-selected"},
-                "framing": {"value": "fixed", "source": "profile"},
-                "record_bound": {"value": 32760, "source": "profile"}
-            },
-            "fields": [],
-            "record_len": 0,
-            "lrecl": serde_json::Value::Null,
-            "numeric_details": [],
-            "odo_details": [],
-            "condition_usages": [],
-            "support": []
-        });
+        let body = test_body();
         let fingerprint = fingerprint_value(&body);
         let mut document = body;
         document["injected"] = serde_json::Value::Bool(true);

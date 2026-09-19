@@ -88,7 +88,16 @@ fn inspect_emits_manifest_with_profile_provenance() {
             .any(|field| field.path.contains("CUSTOMER-ID")),
         "customer fields present"
     );
-    assert!(!manifest.inputs.bundle_fingerprint.is_empty());
+    assert!(!manifest.inputs.bundle.fingerprint.is_empty());
+    assert_eq!(manifest.inputs.bundle.schema_version, 1);
+    let identity = manifest.inputs.profile.as_ref().expect("profile identity");
+    assert_eq!(identity.schema_version, 1);
+    assert_eq!(identity.fingerprint.len(), 64);
+    assert_eq!(manifest.inputs.tool.name, "copybook");
+    assert!(!manifest.inputs.tool.version.is_empty());
+    assert_eq!(manifest.schema_fingerprint.len(), 64);
+    assert_eq!(manifest.record_len_min, Some(manifest.record_len));
+    assert_eq!(manifest.source_spans, "unavailable");
 }
 
 #[test]

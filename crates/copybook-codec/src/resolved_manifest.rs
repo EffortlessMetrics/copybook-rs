@@ -405,6 +405,7 @@ impl ResolvedManifest {
     ///
     /// The digest is recomputed on every call; the value carries no cached
     /// fingerprint that a later mutation could stale.
+    #[must_use]
     pub fn fingerprint(&self) -> String {
         let body = serde_json::to_value(self).unwrap_or(serde_json::Value::Null);
         fingerprint_value(&body)

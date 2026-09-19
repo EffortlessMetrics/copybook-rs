@@ -1,0 +1,8 @@
+kind: fixed
+body: '**codec**: harden the resolved-schema manifest wire contract (#1117
+  slice A). The manifest now declares `beta` maturity honestly, fingerprints
+  canonical key-sorted bytes so stored key order never affects the digest,
+  accepts forward-compatible additive properties when the fingerprint covers
+  them while rejecting unfingerprinted extras as tampering, and the emitted
+  wire form is validated against `schemas/resolved-manifest.json` in tests.'
+time: '2026-09-19T17:40:00Z'

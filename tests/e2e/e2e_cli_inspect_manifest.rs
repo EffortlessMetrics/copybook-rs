@@ -189,6 +189,28 @@ fn inspect_emit_manifest_refuses_stdout_target() {
 }
 
 #[test]
+#[cfg(unix)]
+fn inspect_emit_manifest_refuses_dangling_symlink() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let manifest_path = dir.path().join("out.manifest.json");
+    std::os::unix::fs::symlink("nowhere.json", &manifest_path).expect("symlink created");
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+
+    // exists() misses dangling symlinks; the target guard must not.
+    cmd()
+        .args(["inspect"])
+        .arg(&copybook)
+        .args(["--profile"])
+        .arg(&profile)
+        .args(["--emit-manifest"])
+        .arg(&manifest_path)
+        .assert()
+        .code(3)
+        .stderr(predicates::str::contains("overwrite-manifest"));
+}
+
+#[test]
 fn inspect_emit_manifest_no_overwrite_by_default() {
     let dir = tempfile::tempdir().expect("tempdir");
     let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());

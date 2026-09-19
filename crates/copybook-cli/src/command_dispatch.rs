@@ -269,7 +269,10 @@ fn run_inspect_emit_manifest(
             "--emit-manifest requires a file path; '-' would mix the manifest with the layout report on stdout",
         );
     }
-    if !overwrite && manifest_path.exists() {
+    // symlink_metadata (not exists) so a dangling symlink target also refuses
+    // cleanly here; anything appearing afterwards still cannot be replaced
+    // because publication itself is no-clobber.
+    if !overwrite && std::fs::symlink_metadata(manifest_path).is_ok() {
         return manifest_target_failure(
             "inspect",
             &format!(
@@ -306,6 +309,7 @@ fn run_inspect_emit_manifest(
             strict_comments,
             feature_flags,
             manifest_path,
+            overwrite,
         ),
         "inspect",
     )

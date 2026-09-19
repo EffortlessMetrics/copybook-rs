@@ -1063,7 +1063,7 @@ All 71 stable error codes across 10 families:
 | CBKF223 | File | Error (lenient), Fatal (strict) | BDW block underflow (beta) |
 | CBKF224 | File | Error (lenient), Fatal (strict) | Nested RDW escapes BDW block (beta) |
 | CBKF225 | File | Warning (lenient), Fatal (strict) | BDW reserved bytes non-zero (beta) |
-| CBKF226 | Record | Fatal | Record exceeds the reviewed maximum_record_length bound |
+| CBKF226 | File | Fatal | Record exceeds the reviewed maximum_record_length bound |
 | CBKA001 | Audit | Error | Performance baseline error |
 | CBKW001 | Arrow/Writer | Error | Arrow schema conversion failed |
 | CBKW002 | Arrow/Writer | Error | No Arrow type mapping for field kind |

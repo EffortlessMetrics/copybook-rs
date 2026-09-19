@@ -32,6 +32,29 @@ fn rdw_options() -> DecodeOptions {
         .with_codepage(Codepage::ASCII)
 }
 
+fn vb_options() -> DecodeOptions {
+    DecodeOptions::default()
+        .with_format(RecordFormat::Vb)
+        .with_codepage(Codepage::ASCII)
+}
+
+/// Frame payloads as one BDW block: `BDW len + RDW len + payload` per record.
+fn frame_block(payloads: &[&[u8]]) -> Vec<u8> {
+    let mut records = Vec::new();
+    for payload in payloads {
+        let rdw_len = u16::try_from(payload.len() + 4).expect("payload fits in RDW");
+        records.extend_from_slice(&rdw_len.to_be_bytes());
+        records.extend_from_slice(&[0, 0]);
+        records.extend_from_slice(payload);
+    }
+    let block_len = u16::try_from(records.len() + 4).expect("block fits in BDW");
+    let mut block = Vec::with_capacity(records.len() + 4);
+    block.extend_from_slice(&block_len.to_be_bytes());
+    block.extend_from_slice(&[0, 0]);
+    block.extend_from_slice(&records);
+    block
+}
+
 fn rdw_record(payload_len: u16, payload: &[u8]) -> Vec<u8> {
     let mut out = Vec::from(u16::to_be_bytes(payload_len));
     out.extend_from_slice(&[0, 0]);
@@ -130,6 +153,36 @@ fn rdw_later_record_over_cap_fails() {
         Cursor::new(data),
         &mut Vec::new(),
         &rdw_options(),
+        policy,
+    );
+    expect_bound_exceeded(result.map(|_| ()));
+}
+
+#[test]
+fn vb_nested_payload_over_cap_fails_with_identity() {
+    let schema = parse_copybook("       01  REC PIC X(5).\n").unwrap();
+    // Nested RDW declares 9 wire bytes / 5 payload bytes: the cap binds the payload.
+    let policy = ExecutionPolicy::reviewed(false, 4).unwrap();
+    let result = decode_file_to_jsonl_with_policy(
+        &schema,
+        Cursor::new(frame_block(&[b"HELLO"])),
+        &mut Vec::new(),
+        &vb_options(),
+        policy,
+    );
+    expect_bound_exceeded(result.map(|_| ()));
+}
+
+#[test]
+fn vb_nested_payload_over_cap_fails_on_workers() {
+    let schema = parse_copybook("       01  REC PIC X(5).\n").unwrap();
+    let policy = ExecutionPolicy::reviewed(false, 4).unwrap();
+    let options = vb_options().with_threads(2);
+    let result = decode_file_to_jsonl_with_policy(
+        &schema,
+        Cursor::new(frame_block(&[b"HELLO", b"WORLD"])),
+        &mut Vec::new(),
+        &options,
         policy,
     );
     expect_bound_exceeded(result.map(|_| ()));

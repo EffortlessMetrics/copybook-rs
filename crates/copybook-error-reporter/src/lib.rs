@@ -364,7 +364,10 @@ impl ErrorReporter {
             | ErrorCode::CBKF001_FILE_READ_ERROR
             // Iterator/internal state errors are fatal
             | ErrorCode::CBKI001_INVALID_STATE
-            | ErrorCode::CBKI002_TOO_MANY_ERRORS => ErrorSeverity::Fatal,
+            | ErrorCode::CBKI002_TOO_MANY_ERRORS
+            // A reviewed record bound is policy, not data: an over-cap
+            // record halts even in lenient mode, matching the Fatal card
+            | ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED => ErrorSeverity::Fatal,
 
             // ODO clipping is a warning in lenient mode, error in strict mode
             ErrorCode::CBKS301_ODO_CLIPPED
@@ -408,7 +411,6 @@ impl ErrorReporter {
             | ErrorCode::CBKF222_BDW_LENGTH_INVALID
             | ErrorCode::CBKF223_BDW_UNDERFLOW
             | ErrorCode::CBKF224_RDW_BEYOND_BLOCK
-            | ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED
             | ErrorCode::CBKA001_BASELINE_ERROR
             | ErrorCode::CBKW001_SCHEMA_CONVERSION
             | ErrorCode::CBKW002_TYPE_MAPPING
@@ -570,6 +572,21 @@ mod tests {
         assert!(result.is_ok());
         assert!(reporter.has_errors());
         assert_eq!(reporter.error_count(), 1);
+    }
+
+    #[test]
+    fn test_record_bound_exceeded_is_fatal_in_lenient_mode() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+
+        let error = Error::new(
+            ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED,
+            "Record exceeds the reviewed bound",
+        )
+        .with_record(2);
+
+        // A reviewed bound is policy, not data: lenient mode must still halt.
+        let result = reporter.report_error(error);
+        assert!(result.is_err());
     }
 
     #[test]

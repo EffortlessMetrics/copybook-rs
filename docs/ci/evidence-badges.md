@@ -45,6 +45,7 @@ produced by the same tools.
 
 The workflow pins:
 
+- Rust `1.98.0`
 - `ripr 0.10.0`
 - `unsafe-review 0.5.0`
 
@@ -87,8 +88,8 @@ On relevant pull requests it:
 1. runs the Python contract tests;
 2. installs the pinned evidence tools;
 3. generates the conservative RIPR test inventory;
-4. generates native RIPR audit artifacts plus all four public endpoint
-   candidates;
+4. generates native RIPR audit artifacts, an unsafe-review repo report, and
+   all four public endpoint candidates;
 5. validates the endpoint contract;
 6. compares generated values with committed `badges/*.json` when the
    committed endpoints exist;
@@ -97,7 +98,11 @@ On relevant pull requests it:
 On the weekly schedule or a manual dispatch, the same generation job runs from
 `main`. If endpoint values changed, the refresh job writes only
 `badges/*.json` to the dedicated `automation/evidence-badges` branch and
-creates or updates a narrow refresh pull request.
+creates or updates a narrow refresh pull request. The write-capable refresh
+job consumes only the already generated endpoint artifact; its checkout and
+artifact-download actions are pinned by commit SHA, checkout credentials are
+not persisted, and the write token is introduced only in the final branch/PR
+step.
 
 Ordinary product pull requests do not silently rewrite badge counts.
 

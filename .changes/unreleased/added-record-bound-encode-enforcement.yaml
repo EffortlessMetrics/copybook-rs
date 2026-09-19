@@ -1,0 +1,9 @@
+kind: added
+body: '**codec/cli**: `limits.maximum_record_length` is now enforced on
+  encode paths, including `--use-raw` replay. A fixed layout above the cap
+  fails with `CBKF226_RECORD_BOUND_EXCEEDED` before input is consumed
+  (output stays absent); an over-cap produced or replayed payload fails
+  with the same identity before its bytes reach the output. Per-record
+  failures follow the fail-fast/error-budget policy with exact accounting
+  on sequential and worker runs alike.'
+time: '2026-09-19T12:30:00Z'

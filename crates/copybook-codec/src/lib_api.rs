@@ -1963,9 +1963,10 @@ fn encode_raw_replay(
     // The parse calls below re-validate header consistency; they cannot
     // disagree with the replay below because both read the same bytes.
     let payload_len = match (options.format, capture) {
-        (RecordFormat::Fixed, _) | (RecordFormat::RDW, Some(RawCapture::Record)) => raw_data.len(),
+        (RecordFormat::Fixed, _)
+        | (RecordFormat::RDW, Some(RawCapture::Record))
+        | (RecordFormat::Vb, Some(RawCapture::Record)) => raw_data.len(),
         (RecordFormat::RDW, _) => parse_raw_rdw_frame(&raw_data)?.1.len(),
-        (RecordFormat::Vb, Some(RawCapture::Record)) => raw_data.len(),
         (RecordFormat::Vb, _) => parse_vb_raw_rdw_frame(&raw_data)?.1.len(),
     };
 

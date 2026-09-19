@@ -465,7 +465,10 @@ fn cobol_manifest_records_reviewed_profile_journey() {
     assert_eq!(manifest.inputs.bundle.fingerprint, bundle.fingerprint());
     let identity = manifest.inputs.profile.as_ref().expect("profile identity");
     assert_eq!(identity.schema_version, profile.schema_version);
-    assert_eq!(identity.fingerprint, profile.fingerprint());
+    assert_eq!(
+        identity.fingerprint,
+        profile.fingerprint().expect("profile fingerprints")
+    );
 }
 
 #[test]

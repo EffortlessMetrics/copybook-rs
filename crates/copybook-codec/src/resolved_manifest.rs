@@ -90,6 +90,12 @@ pub enum ManifestError {
     },
     /// Dialect resolution failed in a way no known variant describes.
     DialectResolutionFailed,
+    /// The reviewed profile could not be canonicalized for its identity
+    /// fingerprint.
+    ProfileFingerprint {
+        /// Canonicalization failure.
+        reason: String,
+    },
     /// The flattened layout fields exceed [`MAX_MANIFEST_FIELDS`].
     TooManyFields {
         /// Number of fields the resolved layout contains.
@@ -138,6 +144,9 @@ impl fmt::Display for ManifestError {
             ),
             Self::DialectResolutionFailed => {
                 write!(f, "effective dialect resolution failed")
+            }
+            Self::ProfileFingerprint { reason } => {
+                write!(f, "reviewed profile fingerprint failed: {reason}")
             }
             Self::TooManyFields { found } => write!(
                 f,
@@ -466,10 +475,18 @@ impl ResolvedManifest {
                     fingerprint: inputs.bundle.fingerprint().to_owned(),
                     root_unit: inputs.bundle.root().to_owned(),
                 },
-                profile: inputs.profile.map(|profile| ManifestProfile {
-                    schema_version: profile.schema_version,
-                    fingerprint: profile.fingerprint(),
-                }),
+                profile: inputs
+                    .profile
+                    .map(|profile| {
+                        profile.fingerprint().map(|fingerprint| ManifestProfile {
+                            schema_version: profile.schema_version,
+                            fingerprint,
+                        })
+                    })
+                    .transpose()
+                    .map_err(|error| ManifestError::ProfileFingerprint {
+                        reason: error.to_string(),
+                    })?,
                 tool: inputs.tool,
                 encoding: ManifestValue {
                     value: inputs.encoding.value,

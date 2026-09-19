@@ -1,0 +1,10 @@
+kind: changed
+body: '**codec**: harden the reviewed-profile contract (#1113 slice A).
+  Profile structs are `#[non_exhaustive]` (construct through parsing,
+  `product_defaults` overwrites, or a future builder; the doctor now
+  drafts that way), the canonical TOML bytes are specified with golden
+  fixtures proving byte-identical rendering across key order, comments,
+  and CRLF endings, `fingerprint` returns its serialization failure
+  instead of an empty-input fallback, and per-layer beta stability
+  classes are recorded in module docs and the library API reference.'
+time: '2026-09-19T22:30:00Z'

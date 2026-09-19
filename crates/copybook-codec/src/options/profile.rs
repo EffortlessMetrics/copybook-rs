@@ -14,6 +14,43 @@
 //! file stays reviewable without reading source. Unknown keys are rejected:
 //! a profile that silently ignores a misspelled option is worse than none.
 //!
+//! ## Canonical bytes
+//!
+//! [`InterpretationProfile::to_canonical_toml`] renders the exact bytes the
+//! [`InterpretationProfile::fingerprint`] digests:
+//!
+//! - sections and keys follow struct declaration order (`schema_version`,
+//!   `[source]`, `[framing]`, `[decode]`, `[limits]`; keys inside each
+//!   section likewise), regardless of the input document's key order;
+//! - values use the lowercase wire spellings, integers render plainly;
+//! - line endings are LF, sections are separated by one blank line, the
+//!   document ends with exactly one trailing newline, and no line carries
+//!   trailing whitespace;
+//! - TOML comments, blank lines, CRLF endings, and section order in the
+//!   input are observational: parsed-away before rendering, so equivalent
+//!   intent always yields byte-identical canonical form.
+//!
+//! The canonical form is beta alongside the wire schema: a future additive
+//! field changes the bytes (and therefore the fingerprint) by design.
+//!
+//! ## Stability classes
+//!
+//! Each layer is beta and versions independently:
+//!
+//! - TOML wire schema: versioned by `schema_version` (currently 1); unknown
+//!   keys are rejected, so additive fields require a version bump, never
+//!   silent acceptance;
+//! - Rust API: structs are [`non_exhaustive`](https://doc.rust-lang.org/reference/attributes/type_system.html)
+//!   (construct through parsing, [`InterpretationProfile::product_defaults`],
+//!   or a future builder; literals are not contractual);
+//! - canonicalization algorithm: the rendering above; changes re-fingerprint
+//!   every profile even when intent is unchanged;
+//! - fingerprint algorithm: SHA-256 over the canonical bytes, lowercase hex.
+//!
+//! Migration while beta means regeneration: new readers reject unknown
+//! `schema_version` values explicitly, and old readers reject unknown keys
+//! explicitly. Neither side guesses.
+//!
 //! # Examples
 //!
 //! ```rust
@@ -23,7 +60,7 @@
 //!     "schema_version = 1\n[source]\ndialect = \"normative\"\n[framing]\nkind = \"rdw\"\nreserved_bytes = \"lenient\"\n[decode]\ncodepage = \"cp037\"\nunmappable = \"error\"\njson_numbers = \"lossless\"\n[limits]\nmaximum_record_length = 32760\nmaximum_errors = 100\n",
 //! )
 //! .expect("valid profile");
-//! assert_eq!(profile.fingerprint().len(), 64);
+//! assert_eq!(profile.fingerprint().expect("canonical profile fingerprints").len(), 64);
 //! ```
 
 use std::fmt;
@@ -53,8 +90,14 @@ pub const DEFAULT_PROFILE_RECORD_LENGTH: u64 = 32760;
 pub const DEFAULT_PROFILE_ERRORS: u64 = 100;
 
 /// Reviewed interpretation intent for one copybook and byte stream.
+///
+/// Non-exhaustive: additive profile fields must not break external
+/// construction. Build through [`InterpretationProfile::parse`],
+/// [`InterpretationProfile::product_defaults`] with field overwrites, or a
+/// future builder; struct literals are not part of the contract.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[non_exhaustive]
 pub struct InterpretationProfile {
     /// Profile schema version; must equal [`PROFILE_SCHEMA_VERSION`].
     pub schema_version: u32,
@@ -71,6 +114,7 @@ pub struct InterpretationProfile {
 /// Copybook source interpretation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[non_exhaustive]
 pub struct SourceSection {
     /// ODO `min_count` interpretation.
     pub dialect: SourceDialect,
@@ -79,6 +123,7 @@ pub struct SourceSection {
 /// Physical framing interpretation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[non_exhaustive]
 pub struct FramingSection {
     /// Record framing kind.
     pub kind: FramingKind,
@@ -91,6 +136,7 @@ pub struct FramingSection {
 /// Byte decoding interpretation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[non_exhaustive]
 pub struct DecodeSection {
     /// Character encoding, lowercase (`cp037`).
     #[serde(
@@ -115,6 +161,7 @@ pub struct DecodeSection {
 /// Explicit run bounds.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[non_exhaustive]
 pub struct LimitsSection {
     /// Largest record accepted, in bytes.
     pub maximum_record_length: u64,
@@ -254,13 +301,23 @@ impl InterpretationProfile {
     }
 
     /// SHA-256 fingerprint (lowercase hex) over the canonical TOML rendering.
+    ///
     /// Later slices pin this into receipts and manifests.
-    #[must_use]
-    pub fn fingerprint(&self) -> String {
-        let canonical = self.to_canonical_toml().unwrap_or_else(|_| String::new());
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ProfileError::InvalidToml`] when canonical serialization
+    /// fails; the current field types cannot fail, so this is defensive.
+    /// There is deliberately no empty-input fallback: a serialization
+    /// failure must never masquerade as the valid-looking fingerprint of
+    /// empty input.
+    #[must_use = "Handle the Result or propagate the error"]
+    #[inline]
+    pub fn fingerprint(&self) -> Result<String, ProfileError> {
+        let canonical = self.to_canonical_toml()?;
         let mut hasher = Sha256::new();
         hasher.update(canonical.as_bytes());
-        hex::encode(hasher.finalize())
+        Ok(hex::encode(hasher.finalize()))
     }
 
     /// Product defaults: fixed framing, CP037, lossless numbers,
@@ -495,7 +552,10 @@ mod tests {
         let canonical = profile.to_canonical_toml().expect("canonical form");
         let again = InterpretationProfile::parse(&canonical).expect("reparse");
         assert_eq!(profile, again);
-        assert_eq!(profile.fingerprint(), again.fingerprint());
+        assert_eq!(
+            profile.fingerprint().expect("fingerprints"),
+            again.fingerprint().expect("fingerprints")
+        );
     }
 
     #[test]
@@ -540,11 +600,12 @@ mod tests {
     fn fingerprint_is_deterministic_and_content_sensitive() {
         let first = InterpretationProfile::parse(VALID).expect("valid");
         let second = InterpretationProfile::parse(VALID).expect("valid");
-        assert_eq!(first.fingerprint(), second.fingerprint());
-        assert_eq!(first.fingerprint().len(), 64);
+        let first_print = first.fingerprint().expect("fingerprints");
+        assert_eq!(first_print, second.fingerprint().expect("fingerprints"));
+        assert_eq!(first_print.len(), 64);
         let changed = replace_limit(VALID, "maximum_errors", 99);
         let other = InterpretationProfile::parse(&changed).expect("valid");
-        assert_ne!(first.fingerprint(), other.fingerprint());
+        assert_ne!(first_print, other.fingerprint().expect("fingerprints"));
     }
 
     #[test]

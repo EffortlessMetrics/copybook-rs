@@ -95,7 +95,10 @@ fn inspect_emits_manifest_with_profile_provenance() {
     let selected = InterpretationProfile::parse(FIXED_CP037_PROFILE).expect("profile parses");
     let identity = manifest.inputs.profile.as_ref().expect("profile identity");
     assert_eq!(identity.schema_version, selected.schema_version);
-    assert_eq!(identity.fingerprint, selected.fingerprint());
+    assert_eq!(
+        identity.fingerprint,
+        selected.fingerprint().expect("profile fingerprints")
+    );
     assert_eq!(manifest.inputs.tool.name, "copybook");
     assert!(!manifest.inputs.tool.version.is_empty());
     assert_eq!(manifest.schema_fingerprint.len(), 64);

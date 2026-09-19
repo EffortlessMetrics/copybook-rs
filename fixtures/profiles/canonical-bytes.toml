@@ -1,0 +1,17 @@
+schema_version = 1
+
+[source]
+dialect = "normative"
+
+[framing]
+kind = "rdw"
+reserved_bytes = "lenient"
+
+[decode]
+codepage = "cp037"
+unmappable = "error"
+json_numbers = "lossless"
+
+[limits]
+maximum_record_length = 32760
+maximum_errors = 100

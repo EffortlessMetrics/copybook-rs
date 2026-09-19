@@ -170,3 +170,203 @@ fn inspect_emit_manifest_refuses_stdin_copybook() {
         .code(3);
     assert!(!manifest_path.exists(), "no manifest for stdin copybook");
 }
+
+#[test]
+fn inspect_emit_manifest_refuses_stdout_target() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+
+    cmd()
+        .args(["inspect"])
+        .arg(&copybook)
+        .args(["--profile"])
+        .arg(&profile)
+        .args(["--emit-manifest", "-"])
+        .assert()
+        .code(3)
+        .stderr(predicates::str::contains("file path"));
+}
+
+#[test]
+#[cfg(unix)]
+fn inspect_emit_manifest_refuses_dangling_symlink() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let manifest_path = dir.path().join("out.manifest.json");
+    std::os::unix::fs::symlink("nowhere.json", &manifest_path).expect("symlink created");
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+
+    // exists() misses dangling symlinks; the target guard must not.
+    cmd()
+        .args(["inspect"])
+        .arg(&copybook)
+        .args(["--profile"])
+        .arg(&profile)
+        .args(["--emit-manifest"])
+        .arg(&manifest_path)
+        .assert()
+        .code(3)
+        .stderr(predicates::str::contains("overwrite-manifest"));
+}
+
+#[test]
+fn inspect_emit_manifest_no_overwrite_by_default() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let manifest_path = dir.path().join("out.manifest.json");
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+
+    // First emission succeeds.
+    cmd()
+        .args(["inspect"])
+        .arg(&copybook)
+        .args(["--profile"])
+        .arg(&profile)
+        .args(["--emit-manifest"])
+        .arg(&manifest_path)
+        .assert()
+        .success();
+    let first = std::fs::read(&manifest_path).expect("first manifest written");
+
+    // A second emission to the same path refuses and leaves the file intact.
+    cmd()
+        .args(["inspect"])
+        .arg(&copybook)
+        .args(["--profile"])
+        .arg(&profile)
+        .args(["--emit-manifest"])
+        .arg(&manifest_path)
+        .assert()
+        .code(3)
+        .stderr(predicates::str::contains("overwrite-manifest"));
+    let kept = std::fs::read(&manifest_path).expect("manifest still readable");
+    assert_eq!(
+        kept, first,
+        "refused emission leaves the file byte-identical"
+    );
+
+    // Explicit opt-in replaces the target.
+    let sentinel = dir.path().join("sentinel.manifest.json");
+    std::fs::write(&sentinel, b"stale bytes").expect("sentinel written");
+    cmd()
+        .args(["inspect"])
+        .arg(&copybook)
+        .args(["--profile"])
+        .arg(&profile)
+        .args(["--emit-manifest"])
+        .arg(&sentinel)
+        .args(["--overwrite-manifest"])
+        .assert()
+        .success();
+    let replaced = std::fs::read(&sentinel).expect("replaced manifest readable");
+    assert_ne!(replaced, b"stale bytes".as_slice());
+    let manifest = ResolvedManifest::from_json(&replaced).expect("replaced manifest verifies");
+    assert_eq!(manifest.schema_version, 2);
+}
+
+#[test]
+fn inspect_overwrite_manifest_requires_emit_manifest() {
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+
+    // Usage errors (including clap's missing-requirement refusal) exit 3.
+    cmd()
+        .args(["inspect"])
+        .arg(&copybook)
+        .args(["--overwrite-manifest"])
+        .assert()
+        .code(3)
+        .stderr(predicates::str::contains("emit-manifest"));
+}
+
+#[test]
+fn inspect_emit_manifest_layout_matches_legacy_inspect() {
+    // The artifact never replaces the human report: emission stdout carries
+    // the same layout the profile-less legacy path prints.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let manifest_path = dir.path().join("out.manifest.json");
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+
+    let legacy = cmd()
+        .args(["inspect"])
+        .arg(&copybook)
+        .args(["--codepage", "cp037", "--dialect", "n"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let emitted = cmd()
+        .args(["inspect"])
+        .arg(&copybook)
+        .args(["--profile"])
+        .arg(&profile)
+        .args(["--emit-manifest"])
+        .arg(&manifest_path)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    assert_eq!(emitted, legacy, "emission keeps the legacy layout report");
+}
+
+#[test]
+fn inspect_emit_manifest_field_count_bound_leaves_no_file() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let manifest_path = dir.path().join("out.manifest.json");
+    let mut copybook = String::from("       01 BIG-REC.\n");
+    for index in 0..5000 {
+        copybook.push_str(&format!("           05 F{index:05} PIC X.\n"));
+    }
+    let copybook_path = write_temp_file(&dir, "big.cpy", copybook.as_bytes());
+
+    cmd()
+        .args(["inspect"])
+        .arg(&copybook_path)
+        .args(["--profile"])
+        .arg(&profile)
+        .args(["--emit-manifest"])
+        .arg(&manifest_path)
+        .assert()
+        .failure()
+        .stderr(predicates::str::contains("exceeding the limit"));
+    assert!(
+        !manifest_path.exists(),
+        "a bound failure leaves no partial manifest"
+    );
+}
+
+#[test]
+fn inspect_emit_manifest_byte_bound_leaves_no_file() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let manifest_path = dir.path().join("out.manifest.json");
+    // Packed fields stay under the field-count bound while their numeric
+    // details push the serialized snapshot past its byte bound. Names stay
+    // short: fixed-format lines end at column 72.
+    let mut copybook = String::from("       01 BIG-REC.\n");
+    for index in 0..4090 {
+        copybook.push_str(&format!("           05 F{index:05} PIC 9(10) COMP-3.\n"));
+    }
+    let copybook_path = write_temp_file(&dir, "fat.cpy", copybook.as_bytes());
+
+    cmd()
+        .args(["inspect"])
+        .arg(&copybook_path)
+        .args(["--profile"])
+        .arg(&profile)
+        .args(["--emit-manifest"])
+        .arg(&manifest_path)
+        .assert()
+        .failure()
+        .stderr(predicates::str::contains("exceeding the limit"));
+    assert!(
+        !manifest_path.exists(),
+        "a bound failure leaves no partial manifest"
+    );
+}

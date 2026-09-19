@@ -1,0 +1,8 @@
+kind: added
+body: '**cli**: `inspect --emit-manifest` generation contract (#1117 slice
+  3). Emission is no-overwrite by default: an existing target is refused
+  with exit 3 unless `--overwrite-manifest` is passed, `-` is refused as a
+  manifest target, and both snapshot bounds (field count and serialized
+  bytes) fail without leaving a partial file. The layout report on stdout
+  is byte-identical to the profile-less legacy path.'
+time: '2026-09-19T20:45:00Z'

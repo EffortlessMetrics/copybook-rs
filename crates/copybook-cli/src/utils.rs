@@ -286,6 +286,50 @@ where
     Ok(())
 }
 
+/// Atomically write data to a file that must not already exist.
+///
+/// Like [`atomic_write`], the payload lands in a sibling temporary file that
+/// is synced before publication, so readers never observe a partial file.
+/// Unlike [`atomic_write`], publication uses a hard link instead of a rename:
+/// the link fails when the target already exists (including a dangling
+/// symlink, which existence checks miss) and wins no race against a
+/// concurrent creator, so the no-overwrite contract holds even when the
+/// target appears after the caller looked. The temporary file is removed
+/// either way.
+///
+/// # Errors
+///
+/// Returns an error if the temporary file cannot be created, written to, or
+/// synced, or if the target already exists when the link is published (the
+/// latter surfaces as [`ErrorKind::AlreadyExists`](io::ErrorKind::AlreadyExists)).
+pub fn atomic_write_new<P: AsRef<Path>, F>(path: P, write_fn: F) -> io::Result<()>
+where
+    F: FnOnce(&mut dyn Write) -> io::Result<()>,
+{
+    let path = path.as_ref();
+
+    // Create temporary file in the same directory as the target so the
+    // hard link below never crosses filesystems.
+    let temp_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    let mut temp_file = NamedTempFile::new_in(temp_dir)?;
+
+    debug!("Writing to temporary file: {:?}", temp_file.path());
+
+    // Write data to temporary file
+    write_fn(&mut temp_file)?;
+
+    // Ensure all data is written to disk
+    temp_file.flush()?;
+    temp_file.as_file().sync_all()?;
+
+    // Publish atomically without replacing: hard links fail when the target
+    // exists instead of silently destroying it.
+    debug!("Linking {:?} to {:?}", temp_file.path(), path);
+    std::fs::hard_link(temp_file.path(), path)?;
+
+    Ok(())
+}
+
 /// Create a temporary file path for atomic operations
 ///
 /// This generates a temporary file name in the same directory as the target file
@@ -437,6 +481,49 @@ mod tests {
 
         assert!(result.is_err());
         assert!(!target_path.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn test_atomic_write_new_writes_fresh_target() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let target_path = temp_dir.path().join("test.txt");
+
+        let result = atomic_write_new(&target_path, |writer| writer.write_all(b"Hello, world!"));
+
+        assert!(result.is_ok());
+        let content = fs::read_to_string(&target_path)?;
+        assert_eq!(content, "Hello, world!");
+        Ok(())
+    }
+
+    #[test]
+    fn test_atomic_write_new_refuses_existing_target() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let target_path = temp_dir.path().join("test.txt");
+        fs::write(&target_path, b"original")?;
+
+        let result = atomic_write_new(&target_path, |writer| writer.write_all(b"replacement"));
+
+        let error = result.expect_err("existing target refuses");
+        assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+        let content = fs::read_to_string(&target_path)?;
+        assert_eq!(content, "original");
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_atomic_write_new_refuses_dangling_symlink() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let target_path = temp_dir.path().join("test.txt");
+        std::os::unix::fs::symlink("nowhere", &target_path)?;
+
+        let result = atomic_write_new(&target_path, |writer| writer.write_all(b"replacement"));
+
+        let error = result.expect_err("dangling symlink refuses");
+        assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+        assert!(fs::symlink_metadata(&target_path)?.is_symlink());
         Ok(())
     }
 

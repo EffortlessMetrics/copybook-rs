@@ -3,7 +3,9 @@
 
 use crate::exit_codes::ExitCode;
 use crate::profile_inputs::ResolvedCommonInputs;
-use crate::utils::{InputRole, atomic_write, print_identity_hint, read_input_or_stdin};
+use crate::utils::{
+    InputRole, atomic_write, atomic_write_new, print_identity_hint, read_input_or_stdin,
+};
 use crate::write_stdout_all;
 use copybook::codec::Codepage;
 use copybook::codec::options::profile::InterpretationProfile;
@@ -73,6 +75,10 @@ pub fn run(
 ///
 /// The manifest records the exact [`ResolvedCommonInputs`] the run resolved,
 /// so the file reproduces the run's interpretation without re-resolution.
+///
+/// Publication is atomic and, unless `overwrite` is set, no-clobber: a target
+/// that appears after dispatch's pre-check still cannot be replaced.
+#[allow(clippy::too_many_arguments)]
 pub fn run_with_manifest(
     copybook: &PathBuf,
     common: &ResolvedCommonInputs,
@@ -81,6 +87,7 @@ pub fn run_with_manifest(
     strict_comments: bool,
     feature_flags: &FeatureFlags,
     manifest_path: &PathBuf,
+    overwrite: bool,
 ) -> anyhow::Result<ExitCode> {
     info!("Inspecting copybook with manifest emission: {copybook:?}");
 
@@ -129,7 +136,13 @@ pub fn run_with_manifest(
     let json = manifest
         .to_json()
         .map_err(|error| anyhow::anyhow!("cannot serialize resolved manifest: {error}"))?;
-    atomic_write(manifest_path, |writer| writer.write_all(&json)).map_err(|error| {
+    let write = |writer: &mut dyn std::io::Write| writer.write_all(&json);
+    if overwrite {
+        atomic_write(manifest_path, write)
+    } else {
+        atomic_write_new(manifest_path, write)
+    }
+    .map_err(|error| {
         anyhow::anyhow!("cannot write manifest {}: {error}", manifest_path.display())
     })?;
 

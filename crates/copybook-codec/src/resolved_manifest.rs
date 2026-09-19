@@ -256,7 +256,8 @@ pub struct ManifestField {
     pub end: u32,
     /// Stable numeric kind tag (e.g. `alphanum`, `packed_decimal`, `group`).
     pub kind: String,
-    /// Path of the redefined target when this field carries REDEFINES.
+    /// Fully-qualified path of the redefined storage owner when this field
+    /// carries REDEFINES (chains chase to the ultimate owner).
     pub redefines: Option<String>,
     /// Whether this field carries a SYNCHRONIZED clause.
     pub synchronized: bool,
@@ -453,7 +454,7 @@ impl ResolvedManifest {
         } else {
             None
         };
-        let redefines_groups = storage_groups(&flat.fields);
+        let redefines_groups = resolve_redefines(&mut flat.fields);
 
         let manifest = Self {
             schema_version: RESOLVED_MANIFEST_SCHEMA_VERSION,
@@ -580,19 +581,31 @@ impl ResolvedManifest {
             .to_owned();
         // Contract identity reads raw values before the typed parse, so a
         // document from another contract generation reports its version
-        // rather than a shape error.
+        // rather than a shape error. Missing or mistyped identity fields are
+        // malformed wire, not foreign generations: only well-typed values
+        // reach the compatibility errors.
         let version = body
             .get("schema_version")
-            .and_then(serde_json::Value::as_u64)
-            .and_then(|version| u32::try_from(version).ok())
-            .unwrap_or(0);
+            .ok_or_else(|| ManifestError::MalformedManifest {
+                reason: "manifest document has no schema_version".to_owned(),
+            })
+            .and_then(|value| {
+                value
+                    .as_u64()
+                    .and_then(|version| u32::try_from(version).ok())
+                    .ok_or_else(|| ManifestError::MalformedManifest {
+                        reason: "manifest schema_version is not an integer".to_owned(),
+                    })
+            })?;
         if version != RESOLVED_MANIFEST_SCHEMA_VERSION {
             return Err(ManifestError::UnsupportedManifestVersion { found: version });
         }
         let stability = body
             .get("stability_class")
             .and_then(serde_json::Value::as_str)
-            .unwrap_or_default();
+            .ok_or_else(|| ManifestError::MalformedManifest {
+                reason: "manifest stability_class is not a string".to_owned(),
+            })?;
         if stability != RESOLVED_MANIFEST_STABILITY_CLASS {
             return Err(ManifestError::UnsupportedStabilityClass {
                 found: stability.to_owned(),
@@ -601,7 +614,9 @@ impl ResolvedManifest {
         let algo = body
             .get("fingerprint_algo")
             .and_then(serde_json::Value::as_str)
-            .unwrap_or_default();
+            .ok_or_else(|| ManifestError::MalformedManifest {
+                reason: "manifest fingerprint_algo is not a string".to_owned(),
+            })?;
         if algo != RESOLVED_MANIFEST_FINGERPRINT_ALGO {
             return Err(ManifestError::UnsupportedFingerprintAlgo {
                 found: algo.to_owned(),
@@ -620,7 +635,51 @@ impl ResolvedManifest {
             .map_err(|err| ManifestError::MalformedManifest {
                 reason: err.to_string(),
             })?;
+        manifest.validate_invariants()?;
         Ok(manifest)
+    }
+
+    /// Enforce the version 2 shape invariants a fingerprint alone cannot see.
+    ///
+    /// Identity fingerprints must read as lowercase 64-character hex digests,
+    /// RENAMES aliases must cover at least one member, and every REDEFINES
+    /// group must overlay at least one view on its storage with the owner
+    /// listed first. Generation always emits documents satisfying these, so a
+    /// violation means hand-built or corrupt wire, reported as malformed.
+    fn validate_invariants(&self) -> Result<(), ManifestError> {
+        let malformed = |reason: &str| ManifestError::MalformedManifest {
+            reason: reason.to_owned(),
+        };
+        if !is_hex_digest(&self.schema_fingerprint) {
+            return Err(malformed("manifest schema_fingerprint is not a hex digest"));
+        }
+        if !is_hex_digest(&self.inputs.bundle.fingerprint) {
+            return Err(malformed("manifest bundle fingerprint is not a hex digest"));
+        }
+        if let Some(profile) = &self.inputs.profile
+            && !is_hex_digest(&profile.fingerprint)
+        {
+            return Err(malformed(
+                "manifest profile fingerprint is not a hex digest",
+            ));
+        }
+        for alias in &self.renames {
+            if alias.members.is_empty() {
+                return Err(malformed("manifest renames entry has no members"));
+            }
+        }
+        for group in &self.redefines_groups {
+            let owner_first = group
+                .views
+                .first()
+                .is_some_and(|first| first == &group.storage);
+            if group.views.len() < 2 || !owner_first {
+                return Err(malformed(
+                    "manifest redefines group must list its storage first with at least one view",
+                ));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -697,6 +756,15 @@ fn fingerprint_bytes(bytes: &[u8]) -> String {
     format!("sha256-v1:{hex}", hex = hex::encode(digest))
 }
 
+/// Whether a value reads as a lowercase 64-character hex digest: the shared
+/// spelling of schema, bundle, and profile identity fingerprints.
+fn is_hex_digest(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+}
+
 /// [`OptionSource`] in its documented display spelling.
 fn source_str(source: OptionSource) -> String {
     source.to_string()
@@ -738,29 +806,68 @@ fn schema_fingerprint(schema: &Schema) -> String {
     hex::encode(digest)
 }
 
-/// REDEFINES storage groups among flattened fields.
+/// Qualify REDEFINES targets to ultimate storage owners and group the views.
 ///
-/// Fields sharing one storage location group under the redefined target;
-/// groups sort by storage path, and each group's views list the owner first
-/// followed by redefining views in layout order.
-fn storage_groups(fields: &[ManifestField]) -> Vec<ManifestStorageGroup> {
-    use std::collections::BTreeMap;
-    let mut views: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
-    for field in fields {
+/// The parser records the clause's target spelling (usually unqualified),
+/// while manifest relations must join to field paths: each target resolves
+/// against the redefiner's parent scope, then chases redefinition chains to
+/// the ultimate owner. The rewrite lands on the fields themselves, so
+/// [`ManifestField::redefines`] always holds a joinable path. Groups sort by
+/// storage path; each group's views list the owner first, then redefining
+/// views in layout order. An unresolvable target keeps its raw spelling: such
+/// schemas fail layout resolution, so generation never emits them.
+fn resolve_redefines(fields: &mut [ManifestField]) -> Vec<ManifestStorageGroup> {
+    use std::collections::{BTreeMap, BTreeSet};
+    let paths: BTreeSet<&str> = fields.iter().map(|field| field.path.as_str()).collect();
+    let qualify = |redefiner: &str, target: &str| -> String {
+        if target.contains('.') {
+            return target.to_owned();
+        }
+        match redefiner.rfind('.') {
+            Some(dot) => {
+                let candidate = format!("{}.{}", &redefiner[..dot], target);
+                if paths.contains(candidate.as_str()) {
+                    candidate
+                } else {
+                    target.to_owned()
+                }
+            }
+            None => target.to_owned(),
+        }
+    };
+    let mut owners: BTreeMap<String, String> = BTreeMap::new();
+    for field in fields.iter() {
         if let Some(target) = field.redefines.as_deref() {
-            views.entry(target).or_default().push(field.path.as_str());
+            owners.insert(field.path.clone(), qualify(&field.path, target));
         }
     }
-    views
+    // Chase chains (C REDEFINES B, B REDEFINES A) to the ultimate owner,
+    // bounded by the field count so a cycle cannot hang generation.
+    let ultimate = |start: &str| -> String {
+        let mut current = start.to_owned();
+        for _ in 0..owners.len().saturating_add(1) {
+            match owners.get(&current) {
+                Some(next) => current = next.clone(),
+                None => break,
+            }
+        }
+        current
+    };
+    let mut groups: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for field in fields.iter_mut() {
+        if field.redefines.is_some() {
+            let owner = ultimate(&owners[&field.path]);
+            field.redefines = Some(owner.clone());
+            groups.entry(owner).or_default().push(field.path.clone());
+        }
+    }
+    groups
         .into_iter()
         .map(|(storage, redefiners)| {
-            let mut ordered = Vec::with_capacity(redefiners.len() + 1);
-            ordered.push(storage.to_owned());
-            ordered.extend(redefiners.iter().map(ToString::to_string));
-            ManifestStorageGroup {
-                storage: storage.to_owned(),
-                views: ordered,
-            }
+            let mut views = Vec::with_capacity(redefiners.len() + 1);
+            views.push(storage.clone());
+            views.extend(redefiners);
+            ManifestStorageGroup { storage, views }
         })
         .collect()
 }
@@ -950,8 +1057,8 @@ mod tests {
             "stability_class": RESOLVED_MANIFEST_STABILITY_CLASS,
             "fingerprint_algo": RESOLVED_MANIFEST_FINGERPRINT_ALGO,
             "inputs": {
-                "bundle": {"schema_version": 1, "fingerprint": "bundle", "root_unit": "REC"},
-                "profile": {"schema_version": 1, "fingerprint": "profile"},
+                "bundle": {"schema_version": 1, "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "root_unit": "REC"},
+                "profile": {"schema_version": 1, "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
                 "tool": {"name": "copybook-test", "version": "0.0.0"},
                 "encoding": {"value": "cp037", "source": "profile"},
                 "dialect": {"value": "normative", "source": "profile", "provenance": "profile-selected"},

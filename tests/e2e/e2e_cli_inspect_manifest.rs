@@ -10,6 +10,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use assert_cmd::Command;
+use copybook_codec::options::profile::InterpretationProfile;
 use copybook_codec::resolved_manifest::ResolvedManifest;
 use std::io::Write as _;
 
@@ -90,9 +91,11 @@ fn inspect_emits_manifest_with_profile_provenance() {
     );
     assert!(!manifest.inputs.bundle.fingerprint.is_empty());
     assert_eq!(manifest.inputs.bundle.schema_version, 1);
+    // The emitted manifest pins the exact reviewed profile the CLI consumed.
+    let selected = InterpretationProfile::parse(FIXED_CP037_PROFILE).expect("profile parses");
     let identity = manifest.inputs.profile.as_ref().expect("profile identity");
-    assert_eq!(identity.schema_version, 1);
-    assert_eq!(identity.fingerprint.len(), 64);
+    assert_eq!(identity.schema_version, selected.schema_version);
+    assert_eq!(identity.fingerprint, selected.fingerprint());
     assert_eq!(manifest.inputs.tool.name, "copybook");
     assert!(!manifest.inputs.tool.version.is_empty());
     assert_eq!(manifest.schema_fingerprint.len(), 64);

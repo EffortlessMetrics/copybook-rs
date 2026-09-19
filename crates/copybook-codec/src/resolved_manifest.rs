@@ -405,7 +405,7 @@ impl ResolvedManifest {
     }
 
     /// Canonical fingerprint of this manifest body: `sha256-v1` over the
-    /// canonical body bytes (see [`canonical_bytes`]).
+    /// canonical body bytes (object keys sorted recursively).
     ///
     /// The digest is recomputed on every call; the value carries no cached
     /// fingerprint that a later mutation could stale.

@@ -392,21 +392,6 @@ pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
     }
 }
 
-/// Render a path for a pasted shell command: bare when it carries only
-/// filename-safe characters, single-quoted otherwise, so a copied hint
-/// survives directories such as `Monthly Extract/`.
-#[must_use]
-pub fn shell_quote(path: &std::path::Path) -> String {
-    let text = path.display().to_string();
-    if text
-        .chars()
-        .all(|c| c.is_alphanumeric() || "-_./:+=".contains(c))
-    {
-        text
-    } else {
-        format!("'{}'", text.replace('\'', "'\\''"))
-    }
-}
 /// Print the identity-form explain hint for a fatal failure: the exact
 /// `explain` command for the stable code. Copybook-side commands (parse,
 /// inspect) use this shape; data-side failures point at occurrence mode
@@ -579,30 +564,5 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
-    }
-
-    #[test]
-    fn test_shell_quote_leaves_plain_paths_bare() {
-        assert_eq!(shell_quote(Path::new("data/simple.bin")), "data/simple.bin");
-        assert_eq!(
-            shell_quote(Path::new("C:/extracts/a.cpy")),
-            "C:/extracts/a.cpy"
-        );
-    }
-
-    #[test]
-    fn test_shell_quote_quotes_whitespace() {
-        assert_eq!(
-            shell_quote(Path::new("Monthly Extract/data file.bin")),
-            "'Monthly Extract/data file.bin'"
-        );
-    }
-
-    #[test]
-    fn test_shell_quote_escapes_embedded_quotes() {
-        assert_eq!(
-            shell_quote(&std::path::PathBuf::from("it's/raw.bin")),
-            "'it'\\''s/raw.bin'"
-        );
     }
 }

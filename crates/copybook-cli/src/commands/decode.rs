@@ -11,6 +11,7 @@ use crate::utils::{
 use crate::{
     ExitDiagnostics, Stage, emit_exit_diagnostics_stage, write_stderr_all, write_stdout_all,
 };
+use copybook::codec::diagnose::shell_quote;
 use copybook::codec::{
     Codepage, DecodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
@@ -181,8 +182,8 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
 fn explain_hint(code: &str, args: &DecodeArgs) -> String {
     format!(
         "  Explain a failure: copybook explain {code} --copybook {} --input {} --record-format {} --codepage {}",
-        crate::utils::shell_quote(args.copybook),
-        crate::utils::shell_quote(args.input),
+        shell_quote(args.copybook),
+        shell_quote(args.input),
         format!("{:?}", args.format).to_lowercase(),
         args.codepage,
     )

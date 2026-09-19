@@ -10,6 +10,7 @@ use crate::utils::{
     read_input_or_stdin,
 };
 use crate::write_stdout_all;
+use copybook::codec::diagnose::shell_quote;
 use copybook::codec::file::fixed as fixed_file;
 use copybook::codec::lib_api::decode_record_with_raw_data;
 use copybook::codec::{
@@ -297,8 +298,8 @@ pub fn run(
                 &mut summary_output,
                 "  Explain a failure: copybook explain {} --copybook {} --input {} --record-format {} --codepage {}",
                 first.code,
-                crate::utils::shell_quote(copybook_path),
-                crate::utils::shell_quote(input),
+                shell_quote(copybook_path),
+                shell_quote(input),
                 format!("{:?}", opts.format).to_lowercase(),
                 opts.codepage,
             )?;

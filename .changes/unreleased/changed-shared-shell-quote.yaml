@@ -1,0 +1,5 @@
+kind: changed
+body: '**cli**: all pasted `copybook explain` / `decode` hint commands share
+  one `shell_quote` helper (`copybook::codec::diagnose::shell_quote`);
+  the `copybook-cli` duplicate is removed. No behavior change.'
+time: '2026-09-19T01:00:00Z'

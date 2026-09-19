@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/EffortlessMetrics/copybook-rs/schemas/resolved-manifest.json",
   "title": "ResolvedManifest",
-  "description": "Resolved-schema manifest snapshot (#1117). Stability class: beta (evolving; see the copybook_codec::resolved_manifest evolution rules). Reference for the copybook_codec::resolved_manifest::ResolvedManifest contract; the Rust type is authoritative.",
+  "description": "Resolved-schema manifest snapshot (#1117), document version 2. Stability class: beta (evolving; see the copybook_codec::resolved_manifest evolution rules). Reference for the copybook_codec::resolved_manifest::ResolvedManifest contract; the Rust type is authoritative.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -10,25 +10,30 @@
     "stability_class",
     "fingerprint_algo",
     "inputs",
+    "schema_fingerprint",
     "fields",
     "record_len",
+    "record_len_min",
     "lrecl",
+    "source_spans",
     "numeric_details",
     "odo_details",
     "condition_usages",
+    "renames",
+    "redefines_groups",
     "support",
     "manifest_fingerprint"
   ],
   "properties": {
     "schema_version": {
       "type": "integer",
-      "const": 1,
+      "const": 2,
       "description": "Manifest document schema version."
     },
     "stability_class": {
       "type": "string",
       "const": "beta",
-      "description": "Stability class of the v1 manifest contract (beta while the bound profile contract settles)."
+      "description": "Stability class of the v2 manifest contract (beta while the bound profile contract settles)."
     },
     "fingerprint_algo": {
       "type": "string",
@@ -39,16 +44,71 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "bundle_fingerprint",
+        "bundle",
+        "profile",
+        "tool",
         "encoding",
         "dialect",
         "framing",
         "record_bound"
       ],
       "properties": {
-        "bundle_fingerprint": {
-          "type": "string",
-          "description": "SourceBundle fingerprint the schema was resolved from."
+        "bundle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema_version", "fingerprint", "root_unit"],
+          "properties": {
+            "schema_version": {
+              "type": "integer",
+              "description": "Source-bundle contract version."
+            },
+            "fingerprint": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$",
+              "description": "Source-bundle fingerprint the schema was resolved from."
+            },
+            "root_unit": {
+              "type": "string",
+              "description": "Logical id of the bundle's root unit."
+            }
+          }
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["schema_version", "fingerprint"],
+              "properties": {
+                "schema_version": {
+                  "type": "integer",
+                  "description": "Interpretation-profile contract version."
+                },
+                "fingerprint": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$",
+                  "description": "Profile fingerprint over its canonical rendering."
+                }
+              }
+            },
+            {"type": "null"}
+          ],
+          "description": "Reviewed-profile identity; null for profile-less direct runs."
+        },
+        "tool": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Tool name that generated the manifest."
+            },
+            "version": {
+              "type": "string",
+              "description": "Tool package version that generated the manifest."
+            }
+          }
         },
         "encoding": {
           "$ref": "#/$defs/resolved_string",
@@ -86,6 +146,11 @@
         }
       }
     },
+    "schema_fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Canonical schema fingerprint (SHA-256 over the schema's canonical JSON, recomputed at generation)."
+    },
     "fields": {
       "type": "array",
       "maxItems": 4096,
@@ -121,10 +186,20 @@
       "minimum": 0,
       "description": "Maximum field end offset across the flattened layout, in bytes."
     },
+    "record_len_min": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Static minimum record extent in bytes; null for variable (ODO) layouts. Fixed layouts report the maximum."
+    },
     "lrecl": {
       "type": ["integer", "null"],
       "minimum": 0,
       "description": "Declared fixed record length, when the schema states one."
+    },
+    "source_spans": {
+      "type": "string",
+      "const": "unavailable",
+      "description": "Per-field source-span availability; the schema carries no spans yet."
     },
     "numeric_details": {
       "type": "array",
@@ -164,6 +239,40 @@
         "required": ["path"],
         "properties": {
           "path": {"type": "string"}
+        }
+      }
+    },
+    "renames": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "offset", "length", "members"],
+        "properties": {
+          "path": {"type": "string"},
+          "offset": {"type": "integer", "minimum": 0},
+          "length": {"type": "integer", "minimum": 0},
+          "members": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string"}
+          }
+        }
+      }
+    },
+    "redefines_groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["storage", "views"],
+        "properties": {
+          "storage": {"type": "string"},
+          "views": {
+            "type": "array",
+            "minItems": 2,
+            "items": {"type": "string"}
+          }
         }
       }
     },

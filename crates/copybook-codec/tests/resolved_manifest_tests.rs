@@ -9,7 +9,9 @@
 
 use copybook_codec::options::profile::{FramingKind, InterpretationProfile};
 use copybook_codec::options::resolve::{OptionSource, Resolved, resolve_field};
-use copybook_codec::resolved_manifest::{GenerateInputs, ManifestError, ResolvedManifest};
+use copybook_codec::resolved_manifest::{
+    GenerateInputs, MANIFEST_SOURCE_SPANS, ManifestError, ManifestTool, ResolvedManifest,
+};
 use copybook_core::dialect::Dialect;
 use copybook_core::layout::resolve_layout;
 use copybook_core::source_bundle::SourceBundle;
@@ -32,9 +34,22 @@ fn resolved_str(value: &str, source: OptionSource) -> Resolved<String> {
     }
 }
 
-fn test_inputs<'a>(bundle: &'a SourceBundle, schema: &'a Schema) -> GenerateInputs<'a> {
+fn test_tool() -> ManifestTool {
+    ManifestTool {
+        name: "copybook-test".to_owned(),
+        version: "0.0.0".to_owned(),
+    }
+}
+
+fn test_inputs<'a>(
+    bundle: &'a SourceBundle,
+    schema: &'a Schema,
+    profile: Option<&'a InterpretationProfile>,
+) -> GenerateInputs<'a> {
     GenerateInputs {
         bundle,
+        profile,
+        tool: test_tool(),
         encoding: resolved_str("cp037", OptionSource::Profile),
         dialect: Resolved {
             value: Dialect::Normative,
@@ -50,19 +65,34 @@ fn test_inputs<'a>(bundle: &'a SourceBundle, schema: &'a Schema) -> GenerateInpu
 }
 
 fn generate_manifest() -> ResolvedManifest {
+    let profile = InterpretationProfile::parse(JOURNEY_PROFILE).expect("profile parses");
     let bundle = SourceBundle::single("REC", MANIFEST_COPYBOOK.as_bytes())
         .expect("single-unit bundle builds");
     let mut schema = parse_copybook(MANIFEST_COPYBOOK).expect("copybook parses");
     resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
-    ResolvedManifest::generate(test_inputs(&bundle, &schema)).expect("manifest generates")
+    ResolvedManifest::generate(test_inputs(&bundle, &schema, Some(&profile)))
+        .expect("manifest generates")
 }
 
 #[test]
 fn cobol_manifest_binds_inputs_layout_and_support() {
     let manifest = generate_manifest();
 
-    assert_eq!(manifest.schema_version, 1);
+    assert_eq!(manifest.schema_version, 2);
     assert_eq!(manifest.stability_class, "beta");
+    assert_eq!(manifest.inputs.bundle.schema_version, 1);
+    assert_eq!(manifest.inputs.bundle.root_unit, "REC");
+    assert!(!manifest.inputs.bundle.fingerprint.is_empty());
+    let profile = manifest.inputs.profile.as_ref().expect("profile identity");
+    assert_eq!(profile.schema_version, 1);
+    assert_eq!(profile.fingerprint.len(), 64);
+    assert_eq!(manifest.inputs.tool.name, "copybook-test");
+    assert_eq!(manifest.inputs.tool.version, "0.0.0");
+    assert_eq!(manifest.schema_fingerprint.len(), 64);
+    assert_eq!(manifest.record_len_min, Some(manifest.record_len));
+    assert_eq!(manifest.source_spans, MANIFEST_SOURCE_SPANS);
+    assert!(manifest.renames.is_empty());
+    assert!(manifest.redefines_groups.is_empty());
     assert_eq!(manifest.inputs.dialect.value, "normative");
     assert_eq!(manifest.inputs.dialect.provenance, "profile-selected");
     assert_eq!(manifest.inputs.encoding.source, "profile");
@@ -154,11 +184,12 @@ fn cobol_manifest_json_shape_matches_reference_schema() {
 
 #[test]
 fn cobol_manifest_uncapped_run_records_null_bound() {
+    let profile = InterpretationProfile::parse(JOURNEY_PROFILE).expect("profile parses");
     let bundle = SourceBundle::single("REC", MANIFEST_COPYBOOK.as_bytes())
         .expect("single-unit bundle builds");
     let mut schema = parse_copybook(MANIFEST_COPYBOOK).expect("copybook parses");
     resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
-    let mut inputs = test_inputs(&bundle, &schema);
+    let mut inputs = test_inputs(&bundle, &schema, Some(&profile));
     inputs.record_bound = None;
     let manifest = ResolvedManifest::generate(inputs).expect("manifest generates");
     assert!(manifest.inputs.record_bound.is_none());
@@ -299,16 +330,20 @@ fn cobol_manifest_emitted_wire_validates_against_reference_schema() {
         serde_json::from_slice(&manifest.to_json().expect("serializes")).expect("json parses");
     assert!(validator.is_valid(&capped), "capped document validates");
 
+    let profile = InterpretationProfile::parse(JOURNEY_PROFILE).expect("profile parses");
     let bundle = SourceBundle::single("REC", MANIFEST_COPYBOOK.as_bytes())
         .expect("single-unit bundle builds");
     let mut schema = parse_copybook(MANIFEST_COPYBOOK).expect("copybook parses");
     resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
-    let mut inputs = test_inputs(&bundle, &schema);
+    let mut inputs = test_inputs(&bundle, &schema, Some(&profile));
     inputs.record_bound = None;
     let uncapped = ResolvedManifest::generate(inputs).expect("uncapped manifest generates");
     let null_bound: serde_json::Value =
         serde_json::from_slice(&uncapped.to_json().expect("serializes")).expect("json parses");
-    assert_eq!(null_bound["record_bound"], serde_json::Value::Null);
+    assert_eq!(
+        null_bound["inputs"]["record_bound"],
+        serde_json::Value::Null
+    );
     assert!(
         validator.is_valid(&null_bound),
         "null-bound document validates"
@@ -407,6 +442,8 @@ fn cobol_manifest_records_reviewed_profile_journey() {
 
     let manifest = ResolvedManifest::generate(GenerateInputs {
         bundle: &bundle,
+        profile: Some(&profile),
+        tool: test_tool(),
         encoding,
         dialect,
         framing,
@@ -425,7 +462,10 @@ fn cobol_manifest_records_reviewed_profile_journey() {
         .expect("bound present");
     assert_eq!(bound.value, 32760);
     assert_eq!(bound.source, "profile");
-    assert_eq!(manifest.inputs.bundle_fingerprint, bundle.fingerprint());
+    assert_eq!(manifest.inputs.bundle.fingerprint, bundle.fingerprint());
+    let identity = manifest.inputs.profile.as_ref().expect("profile identity");
+    assert_eq!(identity.schema_version, profile.schema_version);
+    assert_eq!(identity.fingerprint, profile.fingerprint());
 }
 
 #[test]
@@ -454,4 +494,281 @@ fn cobol_manifest_conflict_error_renders_both_dialects() {
     let message = err.to_string();
     assert!(message.contains("Normative"), "got {message}");
     assert!(message.contains("ZeroTolerant"), "got {message}");
+}
+
+#[test]
+fn cobol_manifest_profileless_run_records_no_profile_identity() {
+    let bundle = SourceBundle::single("REC", MANIFEST_COPYBOOK.as_bytes())
+        .expect("single-unit bundle builds");
+    let mut schema = parse_copybook(MANIFEST_COPYBOOK).expect("copybook parses");
+    resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
+    let manifest = ResolvedManifest::generate(test_inputs(&bundle, &schema, None))
+        .expect("manifest generates");
+    assert!(manifest.inputs.profile.is_none());
+    let json = manifest.to_json().expect("serializes");
+    let round_trip = ResolvedManifest::from_json(&json).expect("verifies");
+    assert!(round_trip.inputs.profile.is_none());
+    assert_eq!(round_trip.inputs.tool.name, "copybook-test");
+}
+
+#[test]
+fn cobol_manifest_variable_layout_reports_no_static_minimum() {
+    // NOTE: a single space separates the field name from OCCURS; multiple
+    // spaces there currently misparse (pre-existing parser quirk, out of
+    // scope for the manifest contract).
+    const ODO_COPYBOOK: &str = concat!(
+        "       01 ODO-REC.\n",
+        "           05 COUNTER PIC 9(3).\n",
+        "           05 CELLS OCCURS 1 TO 10 TIMES DEPENDING ON COUNTER PIC X(5).\n",
+    );
+    let profile = InterpretationProfile::parse(JOURNEY_PROFILE).expect("profile parses");
+    let bundle = SourceBundle::single("ODO-REC", ODO_COPYBOOK.as_bytes()).expect("bundle builds");
+    let mut schema = parse_copybook(ODO_COPYBOOK).expect("copybook parses");
+    resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
+    let manifest = ResolvedManifest::generate(test_inputs(&bundle, &schema, Some(&profile)))
+        .expect("manifest generates");
+    assert!(!manifest.odo_details.is_empty());
+    assert_eq!(manifest.record_len_min, None);
+    let json = manifest.to_json().expect("serializes");
+    ResolvedManifest::from_json(&json).expect("verifies");
+}
+
+#[test]
+fn cobol_manifest_records_renames_aliases() {
+    const RENAMES_COPYBOOK: &str = concat!(
+        "       01  RECORD-A.\n",
+        "           05  FIELD-1  PIC X(10).\n",
+        "           05  FIELD-2  PIC 9(5).\n",
+        "           05  FIELD-3  PIC X(2).\n",
+        "           66  ALIAS-A  RENAMES FIELD-1 THRU FIELD-3.\n",
+    );
+    let profile = InterpretationProfile::parse(JOURNEY_PROFILE).expect("profile parses");
+    let bundle =
+        SourceBundle::single("RECORD-A", RENAMES_COPYBOOK.as_bytes()).expect("bundle builds");
+    let mut schema = parse_copybook(RENAMES_COPYBOOK).expect("copybook parses");
+    resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
+    let manifest = ResolvedManifest::generate(test_inputs(&bundle, &schema, Some(&profile)))
+        .expect("manifest generates");
+    assert_eq!(manifest.renames.len(), 1);
+    let alias = &manifest.renames[0];
+    assert!(alias.path.contains("ALIAS-A"), "got {}", alias.path);
+    assert_eq!((alias.offset, alias.length), (0, 17));
+    assert_eq!(alias.members.len(), 3);
+}
+
+#[test]
+fn cobol_manifest_groups_redefines_storage_views() {
+    const REDEFINES_COPYBOOK: &str = concat!(
+        "       01  ACCT-REC.\n",
+        "           05  PRIMARY    PIC X(6).\n",
+        "           05  SECONDARY  REDEFINES PRIMARY PIC X(6).\n",
+    );
+    let profile = InterpretationProfile::parse(JOURNEY_PROFILE).expect("profile parses");
+    let bundle =
+        SourceBundle::single("ACCT-REC", REDEFINES_COPYBOOK.as_bytes()).expect("bundle builds");
+    let mut schema = parse_copybook(REDEFINES_COPYBOOK).expect("copybook parses");
+    resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
+    let manifest = ResolvedManifest::generate(test_inputs(&bundle, &schema, Some(&profile)))
+        .expect("manifest generates");
+    assert_eq!(manifest.redefines_groups.len(), 1);
+    let group = &manifest.redefines_groups[0];
+    // Storage and every view join to real field paths: the clause's
+    // unqualified target spelling never leaks into relations.
+    assert_eq!(group.storage, "ACCT-REC.PRIMARY");
+    assert_eq!(group.views, vec!["ACCT-REC.PRIMARY", "ACCT-REC.SECONDARY"]);
+    for view in &group.views {
+        assert!(
+            manifest.fields.iter().any(|field| &field.path == view),
+            "view joins to a field: {view}"
+        );
+    }
+    let secondary = manifest
+        .fields
+        .iter()
+        .find(|field| field.path == "ACCT-REC.SECONDARY")
+        .expect("SECONDARY present");
+    assert_eq!(secondary.redefines.as_deref(), Some("ACCT-REC.PRIMARY"));
+}
+
+#[test]
+fn cobol_manifest_chained_redefines_collapse_to_one_storage() {
+    const CHAIN_COPYBOOK: &str = concat!(
+        "       01 CHAIN-REC.\n",
+        "           05 BASE PIC X(4).\n",
+        "           05 MID REDEFINES BASE PIC X(4).\n",
+        "           05 TOP REDEFINES MID PIC X(4).\n",
+    );
+    let profile = InterpretationProfile::parse(JOURNEY_PROFILE).expect("profile parses");
+    let bundle =
+        SourceBundle::single("CHAIN-REC", CHAIN_COPYBOOK.as_bytes()).expect("bundle builds");
+    let mut schema = parse_copybook(CHAIN_COPYBOOK).expect("copybook parses");
+    resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
+    let manifest = ResolvedManifest::generate(test_inputs(&bundle, &schema, Some(&profile)))
+        .expect("manifest generates");
+    assert_eq!(manifest.redefines_groups.len(), 1);
+    let group = &manifest.redefines_groups[0];
+    assert_eq!(group.storage, "CHAIN-REC.BASE");
+    assert_eq!(
+        group.views,
+        vec!["CHAIN-REC.BASE", "CHAIN-REC.MID", "CHAIN-REC.TOP"]
+    );
+}
+
+#[test]
+fn cobol_manifest_rejects_previous_generation_version() {
+    let manifest = generate_manifest();
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&manifest.to_json().expect("serializes")).expect("json parses");
+    // A version-1-shaped document reports its generation, even with a stale
+    // fingerprint: contract identity reads before verification.
+    value["schema_version"] = serde_json::json!(1);
+    let downgraded = serde_json::to_vec(&value).expect("re-serializes");
+    let err = ResolvedManifest::from_json(&downgraded).expect_err("v1 fails");
+    assert!(
+        matches!(err, ManifestError::UnsupportedManifestVersion { found: 1 }),
+        "got {err}"
+    );
+}
+
+#[test]
+fn cobol_manifest_schema_fingerprint_matches_layout_identity() {
+    let profile = InterpretationProfile::parse(JOURNEY_PROFILE).expect("profile parses");
+    let bundle = SourceBundle::single("REC", MANIFEST_COPYBOOK.as_bytes())
+        .expect("single-unit bundle builds");
+    let mut schema = parse_copybook(MANIFEST_COPYBOOK).expect("copybook parses");
+    // Layout resolution mutates offsets without refreshing the stored schema
+    // fingerprint, so the manifest must track the resolved layout, not the
+    // stale stored value.
+    let pre_layout = schema.fingerprint.clone();
+    resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
+    let manifest = ResolvedManifest::generate(test_inputs(&bundle, &schema, Some(&profile)))
+        .expect("manifest generates");
+    assert_ne!(manifest.schema_fingerprint, pre_layout);
+    assert_eq!(manifest.schema_fingerprint.len(), 64);
+    assert!(
+        manifest
+            .schema_fingerprint
+            .chars()
+            .all(|c| c.is_ascii_hexdigit()),
+        "got {}",
+        manifest.schema_fingerprint
+    );
+    // Deterministic: the same resolved schema re-fingerprints identically.
+    let again = ResolvedManifest::generate(test_inputs(&bundle, &schema, Some(&profile)))
+        .expect("manifest generates");
+    assert_eq!(again.schema_fingerprint, manifest.schema_fingerprint);
+}
+
+#[test]
+fn cobol_manifest_distinct_layouts_fingerprint_distinctly() {
+    let profile = InterpretationProfile::parse(JOURNEY_PROFILE).expect("profile parses");
+    let wider = MANIFEST_COPYBOOK.replace("PIC X(10)", "PIC X(11)");
+    let mut first_schema = parse_copybook(MANIFEST_COPYBOOK).expect("copybook parses");
+    resolve_layout(&mut first_schema, Dialect::Normative).expect("layout resolves");
+    let mut second_schema = parse_copybook(&wider).expect("copybook parses");
+    resolve_layout(&mut second_schema, Dialect::Normative).expect("layout resolves");
+    let bundle = SourceBundle::single("REC", MANIFEST_COPYBOOK.as_bytes())
+        .expect("single-unit bundle builds");
+    let first = ResolvedManifest::generate(test_inputs(&bundle, &first_schema, Some(&profile)))
+        .expect("manifest generates");
+    let second = ResolvedManifest::generate(test_inputs(&bundle, &second_schema, Some(&profile)))
+        .expect("manifest generates");
+    assert_ne!(
+        first.schema_fingerprint, second.schema_fingerprint,
+        "one wider field changes the layout identity"
+    );
+    assert_ne!(first.record_len, second.record_len);
+}
+
+#[test]
+fn cobol_manifest_mistyped_identity_is_malformed() {
+    let manifest = generate_manifest();
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&manifest.to_json().expect("serializes")).expect("json parses");
+    // Identity reads before verification, so even a stale fingerprint reports
+    // the wire shape rather than a version or digest error.
+    value["schema_version"] = serde_json::json!("2");
+    let mistyped = serde_json::to_vec(&value).expect("re-serializes");
+    let err = ResolvedManifest::from_json(&mistyped).expect_err("string version fails");
+    assert!(
+        matches!(err, ManifestError::MalformedManifest { .. }),
+        "got {err}"
+    );
+
+    let mut missing = value.clone();
+    missing
+        .as_object_mut()
+        .expect("document is an object")
+        .remove("schema_version");
+    let missing_bytes = serde_json::to_vec(&missing).expect("re-serializes");
+    let err = ResolvedManifest::from_json(&missing_bytes).expect_err("missing version fails");
+    assert!(
+        matches!(err, ManifestError::MalformedManifest { .. }),
+        "got {err}"
+    );
+}
+
+#[test]
+fn cobol_manifest_rejects_non_hex_identity_fingerprints() {
+    let mut manifest = generate_manifest();
+    manifest.schema_fingerprint = "not-a-digest".to_owned();
+    let json = manifest.to_json().expect("serializes under fresh digest");
+    let err = ResolvedManifest::from_json(&json).expect_err("non-hex digest fails");
+    assert!(
+        matches!(err, ManifestError::MalformedManifest { .. }),
+        "got {err}"
+    );
+
+    let mut manifest = generate_manifest();
+    manifest.inputs.bundle.fingerprint = "xyz".to_owned();
+    let json = manifest.to_json().expect("serializes under fresh digest");
+    let err = ResolvedManifest::from_json(&json).expect_err("non-hex bundle fails");
+    assert!(
+        matches!(err, ManifestError::MalformedManifest { .. }),
+        "got {err}"
+    );
+}
+
+#[test]
+fn cobol_manifest_rejects_empty_renames_and_misordered_storage() {
+    const RENAMES_COPYBOOK: &str = concat!(
+        "       01  RECORD-A.\n",
+        "           05  FIELD-1  PIC X(10).\n",
+        "           05  FIELD-2  PIC 9(5).\n",
+        "           66  ALIAS-A  RENAMES FIELD-1 THRU FIELD-2.\n",
+    );
+    let profile = InterpretationProfile::parse(JOURNEY_PROFILE).expect("profile parses");
+    let bundle =
+        SourceBundle::single("RECORD-A", RENAMES_COPYBOOK.as_bytes()).expect("bundle builds");
+    let mut schema = parse_copybook(RENAMES_COPYBOOK).expect("copybook parses");
+    resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
+    let mut manifest = ResolvedManifest::generate(test_inputs(&bundle, &schema, Some(&profile)))
+        .expect("manifest generates");
+    assert_eq!(manifest.renames.len(), 1);
+    manifest.renames[0].members.clear();
+    let json = manifest.to_json().expect("serializes under fresh digest");
+    let err = ResolvedManifest::from_json(&json).expect_err("empty members fail");
+    assert!(
+        matches!(err, ManifestError::MalformedManifest { .. }),
+        "got {err}"
+    );
+
+    const REDEFINES_COPYBOOK: &str = concat!(
+        "       01  ACCT-REC.\n",
+        "           05  PRIMARY    PIC X(6).\n",
+        "           05  SECONDARY  REDEFINES PRIMARY PIC X(6).\n",
+    );
+    let bundle =
+        SourceBundle::single("ACCT-REC", REDEFINES_COPYBOOK.as_bytes()).expect("bundle builds");
+    let mut schema = parse_copybook(REDEFINES_COPYBOOK).expect("copybook parses");
+    resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
+    let mut manifest = ResolvedManifest::generate(test_inputs(&bundle, &schema, Some(&profile)))
+        .expect("manifest generates");
+    manifest.redefines_groups[0].views.reverse();
+    let json = manifest.to_json().expect("serializes under fresh digest");
+    let err = ResolvedManifest::from_json(&json).expect_err("misordered views fail");
+    assert!(
+        matches!(err, ManifestError::MalformedManifest { .. }),
+        "got {err}"
+    );
 }

@@ -6,8 +6,9 @@ use crate::profile_inputs::ResolvedCommonInputs;
 use crate::utils::{InputRole, atomic_write, print_identity_hint, read_input_or_stdin};
 use crate::write_stdout_all;
 use copybook::codec::Codepage;
+use copybook::codec::options::profile::InterpretationProfile;
 use copybook::codec::options::resolve::Resolved;
-use copybook::codec::resolved_manifest::{GenerateInputs, ResolvedManifest};
+use copybook::codec::resolved_manifest::{GenerateInputs, ManifestTool, ResolvedManifest};
 use copybook::core::source_bundle::SourceBundle;
 use copybook::core::{
     FeatureFlags, Field, FieldKind, Occurs, ParseOptions, Schema, parse_copybook_with_feature_flags,
@@ -75,6 +76,7 @@ pub fn run(
 pub fn run_with_manifest(
     copybook: &PathBuf,
     common: &ResolvedCommonInputs,
+    profile: Option<&InterpretationProfile>,
     strict: bool,
     strict_comments: bool,
     feature_flags: &FeatureFlags,
@@ -103,6 +105,11 @@ pub fn run_with_manifest(
         .map_err(|error| anyhow::anyhow!("cannot build source bundle for {logical_id}: {error}"))?;
     let manifest = ResolvedManifest::generate(GenerateInputs {
         bundle: &bundle,
+        profile,
+        tool: ManifestTool {
+            name: "copybook".to_owned(),
+            version: env!("CARGO_PKG_VERSION").to_owned(),
+        },
         encoding: Resolved {
             value: common.codepage.to_string(),
             source: common.codepage_source,

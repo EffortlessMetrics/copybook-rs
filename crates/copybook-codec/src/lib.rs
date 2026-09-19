@@ -51,15 +51,17 @@ pub const JSON_SCHEMA_VERSION: &str = "copybook.v1";
 pub use iterator::{RecordIterator, iter_records, iter_records_from_file};
 
 pub use lib_api::{
-    MAX_CAPTURED_FAILURES, RecordFailure, RunSummary, decode_file_to_jsonl, decode_record,
-    decode_record_with_scratch, encode_jsonl_to_file, encode_record,
+    MAX_CAPTURED_FAILURES, RecordFailure, RunSummary, decode_file_to_jsonl,
+    decode_file_to_jsonl_with_policy, decode_record, decode_record_with_scratch,
+    encode_jsonl_to_file, encode_record,
 };
 
 pub use numeric::{SmallDecimal, ZonedEncodingInfo};
 
 pub use options::{
-    CodecOptionKind, Codepage, DecodeOptions, EncodeOptions, FloatFormat, JsonNumberMode,
-    ParseCodecOptionError, RawMode, RecordFormat, UnmappablePolicy, ZonedEncodingFormat,
+    CodecOptionKind, Codepage, DecodeOptions, EncodeOptions, ExecutionPolicy, FloatFormat,
+    JsonNumberMode, ParseCodecOptionError, PolicyError, RawMode, RecordFormat, UnmappablePolicy,
+    ZonedEncodingFormat,
 };
 
 pub use determinism::{

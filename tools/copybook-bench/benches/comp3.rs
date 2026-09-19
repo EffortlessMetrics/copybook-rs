@@ -40,7 +40,6 @@ fn make_opts() -> (EncodeOptions, DecodeOptions) {
         emit_meta: false,
         emit_raw: RawMode::Off,
         strict_mode: true,
-        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: UnmappablePolicy::Error,
         threads: 1,

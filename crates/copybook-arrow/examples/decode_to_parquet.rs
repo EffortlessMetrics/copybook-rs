@@ -63,7 +63,6 @@ fn main() {
         emit_meta: false,
         emit_raw: copybook_codec::RawMode::Off,
         strict_mode: false,
-        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: UnmappablePolicy::Replace,
         threads: 1,

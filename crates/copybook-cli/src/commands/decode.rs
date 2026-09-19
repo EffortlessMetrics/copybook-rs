@@ -13,7 +13,8 @@ use crate::{
 };
 use copybook::codec::diagnose::shell_quote;
 use copybook::codec::{
-    Codepage, DecodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
+    Codepage, DecodeOptions, ExecutionPolicy, FloatFormat, JsonNumberMode, RawMode, RecordFormat,
+    UnmappablePolicy,
 };
 use std::fmt::Write as _;
 use std::path::PathBuf;
@@ -40,7 +41,7 @@ pub struct DecodeArgs<'a> {
     pub preferred_zoned_encoding: copybook::codec::ZonedEncodingFormat,
     pub float_format: FloatFormat,
     pub strict_policy: bool,
-    pub strict_reserved_bytes: bool,
+    pub execution_policy: ExecutionPolicy,
     pub dialect: copybook::core::dialect::Dialect,
     pub select: &'a [String],
     pub feature_flags: &'a copybook::core::FeatureFlags,
@@ -117,7 +118,6 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
         .with_strict_mode(error_policy.strict_mode)
         .with_max_errors(error_policy.max_errors)
         .with_unmappable_policy(args.on_decode_unmappable)
-        .with_strict_reserved_bytes(args.strict_reserved_bytes)
         .with_threads(args.threads)
         .with_preserve_zoned_encoding(args.preserve_zoned_encoding)
         .with_preferred_zoned_encoding(args.preferred_zoned_encoding)
@@ -125,11 +125,12 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
 
     let (summary, write_to_stdout) =
         run_with_output(args.input, args.output, |input_file, output_writer| {
-            copybook::codec::decode_file_to_jsonl(
+            copybook::codec::decode_file_to_jsonl_with_policy(
                 &working_schema,
                 input_file,
                 output_writer,
                 &options,
+                args.execution_policy,
             )
             .map_err(|error| {
                 // Fatal read failures never reach the summary below, so the

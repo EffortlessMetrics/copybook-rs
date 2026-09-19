@@ -28,7 +28,6 @@ fn create_rdw_decode_options(emit_raw: RawMode, strict: bool) -> DecodeOptions {
         emit_meta: false,
         emit_raw,
         strict_mode: strict,
-        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: UnmappablePolicy::Error,
         threads: 1,

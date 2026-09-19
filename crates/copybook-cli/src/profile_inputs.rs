@@ -11,7 +11,9 @@
 use crate::cli_config::DialectPreference;
 use copybook::codec::options::profile::{InterpretationProfile, ReservedPolicy};
 use copybook::codec::options::resolve::{ConflictError, resolve_field};
-use copybook::codec::{Codepage, JsonNumberMode, RecordFormat, UnmappablePolicy};
+use copybook::codec::{
+    Codepage, ExecutionPolicy, JsonNumberMode, PolicyError, RecordFormat, UnmappablePolicy,
+};
 use copybook::core::dialect::Dialect;
 use std::path::Path;
 
@@ -37,10 +39,31 @@ pub(crate) struct ResolvedCommonInputs {
     pub codepage: Codepage,
     /// Effective ODO `min_count` interpretation.
     pub dialect: Dialect,
-    /// Whether framing reserved bytes are a hard error.
-    pub strict_reserved_bytes: bool,
     /// Effective error budget (`None` means unlimited).
     pub max_errors: Option<u64>,
+}
+
+/// Build the execution policy for a run: reviewed profile values when a
+/// profile is present, otherwise legacy direct behavior under the effective
+/// strict mode.
+///
+/// # Errors
+///
+/// Returns [`PolicyError`] when a reviewed record bound is zero or exceeds
+/// the profile schema maximum. The profile parser already rejects both, so
+/// this only fires for programmatically built profiles; callers fail before
+/// I/O rather than run uncapped.
+pub(crate) fn resolve_policy(
+    profile: Option<&InterpretationProfile>,
+    strict_mode: bool,
+) -> Result<ExecutionPolicy, PolicyError> {
+    match profile {
+        Some(resolved) => ExecutionPolicy::reviewed(
+            resolved.framing.reserved_bytes == ReservedPolicy::Strict,
+            resolved.limits.maximum_record_length,
+        ),
+        None => Ok(ExecutionPolicy::direct(strict_mode)),
+    }
 }
 
 /// Effective decode-only inputs covered by the profile.
@@ -206,8 +229,6 @@ pub(crate) fn resolve_common(
         format,
         codepage,
         dialect,
-        strict_reserved_bytes: profile
-            .is_some_and(|profile| profile.framing.reserved_bytes == ReservedPolicy::Strict),
         max_errors,
     })
 }
@@ -266,8 +287,11 @@ mod tests {
         assert_eq!(common.format, RecordFormat::RDW);
         assert_eq!(common.codepage, Codepage::CP037);
         assert_eq!(common.dialect, Dialect::ZeroTolerant);
-        assert!(common.strict_reserved_bytes);
         assert_eq!(common.max_errors, Some(100));
+
+        let policy = resolve_policy(Some(&profile), false).unwrap();
+        assert!(policy.reserved_strict());
+        assert_eq!(policy.maximum_record_length(), Some(32760));
 
         let decode = resolve_decode(None, None, Some(&profile)).unwrap();
         assert_eq!(decode.json_number, JsonNumberMode::Lossless);
@@ -333,8 +357,10 @@ mod tests {
         assert_eq!(common.format, RecordFormat::Fixed);
         assert_eq!(common.codepage, Codepage::CP037);
         assert_eq!(common.dialect, Dialect::Normative);
-        assert!(!common.strict_reserved_bytes);
         assert_eq!(common.max_errors, None);
+
+        assert!(!resolve_policy(None, false).unwrap().reserved_strict());
+        assert!(resolve_policy(None, true).unwrap().reserved_strict());
 
         let decode = resolve_decode(Some(JsonNumberMode::Native), None, None).unwrap();
         assert_eq!(decode.json_number, JsonNumberMode::Native);
@@ -356,8 +382,12 @@ mod tests {
         );
         let profile = InterpretationProfile::parse(&text).expect("lenient profile parses");
         let common = resolve_common(None, None, None, None, Some(&profile)).unwrap();
-        assert!(!common.strict_reserved_bytes);
         assert_eq!(common.format, RecordFormat::RDW);
+        assert!(
+            !resolve_policy(Some(&profile), false)
+                .unwrap()
+                .reserved_strict()
+        );
     }
 
     #[test]

@@ -10,7 +10,7 @@
 
 use crate::cli_config::DialectPreference;
 use copybook::codec::options::profile::{InterpretationProfile, ReservedPolicy};
-use copybook::codec::options::resolve::{ConflictError, resolve_field};
+use copybook::codec::options::resolve::{ConflictError, OptionSource, Resolved, resolve_field};
 use copybook::codec::{
     Codepage, ExecutionPolicy, JsonNumberMode, PolicyError, RecordFormat, UnmappablePolicy,
 };
@@ -31,16 +31,29 @@ const DIALECT_PROFILE_KEY: &str = "source.dialect";
 const MAX_ERRORS_PROFILE_KEY: &str = "limits.maximum_errors";
 
 /// Effective framing and decode inputs shared by `decode` and `verify`.
+///
+/// Value fields drive the run; the accompanying source fields record which
+/// resolution layer supplied each value so manifest emission can bind the
+/// run's actual inputs with provenance.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ResolvedCommonInputs {
     /// Effective record framing.
     pub format: RecordFormat,
+    /// Layer that supplied [`Self::format`].
+    pub format_source: OptionSource,
     /// Effective character encoding.
     pub codepage: Codepage,
+    /// Layer that supplied [`Self::codepage`].
+    pub codepage_source: OptionSource,
     /// Effective ODO `min_count` interpretation.
     pub dialect: Dialect,
+    /// Layer that supplied [`Self::dialect`].
+    pub dialect_source: OptionSource,
     /// Effective error budget (`None` means unlimited).
     pub max_errors: Option<u64>,
+    /// Effective record bound with provenance (`None` when the run is
+    /// uncapped: no profile supplies `limits.maximum_record_length`).
+    pub record_bound: Option<Resolved<u64>>,
 }
 
 /// Build the execution policy for a run: reviewed profile values when a
@@ -172,7 +185,7 @@ pub(crate) fn resolve_common(
     profile: Option<&InterpretationProfile>,
 ) -> Result<ResolvedCommonInputs, ProfileInputError> {
     let profile_format = profile.map(|profile| RecordFormat::from(profile.framing.kind));
-    let format = match (format_flag, profile_format) {
+    let (format, format_source) = match (format_flag, profile_format) {
         (Some(flag), Some(_)) if Some(flag) != profile_format => {
             return Err(ProfileInputError::Conflict(ConflictError {
                 field: FORMAT_PROFILE_KEY,
@@ -182,8 +195,8 @@ pub(crate) fn resolve_common(
                 flag_value: flag.to_string(),
             }));
         }
-        (Some(flag), _) => flag,
-        (None, Some(from_profile)) => from_profile,
+        (Some(flag), _) => (flag, OptionSource::Flag),
+        (None, Some(from_profile)) => (from_profile, OptionSource::Profile),
         (None, None) => {
             return Err(ProfileInputError::Missing {
                 message: "--format is required when no profile supplies framing".to_string(),
@@ -198,7 +211,6 @@ pub(crate) fn resolve_common(
         None,
         Codepage::CP037,
     )
-    .map(|resolved| resolved.value)
     .map_err(ProfileInputError::Conflict)?;
 
     let dialect = resolve_field(
@@ -208,7 +220,6 @@ pub(crate) fn resolve_common(
         dialect_env(),
         Dialect::Normative,
     )
-    .map(|resolved| resolved.value)
     .map_err(ProfileInputError::Conflict)?;
 
     let profile_max_errors = profile.map(|profile| profile.limits.maximum_errors);
@@ -225,11 +236,20 @@ pub(crate) fn resolve_common(
         (None, None) => None,
     };
 
+    let record_bound = profile.map(|profile| Resolved {
+        value: profile.limits.maximum_record_length,
+        source: OptionSource::Profile,
+    });
+
     Ok(ResolvedCommonInputs {
+        format_source,
         format,
-        codepage,
-        dialect,
+        codepage_source: codepage.source,
+        codepage: codepage.value,
+        dialect_source: dialect.source,
+        dialect: dialect.value,
         max_errors,
+        record_bound,
     })
 }
 

@@ -56,6 +56,11 @@ copybook inspect <COPYBOOK> [OPTIONS]
 - `--strict` - Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
 - `--dialect <MODE>` - Dialect mode: n (normative), 0 (zero-tolerant), 1 (one-tolerant) (default: n)
+- `--profile <PROFILE>` - Reviewed interpretation profile (TOML). Required for `--emit-manifest`;
+  a flag that disagrees with the profile is an error (exit 3)
+- `--emit-manifest <MANIFEST>` - Write a resolved-schema manifest binding the reviewed
+  inputs with provenance, the layout bounds, and the support classification.
+  Requires `--profile` and a copybook file (stdin has no stable source identity)
 
 **Binary widths:** `≤4 → 16-bit`, `5–9 → 32-bit`, `10–18 → 64-bit`.
 
@@ -69,6 +74,9 @@ copybook inspect customer.cpy --strict
 
 # Inspect with an alternate codepage
 copybook inspect customer.cpy --codepage cp500
+
+# Emit a resolved-schema manifest for the reviewed interpretation
+copybook inspect customer.cpy --profile customer.toml --emit-manifest customer.manifest.json
 ```
 
 **Output:** a header block followed by one row per field. The `Type` column

@@ -41,10 +41,10 @@ fn test_inputs<'a>(bundle: &'a SourceBundle, schema: &'a Schema) -> GenerateInpu
             source: OptionSource::Profile,
         },
         framing: resolved_str("fixed", OptionSource::Default),
-        record_bound: Resolved {
+        record_bound: Some(Resolved {
             value: 32760,
             source: OptionSource::Default,
-        },
+        }),
         schema,
     }
 }
@@ -148,6 +148,21 @@ fn cobol_manifest_json_shape_matches_reference_schema() {
         assert!(object.contains_key(*key), "missing key {key}");
     }
     assert_eq!(object.len(), required.len(), "unexpected keys: {object:?}");
+}
+
+#[test]
+fn cobol_manifest_uncapped_run_records_null_bound() {
+    let bundle = SourceBundle::single("REC", MANIFEST_COPYBOOK.as_bytes())
+        .expect("single-unit bundle builds");
+    let mut schema = parse_copybook(MANIFEST_COPYBOOK).expect("copybook parses");
+    resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
+    let mut inputs = test_inputs(&bundle, &schema);
+    inputs.record_bound = None;
+    let manifest = ResolvedManifest::generate(inputs).expect("manifest generates");
+    assert!(manifest.inputs.record_bound.is_none());
+    let json = manifest.to_json().expect("serializes");
+    let round_trip = ResolvedManifest::from_json(&json).expect("verifies");
+    assert!(round_trip.inputs.record_bound.is_none());
 }
 
 #[test]
@@ -276,14 +291,16 @@ fn cobol_manifest_records_reviewed_profile_journey() {
         "cp037".to_owned(),
     )
     .expect("encoding resolves");
-    let record_bound = resolve_field(
-        "limits.maximum_record_length",
-        None,
-        Some(profile.limits.maximum_record_length),
-        None,
-        32760,
-    )
-    .expect("record bound resolves");
+    let record_bound = Some(
+        resolve_field(
+            "limits.maximum_record_length",
+            None,
+            Some(profile.limits.maximum_record_length),
+            None,
+            32760,
+        )
+        .expect("record bound resolves"),
+    );
 
     let manifest = ResolvedManifest::generate(GenerateInputs {
         bundle: &bundle,
@@ -298,7 +315,13 @@ fn cobol_manifest_records_reviewed_profile_journey() {
     assert_eq!(manifest.inputs.dialect.value, "normative");
     assert_eq!(manifest.inputs.dialect.source, "profile");
     assert_eq!(manifest.inputs.framing.value, "rdw");
-    assert_eq!(manifest.inputs.record_bound.value, 32760);
+    let bound = manifest
+        .inputs
+        .record_bound
+        .as_ref()
+        .expect("bound present");
+    assert_eq!(bound.value, 32760);
+    assert_eq!(bound.source, "profile");
     assert_eq!(manifest.inputs.bundle_fingerprint, bundle.fingerprint());
 }
 

@@ -215,8 +215,8 @@ enum Commands {
         /// Copybook file path
         copybook: PathBuf,
         /// Character encoding: ascii, cp037, cp273, cp500, cp1047, or cp1140.
-        #[arg(long, default_value = "cp037", value_parser = crate::cli_config::parse_codepage)]
-        codepage: Codepage,
+        #[arg(long, value_parser = crate::cli_config::parse_codepage)]
+        codepage: Option<Codepage>,
         /// Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
         #[arg(long)]
         strict: bool,
@@ -226,6 +226,14 @@ enum Commands {
         /// Dialect for ODO `min_count` interpretation (n=normative, 0=zero-tolerant, 1=one-tolerant)
         #[arg(long, value_enum)]
         dialect: Option<DialectPreference>,
+        /// Reviewed interpretation profile (TOML). Required for --emit-manifest;
+        /// a flag that disagrees with the profile is an error (exit 3).
+        #[arg(long, value_name = "PROFILE")]
+        profile: Option<PathBuf>,
+        /// Write a resolved-schema manifest binding the reviewed inputs,
+        /// layout bounds, and support classification. Requires --profile.
+        #[arg(long, value_name = "MANIFEST")]
+        emit_manifest: Option<PathBuf>,
     },
     /// Decode binary data to JSONL
     #[command(

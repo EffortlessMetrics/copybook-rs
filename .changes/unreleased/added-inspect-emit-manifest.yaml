@@ -1,0 +1,10 @@
+kind: added
+body: '**cli**: `inspect --emit-manifest` writes a resolved-schema manifest for
+  the reviewed interpretation (`--profile` required): effective
+  encoding/dialect/framing/record-bound values with resolution provenance, the
+  flattened layout with physical bounds, and the static-matrix support
+  classification, bound by a `sha256-v1` self-fingerprint. Missing profiles,
+  flag/profile conflicts, and stdin copybooks fail with exit 3. `inspect
+  --codepage` is now an explicit layer over the `cp037` default so profile
+  values can win with honest provenance. Toward #1122.'
+time: '2026-09-19T15:45:00Z'

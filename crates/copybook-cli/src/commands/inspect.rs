@@ -2,11 +2,15 @@
 //! Inspect command implementation
 
 use crate::exit_codes::ExitCode;
-use crate::utils::{InputRole, print_identity_hint, read_input_or_stdin};
+use crate::profile_inputs::ResolvedCommonInputs;
+use crate::utils::{InputRole, atomic_write, print_identity_hint, read_input_or_stdin};
 use crate::write_stdout_all;
 use copybook::codec::Codepage;
+use copybook::codec::options::resolve::Resolved;
+use copybook::codec::resolved_manifest::{GenerateInputs, ResolvedManifest};
+use copybook::core::source_bundle::SourceBundle;
 use copybook::core::{
-    FeatureFlags, Field, FieldKind, Occurs, ParseOptions, parse_copybook_with_feature_flags,
+    FeatureFlags, Field, FieldKind, Occurs, ParseOptions, Schema, parse_copybook_with_feature_flags,
 };
 use std::fmt::Write as _;
 use std::path::PathBuf;
@@ -48,14 +52,7 @@ pub fn run(
         dialect: dialect.into(),
     };
     // #656 Phase D: CLI-resolved flags passed explicitly; no global state.
-    let schema = parse_copybook_with_feature_flags(&copybook_text, &options, feature_flags)
-        .map_err(|error| {
-            // A broken copybook ends here, so the next step goes out
-            // with the error: the identity explanation names the rule
-            // and the fix.
-            print_identity_hint(&error.code().to_string());
-            anyhow::Error::from(error)
-        })?;
+    let schema = parse_schema(&copybook_text, &options, feature_flags)?;
 
     let rows: Vec<Row> = schema
         .all_fields()
@@ -68,6 +65,92 @@ pub fn run(
 
     info!("Inspect completed successfully");
     Ok(ExitCode::Ok)
+}
+
+/// Inspect with manifest emission: the layout report goes to stdout and a
+/// resolved-schema manifest binding the reviewed inputs goes to `manifest_path`.
+///
+/// The manifest records the exact [`ResolvedCommonInputs`] the run resolved,
+/// so the file reproduces the run's interpretation without re-resolution.
+pub fn run_with_manifest(
+    copybook: &PathBuf,
+    common: &ResolvedCommonInputs,
+    strict: bool,
+    strict_comments: bool,
+    feature_flags: &FeatureFlags,
+    manifest_path: &PathBuf,
+) -> anyhow::Result<ExitCode> {
+    info!("Inspecting copybook with manifest emission: {copybook:?}");
+
+    // The parse path already requires valid UTF-8 source, so the text bytes
+    // are exactly the file bytes the bundle fingerprints.
+    let copybook_text = read_input_or_stdin(InputRole::Copybook, copybook)?;
+    let options = ParseOptions {
+        strict_comments,
+        strict,
+        codepage: common.codepage.to_string(),
+        emit_filler: false,
+        allow_inline_comments: !strict_comments,
+        dialect: common.dialect,
+    };
+    let schema = parse_schema(&copybook_text, &options, feature_flags)?;
+
+    let logical_id = copybook
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("copybook");
+    let bundle = SourceBundle::single(logical_id, copybook_text.as_bytes())
+        .map_err(|error| anyhow::anyhow!("cannot build source bundle for {logical_id}: {error}"))?;
+    let manifest = ResolvedManifest::generate(GenerateInputs {
+        bundle: &bundle,
+        encoding: Resolved {
+            value: common.codepage.to_string(),
+            source: common.codepage_source,
+        },
+        dialect: Resolved {
+            value: common.dialect,
+            source: common.dialect_source,
+        },
+        framing: Resolved {
+            value: common.format.to_string(),
+            source: common.format_source,
+        },
+        record_bound: common.record_bound.clone(),
+        schema: &schema,
+    })
+    .map_err(|error| anyhow::anyhow!("cannot generate resolved manifest: {error}"))?;
+    let json = manifest
+        .to_json()
+        .map_err(|error| anyhow::anyhow!("cannot serialize resolved manifest: {error}"))?;
+    atomic_write(manifest_path, |writer| writer.write_all(&json)).map_err(|error| {
+        anyhow::anyhow!("cannot write manifest {}: {error}", manifest_path.display())
+    })?;
+
+    let rows: Vec<Row> = schema
+        .all_fields()
+        .into_iter()
+        .map(Row::from_field)
+        .collect();
+    let output = render_layout(common.codepage, schema.lrecl_fixed, &rows);
+    write_stdout_all(output.as_bytes())?;
+
+    info!("Inspect with manifest emission completed successfully");
+    Ok(ExitCode::Ok)
+}
+
+/// Parse one copybook text with explicit options, hinting the identity fix.
+fn parse_schema(
+    copybook_text: &str,
+    options: &ParseOptions,
+    feature_flags: &FeatureFlags,
+) -> anyhow::Result<Schema> {
+    parse_copybook_with_feature_flags(copybook_text, options, feature_flags).map_err(|error| {
+        // A broken copybook ends here, so the next step goes out
+        // with the error: the identity explanation names the rule
+        // and the fix.
+        print_identity_hint(&error.code().to_string());
+        anyhow::Error::from(error)
+    })
 }
 
 /// One rendered layout row.

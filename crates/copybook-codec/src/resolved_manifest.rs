@@ -148,8 +148,9 @@ pub struct ManifestInputs {
     pub dialect: ManifestDialect,
     /// Framing actually used plus its source.
     pub framing: ManifestValue<String>,
-    /// Record bound actually used plus its source.
-    pub record_bound: ManifestValue<u64>,
+    /// Record bound actually used plus its source (`None` when the run is
+    /// uncapped, e.g. a profile-less direct run).
+    pub record_bound: Option<ManifestValue<u64>>,
 }
 
 /// One flattened layout field with its physical bounds.
@@ -236,8 +237,9 @@ pub struct GenerateInputs<'a> {
     pub dialect: Resolved<Dialect>,
     /// Effective framing after flag/profile/env/default resolution.
     pub framing: Resolved<String>,
-    /// Effective record bound after flag/profile/env/default resolution.
-    pub record_bound: Resolved<u64>,
+    /// Effective record bound after resolution (`None` when uncapped: no flag
+    /// carries it and no profile supplies it).
+    pub record_bound: Option<Resolved<u64>>,
     /// Schema after [`resolve_layout`](copybook_core::layout::resolve_layout).
     pub schema: &'a Schema,
 }
@@ -352,10 +354,10 @@ impl ResolvedManifest {
                     value: inputs.framing.value,
                     source: source_str(inputs.framing.source),
                 },
-                record_bound: ManifestValue {
-                    value: inputs.record_bound.value,
-                    source: source_str(inputs.record_bound.source),
-                },
+                record_bound: inputs.record_bound.map(|bound| ManifestValue {
+                    value: bound.value,
+                    source: source_str(bound.source),
+                }),
             },
             fields: flat.fields,
             record_len,

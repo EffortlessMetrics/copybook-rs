@@ -62,6 +62,7 @@ fn cobol_manifest_binds_inputs_layout_and_support() {
     let manifest = generate_manifest();
 
     assert_eq!(manifest.schema_version, 1);
+    assert_eq!(manifest.stability_class, "beta");
     assert_eq!(manifest.inputs.dialect.value, "normative");
     assert_eq!(manifest.inputs.dialect.provenance, "profile-selected");
     assert_eq!(manifest.inputs.encoding.source, "profile");
@@ -105,8 +106,9 @@ fn cobol_manifest_binds_inputs_layout_and_support() {
         "support: {support:?}"
     );
 
-    assert!(manifest.manifest_fingerprint.starts_with("sha256-v1:"));
-    assert_eq!(manifest.manifest_fingerprint.len(), "sha256-v1:".len() + 64);
+    let fingerprint = manifest.fingerprint();
+    assert!(fingerprint.starts_with("sha256-v1:"));
+    assert_eq!(fingerprint.len(), "sha256-v1:".len() + 64);
     assert_eq!(
         manifest.record_len,
         manifest.fields.iter().map(|f| f.end).max().unwrap_or(0)
@@ -118,8 +120,8 @@ fn cobol_manifest_round_trip_verifies() {
     let manifest = generate_manifest();
     let json = manifest.to_json().expect("manifest serializes");
     let parsed = ResolvedManifest::from_json(&json).expect("manifest verifies");
-    assert_eq!(parsed.manifest_fingerprint, manifest.manifest_fingerprint);
-    assert_eq!(parsed.fields.len(), manifest.fields.len());
+    assert_eq!(parsed.fingerprint(), manifest.fingerprint());
+    assert_eq!(parsed, manifest);
 }
 
 #[test]
@@ -205,9 +207,11 @@ fn cobol_manifest_rejects_unknown_keys() {
         serde_json::from_slice(&manifest.to_json().expect("serializes")).expect("json parses");
     value["injected_property"] = serde_json::json!("not part of the contract");
     let injected = serde_json::to_vec(&value).expect("re-serializes");
+    // Unknown properties feed the fingerprint, so injection without
+    // re-signing fails verification rather than parsing.
     let err = ResolvedManifest::from_json(&injected).expect_err("unknown keys fail");
     assert!(
-        matches!(err, ManifestError::MalformedManifest { .. }),
+        matches!(err, ManifestError::FingerprintMismatch { .. }),
         "got {err}"
     );
 }
@@ -221,6 +225,105 @@ fn cobol_manifest_rejects_oversized_input() {
         matches!(err, ManifestError::ManifestTooLarge { .. }),
         "got {err}"
     );
+}
+
+#[test]
+fn cobol_manifest_rejects_unknown_stability_class() {
+    let manifest = generate_manifest();
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&manifest.to_json().expect("serializes")).expect("json parses");
+    value["stability_class"] = serde_json::json!("stable");
+    // Contract identity is checked before fingerprint verification.
+    let tampered = serde_json::to_vec(&value).expect("re-serializes");
+    let err = ResolvedManifest::from_json(&tampered).expect_err("class fails");
+    assert!(
+        matches!(err, ManifestError::UnsupportedStabilityClass { .. }),
+        "got {err}"
+    );
+}
+
+#[test]
+fn cobol_manifest_rejects_unknown_fingerprint_algo() {
+    let manifest = generate_manifest();
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&manifest.to_json().expect("serializes")).expect("json parses");
+    value["fingerprint_algo"] = serde_json::json!("md5-v0");
+    let tampered = serde_json::to_vec(&value).expect("re-serializes");
+    let err = ResolvedManifest::from_json(&tampered).expect_err("algo fails");
+    assert!(
+        matches!(err, ManifestError::UnsupportedFingerprintAlgo { .. }),
+        "got {err}"
+    );
+}
+
+#[test]
+fn cobol_manifest_verifies_despite_reordered_keys() {
+    let manifest = generate_manifest();
+    let value: serde_json::Value =
+        serde_json::from_slice(&manifest.to_json().expect("serializes")).expect("json parses");
+    // Reverse every object's key order: canonical bytes must be unaffected.
+    fn reversed(value: &serde_json::Value) -> serde_json::Value {
+        match value {
+            serde_json::Value::Object(object) => {
+                let mut out = serde_json::Map::with_capacity(object.len());
+                for (key, item) in object.iter().rev() {
+                    out.insert(key.clone(), reversed(item));
+                }
+                serde_json::Value::Object(out)
+            }
+            serde_json::Value::Array(items) => {
+                serde_json::Value::Array(items.iter().map(reversed).collect())
+            }
+            _ => value.clone(),
+        }
+    }
+    let reordered = serde_json::to_vec(&reversed(&value)).expect("re-serializes");
+    let parsed = ResolvedManifest::from_json(&reordered).expect("reordered verifies");
+    assert_eq!(parsed, manifest);
+}
+
+#[test]
+fn cobol_manifest_emitted_wire_validates_against_reference_schema() {
+    let schema_path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../schemas/resolved-manifest.json"
+    );
+    let schema_text = std::fs::read_to_string(schema_path).expect("reference schema reads");
+    let schema: serde_json::Value =
+        serde_json::from_str(&schema_text).expect("reference schema parses");
+    let validator = jsonschema::validator_for(&schema).expect("schema compiles");
+
+    // Positive: capped and uncapped (null record bound) documents validate.
+    let manifest = generate_manifest();
+    let capped: serde_json::Value =
+        serde_json::from_slice(&manifest.to_json().expect("serializes")).expect("json parses");
+    assert!(validator.is_valid(&capped), "capped document validates");
+
+    let bundle = SourceBundle::single("REC", MANIFEST_COPYBOOK.as_bytes())
+        .expect("single-unit bundle builds");
+    let mut schema = parse_copybook(MANIFEST_COPYBOOK).expect("copybook parses");
+    resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
+    let mut inputs = test_inputs(&bundle, &schema);
+    inputs.record_bound = None;
+    let uncapped = ResolvedManifest::generate(inputs).expect("uncapped manifest generates");
+    let null_bound: serde_json::Value =
+        serde_json::from_slice(&uncapped.to_json().expect("serializes")).expect("json parses");
+    assert_eq!(null_bound["record_bound"], serde_json::Value::Null);
+    assert!(
+        validator.is_valid(&null_bound),
+        "null-bound document validates"
+    );
+
+    // Negative: mistyped and truncated documents fail.
+    let mut mistyped = capped.clone();
+    mistyped["record_len"] = serde_json::json!("sixty-one");
+    assert!(!validator.is_valid(&mistyped), "mistyped document fails");
+    let mut missing = capped.clone();
+    missing
+        .as_object_mut()
+        .expect("document object")
+        .remove("manifest_fingerprint");
+    assert!(!validator.is_valid(&missing), "truncated document fails");
 }
 
 #[test]

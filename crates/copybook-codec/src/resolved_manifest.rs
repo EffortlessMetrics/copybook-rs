@@ -12,14 +12,15 @@
 //!
 //! ## Maturity
 //!
-//! The contract is evolving: [`RESOLVED_MANIFEST_STABILITY_CLASS`] is `beta`
-//! until the profile contract it binds settles. Do not treat a beta manifest
-//! as a frozen interchange format.
+//! The contract is evolving:
+//! [`RESOLVED_MANIFEST_STABILITY_CLASS`](crate::resolved_manifest::RESOLVED_MANIFEST_STABILITY_CLASS)
+//! is `beta` until the profile contract it binds settles. Do not treat a beta
+//! manifest as a frozen interchange format.
 //!
 //! ## Canonical form and tamper evidence
 //!
 //! The fingerprint covers the canonical body bytes: the manifest body as JSON
-//! with object keys sorted recursively ([`canonical_bytes`]). Key order in a
+//! with object keys sorted recursively (`canonical_bytes`). Key order in a
 //! stored document never affects verification. Every body property, including
 //! properties a reader does not understand, feeds the fingerprint, so an
 //! injected property without a regenerated fingerprint fails verification.
@@ -37,9 +38,10 @@
 //!
 //! ## Fingerprint discipline
 //!
-//! [`ResolvedManifest`] carries no cached digest: [`ResolvedManifest::fingerprint`]
-//! recomputes it from the current body on every call, so a mutated value can
-//! never serialize under a stale digest.
+//! [`crate::resolved_manifest::ResolvedManifest`] carries no cached digest:
+//! [`crate::resolved_manifest::ResolvedManifest::fingerprint`] recomputes it
+//! from the current body on every call, so a mutated value can never
+//! serialize under a stale digest.
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -331,6 +333,8 @@ impl ResolvedManifest {
     /// Returns [`ManifestError`] when dialect resolution conflicts, the layout
     /// exceeds [`MAX_MANIFEST_FIELDS`], or the serialized form exceeds
     /// [`MAX_MANIFEST_BYTES`].
+    #[inline]
+    #[must_use]
     pub fn generate(inputs: GenerateInputs<'_>) -> Result<Self, ManifestError> {
         let effective =
             resolve_effective_dialect(inputs.bundle.declared_dialect(), Some(inputs.dialect.value))
@@ -420,6 +424,8 @@ impl ResolvedManifest {
     ///
     /// Returns [`ManifestError::ManifestTooLarge`] when the serialized form
     /// exceeds [`MAX_MANIFEST_BYTES`].
+    #[inline]
+    #[must_use]
     pub fn to_json(&self) -> Result<Vec<u8>, ManifestError> {
         let serialized = assemble_document(self)?;
         if serialized.len() > MAX_MANIFEST_BYTES {
@@ -441,6 +447,8 @@ impl ResolvedManifest {
     /// Returns [`ManifestError`] when the document is malformed, declares an
     /// unsupported version, stability class, or fingerprint algorithm, or
     /// fails fingerprint verification.
+    #[inline]
+    #[must_use]
     pub fn from_json(bytes: &[u8]) -> Result<Self, ManifestError> {
         if bytes.len() > MAX_MANIFEST_BYTES {
             return Err(ManifestError::ManifestTooLarge { found: bytes.len() });

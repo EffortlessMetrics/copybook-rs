@@ -1,4 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<p align="center">
+  <img src="docs/assets/copybook-rs-mark.svg" alt="copybook-rs logo" width="128" />
+</p>
+
 <h1 align="center">copybook-rs</h1>
 
 <p align="center">

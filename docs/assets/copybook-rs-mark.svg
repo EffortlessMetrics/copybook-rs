@@ -1,0 +1,37 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">copybook-rs logo</title>
+  <desc id="desc">A stepped hierarchy of measured paper strips: the top strip represents a COBOL record, indented strips represent level groups, and unequal widths represent field extents.</desc>
+
+  <!--
+    Geometry is the identity:
+      x = 4 / 12 / 20  -> COBOL hierarchy depth (01 / 05 / 10)
+      unequal widths   -> measured field / record extents
+      repeated x edges -> siblings at the same level
+    Shadows are geometric rather than blurred so the mark survives at small sizes.
+  -->
+
+  <!-- restrained Material-paper depth -->
+  <g fill="#1a1816" opacity="0.18" transform="translate(0 1.25)">
+    <rect x="4"  y="4"  width="56" height="8" rx="1"/>
+    <rect x="12" y="16" width="24" height="8" rx="1"/>
+    <rect x="12" y="28" width="48" height="8" rx="1"/>
+    <rect x="20" y="40" width="20" height="8" rx="1"/>
+    <rect x="20" y="52" width="36" height="8" rx="1"/>
+  </g>
+
+  <!-- 01: containing record -->
+  <rect x="4" y="4" width="56" height="8" rx="1" fill="#156b76"/>
+
+  <!-- 05: sibling groups / fields -->
+  <g fill="#1d7d8a">
+    <rect x="12" y="16" width="24" height="8" rx="1"/>
+    <rect x="12" y="28" width="48" height="8" rx="1"/>
+  </g>
+
+  <!-- 10: nested fields, rendered as lighter paper -->
+  <g fill="#d9d4bf">
+    <rect x="20" y="40" width="20" height="8" rx="1"/>
+    <rect x="20" y="52" width="36" height="8" rx="1"/>
+  </g>
+</svg>

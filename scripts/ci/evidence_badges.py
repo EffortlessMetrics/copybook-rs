@@ -186,6 +186,26 @@ def generate(root: Path, output: Path) -> None:
             output=path,
         )
 
+    unsafe_repo = native / "unsafe-review-repo.json"
+    _run(
+        [
+            "unsafe-review",
+            "repo",
+            "--root",
+            str(root),
+            "--format",
+            "json",
+            "--out",
+            str(unsafe_repo),
+        ],
+        cwd=root,
+    )
+    if not unsafe_repo.is_file():
+        raise EndpointError(
+            f"unsafe-review did not produce expected repo report {unsafe_repo}"
+        )
+    _load_json(unsafe_repo)
+
     unsafe_dir = output / "unsafe-review-generated"
     if unsafe_dir.exists():
         shutil.rmtree(unsafe_dir)

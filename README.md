@@ -7,8 +7,8 @@
 
 <p align="center">
   <a href="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml"><img src="https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml/badge.svg?branch=main&event=push" alt="CI" /></a>
-  <a href="https://github.com/EffortlessMetrics/ripr/blob/main/docs/BADGE_POLICY.md"><img src="https://img.shields.io/badge/ripr%2B-pending-lightgrey" alt="ripr+" /></a>
-  <a href="https://github.com/EffortlessMetrics/unsafe-review/blob/main/docs/BADGE_POLICY.md"><img src="https://img.shields.io/badge/unsafe--review%2B-pending-lightgrey" alt="unsafe-review+" /></a>
+  <a href="https://github.com/EffortlessMetrics/ripr/blob/main/docs/BADGE_POLICY.md"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FEffortlessMetrics%2Fcopybook-rs%2Fmain%2Fbadges%2Fripr-plus.json" alt="ripr+" /></a>
+  <a href="https://github.com/EffortlessMetrics/unsafe-review/blob/main/docs/BADGE_POLICY.md"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FEffortlessMetrics%2Fcopybook-rs%2Fmain%2Fbadges%2Funsafe-review-plus.json" alt="unsafe-review+" /></a>
 </p>
 
 <p align="center">

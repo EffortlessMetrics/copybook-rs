@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! E2E tests for `decode --profile` / `verify --profile` consumption.
+//! E2E tests for `--profile` consumption on `decode`, `verify`, and `encode`.
 //!
 //! A reviewed interpretation profile (TOML) supplies framing, decode
 //! options, dialect, and error budget so `--format` and friends become
@@ -319,6 +319,129 @@ fn missing_format_without_profile_still_clap_error() {
         .arg(&out)
         .arg(&copybook)
         .arg(&data)
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicate::str::contains("--format"));
+}
+
+// =========================================================================
+// encode --profile tests: framing, codepage, dialect, and error budget
+// come from the profile; --format/--codepage become optional.
+// =========================================================================
+
+/// Fixed/ASCII profile matching `SIMPLE_CPY` (15-byte fixed records).
+const FIXED_ASCII_PROFILE: &str = "\
+schema_version = 1
+[source]
+dialect = \"normative\"
+[framing]
+kind = \"fixed\"
+reserved_bytes = \"lenient\"
+[decode]
+codepage = \"ascii\"
+unmappable = \"error\"
+json_numbers = \"lossless\"
+[limits]
+maximum_record_length = 32760
+maximum_errors = 100
+";
+
+/// One JSONL line matching `SIMPLE_CPY`: 10-byte name, 5-byte amount.
+const SIMPLE_JSONL: &str = "{\"NAME\":\"ALICE     \",\"AMOUNT\":\"00100\"}\n";
+
+/// Expected 15-byte fixed record for `SIMPLE_JSONL` under ASCII.
+fn expected_simple_record() -> Vec<u8> {
+    let mut record = vec![b' '; 15];
+    for (i, b) in "ALICE".bytes().enumerate() {
+        record[i] = b;
+    }
+    for (i, b) in "00100".bytes().enumerate() {
+        record[10 + i] = b;
+    }
+    record
+}
+
+#[test]
+fn encode_profile_supplies_framing() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
+    let input = write_temp_file(&dir, "input.jsonl", SIMPLE_JSONL.as_bytes());
+    let profile = write_temp_file(&dir, "profile.toml", FIXED_ASCII_PROFILE.as_bytes());
+    let out = dir.path().join("out.bin");
+
+    cmd()
+        .args(["encode", "--profile"])
+        .arg(&profile)
+        .arg(&cpy)
+        .arg(&input)
+        .args(["--output"])
+        .arg(&out)
+        .assert()
+        .success();
+
+    let bytes = std::fs::read(&out).expect("read output");
+    assert_eq!(bytes, expected_simple_record());
+}
+
+#[test]
+fn encode_profile_format_conflict() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
+    let input = write_temp_file(&dir, "input.jsonl", SIMPLE_JSONL.as_bytes());
+    let profile = write_temp_file(&dir, "profile.toml", FIXED_ASCII_PROFILE.as_bytes());
+    let out = dir.path().join("out.bin");
+
+    cmd()
+        .args(["encode", "--profile"])
+        .arg(&profile)
+        .args(["--format", "rdw"])
+        .arg(&cpy)
+        .arg(&input)
+        .args(["--output"])
+        .arg(&out)
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicate::str::contains("conflicting"))
+        .stderr(predicate::str::contains("framing.kind"));
+}
+
+#[test]
+fn encode_profile_codepage_conflict() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
+    let input = write_temp_file(&dir, "input.jsonl", SIMPLE_JSONL.as_bytes());
+    let profile = write_temp_file(&dir, "profile.toml", FIXED_ASCII_PROFILE.as_bytes());
+    let out = dir.path().join("out.bin");
+
+    cmd()
+        .args(["encode", "--profile"])
+        .arg(&profile)
+        .args(["--codepage", "cp037"])
+        .arg(&cpy)
+        .arg(&input)
+        .args(["--output"])
+        .arg(&out)
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicate::str::contains("decode.codepage"));
+}
+
+#[test]
+fn encode_missing_format_without_profile() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
+    let input = write_temp_file(&dir, "input.jsonl", SIMPLE_JSONL.as_bytes());
+    let out = dir.path().join("out.bin");
+
+    cmd()
+        .args(["encode"])
+        .arg(&cpy)
+        .arg(&input)
+        .args(["--output"])
+        .arg(&out)
         .assert()
         .failure()
         .code(3)

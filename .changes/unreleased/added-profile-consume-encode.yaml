@@ -1,0 +1,8 @@
+kind: added
+body: '**cli**: `encode` accepts `--profile <FILE>`, completing reviewed
+  interpretation profiles across decode, verify, and encode. Framing,
+  codepage, dialect, and error budget resolve flag over profile over
+  environment over default with the same contradiction errors (exit 3);
+  `--format` and `--codepage` are optional when the profile supplies
+  them. `--strict`, fail-fast, and zoned options stay orthogonal.'
+time: '2026-09-19T05:30:00Z'

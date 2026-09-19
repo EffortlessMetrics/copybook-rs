@@ -1,0 +1,9 @@
+kind: fixed
+body: '**deps**: refreshed the `fuzz`, `kafka_pipeline`, and `kafka_streaming`
+  satellite lockfiles for the `copybook-codec` `serde_plain` edge (#1142).
+  Each diff is that single edge with no unrelated upgrades. Added a local
+  `just satellite-locks` preflight (`scripts/ci/check_satellite_locks.py`,
+  derived from the Standalone MSRV workflow matrix) that fails when any
+  inventoried satellite lock would change, plus deterministic fixture tests
+  proving stale locks fail it.'
+time: '2026-09-19T16:30:00Z'

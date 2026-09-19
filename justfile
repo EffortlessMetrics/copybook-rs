@@ -87,6 +87,13 @@ fmt-check:
 deny:
     cargo deny check
 
+# Verify satellite lockfiles against the Standalone MSRV inventory (local
+# preflight running the exact workflow commands; needs a toolchain able to
+# build the satellites, as in the workflow)
+satellite-locks:
+    python3 scripts/ci/check_satellite_locks.py
+    python3 scripts/ci/test_satellite_locks.py
+
 # API Freeze Management
 # Check API compatibility against baseline
 api-check:

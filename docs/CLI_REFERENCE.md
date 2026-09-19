@@ -209,7 +209,8 @@ copybook encode <COPYBOOK> <JSONL> [OPTIONS]
 
 **Output:**
 - `-o, --output <FILE>` - Output binary file (required; use `-` for stdout)
-- `--format <FORMAT>` - Record format: fixed, rdw (required)
+- `--profile <FILE>` - Reviewed interpretation profile (TOML); supplies framing, codepage, dialect, and error budget (see Interpretation Profiles)
+- `--format <FORMAT>` - Record format: fixed, rdw (required unless `--profile` supplies framing)
 - `--select <FIELD[,FIELD...]>` - Validate only specific fields during encoding (comma-separated or repeated); ODO counters and parent groups are included automatically
 
 **Character Encoding:**
@@ -269,6 +270,10 @@ copybook encode financial.cpy data.jsonl \
 copybook encode financial.cpy preserved.jsonl \
   --format fixed \
   --output roundtrip.bin
+
+# Encode from a reviewed interpretation profile (no --format/--codepage needed)
+copybook encode --profile customer.toml customer.cpy data.jsonl \
+  --output data.bin
 ```
 
 ### verify
@@ -669,6 +674,10 @@ Profile keys and their flag equivalents:
 enabling full `--strict` record handling. `"lenient"` keeps the current
 warn-and-continue behavior. `limits.maximum_record_length` is validated
 when the profile loads but is not yet enforced against records.
+
+All keys except `decode.json_numbers` apply to `encode` as well;
+`framing.reserved_bytes` has no effect on encode (writers emit zero
+reserved bytes).
 
 ```toml
 schema_version = 1

@@ -328,12 +328,20 @@ Field Projection:\n\
         /// Output binary file path (use "-" for stdout)
         #[arg(short, long)]
         output: PathBuf,
-        /// Record format (explicit, no auto-detection)
-        #[arg(long)]
-        format: RecordFormat,
+        /// Reviewed interpretation profile (TOML) supplying framing, codepage,
+        /// dialect, and error budget. A flag that disagrees with the profile
+        /// is an error (exit 3). `--strict`, `--fail-fast`/`--no-fail-fast`,
+        /// and zoned options are orthogonal to the profile and pass through
+        /// unchanged. `limits.maximum_record_length` is validated but not
+        /// yet enforced.
+        #[arg(long, value_name = "PROFILE")]
+        profile: Option<PathBuf>,
+        /// Record format (explicit, no auto-detection). Required unless --profile supplies framing.
+        #[arg(long, required_unless_present = "profile")]
+        format: Option<RecordFormat>,
         /// Character encoding: ascii, cp037, cp273, cp500, cp1047, or cp1140.
-        #[arg(long, default_value = "cp037", value_parser = crate::cli_config::parse_codepage)]
-        codepage: Codepage,
+        #[arg(long, value_parser = crate::cli_config::parse_codepage)]
+        codepage: Option<Codepage>,
         /// Use raw data when available
         #[arg(long)]
         use_raw: bool,

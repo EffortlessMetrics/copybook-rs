@@ -285,6 +285,7 @@ fn run_encode_command(command: Commands, feature_flags: &FeatureFlags) -> Comman
         copybook,
         input,
         output,
+        profile,
         format,
         codepage,
         use_raw,
@@ -305,19 +306,32 @@ fn run_encode_command(command: Commands, feature_flags: &FeatureFlags) -> Comman
         return dispatch_mismatch("encode");
     };
 
-    let effective_dialect = effective_dialect(dialect);
+    let loaded = match crate::profile_inputs::load_profile(profile.as_deref()) {
+        Ok(loaded) => loaded,
+        Err(error) => return profile_failure("encode", &error),
+    };
+    let common = match crate::profile_inputs::resolve_common(
+        format,
+        codepage,
+        dialect,
+        max_errors,
+        loaded.as_ref(),
+    ) {
+        Ok(common) => common,
+        Err(error) => return profile_failure("encode", &error),
+    };
     (
         commands::encode::run(
             &copybook,
             &input,
             &output,
             &commands::encode::EncodeCliOptions {
-                format,
-                codepage,
+                format: common.format,
+                codepage: common.codepage,
                 use_raw,
                 bwz_encode,
                 strict,
-                max_errors,
+                max_errors: common.max_errors,
                 // Stopping on the first failure is the default, so only `--no-fail-fast`
                 // changes anything. clap rejects the two together, so this cannot be
                 // ambiguous.
@@ -327,7 +341,7 @@ fn run_encode_command(command: Commands, feature_flags: &FeatureFlags) -> Comman
                 strict_comments,
                 zoned_encoding_override,
                 float_format,
-                dialect: effective_dialect.into(),
+                dialect: common.dialect,
                 select: &select,
             },
             feature_flags,

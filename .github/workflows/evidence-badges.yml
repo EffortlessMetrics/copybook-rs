@@ -14,7 +14,7 @@ on:
       - "docs/ci/evidence-badges.md"
   workflow_dispatch:
   schedule:
-    - cron: "17 8 * * 1" # Mondays 08:17 UTC
+    - cron: "17 8 * * 1"
 
 concurrency:
   group: evidence-badges-${{ github.event_name }}-${{ github.ref }}
@@ -68,7 +68,7 @@ jobs:
             --output target/evidence-badges
 
       - name: Check committed endpoints when present
-        if: github.event_name == 'pull_request'
+        if: ${{ github.event_name == 'pull_request' }}
         run: |
           set -euo pipefail
           missing=0
@@ -88,18 +88,10 @@ jobs:
       - name: Summarize endpoint values
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          manifest = json.loads(Path("target/evidence-badges/manifest.json").read_text())
-          print("## Evidence badge endpoints")
-          print()
-          for filename, endpoint in manifest["endpoints"].items():
-              print(f"- `{filename}`: **{endpoint['message']}**")
-          PY
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json
           from pathlib import Path
+
           manifest = json.loads(Path("target/evidence-badges/manifest.json").read_text())
           print("## Evidence badge endpoints")
           print()
@@ -117,80 +109,3 @@ jobs:
           path: target/evidence-badges/
           retention-days: 30
           if-no-files-found: error
-
-  refresh:
-    name: Open badge refresh PR
-    if: github.event_name != 'pull_request'
-    needs: generate
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Download generated endpoints
-        uses: actions/download-artifact@v8
-        with:
-          name: evidence-badges-${{ github.run_id }}
-          path: target/evidence-badges
-
-      - name: Publish endpoint snapshots
-        run: |
-          set -euo pipefail
-          python3 scripts/ci/evidence_badges.py publish \
-            target/evidence-badges badges
-          python3 scripts/ci/evidence_badges.py check \
-            target/evidence-badges badges
-
-      - name: Create or update refresh PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          if git diff --quiet -- badges/; then
-            echo "Evidence badge endpoints are current."
-            exit 0
-          fi
-
-          branch="automation/evidence-badges"
-          git config user.name "EffortlessSteven"
-          git config user.email "15812269+EffortlessSteven@users.noreply.github.com"
-          git switch -C "${branch}"
-          git add badges/
-          git commit -m "chore(badges): refresh evidence endpoints"
-
-          remote_sha="$(git ls-remote origin "refs/heads/${branch}" | cut -f1)"
-          if [ -n "${remote_sha}" ]; then
-            git push \
-              --force-with-lease="refs/heads/${branch}:${remote_sha}" \
-              origin "HEAD:refs/heads/${branch}"
-          else
-            git push origin "HEAD:refs/heads/${branch}"
-          fi
-
-          existing="$(
-            gh pr list \
-              --head "${branch}" \
-              --base main \
-              --state open \
-              --json number \
-              --jq '.[0].number // empty'
-          )"
-          if [ -n "${existing}" ]; then
-            echo "Updated existing badge refresh PR #${existing}."
-            exit 0
-          fi
-
-          gh pr create \
-            --base main \
-            --head "${branch}" \
-            --title "chore(badges): refresh evidence endpoints" \
-            --body "Refresh the committed repo-scoped evidence badge endpoints from pinned \`ripr ${RIPR_VERSION}\` and \`unsafe-review ${UNSAFE_REVIEW_VERSION}\`.
-
-The workflow validates exact Shields endpoint shape and numeric messages before writing \`badges/*.json\`. The README consumes only the \`ripr+\` and \`unsafe-review+\` endpoints; the base endpoints are retained as audit companions."

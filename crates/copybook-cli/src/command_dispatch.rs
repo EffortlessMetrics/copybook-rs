@@ -6,6 +6,7 @@
 
 use crate::cli_config::effective_dialect;
 use crate::exit_codes::ExitCode;
+use crate::utils::effective_error_policy;
 use crate::{Commands, commands};
 use anyhow::anyhow;
 use copybook::core::FeatureFlags;
@@ -253,6 +254,24 @@ fn run_decode_command(
         Ok(decode_only) => decode_only,
         Err(error) => return profile_failure("decode", &error),
     };
+    // Same inputs as `decode::run`'s own error-policy computation, so the
+    // direct (profile-less) policy agrees with the run by construction.
+    let strict_mode = effective_error_policy(strict, fail_fast, common.max_errors).strict_mode;
+    let execution_policy = match crate::profile_inputs::resolve_policy(loaded.as_ref(), strict_mode)
+    {
+        Ok(policy) => policy,
+        Err(error) => {
+            return profile_failure(
+                "decode",
+                &crate::profile_inputs::ProfileInputError::Invalid {
+                    path: profile
+                        .as_ref()
+                        .map_or("<profile>".to_string(), |path| path.display().to_string()),
+                    message: error.to_string(),
+                },
+            );
+        }
+    };
     (
         commands::decode::run(&commands::decode::DecodeArgs {
             copybook: &copybook,
@@ -274,7 +293,7 @@ fn run_decode_command(
             preferred_zoned_encoding: preferred_zoned_encoding_cli.into(),
             float_format,
             strict_policy,
-            strict_reserved_bytes: common.strict_reserved_bytes,
+            execution_policy,
             dialect: common.dialect,
             select: &select,
             feature_flags,
@@ -404,6 +423,21 @@ fn run_verify_command(command: Commands, feature_flags: &FeatureFlags) -> Comman
         Ok(common) => common,
         Err(error) => return profile_failure("verify", &error),
     };
+    // Verify's strict mode is the flag itself, matching `verify::run`.
+    let execution_policy = match crate::profile_inputs::resolve_policy(loaded.as_ref(), strict) {
+        Ok(policy) => policy,
+        Err(error) => {
+            return profile_failure(
+                "verify",
+                &crate::profile_inputs::ProfileInputError::Invalid {
+                    path: profile
+                        .as_ref()
+                        .map_or("<profile>".to_string(), |path| path.display().to_string()),
+                    message: error.to_string(),
+                },
+            );
+        }
+    };
     // Verify keeps its historical default budget of 10 when neither a flag
     // nor a profile sets one.
     let value = common.max_errors.unwrap_or(10);
@@ -424,7 +458,7 @@ fn run_verify_command(command: Commands, feature_flags: &FeatureFlags) -> Comman
         max_errors: normalized_max_errors,
         sample: sample.unwrap_or(5),
         strict_comments,
-        strict_reserved_bytes: common.strict_reserved_bytes,
+        execution_policy,
         dialect: common.dialect,
         select: &select,
     };

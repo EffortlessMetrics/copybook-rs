@@ -165,7 +165,6 @@ fn decode_options(codepage: Codepage) -> DecodeOptions {
         emit_meta: false,
         emit_raw: RawMode::Off,
         strict_mode: false,
-        strict_reserved_bytes: false,
         max_errors: Some(100),
         on_decode_unmappable: UnmappablePolicy::Replace,
         threads: 1,

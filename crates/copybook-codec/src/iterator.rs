@@ -212,7 +212,7 @@
 //! ```
 
 use crate::lib_api::decode_record_with_raw_data;
-use crate::options::{DecodeOptions, RecordFormat};
+use crate::options::{DecodeOptions, ExecutionPolicy, RecordFormat};
 use copybook_core::{Error, ErrorCode, ErrorContext, Result, Schema};
 use copybook_rdw::{RdwHeader, VbBlockReader};
 use serde_json::Value;
@@ -309,6 +309,8 @@ pub struct RecordIterator<R: Read> {
     schema: Schema,
     /// Decoding options
     options: DecodeOptions,
+    /// Physical execution policy (reserved handling, record bound)
+    policy: ExecutionPolicy,
     /// Current record index (1-based)
     record_index: u64,
     /// Whether the iterator has reached EOF
@@ -333,8 +335,35 @@ impl<R: Read> RecordIterator<R> {
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
+        Self::with_policy(
+            reader,
+            schema,
+            options,
+            ExecutionPolicy::direct(options.strict_mode),
+        )
+    }
+
+    /// Create an iterator under a reviewed [`ExecutionPolicy`].
+    ///
+    /// This is the additive profile-aware entrypoint: `new` keeps legacy
+    /// behavior while reviewed runs carry independent reserved-byte policy
+    /// and the record bound without changing [`DecodeOptions`].
+    ///
+    /// # Errors
+    /// Returns an error if the record format is incompatible with the schema.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn with_policy(
+        reader: R,
+        schema: &Schema,
+        options: &DecodeOptions,
+        policy: ExecutionPolicy,
+    ) -> Result<Self> {
         let input = if options.format == RecordFormat::Vb {
-            FramingInput::Blocks(VbBlockReader::new(reader, options.framing_strict()))
+            FramingInput::Blocks(VbBlockReader::new(
+                reader,
+                policy.framing_strict(options.strict_mode),
+            ))
         } else {
             FramingInput::Stream(BufReader::new(reader))
         };
@@ -342,6 +371,7 @@ impl<R: Read> RecordIterator<R> {
             input,
             schema: schema.clone(),
             options: options.clone(),
+            policy,
             record_index: 0,
             eof_reached: false,
             buffer: Vec::new(),
@@ -537,7 +567,7 @@ impl<R: Read> RecordIterator<R> {
                 &mut self.raw_data_with_header,
                 &mut self.record_index,
                 &mut self.eof_reached,
-                self.options.framing_strict(),
+                self.policy.framing_strict(self.options.strict_mode),
             )?,
             RecordFormat::Vb => {
                 return Err(Error::new(
@@ -1472,13 +1502,14 @@ mod tests {
         let schema = eight_byte_schema();
         let options = DecodeOptions::default()
             .with_format(RecordFormat::RDW)
-            .with_codepage(Codepage::ASCII)
-            .with_strict_reserved_bytes(true);
+            .with_codepage(Codepage::ASCII);
         assert!(!options.strict_mode);
-        let mut iterator = RecordIterator::new(
+        let policy = ExecutionPolicy::reviewed(true, 1024).unwrap();
+        let mut iterator = RecordIterator::with_policy(
             ScriptedReader::new([ReadStep::Bytes(nonzero_reserved_rdw_record())]),
             &schema,
             &options,
+            policy,
         )
         .unwrap();
 

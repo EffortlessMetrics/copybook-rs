@@ -1,0 +1,10 @@
+kind: fixed
+body: '**codec**: removed the accidental required `DecodeOptions::strict_reserved_bytes`
+  field (and its builder) introduced after 0.8.1, restoring the published
+  construction surface for downstream struct literals. Reviewed
+  framing/resource policy now travels in the codec-owned `ExecutionPolicy`
+  sidecar, accepted by the additive `decode_file_to_jsonl_with_policy` and
+  `RecordIterator::with_policy` entrypoints; legacy entrypoints behave
+  exactly as before. The seam carries the record-length bound `#1129` will
+  enforce and converges toward the future `InputPlan` (`#1008`).'
+time: '2026-09-19T08:30:00Z'

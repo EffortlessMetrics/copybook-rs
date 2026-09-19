@@ -14,8 +14,8 @@ use copybook::codec::diagnose::shell_quote;
 use copybook::codec::file::fixed as fixed_file;
 use copybook::codec::lib_api::decode_record_with_raw_data;
 use copybook::codec::{
-    Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, RecordIterator,
-    UnmappablePolicy,
+    Codepage, DecodeOptions, ExecutionPolicy, JsonNumberMode, RawMode, RecordFormat,
+    RecordIterator, UnmappablePolicy,
 };
 use copybook::core::{Error, FeatureFlags, parse_copybook_with_feature_flags};
 use std::fmt::Write as _;
@@ -103,7 +103,7 @@ pub struct VerifyOptions<'a> {
     pub max_errors: u32,
     pub sample: u32,
     pub strict_comments: bool,
-    pub strict_reserved_bytes: bool,
+    pub execution_policy: ExecutionPolicy,
     pub dialect: copybook::core::dialect::Dialect,
     pub select: &'a [String],
 }
@@ -152,7 +152,6 @@ pub fn run(
         .with_emit_meta(false)
         .with_emit_raw(RawMode::Off)
         .with_strict_mode(opts.strict)
-        .with_strict_reserved_bytes(opts.strict_reserved_bytes)
         .with_max_errors(Some(u64::from(opts.max_errors)))
         .with_unmappable_policy(UnmappablePolicy::Error)
         .with_threads(1) // Single-threaded for deterministic error reporting
@@ -217,7 +216,12 @@ pub fn run(
     let reader = BufReader::new(file);
 
     // Create record iterator based on format
-    let mut record_iter = RecordIterator::new(reader, &working_schema, &decode_options)?;
+    let mut record_iter = RecordIterator::with_policy(
+        reader,
+        &working_schema,
+        &decode_options,
+        opts.execution_policy,
+    )?;
 
     // Let the codec own fixed/RDW framing so diagnostics use the exact
     // payload that failed decoding rather than a second schema-based read.

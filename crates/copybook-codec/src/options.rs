@@ -14,9 +14,11 @@
 #![allow(clippy::missing_inline_in_public_items)]
 
 mod parse_error;
+pub mod policy;
 pub mod profile;
 pub mod resolve;
 pub use parse_error::{CodecOptionKind, ParseCodecOptionError};
+pub use policy::{ExecutionPolicy, MAX_POLICY_RECORD_LENGTH, PolicyError};
 
 // Re-export from copybook-charset for public API
 /// Zoned decimal encoding format (ASCII, EBCDIC, or auto-detect).
@@ -163,15 +165,6 @@ pub struct DecodeOptions {
     pub emit_raw: RawMode,
     /// Error handling mode
     pub strict_mode: bool,
-    /// Enforce zero RDW/BDW reserved bytes independently of [`Self::strict_mode`].
-    ///
-    /// When true, non-zero framing reserved bytes fail with
-    /// `CBKR211_RDW_RESERVED_NONZERO` (or `CBKF225_BDW_RESERVED_NONZERO`)
-    /// even in lenient record-error mode. The CLI sets this from
-    /// `framing.reserved_bytes = "strict"` in an interpretation profile;
-    /// `--strict` already implies it through `strict_mode`.
-    #[serde(default)]
-    pub strict_reserved_bytes: bool,
     /// Maximum errors before stopping
     pub max_errors: Option<u64>,
     /// Policy for unmappable characters
@@ -421,7 +414,6 @@ impl Default for DecodeOptions {
             emit_meta: false,
             emit_raw: RawMode::Off,
             strict_mode: false,
-            strict_reserved_bytes: false,
             max_errors: None,
             on_decode_unmappable: DEFAULT_UNMAPPABLE_POLICY,
             threads: DEFAULT_THREAD_COUNT,
@@ -465,31 +457,6 @@ impl DecodeOptions {
     }
 
     impl_common_option_builders!();
-
-    /// Enforce zero RDW/BDW reserved bytes without enabling full strict mode.
-    ///
-    /// Framing readers treat [`Self::strict_mode`] and this flag as a union:
-    /// either one turns non-zero reserved bytes into a hard error instead of
-    /// a warning. Prefer this over `with_strict_mode` when only the framing
-    /// interpretation is reviewed (for example via an interpretation
-    /// profile) while record errors should stay lenient.
-    #[must_use]
-    #[inline]
-    pub fn with_strict_reserved_bytes(mut self, strict_reserved_bytes: bool) -> Self {
-        self.strict_reserved_bytes = strict_reserved_bytes;
-        self
-    }
-
-    /// Framing-level strictness for RDW/BDW reader construction.
-    ///
-    /// Reserved-byte enforcement follows either full strict mode or the
-    /// dedicated reserved-bytes flag; record-error fatality still follows
-    /// only [`Self::strict_mode`].
-    #[must_use]
-    #[inline]
-    pub(crate) fn framing_strict(&self) -> bool {
-        self.strict_mode || self.strict_reserved_bytes
-    }
 
     /// Enable or disable FILLER field emission
     #[must_use]
@@ -799,8 +766,6 @@ mod tests {
         assert!(!options.emit_meta);
         assert_eq!(options.emit_raw, RawMode::Off);
         assert!(!options.strict_mode);
-        assert!(!options.strict_reserved_bytes);
-        assert!(!options.framing_strict());
         assert!(options.max_errors.is_none());
         assert_eq!(options.on_decode_unmappable, UnmappablePolicy::Error);
         assert_eq!(options.threads, 1);
@@ -869,7 +834,6 @@ mod tests {
             emit_meta: true,
             emit_raw: RawMode::Record,
             strict_mode: true,
-            strict_reserved_bytes: true,
             max_errors: Some(100),
             on_decode_unmappable: UnmappablePolicy::Replace,
             threads: 4,
@@ -887,8 +851,6 @@ mod tests {
         assert!(deserialized.emit_meta);
         assert_eq!(deserialized.emit_raw, RawMode::Record);
         assert!(deserialized.strict_mode);
-        assert!(deserialized.strict_reserved_bytes);
-        assert!(deserialized.framing_strict());
         assert_eq!(deserialized.max_errors, Some(100));
         assert_eq!(deserialized.on_decode_unmappable, UnmappablePolicy::Replace);
         assert_eq!(deserialized.threads, 4);
@@ -902,31 +864,29 @@ mod tests {
 
     #[test]
     fn test_framing_strict_union_semantics() {
-        let lenient = DecodeOptions::default();
-        assert!(!lenient.framing_strict());
-
-        let strict_mode = DecodeOptions::default().with_strict_mode(true);
-        assert!(strict_mode.framing_strict());
+        // Broad strict mode alone still implies strict framing.
+        let legacy_strict = ExecutionPolicy::direct(true);
+        assert!(legacy_strict.framing_strict(true));
+        assert!(!ExecutionPolicy::direct(false).framing_strict(false));
 
         // Reserved-bytes enforcement without full strict mode: framing is
         // strict (reserved violations fail) while record errors stay lenient.
-        let reserved_only = DecodeOptions::default().with_strict_reserved_bytes(true);
-        assert!(!reserved_only.strict_mode);
-        assert!(reserved_only.strict_reserved_bytes);
-        assert!(reserved_only.framing_strict());
+        let reserved_only = ExecutionPolicy::reviewed(true, MAX_POLICY_RECORD_LENGTH).unwrap();
+        assert!(reserved_only.reserved_strict());
+        assert!(reserved_only.framing_strict(false));
     }
 
     #[test]
-    fn test_decode_options_deserialize_missing_reserved_flag_defaults() {
-        let options = DecodeOptions::default();
-        let mut value = serde_json::to_value(options).unwrap();
-        value
-            .as_object_mut()
-            .unwrap()
-            .remove("strict_reserved_bytes");
+    fn test_decode_options_deserialize_legacy_reserved_flag_ignored() {
+        // Documents written while the accidental field existed keep parsing:
+        // the unknown key is ignored and decoding stays lenient.
+        let mut value = serde_json::to_value(DecodeOptions::default()).unwrap();
+        value.as_object_mut().unwrap().insert(
+            "strict_reserved_bytes".to_string(),
+            serde_json::Value::Bool(true),
+        );
         let deserialized: DecodeOptions = serde_json::from_value(value).unwrap();
-        assert!(!deserialized.strict_reserved_bytes);
-        assert!(!deserialized.framing_strict());
+        assert!(!deserialized.strict_mode);
     }
 
     #[test]

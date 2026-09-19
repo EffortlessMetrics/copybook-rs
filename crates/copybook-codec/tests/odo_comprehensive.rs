@@ -179,7 +179,6 @@ fn test_odo_strict_mode_clamp_fatal() {
         emit_meta: false,
         emit_raw: RawMode::Off,
         strict_mode: true, // NORMATIVE: strict mode
-        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
@@ -218,7 +217,6 @@ fn test_odo_lenient_mode_clamp_with_warning() {
         emit_meta: false,
         emit_raw: RawMode::Off,
         strict_mode: false, // NORMATIVE: lenient mode
-        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
@@ -254,7 +252,6 @@ fn test_odo_lenient_mode_raise_to_minimum() {
         emit_meta: false,
         emit_raw: RawMode::Off,
         strict_mode: false, // Lenient mode
-        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
@@ -290,7 +287,6 @@ fn test_odo_payload_length_correctness() {
         emit_meta: false,
         emit_raw: RawMode::Off,
         strict_mode: false,
-        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
@@ -398,7 +394,6 @@ fn test_odo_encode_counter_array_match_accepted() {
         emit_meta: false,
         emit_raw: RawMode::Off,
         strict_mode: false,
-        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
@@ -459,7 +454,6 @@ fn test_tail_odo_record_roundtrip_identity() {
         emit_meta: false,
         emit_raw: RawMode::Off,
         strict_mode: false,
-        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
@@ -586,7 +580,6 @@ fn test_odo_zero_length_record_handling() {
         emit_meta: false,
         emit_raw: RawMode::Off,
         strict_mode: false,
-        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
@@ -623,7 +616,6 @@ fn test_odo_comprehensive_error_context() {
         emit_meta: false,
         emit_raw: RawMode::Off,
         strict_mode: true, // Strict mode for error
-        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,

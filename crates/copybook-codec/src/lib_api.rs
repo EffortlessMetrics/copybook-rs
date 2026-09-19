@@ -9,7 +9,9 @@
 //! | [`encode_jsonl_to_file`] | JSONL → Binary | Whole file |
 #![allow(clippy::missing_inline_in_public_items)]
 
-use crate::options::{DecodeOptions, EncodeOptions, RecordFormat, ZonedEncodingFormat};
+use crate::options::{
+    DecodeOptions, EncodeOptions, ExecutionPolicy, RecordFormat, ZonedEncodingFormat,
+};
 use crate::zoned_overpunch::ZeroSignPolicy;
 use base64::Engine;
 use copybook_core::{Error, ErrorCode, Result, Schema};
@@ -3258,8 +3260,34 @@ fn encode_binary_int_field(
 pub fn decode_file_to_jsonl(
     schema: &Schema,
     input: impl Read,
+    output: impl Write,
+    options: &DecodeOptions,
+) -> Result<RunSummary> {
+    decode_file_to_jsonl_with_policy(
+        schema,
+        input,
+        output,
+        options,
+        ExecutionPolicy::direct(options.strict_mode),
+    )
+}
+
+/// Decode under a reviewed [`ExecutionPolicy`].
+///
+/// This is the additive profile-aware entrypoint: `decode_file_to_jsonl`
+/// keeps legacy behavior while reviewed runs carry independent reserved-byte
+/// policy and the record bound without changing [`DecodeOptions`].
+///
+/// # Errors
+/// Returns an error if the input cannot be read, decoded, or written.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
+pub fn decode_file_to_jsonl_with_policy(
+    schema: &Schema,
+    input: impl Read,
     mut output: impl Write,
     options: &DecodeOptions,
+    policy: ExecutionPolicy,
 ) -> Result<RunSummary> {
     let start_time = std::time::Instant::now();
     let mut summary = RunSummary::with_threads(effective_worker_count(options.threads));
@@ -3272,10 +3300,10 @@ pub fn decode_file_to_jsonl(
             process_fixed_records(schema, input, &mut output, options, &mut summary)?;
         }
         RecordFormat::RDW => {
-            process_rdw_records(schema, input, &mut output, options, &mut summary)?;
+            process_rdw_records(schema, input, &mut output, options, policy, &mut summary)?;
         }
         RecordFormat::Vb => {
-            process_vb_records(schema, input, &mut output, options, &mut summary)?;
+            process_vb_records(schema, input, &mut output, options, policy, &mut summary)?;
         }
     }
 
@@ -3564,13 +3592,15 @@ fn process_rdw_records<R: Read, W: Write>(
     reader: R,
     output: &mut W,
     options: &DecodeOptions,
+    policy: ExecutionPolicy,
     summary: &mut RunSummary,
 ) -> Result<()> {
     if options.threads > 1 {
-        return process_rdw_records_parallel(schema, reader, output, options, summary);
+        return process_rdw_records_parallel(schema, reader, output, options, policy, summary);
     }
 
-    let mut reader = crate::record::RDWRecordReader::new(reader, options.framing_strict());
+    let mut reader =
+        crate::record::RDWRecordReader::new(reader, policy.framing_strict(options.strict_mode));
     let mut scratch = crate::memory::ScratchBuffers::new();
     let mut record_index = 0u64;
     let mut record_offset = 0u64;
@@ -3640,13 +3670,15 @@ fn process_vb_records<R: Read, W: Write>(
     reader: R,
     output: &mut W,
     options: &DecodeOptions,
+    policy: ExecutionPolicy,
     summary: &mut RunSummary,
 ) -> Result<()> {
     if options.threads > 1 {
-        return process_vb_records_parallel(schema, reader, output, options, summary);
+        return process_vb_records_parallel(schema, reader, output, options, policy, summary);
     }
 
-    let mut reader = crate::record::VbBlockReader::new(reader, options.framing_strict());
+    let mut reader =
+        crate::record::VbBlockReader::new(reader, policy.framing_strict(options.strict_mode));
     let mut scratch = crate::memory::ScratchBuffers::new();
     let mut record_index = 0u64;
 
@@ -3730,9 +3762,11 @@ fn process_vb_records_parallel<R: Read, W: Write>(
     reader: R,
     output: &mut W,
     options: &DecodeOptions,
+    policy: ExecutionPolicy,
     summary: &mut RunSummary,
 ) -> Result<()> {
-    let mut reader = crate::record::VbBlockReader::new(reader, options.framing_strict());
+    let mut reader =
+        crate::record::VbBlockReader::new(reader, policy.framing_strict(options.strict_mode));
     let workers = effective_worker_count(options.threads);
     let batch_capacity = workers.saturating_mul(4).max(1);
     let mut pool = decode_worker_pool(schema, options);
@@ -3863,9 +3897,11 @@ fn process_rdw_records_parallel<R: Read, W: Write>(
     reader: R,
     output: &mut W,
     options: &DecodeOptions,
+    policy: ExecutionPolicy,
     summary: &mut RunSummary,
 ) -> Result<()> {
-    let mut reader = crate::record::RDWRecordReader::new(reader, options.framing_strict());
+    let mut reader =
+        crate::record::RDWRecordReader::new(reader, policy.framing_strict(options.strict_mode));
     let workers = effective_worker_count(options.threads);
     let batch_capacity = workers.saturating_mul(4).max(1);
     let mut pool = decode_worker_pool(schema, options);

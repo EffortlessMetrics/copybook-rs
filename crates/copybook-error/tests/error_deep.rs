@@ -197,6 +197,7 @@ fn cbkf_family_codes_grouped_correctly() {
         ErrorCode::CBKF223_BDW_UNDERFLOW,
         ErrorCode::CBKF224_RDW_BEYOND_BLOCK,
         ErrorCode::CBKF225_BDW_RESERVED_NONZERO,
+        ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED,
     ];
     for code in cbkf_codes {
         assert_eq!(code.family_prefix(), "CBKF", "failed for {code}");

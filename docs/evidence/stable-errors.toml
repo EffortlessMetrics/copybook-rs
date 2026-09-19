@@ -329,6 +329,11 @@ stability_class = "stable"
 evidence_status = "direct"
 direct_test = "crates/copybook-rdw/tests/bdw_block_tests.rs::bdw_reserved_nonzero_strict_is_rejected"
 [[errors]]
+code = "CBKF226_RECORD_BOUND_EXCEEDED"
+stability_class = "stable"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_cli_profile.rs::decode_profile_cap_below_lrecl_fails_without_output"
+[[errors]]
 code = "CBKA001_BASELINE_ERROR"
 stability_class = "stable"
 evidence_status = "direct"

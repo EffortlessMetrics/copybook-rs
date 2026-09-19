@@ -252,7 +252,9 @@ Field Projection:\n\
         /// orthogonal to the profile and pass through unchanged.
         /// `framing.reserved_bytes = "strict"` fails non-zero RDW/BDW
         /// reserved bytes without enabling full `--strict` record handling.
-        /// `limits.maximum_record_length` is validated but not yet enforced.
+        /// `limits.maximum_record_length` is enforced on decode/verify read
+        /// paths (`CBKF226_RECORD_BOUND_EXCEEDED`); encode enforcement
+        /// follows separately.
         #[arg(long, value_name = "PROFILE")]
         profile: Option<PathBuf>,
         /// Record format (explicit, no auto-detection). Required unless --profile supplies framing.
@@ -435,8 +437,9 @@ Field Projection:
         /// dialect, and error budget. A flag that disagrees with the profile
         /// is an error (exit 3). `framing.reserved_bytes = "strict"` fails
         /// non-zero RDW/BDW reserved bytes without enabling full `--strict`
-        /// record handling. `limits.maximum_record_length` is validated but
-        /// not yet enforced.
+        /// record handling. `limits.maximum_record_length` is enforced on
+        /// decode/verify read paths (`CBKF226_RECORD_BOUND_EXCEEDED`); encode
+        /// enforcement follows separately.
         #[arg(long, value_name = "PROFILE")]
         profile: Option<PathBuf>,
         /// Record format (explicit, no auto-detection). Required unless --profile supplies framing.

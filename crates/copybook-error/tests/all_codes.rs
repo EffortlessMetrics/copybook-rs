@@ -89,6 +89,7 @@ pub fn all_error_codes() -> Vec<ErrorCode> {
         ErrorCode::CBKF223_BDW_UNDERFLOW,
         ErrorCode::CBKF224_RDW_BEYOND_BLOCK,
         ErrorCode::CBKF225_BDW_RESERVED_NONZERO,
+        ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED,
         // CBKA
         ErrorCode::CBKA001_BASELINE_ERROR,
         // CBKW

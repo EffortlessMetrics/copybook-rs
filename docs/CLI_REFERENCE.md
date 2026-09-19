@@ -677,12 +677,16 @@ Profile keys and their flag equivalents:
 `framing.reserved_bytes = "strict"` fails non-zero RDW/BDW reserved bytes
 (`CBKR211_RDW_RESERVED_NONZERO` / `CBKF225_BDW_RESERVED_NONZERO`) without
 enabling full `--strict` record handling. `"lenient"` keeps the current
-warn-and-continue behavior. `limits.maximum_record_length` is validated
-when the profile loads but is not yet enforced against records.
+warn-and-continue behavior. `limits.maximum_record_length` is enforced
+on decode/verify read paths: a fixed layout above the cap fails before
+input is consumed and an over-cap RDW/VB record fails with
+`CBKF226_RECORD_BOUND_EXCEEDED`. Encode enforcement follows separately.
 
-All keys except `decode.json_numbers` apply to `encode` as well;
-`framing.reserved_bytes` has no effect on encode (writers emit zero
-reserved bytes).
+All keys except `decode.json_numbers` apply to `encode` as well,
+with one exception: `limits.maximum_record_length` is accepted and
+validated but not enforced by `encode` (encode enforcement follows
+separately). `framing.reserved_bytes` has no effect on encode (writers
+emit zero reserved bytes).
 
 ```toml
 schema_version = 1

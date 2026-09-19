@@ -110,6 +110,7 @@ pub struct VbRecord {
 pub struct VbBlockReader<R: Read> {
     input: BufReader<R>,
     strict_mode: bool,
+    max_record_length: Option<u64>,
     block_index: u64,
     record_count: u64,
     physical_offset: u64,
@@ -128,6 +129,7 @@ impl<R: Read> VbBlockReader<R> {
         Self {
             input: BufReader::with_capacity(BDW_MAX_BLOCK_LEN, input),
             strict_mode,
+            max_record_length: None,
             block_index: 0,
             record_count: 0,
             physical_offset: 0,
@@ -137,6 +139,20 @@ impl<R: Read> VbBlockReader<R> {
             block_record_index: 0,
             in_block: false,
         }
+    }
+
+    /// Cap the nested logical record payload bytes accepted per record.
+    ///
+    /// A nested payload longer than the cap fails with
+    /// `CBKF226_RECORD_BOUND_EXCEEDED` before any payload allocation or
+    /// read. Block bounds still apply independently: one valid block may
+    /// hold many individually valid records. `None` (the default) keeps
+    /// architectural behavior.
+    #[inline]
+    #[must_use]
+    pub fn with_max_record_length(mut self, cap: Option<u64>) -> Self {
+        self.max_record_length = cap;
+        self
     }
 
     /// Read the next framed record, or `None` on clean EOF.
@@ -304,6 +320,18 @@ impl<R: Read> VbBlockReader<R> {
             .with_context(self.record_context("Nested RDW beyond block end")));
         }
         let payload_len = record_len - 4;
+        if let Some(cap) = self.max_record_length
+            && u64::try_from(payload_len).is_ok_and(|declared| declared > cap)
+        {
+            return Err(Error::new(
+                ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED,
+                format!(
+                    "VB block {} record {} declares {payload_len} payload bytes, exceeding the reviewed bound of {cap}",
+                    self.block_index, self.record_count + 1,
+                ),
+            )
+            .with_context(self.record_context("Nested RDW exceeds reviewed bound")));
+        }
         let mut payload = vec![0u8; payload_len];
         self.input.read_exact(&mut payload).map_err(|_| {
             Error::new(

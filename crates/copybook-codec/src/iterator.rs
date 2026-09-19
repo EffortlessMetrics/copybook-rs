@@ -360,13 +360,20 @@ impl<R: Read> RecordIterator<R> {
         policy: ExecutionPolicy,
     ) -> Result<Self> {
         let input = if options.format == RecordFormat::Vb {
-            FramingInput::Blocks(VbBlockReader::new(
-                reader,
-                policy.framing_strict(options.strict_mode),
-            ))
+            FramingInput::Blocks(
+                VbBlockReader::new(reader, policy.framing_strict(options.strict_mode))
+                    .with_max_record_length(policy.maximum_record_length()),
+            )
         } else {
             FramingInput::Stream(BufReader::new(reader))
         };
+        // Reject a profile whose cap sits below the fixed layout before any
+        // input is consumed; variable framings enforce per record instead.
+        if options.format == RecordFormat::Fixed
+            && let Some(lrecl) = schema.lrecl_fixed
+        {
+            policy.check_fixed_lrecl(lrecl)?;
+        }
         Ok(Self {
             input,
             schema: schema.clone(),
@@ -567,7 +574,8 @@ impl<R: Read> RecordIterator<R> {
                 &mut self.raw_data_with_header,
                 &mut self.record_index,
                 &mut self.eof_reached,
-                self.policy.framing_strict(self.options.strict_mode),
+                self.policy,
+                self.options.strict_mode,
             )?,
             RecordFormat::Vb => {
                 return Err(Error::new(
@@ -586,19 +594,24 @@ impl<R: Read> RecordIterator<R> {
     /// caller can hold the `FramingInput` borrow across the call.
     ///
     /// # Errors
-    /// Returns `CBKF221_RDW_UNDERFLOW` on a truncated header or payload, and
-    /// `CBKR211_RDW_RESERVED_NONZERO` when `enforce_reserved` is set and the
-    /// header reserved bytes are non-zero.
+    /// Returns `CBKF221_RDW_UNDERFLOW` on a truncated header or payload,
+    /// `CBKR211_RDW_RESERVED_NONZERO` when the policy enforces reserved
+    /// bytes and the header reserved bytes are non-zero, and
+    /// `CBKF226_RECORD_BOUND_EXCEEDED` when the declared payload exceeds
+    /// the reviewed record bound.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
+    #[allow(clippy::too_many_arguments)]
     fn read_rdw_raw_record(
         reader: &mut std::io::BufReader<R>,
         buffer: &mut Vec<u8>,
         raw_data_with_header: &mut Option<Vec<u8>>,
         record_index: &mut u64,
         eof_reached: &mut bool,
-        enforce_reserved: bool,
+        policy: ExecutionPolicy,
+        strict_mode: bool,
     ) -> Result<Option<Vec<u8>>> {
+        let enforce_reserved = policy.framing_strict(strict_mode);
         // Read RDW header
         let mut rdw_header = [0u8; 4];
         match fill_at_record_boundary(reader, &mut rdw_header) {
@@ -650,6 +663,26 @@ impl<R: Read> RecordIterator<R> {
                 *record_index + 1,
                 reserved
             );
+        }
+
+        // Reject an over-cap declared payload before any allocation.
+        if let Some(cap) = policy.maximum_record_length()
+            && u64::try_from(length).is_ok_and(|declared| declared > cap)
+        {
+            return Err(Error::new(
+                ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED,
+                format!(
+                    "RDW record {} declares {length} payload bytes, exceeding the reviewed bound of {cap}",
+                    *record_index + 1,
+                ),
+            )
+            .with_context(ErrorContext {
+                record_index: Some(*record_index + 1),
+                field_path: None,
+                byte_offset: Some(4),
+                line_number: None,
+                details: Some(format!("declared {length}, bound {cap}")),
+            }));
         }
 
         // Read payload

@@ -98,6 +98,10 @@ fn snapshot_file_error_code_display() {
         format!("{}", ErrorCode::CBKR211_RDW_RESERVED_NONZERO),
         "CBKR211_RDW_RESERVED_NONZERO"
     );
+    assert_eq!(
+        format!("{}", ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED),
+        "CBKF226_RECORD_BOUND_EXCEEDED"
+    );
 }
 
 // ---------------------------------------------------------------------------

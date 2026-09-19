@@ -334,7 +334,7 @@ impl<R: Read> RecordIterator<R> {
     #[must_use = "Handle the Result or propagate the error"]
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
         let input = if options.format == RecordFormat::Vb {
-            FramingInput::Blocks(VbBlockReader::new(reader, options.strict_mode))
+            FramingInput::Blocks(VbBlockReader::new(reader, options.framing_strict()))
         } else {
             FramingInput::Stream(BufReader::new(reader))
         };
@@ -537,6 +537,7 @@ impl<R: Read> RecordIterator<R> {
                 &mut self.raw_data_with_header,
                 &mut self.record_index,
                 &mut self.eof_reached,
+                self.options.framing_strict(),
             )?,
             RecordFormat::Vb => {
                 return Err(Error::new(
@@ -555,7 +556,9 @@ impl<R: Read> RecordIterator<R> {
     /// caller can hold the `FramingInput` borrow across the call.
     ///
     /// # Errors
-    /// Returns `CBKF221_RDW_UNDERFLOW` on a truncated header or payload.
+    /// Returns `CBKF221_RDW_UNDERFLOW` on a truncated header or payload, and
+    /// `CBKR211_RDW_RESERVED_NONZERO` when `enforce_reserved` is set and the
+    /// header reserved bytes are non-zero.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     fn read_rdw_raw_record(
@@ -564,6 +567,7 @@ impl<R: Read> RecordIterator<R> {
         raw_data_with_header: &mut Option<Vec<u8>>,
         record_index: &mut u64,
         eof_reached: &mut bool,
+        enforce_reserved: bool,
     ) -> Result<Option<Vec<u8>>> {
         // Read RDW header
         let mut rdw_header = [0u8; 4];
@@ -589,8 +593,34 @@ impl<R: Read> RecordIterator<R> {
             }
         }
 
-        // Parse length (payload bytes only)
-        let length = usize::from(RdwHeader::from_bytes(rdw_header).length());
+        // Parse length (payload bytes only) and validate reserved bytes.
+        // This mirrors `RDWRecordReader::validate_reserved`: strict framing
+        // fails with CBKR211 while lenient framing warns and continues, so
+        // the iterator (used by verify and occurrence paths) enforces the
+        // same contract as the bulk decode path.
+        let header = RdwHeader::from_bytes(rdw_header);
+        let length = usize::from(header.length());
+        let reserved = header.reserved();
+        if reserved != 0 {
+            if enforce_reserved {
+                return Err(Error::new(
+                    ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
+                    format!("RDW reserved bytes are non-zero: {reserved:04X}"),
+                )
+                .with_context(ErrorContext {
+                    record_index: Some(*record_index + 1),
+                    field_path: None,
+                    byte_offset: Some(2),
+                    line_number: None,
+                    details: Some(format!("Expected 0000, got {reserved:04X}")),
+                }));
+            }
+            tracing::warn!(
+                "RDW reserved bytes non-zero (record {}): {:04X}",
+                *record_index + 1,
+                reserved
+            );
+        }
 
         // Read payload
         buffer.resize(length, 0);
@@ -1419,6 +1449,64 @@ mod tests {
             iterator.read_raw_record().unwrap_err(),
             ErrorCode::CBKF221_RDW_UNDERFLOW,
             2,
+        );
+    }
+
+    fn nonzero_reserved_rdw_record() -> Vec<u8> {
+        let mut record = vec![0x00, 0x08, 0x00, 0x01];
+        record.extend_from_slice(b"RECORD01");
+        record
+    }
+
+    #[test]
+    fn rdw_nonzero_reserved_lenient_reads_payload() {
+        let mut iterator = rdw_iterator(ScriptedReader::new([ReadStep::Bytes(
+            nonzero_reserved_rdw_record(),
+        )]));
+
+        assert_eq!(iterator.read_raw_record().unwrap().unwrap(), b"RECORD01");
+    }
+
+    #[test]
+    fn rdw_nonzero_reserved_strict_reserved_flag_fails() {
+        let schema = eight_byte_schema();
+        let options = DecodeOptions::default()
+            .with_format(RecordFormat::RDW)
+            .with_codepage(Codepage::ASCII)
+            .with_strict_reserved_bytes(true);
+        assert!(!options.strict_mode);
+        let mut iterator = RecordIterator::new(
+            ScriptedReader::new([ReadStep::Bytes(nonzero_reserved_rdw_record())]),
+            &schema,
+            &options,
+        )
+        .unwrap();
+
+        assert_rdw_error(
+            iterator.read_raw_record().unwrap_err(),
+            ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
+            1,
+        );
+    }
+
+    #[test]
+    fn rdw_nonzero_reserved_strict_mode_fails() {
+        let schema = eight_byte_schema();
+        let options = DecodeOptions::default()
+            .with_format(RecordFormat::RDW)
+            .with_codepage(Codepage::ASCII)
+            .with_strict_mode(true);
+        let mut iterator = RecordIterator::new(
+            ScriptedReader::new([ReadStep::Bytes(nonzero_reserved_rdw_record())]),
+            &schema,
+            &options,
+        )
+        .unwrap();
+
+        assert_rdw_error(
+            iterator.read_raw_record().unwrap_err(),
+            ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
+            1,
         );
     }
 

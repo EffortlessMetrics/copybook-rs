@@ -52,6 +52,13 @@ pub mod subcode {
     /// - `4xx`: policy compatibility and enforcement (reserved for operator-facing guardrails)
     /// - `5xx`: internal escalations / invariants
     pub const POLICY_PREFERRED_WITHOUT_PRESERVE: u16 = 401;
+    /// Policy enforcement: an explicit command flag contradicts the
+    /// interpretation profile (`--profile`). The run stops; edit the flag
+    /// or the profile so they agree.
+    pub const PROFILE_CONFLICT: u16 = 402;
+    /// Policy enforcement: the interpretation profile (`--profile`) cannot
+    /// be read, parsed, or validated.
+    pub const PROFILE_INVALID: u16 = 403;
 }
 
 fn invocation_id() -> &'static str {
@@ -239,15 +246,24 @@ Field Projection:\n\
         /// Output JSONL file path (use "-" for stdout)
         #[arg(short, long)]
         output: PathBuf,
-        /// Record format (explicit, no auto-detection)
-        #[arg(long)]
-        format: RecordFormat,
+        /// Reviewed interpretation profile (TOML) supplying framing, decode
+        /// options, dialect, and error budget. A flag that disagrees with the
+        /// profile is an error (exit 3). `--strict` and `--fail-fast` are
+        /// orthogonal to the profile and pass through unchanged.
+        /// `framing.reserved_bytes = "strict"` fails non-zero RDW/BDW
+        /// reserved bytes without enabling full `--strict` record handling.
+        /// `limits.maximum_record_length` is validated but not yet enforced.
+        #[arg(long, value_name = "PROFILE")]
+        profile: Option<PathBuf>,
+        /// Record format (explicit, no auto-detection). Required unless --profile supplies framing.
+        #[arg(long, required_unless_present = "profile")]
+        format: Option<RecordFormat>,
         /// Character encoding: ascii, cp037, cp273, cp500, cp1047, or cp1140.
-        #[arg(long, default_value = "cp037", value_parser = crate::cli_config::parse_codepage)]
-        codepage: Codepage,
+        #[arg(long, value_parser = crate::cli_config::parse_codepage)]
+        codepage: Option<Codepage>,
         /// JSON number mode
-        #[arg(long, default_value = "lossless")]
-        json_number: JsonNumberMode,
+        #[arg(long)]
+        json_number: Option<JsonNumberMode>,
         /// Enable strict mode (default: false for lenient mode)
         #[arg(long, default_value = "false")]
         strict: bool,
@@ -267,8 +283,8 @@ Field Projection:\n\
         #[arg(long, default_value = "off")]
         emit_raw: RawMode,
         /// Unmappable character policy
-        #[arg(long, default_value = "error", value_parser = crate::cli_config::parse_unmappable_policy)]
-        on_decode_unmappable: UnmappablePolicy,
+        #[arg(long, value_parser = crate::cli_config::parse_unmappable_policy)]
+        on_decode_unmappable: Option<UnmappablePolicy>,
         /// Number of threads for parallel processing
         #[arg(long, default_value = "1")]
         threads: usize,
@@ -407,12 +423,20 @@ Field Projection:
         /// Verification report output
         #[arg(long)]
         report: Option<PathBuf>,
-        /// Record format (explicit, no auto-detection)
-        #[arg(long)]
-        format: RecordFormat,
+        /// Reviewed interpretation profile (TOML) supplying framing, codepage,
+        /// dialect, and error budget. A flag that disagrees with the profile
+        /// is an error (exit 3). `framing.reserved_bytes = "strict"` fails
+        /// non-zero RDW/BDW reserved bytes without enabling full `--strict`
+        /// record handling. `limits.maximum_record_length` is validated but
+        /// not yet enforced.
+        #[arg(long, value_name = "PROFILE")]
+        profile: Option<PathBuf>,
+        /// Record format (explicit, no auto-detection). Required unless --profile supplies framing.
+        #[arg(long, required_unless_present = "profile")]
+        format: Option<RecordFormat>,
         /// Character encoding: ascii, cp037, cp273, cp500, cp1047, or cp1140.
-        #[arg(long, default_value = "cp037", value_parser = crate::cli_config::parse_codepage)]
-        codepage: Codepage,
+        #[arg(long, value_parser = crate::cli_config::parse_codepage)]
+        codepage: Option<Codepage>,
         /// Enable strict mode validation
         #[arg(long)]
         strict: bool,
@@ -1225,6 +1249,7 @@ fn is_consumer_closed(err: &io::Error) -> bool {
 
 mod cli_config;
 mod command_dispatch;
+mod profile_inputs;
 
 mod commands {
     #[cfg(feature = "audit")]

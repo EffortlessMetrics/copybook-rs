@@ -173,6 +173,7 @@ async fn process_copybook_to_kafka(
         emit_meta: true, // Include metadata for audit trail
         emit_raw: copybook_codec::RawMode::Off,
         strict_mode: false,
+        strict_reserved_bytes: false,
         max_errors: Some(100),
         on_decode_unmappable: UnmappablePolicy::Replace,
         threads: 1,

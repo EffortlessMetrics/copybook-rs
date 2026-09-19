@@ -1,0 +1,13 @@
+kind: added
+body: '**cli**: `decode` and `verify` accept `--profile <FILE>`, a reviewed
+  TOML interpretation profile supplying framing, decode options, dialect,
+  and error budget, so `copybook decode --profile customer.toml
+  customer.cpy extract.dat` needs no `--format`. A flag that disagrees
+  with the profile is a contradiction (exit 3, subcode 402), not a
+  precedence decision; an unreadable or invalid profile is also exit 3
+  (subcode 403). `framing.reserved_bytes = "strict"` fails non-zero
+  RDW/BDW reserved bytes without enabling full `--strict` record handling.
+  `--codepage`, `--json-number`, and `--on-decode-unmappable` are now
+  optional with unchanged defaults. `limits.maximum_record_length` is
+  validated on load but not yet enforced against records.'
+time: '2026-09-19T04:00:00Z'

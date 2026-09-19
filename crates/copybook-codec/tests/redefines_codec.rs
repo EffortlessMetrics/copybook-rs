@@ -34,6 +34,7 @@ fn ascii_decode_opts() -> DecodeOptions {
         emit_meta: false,
         emit_raw: RawMode::Off,
         strict_mode: false,
+        strict_reserved_bytes: false,
         max_errors: None,
         on_decode_unmappable: UnmappablePolicy::Error,
         threads: 1,

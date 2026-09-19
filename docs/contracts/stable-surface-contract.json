@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-19T00:29:22.799419347+00:00",
+  "generated_at": "2026-09-19T04:12:04.137237190+00:00",
   "generated_by": "cargo run -p xtask -- docs contracts generate",
-  "source_revision": "0a2314e7e1c9f77caaf5a37c2b6cf95835fa35bf",
+  "source_revision": "77fadec2d0f8ce80c1b20c7f7233fe18d36930e2",
   "source_paths": [
     "crates/copybook-cli/src/main.rs",
     "crates/copybook-cli/src/exit_codes.rs",
@@ -63,6 +63,7 @@
       "output",
       "preferred-zoned-encoding",
       "preserve-zoned-encoding",
+      "profile",
       "record",
       "record-format",
       "report",

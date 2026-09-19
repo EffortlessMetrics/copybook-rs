@@ -60,7 +60,12 @@ copybook inspect <COPYBOOK> [OPTIONS]
   a flag that disagrees with the profile is an error (exit 3)
 - `--emit-manifest <MANIFEST>` - Write a resolved-schema manifest binding the reviewed
   inputs with provenance, the layout bounds, and the support classification.
-  Requires `--profile` and a copybook file (stdin has no stable source identity)
+  Requires `--profile` and a copybook file (stdin has no stable source identity).
+  Generation is atomic and never replaces an existing file unless
+  `--overwrite-manifest` is passed; snapshots beyond the manifest size bound
+  fail without leaving a partial file
+- `--overwrite-manifest` - Allow `--emit-manifest` to replace an existing file.
+  Requires `--emit-manifest`
 
 **Binary widths:** `≤4 → 16-bit`, `5–9 → 32-bit`, `10–18 → 64-bit`.
 

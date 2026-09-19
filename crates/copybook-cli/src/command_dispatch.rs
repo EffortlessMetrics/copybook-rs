@@ -183,6 +183,7 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
         dialect,
         profile,
         emit_manifest,
+        overwrite_manifest,
     } = command
     else {
         return dispatch_mismatch("inspect");
@@ -197,6 +198,7 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
             dialect,
             profile.as_ref(),
             &manifest_path,
+            overwrite_manifest,
             feature_flags,
         );
     }
@@ -215,8 +217,30 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
     )
 }
 
+/// A refused `--emit-manifest` target: an existing file without
+/// `--overwrite-manifest`, or a non-file target. Dispatch renders this as
+/// structured diagnostics with an `Encode` (validation) exit, never as an
+/// internal error.
+fn manifest_target_failure(op: &'static str, message: &str) -> CommandOutcome {
+    let diagnostics = crate::ExitDiagnostics::new(
+        crate::ExitCode::Encode,
+        message,
+        op,
+        "", // op_stage will be overridden by emit_exit_diagnostics_stage
+        tracing::Level::ERROR,
+        crate::ExitCode::Encode.as_i32(),
+    )
+    .with_subcode(Some(crate::subcode::MANIFEST_TARGET_REFUSED));
+    crate::emit_exit_diagnostics_stage(&diagnostics, crate::Stage::Execute);
+    (Ok(crate::ExitCode::Encode), op)
+}
+
 /// Inspect with manifest emission: resolve the reviewed inputs with provenance
 /// and emit the layout report plus the manifest file.
+///
+/// Generation never replaces an existing file unless `overwrite` was passed,
+/// and never writes a partial manifest: the target guards run before any
+/// resolution work, and failures leave no file behind.
 #[allow(clippy::too_many_arguments)]
 fn run_inspect_emit_manifest(
     copybook: &std::path::PathBuf,
@@ -226,6 +250,7 @@ fn run_inspect_emit_manifest(
     dialect: Option<crate::DialectPreference>,
     profile: Option<&std::path::PathBuf>,
     manifest_path: &std::path::PathBuf,
+    overwrite: bool,
     feature_flags: &copybook::core::FeatureFlags,
 ) -> CommandOutcome {
     if copybook.as_os_str() == "-" {
@@ -236,6 +261,21 @@ fn run_inspect_emit_manifest(
                     "--emit-manifest requires a copybook file; stdin has no stable source identity"
                         .to_string(),
             },
+        );
+    }
+    if manifest_path.as_os_str() == "-" {
+        return manifest_target_failure(
+            "inspect",
+            "--emit-manifest requires a file path; '-' would mix the manifest with the layout report on stdout",
+        );
+    }
+    if !overwrite && manifest_path.exists() {
+        return manifest_target_failure(
+            "inspect",
+            &format!(
+                "refusing to overwrite existing manifest {}; pass --overwrite-manifest to replace it",
+                manifest_path.display()
+            ),
         );
     }
     if profile.is_none() {

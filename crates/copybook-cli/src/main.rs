@@ -59,6 +59,11 @@ pub mod subcode {
     /// Policy enforcement: the interpretation profile (`--profile`) cannot
     /// be read, parsed, or validated.
     pub const PROFILE_INVALID: u16 = 403;
+    /// Policy enforcement: the `--emit-manifest` target is refused —
+    /// it already exists (pass `--overwrite-manifest`) or is not a file
+    /// path that can hold a manifest (`-` would mix the manifest with the
+    /// layout report on stdout).
+    pub const MANIFEST_TARGET_REFUSED: u16 = 404;
 }
 
 fn invocation_id() -> &'static str {
@@ -234,6 +239,10 @@ enum Commands {
         /// layout bounds, and support classification. Requires --profile.
         #[arg(long, value_name = "MANIFEST")]
         emit_manifest: Option<PathBuf>,
+        /// Allow overwriting the --emit-manifest target when it already
+        /// exists. Without this flag, emission refuses to replace a file.
+        #[arg(long, requires = "emit_manifest")]
+        overwrite_manifest: bool,
     },
     /// Decode binary data to JSONL
     #[command(

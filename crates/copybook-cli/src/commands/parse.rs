@@ -2,7 +2,7 @@
 //! Parse command implementation
 
 use crate::exit_codes::ExitCode;
-use crate::utils::{InputRole, atomic_write, read_input_or_stdin};
+use crate::utils::{InputRole, atomic_write, print_identity_hint, read_input_or_stdin};
 use crate::write_stdout_all;
 use copybook::core::{FeatureFlags, ParseOptions, parse_copybook_with_feature_flags};
 use std::path::PathBuf;
@@ -35,7 +35,14 @@ pub fn run(
         dialect: dialect.into(),
     };
     // #656 Phase D: CLI-resolved flags passed explicitly; no global state.
-    let schema = parse_copybook_with_feature_flags(&copybook_text, &options, feature_flags)?;
+    let schema = parse_copybook_with_feature_flags(&copybook_text, &options, feature_flags)
+        .map_err(|error| {
+            // A broken copybook ends here, so the next step goes out
+            // with the error: the identity explanation names the rule
+            // and the fix.
+            print_identity_hint(&error.code().to_string());
+            anyhow::Error::from(error)
+        })?;
 
     // Serialize to JSON
     let json = serde_json::to_string_pretty(&schema)?;

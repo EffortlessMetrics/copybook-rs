@@ -637,6 +637,40 @@ fn encode_bad_input_data_exits_3_not_internal() {
 }
 
 // =========================================================================
+// `copybook encode` failures point at the identity explanation.
+// Encode input is JSON, so occurrence mode (binary record context) does not
+// apply: the hint names the code alone, which `explain <CODE>` resolves.
+// =========================================================================
+
+#[test]
+fn encode_failure_points_at_identity_explanation() {
+    let dir = write_temp_file("schema.cpy", VALID_COPYBOOK.as_bytes());
+    let cpy_path = dir.path().join("schema.cpy");
+
+    let jsonl_path = dir.path().join("bad.jsonl");
+    std::fs::write(&jsonl_path, "{\"ID-FIELD\":1,\"NAME-FIELD\":\"HELLO\"}\n")
+        .expect("write jsonl");
+
+    let out = Command::cargo_bin("copybook")
+        .unwrap()
+        .args(["encode"])
+        .arg(&cpy_path)
+        .arg(&jsonl_path)
+        .arg("--output")
+        .arg(dir.path().join("out.bin"))
+        .args(["--format", "fixed", "--codepage", "cp037"])
+        .output()
+        .expect("failed to run copybook encode");
+
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert_no_panic(&stderr);
+    assert!(
+        stderr.contains("Explain a failure: copybook explain CBKE501_JSON_TYPE_MISMATCH"),
+        "encode failures must print the identity hint.\nstderr: {stderr}"
+    );
+}
+
+// =========================================================================
 // A missing file names the path and exits 4 (CBKF), not 5 (internal)
 // =========================================================================
 

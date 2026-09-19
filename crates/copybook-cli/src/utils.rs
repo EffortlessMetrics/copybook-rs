@@ -407,6 +407,15 @@ pub fn shell_quote(path: &std::path::Path) -> String {
         format!("'{}'", text.replace('\'', "'\\''"))
     }
 }
+/// Print the identity-form explain hint for a fatal failure: the exact
+/// `explain` command for the stable code. Copybook-side commands (parse,
+/// inspect) use this shape; data-side failures point at occurrence mode
+/// instead, because their context lives in binary records.
+pub fn print_identity_hint(code: &str) {
+    let _ = crate::write_stderr_all(
+        format!("  Explain a failure: copybook explain {code}\n").as_bytes(),
+    );
+}
 
 #[cfg(test)]
 #[allow(clippy::expect_used)]

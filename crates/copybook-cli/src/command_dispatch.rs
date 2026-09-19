@@ -71,6 +71,7 @@ pub(crate) fn run_command(
             json,
             strict_comments,
             dialect,
+            emit_profile,
         } => (
             commands::doctor::run(
                 &copybook,
@@ -82,6 +83,8 @@ pub(crate) fn run_command(
                 strict_comments,
                 crate::cli_config::effective_dialect(dialect),
                 verbose,
+                emit_profile,
+                dialect,
             ),
             "doctor",
         ),

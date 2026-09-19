@@ -1,0 +1,9 @@
+kind: added
+body: '**cli**: `doctor --emit-profile <FILE>` drafts an interpretation
+  profile from a healthy diagnosis. Keys the probes established (explicit
+  flags, single probe fits, trial-corroborated codepage, exact LRECL) are
+  marked `PINNED`; defaults and leading candidates are marked `REVIEW`
+  for the operator to decide. Nothing is emitted when the diagnosis has
+  failures, and the draft feeds back into `decode`/`verify`/`encode`
+  `--profile` unchanged.'
+time: '2026-09-19T06:45:00Z'

@@ -15,7 +15,7 @@
 
 use crate::record::{RDWRecordReader, VbBlockReader};
 use crate::{Codepage, DecodeOptions, RecordFormat, UnmappablePolicy, decode_record};
-use copybook_core::Dialect;
+use copybook_core::{Dialect, ErrorCode};
 use copybook_error::explain::explanation_for;
 use copybook_rdw::diagnostics::rdw_is_suspect_ascii_corruption_slice;
 use std::io::Cursor;
@@ -117,6 +117,8 @@ pub struct DiagnoseOptions {
 pub struct Diagnosis {
     /// Staged findings, in diagnosis order.
     pub findings: Vec<DiagnosisFinding>,
+    /// Machine-usable evidence behind the findings.
+    pub evidence: DiagnosisEvidence,
 }
 
 impl Diagnosis {
@@ -128,6 +130,48 @@ impl Diagnosis {
             .iter()
             .any(|finding| finding.status == DiagnosisStatus::Fail)
     }
+}
+
+/// Machine-usable evidence behind a [`Diagnosis`], for callers that act on
+/// the diagnosis instead of only rendering it (for example, drafting an
+/// interpretation profile from a healthy diagnosis).
+///
+/// Every field states what the probes established; nothing here guesses.
+/// `None` (or `false` with no supporting observation) means the probes did
+/// not establish that input, and callers must refuse or mark review rather
+/// than fill a default silently.
+#[derive(Clone, Debug, Default)]
+pub struct DiagnosisEvidence {
+    /// Confirmed framing: the explicit `--format` choice or the single
+    /// probe fit. `None` when framing is unconfirmed (diagnosis stops).
+    pub format: Option<RecordFormat>,
+    /// Whether the framing came from an explicit flag rather than the probe.
+    pub format_explicit: bool,
+    /// Resolved codepage: explicit choice, confident probe winner, or
+    /// leading candidate for the trial decode.
+    pub codepage: Option<Codepage>,
+    /// Whether the codepage is pinned (explicit flag or confident winner
+    /// corroborated by the trial decode) as opposed to a leading candidate.
+    pub codepage_pinned: bool,
+    /// Whether the codepage came from an explicit flag.
+    pub codepage_explicit: bool,
+    /// Record size in bytes when established: the fixed LRECL, or the
+    /// largest observed RDW wire record (payload plus 4-byte header).
+    /// `None` for VB (block overhead makes wire size ill-defined) and when
+    /// no record was framed.
+    pub record_length: Option<u64>,
+    /// Whether `record_length` is exact (fixed LRECL) as opposed to an
+    /// observed sample maximum.
+    pub record_length_exact: bool,
+    /// Whether any probed record carried non-zero framing reserved bytes.
+    pub reserved_nonzero_observed: bool,
+    /// Whether the layout is variable-length (no fixed LRECL), in which
+    /// case dialect interpretation may matter.
+    pub variable_layout: bool,
+    /// Whether the trial decode decoded every framed record.
+    pub trial_succeeded: bool,
+    /// How many records the trial decode framed.
+    pub trial_records: u32,
 }
 
 /// Diagnose copybook text with an optional data file.
@@ -201,12 +245,12 @@ pub fn diagnose(
 
     // Codepage: the explicit choice is pinned; a probe winner is only a
     // candidate until the trial decode corroborates it.
-    let (resolved_codepage, codepage_pinned) = match options.codepage {
+    let (resolved_codepage, codepage_winner) = match options.codepage {
         Some(given) => (given, true),
         None => probe_codepage(&mut diagnosis, bytes),
     };
 
-    trial_decode(
+    let trial = trial_decode(
         &mut diagnosis,
         &schema,
         copybook_path,
@@ -215,11 +259,90 @@ pub fn diagnose(
         input.scope_complete(),
         resolved_format,
         resolved_codepage,
-        codepage_pinned,
+        codepage_winner,
         lrecl,
         options.sample,
     );
+    let codepage_explicit = options.codepage.is_some();
+    diagnosis.evidence.format = Some(resolved_format);
+    diagnosis.evidence.format_explicit = options.format.is_some();
+    diagnosis.evidence.codepage = Some(resolved_codepage);
+    diagnosis.evidence.codepage_explicit = codepage_explicit;
+    // A probe winner only counts as pinned when the trial decode
+    // corroborated it on at least one record; explicit choices and
+    // uncorroborated winners stay distinguishable downstream.
+    diagnosis.evidence.codepage_pinned =
+        codepage_explicit || (codepage_winner && trial.all_decoded && trial.framed > 0);
+    diagnosis.evidence.variable_layout = lrecl.is_none();
+    let (record_length, record_length_exact) = match resolved_format {
+        RecordFormat::Fixed => (lrecl.map(u64::from), true),
+        RecordFormat::RDW => (trial.max_wire_len, false),
+        RecordFormat::Vb => (None, false),
+    };
+    diagnosis.evidence.record_length = record_length;
+    diagnosis.evidence.record_length_exact = record_length_exact;
+    diagnosis.evidence.reserved_nonzero_observed =
+        scan_reserved_nonzero(bytes, resolved_format, options.sample as usize);
+    diagnosis.evidence.trial_succeeded = trial.all_decoded && trial.framed > 0;
+    diagnosis.evidence.trial_records = trial.framed;
     diagnosis
+}
+
+/// Trial-decode outcome for evidence: how many records framed, whether all
+/// of them decoded, and the largest observed payload.
+struct TrialOutcome {
+    framed: u32,
+    all_decoded: bool,
+    max_wire_len: Option<u64>,
+}
+
+/// Scan the first `limit` records with strict reserved-byte validation,
+/// reporting whether any record carries non-zero framing reserved bytes.
+/// Other framing errors end the scan as inconclusive (not observed); fixed
+/// framing has no reserved bytes.
+fn scan_reserved_nonzero(bytes: &[u8], format: RecordFormat, limit: usize) -> bool {
+    if limit == 0 {
+        return false;
+    }
+    match format {
+        RecordFormat::Fixed => false,
+        RecordFormat::RDW => {
+            let mut reader = RDWRecordReader::new(Cursor::new(bytes), true);
+            for _ in 0..limit {
+                match reader.read_record() {
+                    Ok(Some(_)) => {}
+                    Ok(None) => break,
+                    Err(error) => {
+                        if error.code() == ErrorCode::CBKR211_RDW_RESERVED_NONZERO {
+                            return true;
+                        }
+                        break;
+                    }
+                }
+            }
+            false
+        }
+        RecordFormat::Vb => {
+            let mut reader = VbBlockReader::new(Cursor::new(bytes), true);
+            for _ in 0..limit {
+                match reader.read_record() {
+                    Ok(Some(_)) => {}
+                    Ok(None) => break,
+                    Err(error) => {
+                        if matches!(
+                            error.code(),
+                            ErrorCode::CBKR211_RDW_RESERVED_NONZERO
+                                | ErrorCode::CBKF225_BDW_RESERVED_NONZERO
+                        ) {
+                            return true;
+                        }
+                        break;
+                    }
+                }
+            }
+            false
+        }
+    }
 }
 
 fn push(diagnosis: &mut Diagnosis, finding: DiagnosisFinding) {
@@ -871,7 +994,9 @@ fn probe_codepage(diagnosis: &mut Diagnosis, bytes: &[u8]) -> (Codepage, bool) {
 
 /// Trial-decode the first `sample` records under the resolved options.
 /// The first failure becomes a fail finding whose remediation comes from
-/// the shared explain table.
+/// the shared explain table. Returns how many records framed, whether all
+/// of them decoded, and the largest observed wire length (payload plus the
+/// 4-byte RDW header for RDW framing) for evidence.
 #[allow(clippy::too_many_arguments)]
 fn trial_decode(
     diagnosis: &mut Diagnosis,
@@ -885,7 +1010,7 @@ fn trial_decode(
     codepage_pinned: bool,
     lrecl: Option<u32>,
     sample: u32,
-) {
+) -> TrialOutcome {
     if sample == 0 {
         push(
             &mut *diagnosis,
@@ -898,7 +1023,11 @@ fn trial_decode(
                 next: None,
             },
         );
-        return;
+        return TrialOutcome {
+            framed: 0,
+            all_decoded: false,
+            max_wire_len: None,
+        };
     }
     let Some(records) = frame_records(
         &mut *diagnosis,
@@ -908,7 +1037,24 @@ fn trial_decode(
         lrecl,
         sample,
     ) else {
-        return;
+        return TrialOutcome {
+            framed: 0,
+            all_decoded: false,
+            max_wire_len: None,
+        };
+    };
+    let framed = u32::try_from(records.len()).unwrap_or(u32::MAX);
+    let max_payload = records.iter().map(Vec::len).max();
+    let max_wire_len = match (format, max_payload) {
+        (RecordFormat::RDW, Some(payload)) => u64::try_from(payload)
+            .ok()
+            .and_then(|len| len.checked_add(4)),
+        _ => None,
+    };
+    let outcome = |all_decoded: bool| TrialOutcome {
+        framed,
+        all_decoded,
+        max_wire_len,
     };
     let options = DecodeOptions::new()
         .with_format(format)
@@ -927,7 +1073,7 @@ fn trial_decode(
                 &error.to_string(),
                 &error.code().to_string(),
             );
-            return;
+            return outcome(false);
         }
     }
     push_trial_success(
@@ -939,6 +1085,7 @@ fn trial_decode(
         codepage_pinned,
         records.len(),
     );
+    outcome(true)
 }
 
 /// Record a trial-decode failure with its stable identity, remediation, and

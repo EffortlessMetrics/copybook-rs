@@ -13,6 +13,7 @@
 
 use crate::exit_codes::ExitCode;
 use crate::write_stdout_all;
+use copybook::codec::diagnose::shell_quote;
 use copybook::codec::occurrence::{
     Occurrence, OccurrenceAbsence, OccurrenceOptions, OccurrenceOutcome, explain_occurrence,
 };
@@ -266,8 +267,8 @@ fn render_occurrence(
             let _ = writeln!(
                 out,
                 "  Next: copybook doctor {} {} --format {} --codepage {}",
-                crate::utils::shell_quote(copybook),
-                crate::utils::shell_quote(input),
+                shell_quote(copybook),
+                shell_quote(input),
                 format!("{:?}", occurrence.format).to_lowercase(),
                 occurrence.codepage,
             );

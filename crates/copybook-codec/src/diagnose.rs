@@ -1027,7 +1027,12 @@ fn suggested_decode(
 /// Render a path for a pasted shell command: bare when it carries only
 /// filename-safe characters, single-quoted otherwise, so a copied `next`
 /// command survives directories such as `Monthly Extract/`.
-fn shell_quote(path: &Path) -> String {
+///
+/// Shared with the CLI hint renderers so every pasted command quotes paths
+/// the same way; the unit tests below pin the behavior once.
+#[inline]
+#[must_use]
+pub fn shell_quote(path: &Path) -> String {
     let text = path.display().to_string();
     if text
         .chars()

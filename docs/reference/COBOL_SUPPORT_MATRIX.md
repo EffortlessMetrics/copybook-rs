@@ -58,6 +58,7 @@ The standard and scratch-buffer codec paths share this contract; see
 | Nested ODO / OCCURS (`nested-odo`) | ⚠️ Partially Supported (O1-O4) | See [Nested ODO Support Status](#nested-odo--occurs-behavior---support-status) for scenario breakdown | O1-O4✅ supported; O5-O6🚫 rejected by design; see Issue #164 |
 | RENAMES (`level-66-renames`) | ⚠️ Partially Supported (R1-R3) | `renames_codec_tests.rs::test_renames_r1_simple_decode`, `renames_codec_tests.rs::test_renames_r2_group_decode`, `schema_alias_lookup_tests.rs` (8 tests) | See [RENAMES Support Status](#renames-level-66---support-status) for scenario breakdown (R1-R3✅ with alias-aware lookup, R4-R6🚫 out of scope) |
 | Dialect Lever (`dialect`) | ✅ Fully Supported (D0-D4) | `dialect_d1_tests.rs` (27 tests), `dialect_cli_d2_tests.rs` (11 tests), `dialect_fixtures_d3_tests.rs` | ODO `min_count` interpretation: Normative (n), ZeroTolerant (0), OneTolerant (1) modes with CLI `--dialect` flag and `COPYBOOK_DIALECT` env var; D0 contract complete (commit a9609af) |
+| Multiple 01-level layouts (`multi-01`) | ⚠️ Concatenated, no selection | `e2e_cli_multi01.rs::multi01_decodes_as_one_concatenated_layout`, `e2e_cli_multi01.rs::multi01_inspect_reports_concatenated_lrecl` | Several 01s decode as one concatenated layout with accumulating offsets; no per-record layout selection or discriminator exists. Divergence: JRecord strides by the first 01 and overlays at offset 0; see lane 5 in `docs/evidence/differential-breadth/README.md` |
 
 ## Sign Handling
 

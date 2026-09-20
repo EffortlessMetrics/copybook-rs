@@ -172,6 +172,51 @@ pub struct RecordContext {
     pub odo_counts: Vec<OdoCount>,
 }
 
+/// Why a record-specific answer falls back to static bounds: the selected
+/// record failed to decode, so ODO actuals are unknown and every range is
+/// a repetition bound, never a clamped extent.
+///
+/// The note carries the decoder's refusal identity (stable code, message,
+/// and whatever field/byte location the error context names) so the
+/// failure stays inspectable instead of failing the query closed. It is
+/// present only on answers over undecodable records; healthy records and
+/// static answers omit it, so their machine output is unchanged.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DecodeNote {
+    /// Stable decoder error code (e.g. `CBKD411_ZONED_BAD_SIGN`).
+    pub code: String,
+    /// Decoder's refusal message.
+    pub message: String,
+    /// Hierarchical field path where decoding failed, when the error
+    /// context names one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field_path: Option<String>,
+    /// Payload-relative byte offset where decoding failed, when the error
+    /// context names one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub byte_offset: Option<u64>,
+}
+
+impl DecodeNote {
+    /// Build the note from a decoder refusal: the stable code and message
+    /// plus the field/byte location when the error context names one.
+    #[must_use]
+    #[inline]
+    pub fn new(
+        code: String,
+        message: String,
+        field_path: Option<String>,
+        byte_offset: Option<u64>,
+    ) -> Self {
+        Self {
+            code,
+            message,
+            field_path,
+            byte_offset,
+        }
+    }
+}
+
 /// Outcome of walking a dotted path through a decoded record value.
 enum DecodedWalk<'a> {
     /// The path resolves to a value.
@@ -361,6 +406,11 @@ pub struct OwnershipReport {
     /// Static answers omit it, so their machine output is unchanged.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub record: Option<RecordContext>,
+    /// Decoder refusal behind a static-bounds fallback, present only on
+    /// answers over undecodable records. Healthy records and static
+    /// answers omit it, so their machine output is unchanged.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decode_note: Option<DecodeNote>,
     /// Answered state.
     pub state: OwnershipState,
     /// Matches in stable order (primary first, then views, containers,
@@ -1047,6 +1097,7 @@ fn report(
         schema_fingerprint: manifest.schema_fingerprint.clone(),
         record_len: record.map_or(manifest.record_len, |presence| presence.record_len),
         record: None,
+        decode_note: None,
         state,
         matches,
         truncated: false,

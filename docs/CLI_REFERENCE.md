@@ -113,9 +113,21 @@ stays inside it, and a table with zero occurrences in that record reports
 the record it interpreted (`Record: #N` with per-table counts in human output,
 a `record` object with the 1-based index and actual counts in JSON). Selection
 fails closed: half a selection, `--record 0`, a record past the end of the
-input, an unreadable input file, an undecodable record, and unusable ODO counts
+input, an unreadable input file, and unusable ODO counts
 (nested tables needing per-occurrence selection) are exit 3, never a silent
 static answer.
+
+**Failing records:** a selected record that fails to decode still answers.
+The selector resolves over static repetition bounds with the decoder's
+refusal attached (`Note:` with the stable code, message, and field/byte
+location when known, plus a `decode_note` object in JSON), because ODO
+actuals are unknown. No range outlives the payload: a byte or path past
+its length is `out_of_range`, and every reported range clamps to it.
+Human output points at the runnable deep dive, replaying the resolved
+strict mode, comment policy, and dialect so the occurrence reproduces the
+failure (`copybook explain CODE --copybook … --input … --record N …`);
+framing failures with no bytes to interpret (unreadable inputs, truncated
+payloads) stay closed.
 
 **Exit codes:** 0 = layout printed or query answered (any state), 3 = usage, profile,
 manifest, or query failure (contradictory selectors/inputs, unknown or ambiguous path,

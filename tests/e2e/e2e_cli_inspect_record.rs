@@ -287,6 +287,177 @@ fn inspect_record_query_honors_profile_framing_policy() {
         .stderr(predicates::str::contains("subcode=411"));
 }
 
+/// A record that fails to decode still answers: the selector resolves
+/// over static bounds with the decoder's refusal attached, plus a runnable
+/// pointer at its `explain` occurrence.
+#[test]
+fn inspect_record_query_undecodable_answers_static_with_note() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let copybook = write_temp_file(&dir, "odo.cpy", ODO_COPYBOOK.as_bytes());
+    // CNT="XX" is not zoned decimal: the record cannot decode.
+    let input = write_temp_file(&dir, "bad.bin", b"XXAABB");
+
+    cmd()
+        .args(["inspect", "--format", "fixed", "--codepage", "ascii"])
+        .arg(&copybook)
+        .args(["--field", "REC.CNT"])
+        .args(["--input"])
+        .arg(&input)
+        .args(["--record", "1"])
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("State: owned"))
+        .stdout(predicates::str::contains("REC.CNT"))
+        .stdout(predicates::str::contains("failed to decode"))
+        .stdout(predicates::str::contains("CBKD411_ZONED_BAD_SIGN"))
+        .stdout(predicates::str::contains("static repetition bounds"))
+        .stdout(predicates::str::contains(
+            "See: copybook explain CBKD411_ZONED_BAD_SIGN",
+        ));
+}
+
+/// Byte queries over an undecodable record name the static owner with the
+/// refusal attached.
+#[test]
+fn inspect_record_query_byte_on_undecodable_answers_static() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let copybook = write_temp_file(&dir, "odo.cpy", ODO_COPYBOOK.as_bytes());
+    let input = write_temp_file(&dir, "bad.bin", b"XXAABB");
+
+    cmd()
+        .args(["inspect", "--format", "fixed", "--codepage", "ascii"])
+        .arg(&copybook)
+        .args(["--payload-byte", "0"])
+        .args(["--input"])
+        .arg(&input)
+        .args(["--record", "1"])
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("REC.CNT"))
+        .stdout(predicates::str::contains("CBKD411_ZONED_BAD_SIGN"));
+}
+
+/// The JSON note carries the refusal identity with field and byte location
+/// and no local paths; the failure pointer stays human-only.
+#[test]
+fn inspect_record_query_undecodable_json_carries_note() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let copybook = write_temp_file(&dir, "odo.cpy", ODO_COPYBOOK.as_bytes());
+    let input = write_temp_file(&dir, "bad.bin", b"XXAABB");
+
+    let output = cmd()
+        .args(["inspect", "--format", "fixed", "--codepage", "ascii"])
+        .arg(&copybook)
+        .args(["--field", "REC.CNT", "--output", "json"])
+        .args(["--input"])
+        .arg(&input)
+        .args(["--record", "1"])
+        .output()
+        .expect("undecodable record query json");
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("answer parses");
+    assert_eq!(parsed["state"], "owned");
+    assert_eq!(parsed["record"]["index"], 1);
+    assert_eq!(parsed["decode_note"]["code"], "CBKD411_ZONED_BAD_SIGN");
+    assert!(
+        parsed["decode_note"]["message"]
+            .as_str()
+            .expect("message")
+            .contains("zone"),
+        "note carries the decoder message"
+    );
+    assert_eq!(parsed["decode_note"]["field_path"], "REC.CNT");
+    assert_eq!(parsed["decode_note"]["byte_offset"], 0);
+    let dir_str = dir.path().to_str().expect("tempdir utf8");
+    assert!(
+        !stdout.contains(dir_str),
+        "machine output leaks a local path"
+    );
+}
+
+/// A byte past a short undecodable payload names nothing: the answer is
+/// out of range with the refusal attached, not its static owner.
+#[test]
+fn inspect_record_query_byte_past_short_payload_is_out_of_range() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let copybook = write_temp_file(&dir, "odo.cpy", ODO_COPYBOOK.as_bytes());
+    // 4-byte RDW payload of a 6-byte maximum; CNT="XX" fails decoding.
+    let input = write_temp_file(
+        &dir,
+        "short-bad.rdw",
+        &[0x00, 0x04, 0x00, 0x00, b'X', b'X', b'A', b'A'],
+    );
+
+    cmd()
+        .args(["inspect", "--format", "rdw", "--codepage", "ascii"])
+        .arg(&copybook)
+        .args(["--payload-byte", "5"])
+        .args(["--input"])
+        .arg(&input)
+        .args(["--record", "1"])
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("out of range"))
+        .stdout(predicates::str::contains("CBKD411_ZONED_BAD_SIGN"));
+}
+
+/// The failure pointer replays the resolved interpretation: strict mode
+/// and dialect ride the hint so the occurrence reproduces the failure.
+#[test]
+fn inspect_record_query_hint_replays_strict_interpretation() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let copybook = write_temp_file(&dir, "odo.cpy", ODO_COPYBOOK.as_bytes());
+    let input = write_temp_file(&dir, "bad.bin", b"XXAABB");
+
+    let output = cmd()
+        .args([
+            "inspect",
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            "--strict",
+            "--dialect",
+            "0",
+        ])
+        .arg(&copybook)
+        .args(["--field", "REC.CNT"])
+        .args(["--input"])
+        .arg(&input)
+        .args(["--record", "1"])
+        .output()
+        .expect("strict failing-record query");
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
+    assert!(stdout.contains("--strict"), "hint replays strict mode");
+    assert!(
+        stdout.contains("--dialect 0"),
+        "hint replays the resolved dialect"
+    );
+}
+
+/// A truncated fixed payload has no bytes to interpret: framing failures
+/// still fail closed instead of answering.
+#[test]
+fn inspect_record_query_truncated_payload_stays_closed() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let copybook = write_temp_file(&dir, "odo.cpy", ODO_COPYBOOK.as_bytes());
+    let input = write_temp_file(&dir, "short.bin", b"01");
+
+    cmd()
+        .args(["inspect", "--format", "fixed", "--codepage", "ascii"])
+        .arg(&copybook)
+        .args(["--field", "REC.CNT"])
+        .args(["--input"])
+        .arg(&input)
+        .args(["--record", "1"])
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicates::str::contains("subcode=411"));
+}
+
 /// An unreadable record file names the file with its own subcode.
 #[test]
 fn inspect_record_selection_unreadable_input_fails() {

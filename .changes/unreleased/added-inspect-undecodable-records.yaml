@@ -1,0 +1,12 @@
+kind: added
+body: '**inspect**: record queries over a selected record that fails to decode
+  still answer instead of failing closed. The selector resolves over static
+  repetition bounds with the decoder''s refusal attached: a `Note:` line with
+  the stable code, message, and field/byte location when the error context
+  names one (plus a `decode_note` object in JSON), a static-bounds warning,
+  and a runnable `copybook explain CODE --copybook … --input … --record N …`
+  pointer on human output. ODO actuals are unknown, so ranges are bounds,
+  never clamped extents. Framing failures with no bytes to interpret
+  (unreadable inputs, truncated payloads) and unusable ODO counts stay
+  closed with exit 3.'
+time: '2026-09-20T11:25:00Z'

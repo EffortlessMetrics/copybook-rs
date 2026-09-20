@@ -12,8 +12,9 @@ use copybook::codec::Codepage;
 use copybook::codec::options::profile::InterpretationProfile;
 use copybook::codec::options::resolve::Resolved;
 use copybook::codec::ownership::{
-    MatchRole, OwnershipError, OwnershipReport, OwnershipState, RecordContext, RecordPresence,
-    query_byte_owner, query_byte_owner_in_record, query_field_range, query_field_range_in_record,
+    DecodeNote, MatchRole, OwnershipError, OwnershipReport, OwnershipState, RecordContext,
+    RecordPresence, query_byte_owner, query_byte_owner_in_record, query_field_range,
+    query_field_range_in_record,
 };
 use copybook::codec::resolved_manifest::{GenerateInputs, ManifestTool, ResolvedManifest};
 use copybook::core::source_bundle::SourceBundle;
@@ -339,18 +340,38 @@ pub fn answer_query_in_record(
         .map_err(map_ownership_error)
 }
 
-/// One decoded record selected for a record-specific query.
-pub struct SelectedRecord {
-    /// 1-based record number within the input, as answered.
-    pub index: u64,
-    /// Actual ODO presence the selected record decodes to.
-    pub presence: RecordPresence,
+/// One record selected for a record-specific query.
+///
+/// A record that decodes answers over its actual ODO presence. A record
+/// that fails to decode still answers: the query falls back to static
+/// bounds with the decoder's refusal attached, so the failure stays
+/// inspectable instead of failing the query closed. Only framing failures
+/// (unreadable inputs, short inputs) and unusable counts refuse, because
+/// there are no bytes or no counts to interpret.
+pub enum SelectedRecord {
+    /// The record decoded: answer over its actual ODO presence.
+    Decoded {
+        /// 1-based record number within the input, as answered.
+        index: u64,
+        /// Actual ODO presence the selected record decodes to.
+        presence: RecordPresence,
+    },
+    /// The record failed to decode: answer over static bounds with the
+    /// decoder's refusal attached.
+    Undecoded {
+        /// 1-based record number within the input, as answered.
+        index: u64,
+        /// Selected record payload length in bytes.
+        record_len: u32,
+        /// Decoder's refusal behind the static-bounds fallback.
+        note: DecodeNote,
+    },
 }
 
 /// Why a record selection cannot be answered.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RecordSelectionFailure {
-    /// The input file cannot be opened or streamed.
+    /// The input file cannot be opened, framed, or streamed.
     Unreadable {
         /// What went wrong, naming the input.
         detail: String,
@@ -361,13 +382,6 @@ pub enum RecordSelectionFailure {
         index: u64,
         /// Records the input holds.
         available: u64,
-    },
-    /// The selected record cannot be decoded.
-    Undecodable {
-        /// Requested 1-based record number.
-        index: u64,
-        /// Decoder's refusal.
-        detail: String,
     },
     /// The decoded record carries no usable ODO count.
     Refused(QueryRefusal),
@@ -382,9 +396,10 @@ pub enum RecordSelectionFailure {
 /// and [`ExecutionPolicy`](copybook::codec::ExecutionPolicy), so `--strict`
 /// and profile framing strictness, record bounds, and decode options
 /// apply here too. The index is 1-based to match the `record_index`
-/// decode envelopes report. Selection fails closed: unreadable inputs,
-/// short inputs, undecodable records, and unusable counts never fall back
-/// to static bounds.
+/// decode envelopes report. A record that fails to decode selects
+/// successfully with no presence and a [`DecodeNote`]: the query answers
+/// over static bounds with the refusal attached. Selection fails closed
+/// only for unreadable inputs, short inputs, and unusable counts.
 pub fn select_record(
     manifest: &ResolvedManifest,
     schema: &Schema,
@@ -417,27 +432,82 @@ pub fn select_record(
                 if available < index {
                     continue;
                 }
-                let record_len =
-                    u32::try_from(payload.len()).map_err(|_| Failure::Undecodable {
-                        index,
-                        detail: format!(
-                            "record payload ({} bytes) exceeds the query extent",
-                            payload.len()
-                        ),
-                    })?;
-                let decoded =
-                    copybook::codec::decode_record(schema, &payload, options).map_err(|error| {
-                        Failure::Undecodable {
+                let record_len = u32::try_from(payload.len()).unwrap_or(u32::MAX);
+                match copybook::codec::decode_record(schema, &payload, options) {
+                    Ok(decoded) => {
+                        let presence = RecordPresence::from_decoded(manifest, &decoded, record_len)
+                            .map_err(|error| Failure::Refused(map_ownership_error(error)))?;
+                        return Ok(SelectedRecord::Decoded { index, presence });
+                    }
+                    Err(error) => {
+                        let context = error.context.as_ref();
+                        return Ok(SelectedRecord::Undecoded {
                             index,
-                            detail: error.to_string(),
-                        }
-                    })?;
-                let presence = RecordPresence::from_decoded(manifest, &decoded, record_len)
-                    .map_err(|error| Failure::Refused(map_ownership_error(error)))?;
-                return Ok(SelectedRecord { index, presence });
+                            record_len,
+                            note: DecodeNote::new(
+                                error.code.to_string(),
+                                error.message.clone(),
+                                context.and_then(|context| context.field_path.clone()),
+                                context.and_then(|context| context.byte_offset),
+                            ),
+                        });
+                    }
+                }
             }
         }
     }
+}
+
+/// Answer one ownership query inside a record that failed to decode: the
+/// selector resolves over static repetition bounds exactly as in
+/// [`answer_query`], and the answer echoes the record with the decoder's
+/// refusal attached instead of clamped counts.
+///
+/// No range outlives the interpreted record: a byte past the payload is
+/// `out_of_range` rather than its static owner, and every reported range
+/// clamps to the payload length. ODO-sensitive ranges are bounds, never
+/// actuals: the note says so, and the human rendering points at the
+/// `explain` occurrence for the record.
+pub fn answer_query_undecoded(
+    manifest: &ResolvedManifest,
+    selector: OwnershipSelector,
+    index: u64,
+    record_len: u32,
+    note: DecodeNote,
+) -> Result<OwnershipReport, QueryRefusal> {
+    // A byte past the payload names nothing: capture the question before
+    // the selector moves into the static answer.
+    let byte_past = match &selector {
+        OwnershipSelector::PayloadByte(byte) => *byte >= record_len,
+        OwnershipSelector::FieldPath(_) => false,
+    };
+    let mut answered = answer_query(manifest, selector)?;
+    answered.record_len = record_len;
+    answered.record = Some(RecordContext {
+        index,
+        odo_counts: Vec::new(),
+    });
+    answered.decode_note = Some(note);
+    // The byte does not exist in this record: no static owner applies.
+    if byte_past {
+        answered.state = OwnershipState::OutOfRange;
+        answered.matches.clear();
+        answered.truncated = false;
+        return Ok(answered);
+    }
+    for item in &mut answered.matches {
+        item.end = item.end.min(record_len);
+        item.len = item.end.saturating_sub(item.offset);
+    }
+    // A path wholly past the payload names nothing either: field answers
+    // resolve to one match, so a single start past the extent switches the
+    // state instead of reporting an empty owned range.
+    if answered.matches.len() == 1 && answered.matches[0].offset >= record_len {
+        answered.state = OwnershipState::OutOfRange;
+        answered.matches.clear();
+        answered.truncated = false;
+    }
+    Ok(answered)
 }
 
 /// Map every ownership refusal to its dispatcher refusal without guessing:
@@ -502,6 +572,9 @@ pub fn render_human_report(report: &OwnershipReport) -> String {
         line.push(')');
         let _ = writeln!(&mut output, "{line}");
     }
+    if let Some(note) = &report.decode_note {
+        render_decode_note(&mut output, note);
+    }
     let state_line = match report.state {
         OwnershipState::Owned => "owned".to_owned(),
         OwnershipState::Gap => "gap (byte inside the record extent, no field covers it)".to_owned(),
@@ -535,6 +608,83 @@ pub fn render_human_report(report: &OwnershipReport) -> String {
         );
     }
     output
+}
+
+/// Render the decoder refusal behind a static-bounds fallback: the stable
+/// code and message, the field/byte location when the error context names
+/// one, and the warning that ODO-sensitive ranges are bounds, not actuals.
+fn render_decode_note(output: &mut String, note: &DecodeNote) {
+    let mut line = format!(
+        "Note: record failed to decode ({}): {}",
+        note.code, note.message
+    );
+    if let Some(field) = &note.field_path {
+        let _ = write!(line, "  field {field}");
+    }
+    if let Some(offset) = note.byte_offset {
+        let _ = write!(line, "  byte offset {offset}");
+    }
+    let _ = writeln!(output, "{line}");
+    let _ = writeln!(
+        output,
+        "Ranges above are static repetition bounds, not this record's actual extents."
+    );
+}
+
+/// Resolved interpretation a failure pointer replays: everything the
+/// `explain` occurrence mode accepts that `inspect` also resolves, so the
+/// replay reproduces the failure instead of decoding clean under defaults.
+pub struct ExplainReplay<'a> {
+    /// Copybook file the interpretation resolves from.
+    pub copybook: &'a Path,
+    /// Record data file holding the failing record.
+    pub input: &'a Path,
+    /// 1-based failing record number within the input.
+    pub index: u64,
+    /// Resolved framing for record iteration.
+    pub format: copybook::codec::RecordFormat,
+    /// Resolved character encoding.
+    pub codepage: Codepage,
+    /// Effective strict mode.
+    pub strict: bool,
+    /// Whether inline comments were disabled for the run.
+    pub strict_comments: bool,
+    /// Resolved ODO `min_count` interpretation.
+    pub dialect: copybook::core::dialect::Dialect,
+}
+
+/// Point a failing record at its deep dive: the `explain` occurrence mode
+/// replays this record under the resolved interpretation.
+///
+/// Strict mode, comment policy, and dialect ride the hint because `explain`
+/// defaults them independently: without them a strict-only failure would
+/// replay clean. Paths render shell-quoted for paste safety. Human output
+/// only: machine answers carry the note's code and message, never local
+/// paths.
+#[must_use]
+pub fn explain_hint(code: &str, replay: &ExplainReplay<'_>) -> String {
+    use copybook::codec::diagnose::shell_quote;
+    let dialect_flag = match replay.dialect {
+        copybook::core::dialect::Dialect::Normative => "n",
+        copybook::core::dialect::Dialect::ZeroTolerant => "0",
+        copybook::core::dialect::Dialect::OneTolerant => "1",
+    };
+    let mut hint = format!(
+        "See: copybook explain {code} --copybook {} --input {} --record {} \
+         --record-format {} --codepage {} --dialect {dialect_flag}",
+        shell_quote(replay.copybook),
+        shell_quote(replay.input),
+        replay.index,
+        replay.format,
+        replay.codepage,
+    );
+    if replay.strict {
+        hint.push_str(" --strict");
+    }
+    if replay.strict_comments {
+        hint.push_str(" --strict-comments");
+    }
+    hint
 }
 
 /// One-line role label for the human table.
@@ -941,5 +1091,110 @@ mod tests {
         let long_offset_col = long_row.find(" 0 ").expect("offset column");
         let short_offset_col = short_row.find(" 4 ").expect("offset column");
         assert_eq!(long_offset_col, short_offset_col);
+    }
+
+    #[test]
+    fn decode_note_renders_code_location_and_bounds_warning() {
+        let report = OwnershipReport {
+            query: copybook::codec::ownership::OwnershipQuery::PayloadByte { byte: 0 },
+            coordinate_system: "payload-relative".to_string(),
+            manifest_fingerprint: "sha256-v1:test".to_string(),
+            profile_fingerprint: None,
+            schema_fingerprint: "abc".to_string(),
+            record_len: 6,
+            record: Some(RecordContext {
+                index: 1,
+                odo_counts: Vec::new(),
+            }),
+            decode_note: Some(DecodeNote::new(
+                "CBKD411_ZONED_BAD_SIGN".to_string(),
+                "bad zone".to_string(),
+                Some("REC.CNT".to_string()),
+                Some(0),
+            )),
+            state: OwnershipState::Owned,
+            matches: Vec::new(),
+            truncated: false,
+        };
+        let rendered = render_human_report(&report);
+        assert!(rendered.contains("failed to decode"));
+        assert!(rendered.contains("CBKD411_ZONED_BAD_SIGN"));
+        assert!(rendered.contains("field REC.CNT"));
+        assert!(rendered.contains("byte offset 0"));
+        assert!(rendered.contains("static repetition bounds"));
+    }
+
+    #[test]
+    fn decode_note_without_location_renders_code_only() {
+        let report = OwnershipReport {
+            query: copybook::codec::ownership::OwnershipQuery::PayloadByte { byte: 0 },
+            coordinate_system: "payload-relative".to_string(),
+            manifest_fingerprint: "sha256-v1:test".to_string(),
+            profile_fingerprint: None,
+            schema_fingerprint: "abc".to_string(),
+            record_len: 6,
+            record: Some(RecordContext {
+                index: 1,
+                odo_counts: Vec::new(),
+            }),
+            decode_note: Some(DecodeNote::new(
+                "CBKR211_RDW_RESERVED_NONZERO".to_string(),
+                "non-zero".to_string(),
+                None,
+                None,
+            )),
+            state: OwnershipState::Owned,
+            matches: Vec::new(),
+            truncated: false,
+        };
+        let rendered = render_human_report(&report);
+        assert!(rendered.contains("CBKR211_RDW_RESERVED_NONZERO"));
+        assert!(!rendered.contains("field "), "no field to name");
+        assert!(!rendered.contains("byte offset"), "no offset to name");
+    }
+
+    #[test]
+    fn explain_hint_names_runnable_occurrence() {
+        let hint = explain_hint(
+            "CBKD411_ZONED_BAD_SIGN",
+            &ExplainReplay {
+                copybook: Path::new("a.cpy"),
+                input: Path::new("b.bin"),
+                index: 2,
+                format: copybook::codec::RecordFormat::Fixed,
+                codepage: Codepage::CP037,
+                strict: false,
+                strict_comments: false,
+                dialect: copybook::core::dialect::Dialect::Normative,
+            },
+        );
+        assert_eq!(
+            hint,
+            "See: copybook explain CBKD411_ZONED_BAD_SIGN --copybook a.cpy \
+             --input b.bin --record 2 --record-format fixed --codepage cp037 --dialect n"
+        );
+    }
+
+    #[test]
+    fn explain_hint_replays_strict_quotes_paths() {
+        let hint = explain_hint(
+            "CBKD411_ZONED_BAD_SIGN",
+            &ExplainReplay {
+                copybook: Path::new("my dir/a.cpy"),
+                input: Path::new("b$(x).bin"),
+                index: 2,
+                format: copybook::codec::RecordFormat::Fixed,
+                codepage: Codepage::CP037,
+                strict: true,
+                strict_comments: true,
+                dialect: copybook::core::dialect::Dialect::ZeroTolerant,
+            },
+        );
+        assert_eq!(
+            hint,
+            "See: copybook explain CBKD411_ZONED_BAD_SIGN --copybook 'my dir/a.cpy' \
+             --input 'b$(x).bin' --record 2 --record-format fixed --codepage cp037 \
+             --dialect 0 --strict --strict-comments"
+        );
     }
 }

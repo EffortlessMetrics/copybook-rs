@@ -370,17 +370,19 @@ fn run_inspect_query_command(
     };
     // Record selection decodes through the source schema with the resolved
     // framing, so it runs source-backed only: the validation above already
-    // refused `--manifest` with `--input`/`--record`.
-    let report = match (source, selection) {
+    // refused `--manifest` with `--input`/`--record`. A record that fails
+    // to decode still answers over static bounds with the refusal
+    // attached, plus a human-only pointer at its `explain` occurrence.
+    let (report, hint) = match (source, selection) {
         (QueryInput::Manifest(manifest), None) => {
             match commands::inspect::answer_query(&manifest, selector) {
-                Ok(report) => report,
+                Ok(report) => (report, None),
                 Err(refusal) => return query_refusal("inspect", refusal),
             }
         }
         (QueryInput::Source(built), None) => {
             match commands::inspect::answer_query(&built.manifest, selector) {
-                Ok(report) => report,
+                Ok(report) => (report, None),
                 Err(refusal) => return query_refusal("inspect", refusal),
             }
         }
@@ -392,29 +394,76 @@ fn run_inspect_query_command(
             );
         }
         (QueryInput::Source(built), Some((input_path, index))) => {
-            let selected = match commands::inspect::select_record(
-                &built.manifest,
-                &built.schema,
-                &built.options,
-                built.policy,
-                input_path,
-                index,
-            ) {
-                Ok(selected) => selected,
-                Err(failure) => return record_selection_failure("inspect", failure),
-            };
-            match commands::inspect::answer_query_in_record(
-                &built.manifest,
-                selector,
-                &selected.presence,
-                selected.index,
-            ) {
-                Ok(report) => report,
-                Err(refusal) => return query_refusal("inspect", refusal),
+            match answer_selected_record(&built, selector, input_path, index) {
+                Ok(answered) => answered,
+                Err(outcome) => return outcome,
             }
         }
     };
-    render_query_report(output, &report)
+    render_query_report(output, &report, hint.as_deref())
+}
+
+/// Answer one ownership query inside a selected record: decoded records
+/// answer over their actual ODO presence, records that failed to decode
+/// answer over static bounds with the refusal attached plus a human-only
+/// pointer at the runnable `explain` occurrence for the record.
+fn answer_selected_record(
+    built: &SourceManifest,
+    selector: commands::inspect::OwnershipSelector,
+    input_path: &std::path::Path,
+    index: u64,
+) -> Result<(copybook::codec::ownership::OwnershipReport, Option<String>), CommandOutcome> {
+    let selected = match commands::inspect::select_record(
+        &built.manifest,
+        &built.schema,
+        &built.options,
+        built.policy,
+        input_path,
+        index,
+    ) {
+        Ok(selected) => selected,
+        Err(failure) => return Err(record_selection_failure("inspect", failure)),
+    };
+    match selected {
+        commands::inspect::SelectedRecord::Decoded { index, presence } => {
+            match commands::inspect::answer_query_in_record(
+                &built.manifest,
+                selector,
+                &presence,
+                index,
+            ) {
+                Ok(report) => Ok((report, None)),
+                Err(refusal) => Err(query_refusal("inspect", refusal)),
+            }
+        }
+        commands::inspect::SelectedRecord::Undecoded {
+            index,
+            record_len,
+            note,
+        } => {
+            let code = note.code.clone();
+            match commands::inspect::answer_query_undecoded(
+                &built.manifest,
+                selector,
+                index,
+                record_len,
+                note,
+            ) {
+                Ok(report) => {
+                    let hint = commands::inspect::explain_hint(
+                        &code,
+                        &built.copybook,
+                        input_path,
+                        index,
+                        built.options.format,
+                        built.options.codepage,
+                    );
+                    Ok((report, Some(hint)))
+                }
+                Err(refusal) => Err(query_refusal("inspect", refusal)),
+            }
+        }
+    }
 }
 
 /// Resolve where an ownership query answers from: exactly one of
@@ -523,11 +572,15 @@ fn check_record_selection<'a>(
 }
 
 /// Render one answered ownership query for the requested output format.
+///
+/// The failure pointer rides human output only: machine answers carry the
+/// note's code and message, never local paths.
 fn render_query_report(
     output: commands::inspect::InspectQueryFormat,
     report: &copybook::codec::ownership::OwnershipReport,
+    hint: Option<&str>,
 ) -> CommandOutcome {
-    let rendered = match output {
+    let mut rendered = match output {
         commands::inspect::InspectQueryFormat::Human => {
             commands::inspect::render_human_report(report)
         }
@@ -538,6 +591,12 @@ fn render_query_report(
             }
         }
     };
+    if output == commands::inspect::InspectQueryFormat::Human
+        && let Some(pointer) = hint
+    {
+        rendered.push_str(pointer);
+        rendered.push('\n');
+    }
     match crate::write_stdout_all(rendered.as_bytes()) {
         Ok(()) => (Ok(crate::ExitCode::Ok), "inspect"),
         Err(error) => (Err(anyhow!(error)), "inspect"),
@@ -593,6 +652,9 @@ struct SourceManifest {
     options: copybook::codec::DecodeOptions,
     /// Resolved execution policy for record framing.
     policy: copybook::codec::ExecutionPolicy,
+    /// Copybook file the interpretation resolves from, for human-only
+    /// failure pointers that must never enter machine output.
+    copybook: std::path::PathBuf,
 }
 
 /// Where an ownership query answers from: a bound manifest document, or a
@@ -676,6 +738,7 @@ fn build_query_manifest(
             schema,
             options,
             policy,
+            copybook: source.copybook.clone(),
         }),
         Err(error) => Err((Err(error), "inspect")),
     }
@@ -725,9 +788,10 @@ fn query_refusal(op: &'static str, refusal: commands::inspect::QueryRefusal) -> 
 
 /// A record selection that cannot be answered. Dispatch renders it as
 /// structured diagnostics with an `Encode` (validation) exit: unreadable
-/// inputs name the file, short inputs name their length, undecodable
-/// records carry the decoder's refusal, and unusable counts reuse the
-/// query-refusal rendering instead of falling back to static bounds.
+/// inputs name the file, short inputs name their length, and unusable
+/// counts reuse the query-refusal rendering. Records that fail to decode
+/// are not failures: they answer over static bounds with the decoder's
+/// refusal attached.
 fn record_selection_failure(
     op: &'static str,
     failure: commands::inspect::RecordSelectionFailure,
@@ -741,11 +805,6 @@ fn record_selection_failure(
             op,
             crate::subcode::QUERY_UNANSWERABLE,
             &format!("record {index}: input holds only {available} records"),
-        ),
-        Failure::Undecodable { index, detail } => query_failure(
-            op,
-            crate::subcode::QUERY_UNANSWERABLE,
-            &format!("record {index} cannot be decoded: {detail}"),
         ),
         Failure::Refused(refusal) => query_refusal(op, refusal),
     }

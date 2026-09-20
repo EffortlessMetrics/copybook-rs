@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/EffortlessMetrics/copybook-rs/schemas/interpretation-profile.json",
+  "title": "InterpretationProfile",
+  "description": "Reviewed interpretation-profile wire contract (#1113), document schema version 1. Stability class: beta (evolving; see the copybook_codec::options::profile stability notes). Reference for the copybook_codec::options::profile::InterpretationProfile contract; the Rust type is authoritative. The wire form is TOML (tables map to objects here); unknown keys are rejected, so additive fields require a version bump, never silent acceptance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "framing",
+    "decode",
+    "limits"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Profile document schema version."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dialect"
+      ],
+      "properties": {
+        "dialect": {
+          "type": "string",
+          "enum": [
+            "normative",
+            "zero-tolerant",
+            "one-tolerant"
+          ],
+          "description": "ODO min_count interpretation."
+        }
+      }
+    },
+    "framing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "reserved_bytes"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "fixed",
+            "rdw",
+            "vb"
+          ],
+          "description": "Physical record framing."
+        },
+        "reserved_bytes": {
+          "type": "string",
+          "enum": [
+            "strict",
+            "lenient"
+          ],
+          "description": "RDW/BDW reserved-bytes policy."
+        }
+      }
+    },
+    "decode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "codepage",
+        "unmappable",
+        "json_numbers"
+      ],
+      "properties": {
+        "codepage": {
+          "type": "string",
+          "enum": [
+            "ascii",
+            "cp037",
+            "cp273",
+            "cp500",
+            "cp1047",
+            "cp1140"
+          ],
+          "description": "Record text encoding."
+        },
+        "unmappable": {
+          "type": "string",
+          "enum": [
+            "error",
+            "replace",
+            "skip"
+          ],
+          "description": "Unmappable-character policy."
+        },
+        "json_numbers": {
+          "type": "string",
+          "enum": [
+            "lossless",
+            "native"
+          ],
+          "description": "JSON number representation (decode only)."
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maximum_record_length",
+        "maximum_errors"
+      ],
+      "properties": {
+        "maximum_record_length": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216,
+          "description": "Largest record accepted, in bytes. Always explicit in a profile; profile-less runs are uncapped."
+        },
+        "maximum_errors": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "Failures tolerated before the run stops."
+        }
+      }
+    }
+  }
+}

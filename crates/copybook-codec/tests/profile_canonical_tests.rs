@@ -96,3 +96,56 @@ fn oversize_document_rejects_before_parsing() {
         "expected ProfileTooLarge with the document size, got {result:?}"
     );
 }
+
+#[test]
+fn wire_documents_validate_against_reference_schema() {
+    let schema_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../schemas/interpretation-profile.json");
+    let schema_text = std::fs::read_to_string(&schema_path).expect("reference schema reads");
+    let schema: serde_json::Value =
+        serde_json::from_str(&schema_text).expect("reference schema parses");
+    let validator = jsonschema::validator_for(&schema).expect("schema compiles");
+
+    // Positive: every canonical fixture validates, including hostile
+    // formatting variants (they parse to identical intent).
+    for name in [
+        "base.toml",
+        "canonical-bytes.toml",
+        "shuffled.toml",
+        "shuffled-crlf.toml",
+    ] {
+        let profile = InterpretationProfile::parse(&fixture(name)).expect("fixture parses");
+        let document: serde_json::Value =
+            serde_json::to_value(&profile).expect("profile serializes");
+        assert!(
+            validator.is_valid(&document),
+            "fixture {name} validates against the reference schema"
+        );
+    }
+
+    // Negative: unknown keys, wrong enums, missing sections, and
+    // out-of-range bounds all fail.
+    let profile = InterpretationProfile::parse(&fixture("base.toml")).expect("base parses");
+    let valid: serde_json::Value = serde_json::to_value(&profile).expect("serializes");
+    let mut unknown = valid.clone();
+    unknown["framing"]["watermark"] = serde_json::json!("sneaky");
+    assert!(!validator.is_valid(&unknown), "unknown key fails");
+    let mut bad_enum = valid.clone();
+    bad_enum["source"]["dialect"] = serde_json::json!("sometimes");
+    assert!(!validator.is_valid(&bad_enum), "unknown dialect fails");
+    let mut missing = valid.clone();
+    missing
+        .as_object_mut()
+        .expect("document object")
+        .remove("limits");
+    assert!(!validator.is_valid(&missing), "missing section fails");
+    let mut over_bound = valid.clone();
+    over_bound["limits"]["maximum_record_length"] = serde_json::json!(16_777_217u64);
+    assert!(
+        !validator.is_valid(&over_bound),
+        "over-bound record length fails"
+    );
+    let mut zero_bound = valid;
+    zero_bound["limits"]["maximum_record_length"] = serde_json::json!(0u64);
+    assert!(!validator.is_valid(&zero_bound), "zero record length fails");
+}

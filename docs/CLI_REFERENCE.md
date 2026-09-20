@@ -390,9 +390,9 @@ copybook determinism <MODE> <COPYBOOK> <INPUT> [OPTIONS]
 
 **Report identity:** every run names its comparison kind (`decode`, `encode`, `round-trip`), the profile identity (`sha256:<fingerprint>` of the bound profile, or explicit `direct` when no profile was given), and the BLAKE3 hash of the compared input bytes, followed by the verdict, the output hashes, and any byte diffs. The comparison enforces the bound profile's execution policy exactly as the operating commands do: a fixed layout over the reviewed record bound, an over-cap encoded payload, and a non-zero-reserved RDW record under a strict reserved policy fail with the same identities (`CBKF226_RECORD_BOUND_EXCEEDED`, `CBKR211_RDW_RESERVED_NONZERO`) instead of reporting a verdict. The report then states its limitations explicitly: no resolved manifest is emitted for determinism comparisons; the single-record comparison performs no worker scheduling, so worker count cannot change ordering or verdict; VB block structure and per-record bounds stay with the operating decode path; `round-trip` is internal self-consistency, not an independent external oracle.
 
-**JSON envelope (`--output json`):** `profile` is either `{"kind":"profile","fingerprint":"..."}` or `{"kind":"direct"}`. The full envelope is `{"comparison": ..., "profile": ..., "input_hash": ..., "limitations": [...], "result": {"mode": ..., "round1_hash": ..., "round2_hash": ..., "is_deterministic": ..., "byte_differences": ...}}`.
+**JSON envelope (`--output json`):** `profile` is either `{"kind":"profile","fingerprint":"..."}` or `{"kind":"direct"}`. The full envelope is `{"comparison": ..., "profile": ..., "input_hash": ..., "limitations": [...], "result": {"mode": ..., "round1_hash": ..., "round2_hash": ..., "is_deterministic": ..., "byte_differences": ...}}`; `byte_differences` is omitted on deterministic passes.
 
-**Exit codes:** 0 = deterministic (hashes match), 2 = non-deterministic (drift detected), 3 = codec/usage error.
+**Exit codes:** 0 = deterministic (hashes match), 2 = non-deterministic (drift detected), 3 = codec/usage/profile error, 4 = record-format rejection: a reviewed bound or strict reserved policy fails with the same identity (`CBKF226_RECORD_BOUND_EXCEEDED`, `CBKR211_RDW_RESERVED_NONZERO`) and exit code as `decode`/`encode` under the same profile.
 
 **Examples:**
 ```bash

@@ -1,0 +1,210 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Decision packet for issue #1007: physical-record and heterogeneous-layout
+# demand with independent oracles. One row per candidate capability, same
+# field order as the issue matrix. Selections are proposed scope decisions
+# for review: 0.10.0 physical-record scope, 0.11.0 heterogeneous-record
+# scope, beta-later, or rejected. Executed evidence lives in README.md in
+# this directory; runnable lanes live in scripts/differential-jrecord.sh.
+schema_version = 1
+scope = "breadth-inventory"
+parent_issue = "#1007"
+differential_program = "#1021"
+planning_baseline = "bc2178e7abed545bde62cfa8dbcdd4b687ce221d"
+
+[[capability]]
+capability_id = "length-prefix-124"
+user_file_story = "Ingest length-prefixed byte streams (1/2/4-byte big/little-endian prefixes) from language runtimes and non-IBM producers without hand-splitting records first."
+physical_organization = "length-prefixed (generic 1/2/4-byte, either endian)"
+layout_organization = "single 01-level layout"
+public_fixtures_available = ["docs/evidence/differential-breadth/prefix2.bin (BE u16 + payload, repository-constructed, lane 4)"]
+private_redacted_receipts_observed = []
+external_implementations_pinned = ["JRecord 0.93.2 Cobol2Csv -IFS Binary: does NOT parse prefixes (prefix bytes land in the field); external limitation, not an oracle"]
+current_copybook_rs_behavior = "--format rdw assumes 4-byte RDW (length incl. header + reserved); prefix2.bin fails with a classified record error. No generic-prefix framing exists."
+independent_oracle_authority = "none yet: needs a format reference plus hand-built positive/hostile families (IBM RDW is adjacent precedent, not this policy)"
+read_requirement = "new framing kind: prefix width, endian, and whether the length includes the prefix"
+write_requirement = "symmetric prefix emission under the same parameters"
+raw_accounting_requirement = "prefix bytes are framing, excluded from the record payload and raw capture"
+candidate_stability_class = "beta"
+selected_release = "0.11"
+selection_rationale = "Genuine file story, but no independent oracle exists and JRecord cannot serve as one here; promoting without an oracle would certify copybook-rs against itself."
+stop_rule = "Parse or reject with a stable code; never misframe a payload on a guessed prefix width."
+
+[[capability]]
+capability_id = "length-from-field"
+user_file_story = "Decode records whose length rides in a record field (count-prefixed segments, TLV-adjacent layouts) without pre-splitting the file."
+physical_organization = "schema-driven (length from a decoded field value)"
+layout_organization = "single 01-level layout"
+public_fixtures_available = []
+private_redacted_receipts_observed = []
+external_implementations_pinned = []
+current_copybook_rs_behavior = "No schema-driven framing exists; framing is fixed by format flag before any field decodes."
+independent_oracle_authority = "none yet: needs a framing-design plus hand-built positive/hostile families"
+read_requirement = "two-phase framing: decode the length field at a fixed offset, then bound the record"
+write_requirement = "recompute the length field from the encoded payload"
+raw_accounting_requirement = "the length field is payload (decodes normally); no extra framing bytes exist"
+candidate_stability_class = "beta"
+selected_release = "0.11"
+selection_rationale = "Requires a framing-design decision (which field, what overflow policy) with no external overlapping implementation to check it against; 0.10 stays with byte-explicit organizations."
+stop_rule = "A length field pointing outside the input is a classified error, never a read past the end."
+
+[[capability]]
+capability_id = "discriminator-mapped-lengths"
+user_file_story = "Read record streams where a type byte maps to a fixed length table (C-ISAM-style files) without one copybook per type."
+physical_organization = "discriminator-mapped fixed lengths"
+layout_organization = "single 01-level layout per mapped length"
+public_fixtures_available = []
+private_redacted_receipts_observed = []
+external_implementations_pinned = []
+current_copybook_rs_behavior = "No discriminator or length-map surface exists."
+independent_oracle_authority = "none yet: needs a mapping policy plus hand-built positive/hostile families"
+read_requirement = "reviewed type-to-length table applied before framing"
+write_requirement = "length implied by the selected mapping; unknown types refused"
+raw_accounting_requirement = "the discriminator byte is payload"
+candidate_stability_class = "beta"
+selected_release = "0.11"
+selection_rationale = "Genuinely heterogeneous: belongs with the 0.11 layout-selection design, not the 0.10 byte-explicit scope."
+stop_rule = "An unmapped discriminator value is a classified refusal, never a guessed length."
+
+[[capability]]
+capability_id = "fixed-blocked-retained"
+user_file_story = "Accept fixed-blocked transfers whole and prove block-boundary accounting: exact multiples decode, short tails fail naming expected/actual lengths."
+physical_organization = "concatenated fixed records with retained block-boundary accounting"
+layout_organization = "single 01-level layout"
+public_fixtures_available = ["docs/evidence/differential-breadth/fb-14.bin (14 bytes: 3.5 four-byte records, lane 3)"]
+private_redacted_receipts_observed = []
+external_implementations_pinned = ["JRecord 0.93.2 Cobol2Csv -IFS Fixed_Length: NUL-pads the short tail (MN + 0x0000, hexdump-verified); the documented lenient pole"]
+current_copybook_rs_behavior = "Exact multiples decode; a short tail fails CBKR101_FIXED_RECORD_ERROR naming expected bytes and position. Strict multiple enforcement."
+independent_oracle_authority = "JRecord 0.93.2 behavior (lenient pole) plus IBM RECFM=FB definition (fixed blocking, no descriptors); the selection keeps the strict pole explicitly"
+read_requirement = "retain strict multiple enforcement; short tails stay classified errors"
+write_requirement = "encode exact multiples only; refuse to emit short tails"
+raw_accounting_requirement = "record counts and boundary offsets reported; no silent padding bytes"
+candidate_stability_class = "stable"
+selected_release = "0.10"
+selection_rationale = "Smallest policy gap with a runnable oracle on both poles: keep strict rejection, document the rejected lenient alternative, cover exact/short/empty tails."
+stop_rule = "Never silently pad a short tail; the error names expected and actual lengths."
+
+[[capability]]
+capability_id = "vb-multi-block-varied"
+user_file_story = "Decode multi-block VB files whose records vary in size across blocks without reblocking first."
+physical_organization = "BDW blocks of RDW records, varied sizes"
+layout_organization = "single 01-level layout"
+public_fixtures_available = ["docs/evidence/differential-breadth/vbvaried.bin (6-byte then 2-byte records in separate BDW blocks, lane 1)", "fixtures/corpus/mini_vb.bin (equal-size VB baseline, #952 slice)"]
+private_redacted_receipts_observed = []
+external_implementations_pinned = ["JRecord 0.93.2 Cobol2Csv -IFS Mainframe_VB_As_RECFMU: accepts both records including the short one"]
+current_copybook_rs_behavior = "--format vb frames across blocks; the 6-byte record decodes, the 2-byte record against a 6-byte schema is a classified per-record CBKF221_RDW_UNDERFLOW and decoding continues."
+independent_oracle_authority = "JRecord 0.93.2 behavior plus IBM VB/BDW/RDW definitions; overlapping framing already proven by the #952 slice"
+read_requirement = "retain cross-block framing; underflow stays a classified per-record error, never silent acceptance"
+write_requirement = "unchanged VB emission"
+raw_accounting_requirement = "BDW/RDW boundaries reported per record as today"
+candidate_stability_class = "stable"
+selected_release = "0.10"
+selection_rationale = "Framing already proven on both tools this turn; the remaining work is pinning the strict-underflow policy against JRecord leniency plus hostile-family coverage (truncated BDW, escaping RDW)."
+stop_rule = "A short payload is a classified per-record error; framing must never consume bytes past a block end."
+
+[[capability]]
+capability_id = "multi-01-layouts"
+user_file_story = "Open copybooks that declare several 01-level records and learn which bytes each layout claims."
+physical_organization = "n/a (layout organization question)"
+layout_organization = "multiple 01-level layouts, no selection yet"
+public_fixtures_available = ["docs/evidence/differential-breadth/multi01.cpy (A-REC X(4) + B-REC 9(4), lane 5)"]
+private_redacted_receipts_observed = []
+external_implementations_pinned = ["JRecord 0.93.2 Cobol2Csv: strides by the first 01 (4 bytes) and overlays both fields at offset 0; the documented other pole"]
+current_copybook_rs_behavior = "Multiple 01s concatenate into one layout (inspect reports Fixed LRECL 8 for two 4-byte 01s). No layout identity or selection exists."
+independent_oracle_authority = "JRecord 0.93.2 behavior as the documented other pole; neither side selects per record"
+read_requirement = "none in 0.10/0.11 BLE scope: document concatenation; selection design belongs to discriminator-layout-selection"
+write_requirement = "none"
+raw_accounting_requirement = "none"
+candidate_stability_class = "beta"
+selected_release = "0.11"
+selection_rationale = "The concat-vs-overlay divergence must be resolved by the layout-identity design before any selection work; shipping selection atop silent merging would certify ambiguity."
+stop_rule = "Never silently merge once selection exists; until then the concatenation is documented, not extended."
+
+[[capability]]
+capability_id = "discriminator-layout-selection"
+user_file_story = "Decode heterogeneous files by choosing the 01-level layout per record from a discriminator field value."
+physical_organization = "framing per selected layout (fixed or RDW)"
+layout_organization = "multiple 01-level layouts with value-to-layout selection"
+public_fixtures_available = []
+private_redacted_receipts_observed = []
+external_implementations_pinned = ["JRecord multi-record path (documentation-level prior art, not executed: single-record Cobol2Csv selects nothing)"]
+current_copybook_rs_behavior = "No layout selection surface exists; see multi-01-layouts concatenation."
+independent_oracle_authority = "none executed yet: needs hand-built positive/hostile families plus JRecord multi-record lanes"
+read_requirement = "reviewed value-to-layout map; per-record layout identity in output; unmapped values refused"
+write_requirement = "layout implied by the discriminator value on encode"
+raw_accounting_requirement = "record identity carries the selected layout, never a merged fiction"
+candidate_stability_class = "beta"
+selected_release = "0.11"
+selection_rationale = "The core heterogeneous scope for 0.11: needs the multi-01 divergence resolved, a mapping policy, and executed JRecord multi-record lanes first."
+stop_rule = "An unmapped discriminator is a classified refusal; output always names the selected layout."
+
+[[capability]]
+capability_id = "discriminator-length-layout"
+user_file_story = "Decode streams where one type byte selects both the record length and the layout (type-mapped heterogeneous files)."
+physical_organization = "discriminator-mapped lengths with per-type layouts"
+layout_organization = "multiple 01-level layouts with value-to-length-and-layout selection"
+public_fixtures_available = []
+private_redacted_receipts_observed = []
+external_implementations_pinned = []
+current_copybook_rs_behavior = "No discriminator, mapping, or selection surface exists."
+independent_oracle_authority = "none yet"
+read_requirement = "generalizes discriminator-mapped-lengths and discriminator-layout-selection in one reviewed map"
+write_requirement = "length and layout both implied by the discriminator on encode"
+raw_accounting_requirement = "record identity carries length source and selected layout"
+candidate_stability_class = "beta"
+selected_release = "0.11"
+selection_rationale = "Generalization of the two 0.11 discriminator rows; lands with them or not at all."
+stop_rule = "Same refusal rules as both parents; no partial selection (length without layout)."
+
+[[capability]]
+capability_id = "line-delimited-fixed"
+user_file_story = "Decode line-delimited mainframe-unload text with fixed-width fields per line, without stripping newlines by hand first."
+physical_organization = "line-delimited (LF/CRLF) fixed-width records"
+layout_organization = "single 01-level layout"
+public_fixtures_available = ["docs/evidence/differential-breadth/lines8.txt (two 8-byte lines + LF, lane 2)"]
+private_redacted_receipts_observed = []
+external_implementations_pinned = ["JRecord 0.93.2 Cobol2Csv -IFS Text: strips terminators and splits both rows; the runnable oracle"]
+current_copybook_rs_behavior = "No text framing exists: the newline is a data byte, so lines8.txt ends mid-record with CBKR101_FIXED_RECORD_ERROR."
+independent_oracle_authority = "JRecord 0.93.2 Text behavior plus POSIX line definition for terminator semantics"
+read_requirement = "new text framing: LF/CRLF terminators, explicit final-line-without-terminator policy, embedded-newline rejection"
+write_requirement = "symmetric emission with a configured terminator"
+raw_accounting_requirement = "terminators are framing, excluded from payloads and raw capture"
+candidate_stability_class = "stable"
+selected_release = "0.10"
+selection_rationale = "Crisp file story with a runnable oracle on the exact gap: strip-and-split semantics are demonstrated, not designed from scratch."
+stop_rule = "Never treat a terminator as data silently; a final line without terminator follows the explicit policy, not a guess."
+
+[[capability]]
+capability_id = "framing-extension-seam"
+user_file_story = "Add a third-plus framing kind (text, prefixes) without forking the decode, policy, and accounting paths per kind."
+physical_organization = "n/a (internal extension surface)"
+layout_organization = "n/a"
+public_fixtures_available = []
+private_redacted_receipts_observed = []
+external_implementations_pinned = []
+current_copybook_rs_behavior = "RecordFormat is a closed three-variant enum (Fixed, RDW, Vb); new organizations need a new variant plus per-site handling. Evidenced by code inspection."
+independent_oracle_authority = "n/a (internal surface)"
+read_requirement = "framing implementors plug record-boundary iteration into the shared policy/decode/accounting paths"
+write_requirement = "symmetric encode-side framing through the same seam"
+raw_accounting_requirement = "framing-vs-payload accounting enforced by the seam, not by each kind"
+candidate_stability_class = "beta"
+selected_release = "0.11"
+selection_rationale = "The 0.10 breadth (text + retained policies) fits the enum without new machinery; the seam pays off once three-plus framings exist and prevents per-kind forks."
+stop_rule = "A new framing that bypasses policy, determinism, or raw accounting is not a seam user."
+
+[[capability]]
+capability_id = "multisegment-assembly"
+user_file_story = "Reassemble parent/child segment streams into hierarchical records keyed explicitly, without hand-joining JSONL first."
+physical_organization = "segmented records with key linkage"
+layout_organization = "multiple layouts assembled by key"
+public_fixtures_available = []
+private_redacted_receipts_observed = []
+external_implementations_pinned = ["Cobrix (named comparator, inconclusive: no Spark runtime and no pinned local artifact available; missing comparators never count as agreement)"]
+current_copybook_rs_behavior = "No assembly surface exists; segments decode as independent records."
+independent_oracle_authority = "none yet: needs key/ordering design plus a Spark-free oracle (hand-built families; JRecord multi-record as adjacent evidence)"
+read_requirement = "key-explicit assembly with declared ordering; orphan segments classified, never dropped silently"
+write_requirement = "segment emission preserving the declared order"
+raw_accounting_requirement = "assembled identity carries segment provenance"
+candidate_stability_class = "beta"
+selected_release = "0.11"
+selection_rationale = "Needs key/ordering design plus an oracle that does not require Spark; 0.10 has no spare oracle for it."
+stop_rule = "Never reorder or drop segments silently; assembly without an explicit key is not assembly."

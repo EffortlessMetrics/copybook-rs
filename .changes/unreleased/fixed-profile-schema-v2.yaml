@@ -1,0 +1,11 @@
+kind: fixed
+body: '**profile**: split the wire schema to version 2 with shared
+  `[representation]` codepage authority and write-only `[encode]`
+  policy. Version 1 documents migrate deterministically at parse
+  (`[decode].codepage` moves, `[encode].unmappable` defaults to direct
+  encode behavior) and fingerprint identically to their migrated form;
+  misplaced spellings fail closed with migration hints. Doctor drafts
+  version 2 with provenance for every key. `[encode].unmappable` is
+  parsed, fingerprinted, and documented, but runtime enforcement is
+  deferred: encode still uses direct error behavior.'
+time: '2026-09-20T01:20:00Z'

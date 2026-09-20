@@ -688,7 +688,7 @@ Profile keys and their flag equivalents:
 | Profile key | Flag | Default without profile |
 | --- | --- | --- |
 | `framing.kind` (`fixed`, `rdw`, `vb`) | `--format` | none (`--format` required) |
-| `decode.codepage` | `--codepage` | `cp037` |
+| `representation.codepage` | `--codepage` | `cp037` |
 | `decode.unmappable` | `--on-decode-unmappable` | `error` |
 | `decode.json_numbers` (`decode` only) | `--json-number` | `lossless` |
 | `source.dialect` | `--dialect` | `n` (normative) |
@@ -706,7 +706,7 @@ above the cap fails before input is consumed and an over-cap produced
 or replayed payload fails with the same code.
 
 `encode` consumes exactly four profile intents: `source.dialect`,
-`framing.kind`, `decode.codepage`, and `limits.*` (both bounds enforced:
+`framing.kind`, `representation.codepage`, and `limits.*` (both bounds enforced:
 a fixed layout above the cap fails before input is consumed and an
 over-cap produced or replayed payload fails with
 `CBKF226_RECORD_BOUND_EXCEEDED`). Everything else is direct-only:
@@ -715,27 +715,35 @@ over-cap produced or replayed payload fails with
 `--use-raw`, `--bwz-encode`, `--strict`, `--coerce-numbers`,
 `--zoned-encoding-override`, `--float-format`, `--threads`, `--select`,
 and the fail-fast/continue policy have no profile counterpart (the
-profile supplies only the `maximum_errors` budget). `decode.codepage`
-under `[decode]` is a provisional borrowing pending the shared/encode
-schema split (#1120); `framing.reserved_bytes` has no effect on canonical
+profile supplies only the `maximum_errors` budget). Schema version 1
+spelled the shared codepage `[decode].codepage`; version 2 reads only
+`[representation].codepage` and fails the old spelling closed, while
+version 1 documents still parse by deterministic migration (see
+`schemas/interpretation-profile.json`). `framing.reserved_bytes` has no effect on canonical
 emission (writers emit zero reserved bytes) and does not govern
 `--use-raw` replay of stored `record+rdw` bytes, which is direct-only.
 
 ```toml
-schema_version = 1
+schema_version = 2
 [source]
 dialect = "normative"
 [framing]
 kind = "fixed"
 reserved_bytes = "lenient"
-[decode]
+[representation]
 codepage = "cp037"
+[decode]
 unmappable = "error"
 json_numbers = "lossless"
+[encode]
+unmappable = "error"
 [limits]
 maximum_record_length = 32760
 maximum_errors = 100
 ```
+
+(The `[encode]` section is parsed and fingerprinted, but does not steer
+the run yet: runtime enforcement lands in a later #1120 slice.)
 
 ```bash
 # Decode entirely from reviewed intent (no --format needed)

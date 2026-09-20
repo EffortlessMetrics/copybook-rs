@@ -1,4 +1,4 @@
-schema_version = 1
+schema_version = 2
 
 [source]
 dialect = "normative"
@@ -7,10 +7,15 @@ dialect = "normative"
 kind = "rdw"
 reserved_bytes = "lenient"
 
-[decode]
+[representation]
 codepage = "cp037"
+
+[decode]
 unmappable = "error"
 json_numbers = "lossless"
+
+[encode]
+unmappable = "error"
 
 [limits]
 maximum_record_length = 32760

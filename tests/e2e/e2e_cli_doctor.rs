@@ -251,10 +251,10 @@ fn doctor_emit_profile_drafts_reviewable_file() {
         "framing pinned, got:\n{rendered}"
     );
     assert!(
-        rendered.contains("# REVIEW decode.codepage="),
+        rendered.contains("# REVIEW representation.codepage="),
         "leading codepage needs review, got:\n{rendered}"
     );
-    assert!(rendered.contains("schema_version = 1"), "got:\n{rendered}");
+    assert!(rendered.contains("schema_version = 2"), "got:\n{rendered}");
     assert!(rendered.contains("kind = \"fixed\""), "got:\n{rendered}");
     assert!(
         rendered.contains("codepage = \"cp037\""),
@@ -301,7 +301,7 @@ fn doctor_emit_profile_fully_pinned_with_flags() {
         "no review lines expected, got:\n{rendered}"
     );
     assert!(
-        rendered.contains("# PINNED decode.codepage=cp037 (explicit --codepage flag)"),
+        rendered.contains("# PINNED representation.codepage=cp037 (explicit --codepage flag)"),
         "got:\n{rendered}"
     );
 }

@@ -58,7 +58,7 @@ pub(crate) fn assemble(
     let mut profile = InterpretationProfile::product_defaults();
     profile.source.dialect = SourceDialect::from(dialect);
     profile.framing.kind = FramingKind::from(format);
-    profile.decode.codepage = codepage;
+    profile.representation.codepage = codepage;
     profile.limits.maximum_record_length = maximum_record_length;
     Some(DraftedProfile {
         profile,
@@ -99,16 +99,16 @@ impl Drafter<'_> {
         if self.evidence.codepage_pinned {
             if self.evidence.codepage_explicit {
                 self.pin(&format!(
-                    "decode.codepage={codepage} (explicit --codepage flag)"
+                    "representation.codepage={codepage} (explicit --codepage flag)"
                 ));
             } else {
                 self.pin(&format!(
-                    "decode.codepage={codepage} (confident probe winner, trial-corroborated)"
+                    "representation.codepage={codepage} (confident probe winner, trial-corroborated)"
                 ));
             }
         } else {
             self.review(&format!(
-                "decode.codepage={codepage} is only the leading candidate; rerun doctor --codepage {codepage} to pin it"
+                "representation.codepage={codepage} is only the leading candidate; rerun doctor --codepage {codepage} to pin it"
             ));
         }
     }
@@ -177,6 +177,9 @@ impl Drafter<'_> {
         ));
         self.pin("decode.unmappable=error (default; no probe distinguishes policies)");
         self.pin("decode.json_numbers=lossless (default; decode-only)");
+        self.pin(
+            "encode.unmappable=error (default; write policy, runtime enforcement pending #1120)",
+        );
     }
 }
 
@@ -235,7 +238,7 @@ mod tests {
         let drafted = assemble(&healthy_fixed(), None).expect("established evidence assembles");
         assert!(!drafted.needs_review);
         assert_eq!(drafted.profile.framing.kind, FramingKind::Fixed);
-        assert_eq!(drafted.profile.decode.codepage, Codepage::CP037);
+        assert_eq!(drafted.profile.representation.codepage, Codepage::CP037);
         assert_eq!(drafted.profile.limits.maximum_record_length, 50);
         let rendered = render(&drafted);
         assert!(rendered.contains("PINNED framing.kind=fixed"));
@@ -265,7 +268,7 @@ mod tests {
             drafted
                 .notes
                 .iter()
-                .any(|note| note.starts_with("REVIEW decode.codepage"))
+                .any(|note| note.starts_with("REVIEW representation.codepage"))
         );
     }
 
@@ -323,13 +326,14 @@ mod tests {
         }
         keys.sort();
         let expected = [
-            "decode.codepage",
             "decode.json_numbers",
             "decode.unmappable",
+            "encode.unmappable",
             "framing.kind",
             "framing.reserved_bytes",
             "limits.maximum_errors",
             "limits.maximum_record_length",
+            "representation.codepage",
             "schema_version",
             "source.dialect",
         ];

@@ -18,7 +18,9 @@ fn fixture(name: &str) -> String {
 }
 
 /// Fingerprint of the golden canonical bytes (see `canonical-bytes.toml`).
-const GOLDEN_FINGERPRINT: &str = "0334de43062dec12a4fa0ebc55c8f9ab450e04bd9315e6b8bb0876dff385e5c2";
+/// Re-pinned for schema version 2 (#1120): the wire split moves bytes by
+/// design, so the identity moves with them.
+const GOLDEN_FINGERPRINT: &str = "c3eacd23cd4699b54abd93309b5c9202bbfc0a4e9733af0ce65a6aa80cd70195";
 
 #[test]
 fn canonical_bytes_match_golden_fixture() {

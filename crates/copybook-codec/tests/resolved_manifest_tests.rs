@@ -84,7 +84,7 @@ fn cobol_manifest_binds_inputs_layout_and_support() {
     assert_eq!(manifest.inputs.bundle.root_unit, "REC");
     assert!(!manifest.inputs.bundle.fingerprint.is_empty());
     let profile = manifest.inputs.profile.as_ref().expect("profile identity");
-    assert_eq!(profile.schema_version, 1);
+    assert_eq!(profile.schema_version, 2);
     assert_eq!(profile.fingerprint.len(), 64);
     assert_eq!(manifest.inputs.tool.name, "copybook-test");
     assert_eq!(manifest.inputs.tool.version, "0.0.0");
@@ -422,9 +422,9 @@ fn cobol_manifest_records_reviewed_profile_journey() {
     )
     .expect("framing resolves");
     let encoding = resolve_field(
-        "decode.codepage",
+        "representation.codepage",
         None,
-        Some(profile.decode.codepage.to_string()),
+        Some(profile.representation.codepage.to_string()),
         None,
         "cp037".to_owned(),
     )

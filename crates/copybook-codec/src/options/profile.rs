@@ -37,9 +37,10 @@
 //!
 //! Each layer is beta and versions independently:
 //!
-//! - TOML wire schema: versioned by `schema_version` (currently 1); unknown
+//! - TOML wire schema: versioned by `schema_version` (currently 2); unknown
 //!   keys are rejected, so additive fields require a version bump, never
-//!   silent acceptance;
+//!   silent acceptance. Version 1 documents migrate deterministically at
+//!   parse (see [`InterpretationProfile::parse`]); nothing is guessed;
 //! - Rust API: structs are [`non_exhaustive`](https://doc.rust-lang.org/reference/attributes/type_system.html)
 //!   (construct through parsing, [`InterpretationProfile::product_defaults`],
 //!   or a future builder; literals are not contractual);
@@ -57,7 +58,7 @@
 //! use copybook_codec::options::profile::InterpretationProfile;
 //!
 //! let profile = InterpretationProfile::parse(
-//!     "schema_version = 1\n[source]\ndialect = \"normative\"\n[framing]\nkind = \"rdw\"\nreserved_bytes = \"lenient\"\n[decode]\ncodepage = \"cp037\"\nunmappable = \"error\"\njson_numbers = \"lossless\"\n[limits]\nmaximum_record_length = 32760\nmaximum_errors = 100\n",
+//!     "schema_version = 2\n[source]\ndialect = \"normative\"\n[framing]\nkind = \"rdw\"\nreserved_bytes = \"lenient\"\n[representation]\ncodepage = \"cp037\"\n[decode]\nunmappable = \"error\"\njson_numbers = \"lossless\"\n[encode]\nunmappable = \"error\"\n[limits]\nmaximum_record_length = 32760\nmaximum_errors = 100\n",
 //! )
 //! .expect("valid profile");
 //! assert_eq!(profile.fingerprint().expect("canonical profile fingerprints").len(), 64);
@@ -73,7 +74,15 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer, de as serde_de};
 use sha2::{Digest, Sha256};
 
 /// Profile schema version this crate reads and writes.
-pub const PROFILE_SCHEMA_VERSION: u32 = 1;
+///
+/// Version 2 splits the single codepage authority out of `[decode]` into
+/// `[representation]` and adds write-only `[encode]` policy. Version 1
+/// documents still parse: `[decode].codepage` migrates to
+/// `[representation].codepage` and `[encode].unmappable` defaults to the
+/// direct encode behavior (`error`); the canonical rendering is always
+/// version 2, so a v1 document and its migrated form fingerprint
+/// identically.
+pub const PROFILE_SCHEMA_VERSION: u32 = 2;
 
 /// Largest accepted `maximum_record_length`: 16 MiB per record bounds decoder
 /// memory independent of file size.
@@ -100,13 +109,20 @@ pub const DEFAULT_PROFILE_ERRORS: u64 = 100;
 #[non_exhaustive]
 pub struct InterpretationProfile {
     /// Profile schema version; must equal [`PROFILE_SCHEMA_VERSION`].
+    /// Version 1 documents migrate to 2 at parse; see [`Self::parse`].
     pub schema_version: u32,
     /// Copybook source interpretation.
     pub source: SourceSection,
     /// Physical framing interpretation.
     pub framing: FramingSection,
+    /// Shared representation authority (decode and encode read path).
+    pub representation: RepresentationSection,
     /// Byte decoding interpretation.
     pub decode: DecodeSection,
+    /// Byte encoding interpretation. Parsed, fingerprinted, and resolved;
+    /// runtime enforcement lands in a later #1120 slice (encode currently
+    /// uses direct-only error behavior).
+    pub encode: EncodeSection,
     /// Explicit run bounds.
     pub limits: LimitsSection,
 }
@@ -133,17 +149,27 @@ pub struct FramingSection {
     pub reserved_bytes: ReservedPolicy,
 }
 
-/// Byte decoding interpretation.
+/// Shared representation authority: the single codepage source the decode
+/// and encode read paths resolve. Version 1 spelled this
+/// `[decode].codepage`; version 2 fails `[decode].codepage` closed and
+/// reads only this section.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[non_exhaustive]
-pub struct DecodeSection {
+pub struct RepresentationSection {
     /// Character encoding, lowercase (`cp037`).
     #[serde(
         deserialize_with = "display_from_str",
         serialize_with = "display_to_string"
     )]
     pub codepage: Codepage,
+}
+
+/// Byte decoding interpretation: decode-only output and error policy.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
+pub struct DecodeSection {
     /// Unmappable-character policy, lowercase (`error`).
     #[serde(
         deserialize_with = "display_from_str",
@@ -156,6 +182,24 @@ pub struct DecodeSection {
         serialize_with = "display_to_string"
     )]
     pub json_numbers: JsonNumberMode,
+}
+
+/// Byte encoding interpretation: write-only policy.
+///
+/// Operation-specific unless semantics are proven identical, so encode
+/// policy lives here even where a decode-named twin exists. Runtime
+/// enforcement lands in a later #1120 slice; until then the section is
+/// parsed, fingerprinted, and resolved but does not steer the run.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
+pub struct EncodeSection {
+    /// Write-side unmappable-character policy, lowercase (`error`).
+    #[serde(
+        deserialize_with = "display_from_str",
+        serialize_with = "display_to_string"
+    )]
+    pub unmappable: UnmappablePolicy,
 }
 
 /// Explicit run bounds.
@@ -254,15 +298,57 @@ impl fmt::Display for ProfileError {
 
 impl std::error::Error for ProfileError {}
 
+/// Version 1 wire shape: the codepage authority lives under `[decode]`
+/// and there is no `[encode]` section. Deserialize-only: every version 1
+/// document migrates to [`PROFILE_SCHEMA_VERSION`] at parse.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct V1Profile {
+    /// Document schema version (1 on this path; checked by dispatch).
+    schema_version: u32,
+    /// Copybook source interpretation.
+    source: SourceSection,
+    /// Physical framing interpretation.
+    framing: FramingSection,
+    /// Version 1 decode section, codepage included.
+    decode: V1DecodeSection,
+    /// Explicit run bounds.
+    limits: LimitsSection,
+}
+
+/// Version 1 decode section.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct V1DecodeSection {
+    /// Character encoding, lowercase (`cp037`).
+    #[serde(deserialize_with = "display_from_str")]
+    codepage: Codepage,
+    /// Unmappable-character policy, lowercase (`error`).
+    #[serde(deserialize_with = "display_from_str")]
+    unmappable: UnmappablePolicy,
+    /// JSON number representation, lowercase (`lossless`).
+    #[serde(deserialize_with = "display_from_str")]
+    json_numbers: JsonNumberMode,
+}
+
 impl InterpretationProfile {
     /// Parse and validate a profile document.
+    ///
+    /// Version 1 documents migrate deterministically: `[decode].codepage`
+    /// becomes `[representation].codepage`, every other section carries
+    /// over unchanged, and `[encode].unmappable` defaults to the direct
+    /// encode behavior (`error`). The canonical rendering is always
+    /// version [`PROFILE_SCHEMA_VERSION`], so a version 1 document and its
+    /// migrated form fingerprint identically. Misplaced spellings fail
+    /// closed with a migration hint: `[representation]` or `[encode]` in a
+    /// version 1 document, and `[decode].codepage` in a version 2 document.
     ///
     /// # Errors
     ///
     /// Returns [`ProfileError`] when the document exceeds
     /// [`MAX_PROFILE_BYTES`], the TOML is malformed, carries unknown keys or
-    /// values, declares an unreadable schema version, or violates a
-    /// documented limit bound.
+    /// values, mixes version spellings, declares an unreadable schema
+    /// version, or violates a documented limit bound.
     #[must_use = "Handle the Result or propagate the error"]
     #[inline]
     pub fn parse(text: &str) -> Result<Self, ProfileError> {
@@ -270,10 +356,80 @@ impl InterpretationProfile {
         if len > MAX_PROFILE_BYTES {
             return Err(ProfileError::ProfileTooLarge { found: len });
         }
-        let profile: Self =
+        let value: toml::Value =
             toml::from_str(text).map_err(|error| ProfileError::InvalidToml(error.to_string()))?;
+        let version = value
+            .get("schema_version")
+            .and_then(toml::Value::as_integer);
+        let profile = match version {
+            Some(1) => {
+                if value.get("representation").is_some() || value.get("encode").is_some() {
+                    return Err(ProfileError::InvalidToml(
+                        "schema_version 1 predates [representation] and [encode]; move codepage \
+                         to [representation] and declare schema_version = 2 (see #1120)"
+                            .to_string(),
+                    ));
+                }
+                Self::migrate_v1(
+                    value
+                        .try_into()
+                        .map_err(|error| ProfileError::InvalidToml(error.to_string()))?,
+                )
+            }
+            Some(2) => {
+                if value
+                    .get("decode")
+                    .and_then(|decode| decode.get("codepage"))
+                    .is_some()
+                {
+                    return Err(ProfileError::InvalidToml(
+                        "schema version 2 moved codepage to [representation]; [decode].codepage \
+                         is no longer read (see #1120)"
+                            .to_string(),
+                    ));
+                }
+                value
+                    .try_into()
+                    .map_err(|error| ProfileError::InvalidToml(error.to_string()))?
+            }
+            Some(found) => {
+                return Err(ProfileError::UnsupportedVersion {
+                    found: u32::try_from(found).unwrap_or(u32::MAX),
+                });
+            }
+            None => {
+                return Err(ProfileError::InvalidToml(
+                    "profile is missing integer `schema_version`".to_string(),
+                ));
+            }
+        };
         profile.validate()?;
         Ok(profile)
+    }
+
+    /// Deterministic version 1 migration: codepage authority moves to
+    /// `[representation]`, write policy defaults to direct encode behavior.
+    fn migrate_v1(v1: V1Profile) -> Self {
+        debug_assert_eq!(
+            v1.schema_version, 1,
+            "parse dispatches version 1 documents here"
+        );
+        Self {
+            schema_version: PROFILE_SCHEMA_VERSION,
+            source: v1.source,
+            framing: v1.framing,
+            representation: RepresentationSection {
+                codepage: v1.decode.codepage,
+            },
+            decode: DecodeSection {
+                unmappable: v1.decode.unmappable,
+                json_numbers: v1.decode.json_numbers,
+            },
+            encode: EncodeSection {
+                unmappable: UnmappablePolicy::Error,
+            },
+            limits: v1.limits,
+        }
     }
 
     /// Check schema version and limit bounds.
@@ -340,9 +496,9 @@ impl InterpretationProfile {
         Ok(hex::encode(hasher.finalize()))
     }
 
-    /// Product defaults: fixed framing, CP037, lossless numbers,
-    /// error-on-unmappable, normative dialect, lenient reserved bytes,
-    /// and the documented default limits.
+    /// Product defaults: fixed framing, shared CP037 representation,
+    /// lossless numbers, error-on-unmappable both directions, normative
+    /// dialect, lenient reserved bytes, and the documented default limits.
     #[must_use]
     pub fn product_defaults() -> Self {
         Self {
@@ -354,10 +510,15 @@ impl InterpretationProfile {
                 kind: FramingKind::Fixed,
                 reserved_bytes: ReservedPolicy::Lenient,
             },
-            decode: DecodeSection {
+            representation: RepresentationSection {
                 codepage: Codepage::CP037,
+            },
+            decode: DecodeSection {
                 unmappable: UnmappablePolicy::Error,
                 json_numbers: JsonNumberMode::Lossless,
+            },
+            encode: EncodeSection {
+                unmappable: UnmappablePolicy::Error,
             },
             limits: LimitsSection {
                 maximum_record_length: DEFAULT_PROFILE_RECORD_LENGTH,
@@ -565,16 +726,78 @@ mod tests {
 
     #[test]
     fn valid_profile_parses_and_round_trips() {
+        // VALID is a version 1 document: it migrates at parse.
         let profile = InterpretationProfile::parse(VALID).expect("valid profile");
         assert_eq!(profile.schema_version, PROFILE_SCHEMA_VERSION);
         assert_eq!(profile.framing.kind, FramingKind::Rdw);
-        assert_eq!(profile.decode.codepage, Codepage::CP037);
+        assert_eq!(profile.representation.codepage, Codepage::CP037);
+        assert_eq!(profile.encode.unmappable, UnmappablePolicy::Error);
         let canonical = profile.to_canonical_toml().expect("canonical form");
+        assert!(
+            canonical.contains("schema_version = 2"),
+            "canonical rendering is version 2: {canonical}"
+        );
         let again = InterpretationProfile::parse(&canonical).expect("reparse");
         assert_eq!(profile, again);
         assert_eq!(
             profile.fingerprint().expect("fingerprints"),
             again.fingerprint().expect("fingerprints")
+        );
+    }
+
+    /// Version 2 spelling of the [`VALID`] intent: migration target.
+    const VALID_V2: &str = "schema_version = 2\n[source]\ndialect = \"normative\"\n[framing]\nkind = \"rdw\"\nreserved_bytes = \"lenient\"\n[representation]\ncodepage = \"cp037\"\n[decode]\nunmappable = \"error\"\njson_numbers = \"lossless\"\n[encode]\nunmappable = \"error\"\n[limits]\nmaximum_record_length = 32760\nmaximum_errors = 100\n";
+
+    #[test]
+    fn v1_migration_is_deterministic() {
+        let migrated = InterpretationProfile::parse(VALID).expect("v1 migrates");
+        let native = InterpretationProfile::parse(VALID_V2).expect("v2 parses");
+        assert_eq!(migrated, native, "migration reaches the v2 spelling");
+        assert_eq!(
+            migrated.to_canonical_toml().expect("canonical"),
+            native.to_canonical_toml().expect("canonical"),
+            "migration renders the canonical v2 document"
+        );
+        assert_eq!(
+            migrated.fingerprint().expect("fingerprints"),
+            native.fingerprint().expect("fingerprints"),
+            "v1 and its migrated form fingerprint identically"
+        );
+    }
+
+    #[test]
+    fn misplaced_version_spellings_fail_closed() {
+        // Version 2 spelling inside a version 1 document.
+        let v1_representation = VALID.replace(
+            "[decode]",
+            "[representation]\ncodepage = \"cp037\"\n[decode]",
+        );
+        let error =
+            InterpretationProfile::parse(&v1_representation).expect_err("v1 + representation");
+        assert!(
+            error.to_string().contains("schema_version 1 predates"),
+            "unexpected error: {error}"
+        );
+        // Version 1 spelling inside a version 2 document.
+        let v2_codepage = VALID_V2.replace("[decode]", "[decode]\ncodepage = \"cp037\"");
+        let error = InterpretationProfile::parse(&v2_codepage).expect_err("v2 + decode.codepage");
+        assert!(
+            error
+                .to_string()
+                .contains("moved codepage to [representation]"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn missing_schema_version_is_rejected() {
+        let text = VALID.replace("schema_version = 1\n", "");
+        let error = InterpretationProfile::parse(&text).expect_err("missing version");
+        assert!(
+            error
+                .to_string()
+                .contains("missing integer `schema_version`"),
+            "unexpected error: {error}"
         );
     }
 
@@ -595,9 +818,9 @@ mod tests {
 
     #[test]
     fn wrong_schema_version_is_rejected() {
-        let text = VALID.replace("schema_version = 1", "schema_version = 2");
-        let error = InterpretationProfile::parse(&text).expect_err("version 2");
-        assert_eq!(error, ProfileError::UnsupportedVersion { found: 2 });
+        let text = VALID.replace("schema_version = 1", "schema_version = 3");
+        let error = InterpretationProfile::parse(&text).expect_err("version 3");
+        assert_eq!(error, ProfileError::UnsupportedVersion { found: 3 });
     }
 
     #[test]
@@ -651,9 +874,11 @@ mod tests {
     #[test]
     fn product_defaults_match_current_behavior() {
         let defaults = InterpretationProfile::product_defaults();
-        assert_eq!(defaults.decode.codepage, Codepage::CP037);
+        assert_eq!(defaults.schema_version, PROFILE_SCHEMA_VERSION);
+        assert_eq!(defaults.representation.codepage, Codepage::CP037);
         assert_eq!(defaults.decode.unmappable, UnmappablePolicy::Error);
         assert_eq!(defaults.decode.json_numbers, JsonNumberMode::Lossless);
+        assert_eq!(defaults.encode.unmappable, UnmappablePolicy::Error);
         assert_eq!(defaults.framing.kind, FramingKind::Fixed);
         assert_eq!(defaults.source.dialect, SourceDialect::Normative);
         defaults.validate().expect("defaults validate");

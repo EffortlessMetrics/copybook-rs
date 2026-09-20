@@ -705,8 +705,8 @@ input is consumed and an over-cap RDW/VB record fails with
 above the cap fails before input is consumed and an over-cap produced
 or replayed payload fails with the same code.
 
-`encode` consumes exactly four profile intents: `source.dialect`,
-`framing.kind`, `representation.codepage`, and `limits.*` (both bounds enforced:
+`encode` consumes exactly five profile intents: `source.dialect`,
+`framing.kind`, `representation.codepage`, `encode.unmappable`, and `limits.*` (both bounds enforced:
 a fixed layout above the cap fails before input is consumed and an
 over-cap produced or replayed payload fails with
 `CBKF226_RECORD_BOUND_EXCEEDED`). Everything else is direct-only:
@@ -742,8 +742,10 @@ maximum_record_length = 32760
 maximum_errors = 100
 ```
 
-(The `[encode]` section is parsed and fingerprinted, but does not steer
-the run yet: runtime enforcement lands in a later #1120 slice.)
+(`[encode].unmappable` is enforced on the string-to-bytes path:
+`error` fails the record naming the character, `replace` writes `?`,
+`skip` drops the character. `ASCII` targets stay transparent
+pass-through under every policy.)
 
 ```bash
 # Decode entirely from reviewed intent (no --format needed)

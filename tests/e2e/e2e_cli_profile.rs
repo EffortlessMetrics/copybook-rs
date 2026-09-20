@@ -790,19 +790,111 @@ fn encode_profile_rdw_over_cap_lenient_counts_failure() {
 // is inferred from an unrelated decode-only field).
 // =========================================================================
 
+/// Fixed/CP037 profile matching `SIMPLE_CPY`, with a caller-selected
+/// write-side unmappable policy (#1120: `[encode].unmappable`).
+fn fixed_cp037_encode_profile(policy: &str) -> String {
+    format!(
+        "\
+schema_version = 2
+[source]
+dialect = \"normative\"
+[framing]
+kind = \"fixed\"
+reserved_bytes = \"lenient\"
+[representation]
+codepage = \"cp037\"
+[decode]
+unmappable = \"error\"
+json_numbers = \"lossless\"
+[encode]
+unmappable = \"{policy}\"
+[limits]
+maximum_record_length = 32760
+maximum_errors = 100
+"
+    )
+}
+
 #[test]
-fn encode_ignores_profile_unmappable_policy() {
-    // É (U+00C9) is not representable in ASCII, yet both profiles encode
-    // byte-identical output: `decode.unmappable` steers nothing on encode.
-    // (Whether encode should enforce representability is runtime policy
-    // for a later #1120 slice; this pins that the profile field is inert.)
+fn encode_enforces_profile_unmappable_policy() {
+    // 日 (U+65E5) is not representable in CP037: `error` fails the
+    // record naming CBKC301, `replace` writes `?` (0x6F), `skip` drops
+    // the character. `decode.unmappable` stays `error` throughout, so
+    // only `[encode].unmappable` can steer the run.
     let dir = tempfile::tempdir().expect("tempdir");
     let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
     let input = write_temp_file(
         &dir,
         "input.jsonl",
-        "{\"NAME\":\"ALICÉ    \",\"AMOUNT\":\"00100\"}\n".as_bytes(),
+        "{\"NAME\":\"A日       \",\"AMOUNT\":\"00100\"}\n".as_bytes(),
     );
+    let error_profile = write_temp_file(
+        &dir,
+        "error.toml",
+        fixed_cp037_encode_profile("error").as_bytes(),
+    );
+    let error_out = dir.path().join("error.bin");
+    cmd()
+        .args(["encode", "--profile"])
+        .arg(&error_profile)
+        .arg(&cpy)
+        .arg(&input)
+        .args(["--output"])
+        .arg(&error_out)
+        .assert()
+        .failure()
+        .code(5)
+        .stderr(predicate::str::contains("CBKC301_INVALID_EBCDIC_BYTE"));
+
+    let replace_profile = write_temp_file(
+        &dir,
+        "replace.toml",
+        fixed_cp037_encode_profile("replace").as_bytes(),
+    );
+    let replace_out = dir.path().join("replace.bin");
+    cmd()
+        .args(["encode", "--profile"])
+        .arg(&replace_profile)
+        .arg(&cpy)
+        .arg(&input)
+        .args(["--output"])
+        .arg(&replace_out)
+        .assert()
+        .success();
+    let replaced = std::fs::read(&replace_out).expect("read output");
+    assert_eq!(
+        &replaced[0..2],
+        &[0xC1, 0x6F],
+        "A? in CP037, got: {replaced:02X?}"
+    );
+
+    let skip_profile = write_temp_file(
+        &dir,
+        "skip.toml",
+        fixed_cp037_encode_profile("skip").as_bytes(),
+    );
+    let skip_out = dir.path().join("skip.bin");
+    cmd()
+        .args(["encode", "--profile"])
+        .arg(&skip_profile)
+        .arg(&cpy)
+        .arg(&input)
+        .args(["--output"])
+        .arg(&skip_out)
+        .assert()
+        .success();
+    let skipped = std::fs::read(&skip_out).expect("read output");
+    assert_eq!(&skipped[0..1], &[0xC1], "dropped char, got: {skipped:02X?}");
+    assert_ne!(replaced, skipped, "replace and skip must differ");
+}
+
+#[test]
+fn encode_ignores_decode_unmappable_policy() {
+    // `decode.unmappable` still steers nothing on encode: error vs
+    // replace there leave the `[encode]` default in force.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
+    let input = write_temp_file(&dir, "input.jsonl", SIMPLE_JSONL.as_bytes());
     let mut outputs = Vec::new();
     for policy in ["error", "replace"] {
         let profile = write_temp_file(

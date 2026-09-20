@@ -510,6 +510,10 @@ fn run_encode_command(command: Commands, feature_flags: &FeatureFlags) -> Comman
         Ok(common) => common,
         Err(error) => return profile_failure("encode", &error),
     };
+    let encode_only = match crate::profile_inputs::resolve_encode(loaded.as_ref()) {
+        Ok(encode_only) => encode_only,
+        Err(error) => return profile_failure("encode", &error),
+    };
     // Same inputs as `encode::run`'s own error-policy computation, so the
     // direct (profile-less) policy agrees with the run by construction.
     let strict_mode =
@@ -553,6 +557,7 @@ fn run_encode_command(command: Commands, feature_flags: &FeatureFlags) -> Comman
                 float_format,
                 dialect: common.dialect,
                 select: &select,
+                on_encode_unmappable: encode_only.unmappable,
             },
             feature_flags,
         ),

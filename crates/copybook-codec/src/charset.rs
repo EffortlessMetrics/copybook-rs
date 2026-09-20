@@ -5,4 +5,5 @@
 
 pub use copybook_charset::{
     Codepage, UnmappablePolicy, ebcdic_to_utf8, get_zoned_sign_table, space_byte, utf8_to_ebcdic,
+    utf8_to_ebcdic_with_policy,
 };

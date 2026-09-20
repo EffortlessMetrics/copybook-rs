@@ -373,3 +373,224 @@ fn inspect_emit_manifest_byte_bound_leaves_no_file() {
         "a bound failure leaves no partial manifest"
     );
 }
+
+// =========================================================================
+// Ownership queries (#1122 slice 1)
+// =========================================================================
+// Static field-to-byte and byte-to-field answers over a manifest document
+// or a copybook/profile pair, with identical machine results from both
+// inputs and closed refusals for unanswerable paths.
+
+/// Byte query over copybook/profile names the leaf owner and containers.
+#[test]
+fn inspect_query_byte_names_owner() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+
+    cmd()
+        .args(["inspect", "--profile"])
+        .arg(&profile)
+        .args(["--payload-byte", "2"])
+        .arg(&copybook)
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("Ownership query: payload byte 2"))
+        .stdout(predicates::str::contains("State: owned"))
+        .stdout(predicates::str::contains("PRIMARY"))
+        .stdout(predicates::str::contains("CUSTOMER-RECORD.CUSTOMER-ID"))
+        .stdout(predicates::str::contains("0..6"))
+        .stdout(predicates::str::contains("CONTAINER"))
+        .stdout(predicates::str::contains("Profile: sha256:"));
+}
+
+/// Manifest-backed and source-backed queries answer byte-identically.
+#[test]
+fn inspect_query_manifest_matches_source() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let manifest_path = dir.path().join("simple.manifest.json");
+
+    cmd()
+        .args(["inspect", "--profile"])
+        .arg(&profile)
+        .args(["--emit-manifest"])
+        .arg(&manifest_path)
+        .arg(&copybook)
+        .assert()
+        .success();
+
+    let from_manifest = cmd()
+        .args(["inspect", "--manifest"])
+        .arg(&manifest_path)
+        .args(["--payload-byte", "38"])
+        .output()
+        .expect("manifest query");
+    assert_eq!(from_manifest.status.code(), Some(0));
+
+    let from_source = cmd()
+        .args(["inspect", "--profile"])
+        .arg(&profile)
+        .args(["--payload-byte", "38"])
+        .arg(&copybook)
+        .output()
+        .expect("source query");
+    assert_eq!(from_source.status.code(), Some(0));
+    assert_eq!(
+        from_source.stdout, from_manifest.stdout,
+        "both inputs answer byte-identically"
+    );
+    let stdout = String::from_utf8(from_manifest.stdout).expect("utf8 stdout");
+    assert!(stdout.contains("ACCOUNT-BALANCE"));
+    assert!(stdout.contains("36..41"));
+}
+
+/// Field query with JSON output binds identities and carries no local paths.
+#[test]
+fn inspect_query_field_json_binds_identities() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+
+    let output = cmd()
+        .args(["inspect", "--profile"])
+        .arg(&profile)
+        .args(["--field", "account-balance", "--output", "json"])
+        .arg(&copybook)
+        .output()
+        .expect("field query json");
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("answer parses");
+    assert_eq!(parsed["query"]["kind"], "field_path");
+    assert_eq!(parsed["coordinate_system"], "payload-relative");
+    assert!(
+        parsed["manifest_fingerprint"]
+            .as_str()
+            .expect("fingerprint")
+            .starts_with("sha256-v1:")
+    );
+    assert_eq!(parsed["state"], "owned");
+    let matches = parsed["matches"].as_array().expect("matches");
+    assert_eq!(matches[0]["path"], "CUSTOMER-RECORD.ACCOUNT-BALANCE");
+    assert_eq!(matches[0]["role"], "primary");
+    assert_eq!(matches[0]["offset"], 36);
+    // Machine output carries fingerprints, never local paths.
+    fn no_paths(value: &serde_json::Value, needle: &str) {
+        match value {
+            serde_json::Value::String(text) => assert!(
+                !text.contains(needle),
+                "machine output leaks a local path: {text}"
+            ),
+            serde_json::Value::Array(items) => {
+                items.iter().for_each(|item| no_paths(item, needle));
+            }
+            serde_json::Value::Object(fields) => {
+                fields.values().for_each(|item| no_paths(item, needle));
+            }
+            _ => {}
+        }
+    }
+    let dir_str = dir.path().to_str().expect("tempdir utf8");
+    no_paths(&parsed, dir_str);
+}
+
+/// Unknown field paths fail closed with exit 3.
+#[test]
+fn inspect_query_unknown_field_fails_closed() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+
+    cmd()
+        .args(["inspect", "--profile"])
+        .arg(&profile)
+        .args(["--field", "NOPE"])
+        .arg(&copybook)
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicates::str::contains("unknown field path 'NOPE'"));
+}
+
+/// Ambiguous short names fail closed naming every candidate.
+#[test]
+fn inspect_query_ambiguous_short_name_fails_closed() {
+    const AMBIGUOUS_COPYBOOK: &str = "       01  REC.\n           05  LEFT.\n               10  CODE PIC X(2).\n           05  RIGHT.\n               10  CODE PIC X(2).\n";
+    let dir = tempfile::tempdir().expect("tempdir");
+    let copybook = write_temp_file(&dir, "ambiguous.cpy", AMBIGUOUS_COPYBOOK.as_bytes());
+
+    cmd()
+        .args(["inspect", "--format", "fixed", "--field", "CODE"])
+        .arg(&copybook)
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicates::str::contains("ambiguous field path 'CODE'"))
+        .stderr(predicates::str::contains("REC.LEFT.CODE"))
+        .stderr(predicates::str::contains("REC.RIGHT.CODE"));
+}
+
+/// Bytes past the record extent report an explicit state with exit 0.
+#[test]
+fn inspect_query_out_of_range_reports_state() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+
+    cmd()
+        .args(["inspect", "--profile"])
+        .arg(&profile)
+        .args(["--payload-byte", "50"])
+        .arg(&copybook)
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("State: out of range"));
+}
+
+/// `--manifest` with `COPYBOOK` is a contradiction, never a silent default.
+#[test]
+fn inspect_query_manifest_and_copybook_conflict() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let manifest_path = dir.path().join("simple.manifest.json");
+
+    cmd()
+        .args(["inspect", "--profile"])
+        .arg(&profile)
+        .args(["--emit-manifest"])
+        .arg(&manifest_path)
+        .arg(&copybook)
+        .assert()
+        .success();
+
+    cmd()
+        .args(["inspect", "--manifest"])
+        .arg(&manifest_path)
+        .args(["--payload-byte", "2"])
+        .arg(&copybook)
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicates::str::contains("--manifest reads no copybook"));
+}
+
+/// REDEFINES bytes report one storage owner plus views.
+#[test]
+fn inspect_query_redefines_reports_owner_and_views() {
+    const REDEFINES_COPYBOOK: &str = "       01  REC.\n           05  PRIMARY  PIC X(6).\n           05  SECONDARY  REDEFINES PRIMARY PIC 9(6).\n";
+    let dir = tempfile::tempdir().expect("tempdir");
+    let copybook = write_temp_file(&dir, "redefines.cpy", REDEFINES_COPYBOOK.as_bytes());
+
+    cmd()
+        .args(["inspect", "--format", "fixed", "--payload-byte", "2"])
+        .arg(&copybook)
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("PRIMARY"))
+        .stdout(predicates::str::contains("VIEW"))
+        .stdout(predicates::str::contains("REC.SECONDARY"))
+        .stdout(predicates::str::contains("Profile: direct"));
+}

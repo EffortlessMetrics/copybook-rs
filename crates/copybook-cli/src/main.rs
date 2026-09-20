@@ -71,6 +71,22 @@ pub mod subcode {
     /// Policy enforcement: an environment input (today `COPYBOOK_DIALECT`)
     /// names no known value. Rejected explicitly; never a silent default.
     pub const ENV_INVALID: u16 = 406;
+    /// Query guardrail: the inspect ownership selectors contradict each
+    /// other or their input (`--payload-byte` with `--field`, `--manifest`
+    /// with `COPYBOOK` or `--profile`, a query with no input). The run
+    /// stops; pass exactly one selector and one input.
+    pub const QUERY_CONTRADICTION: u16 = 407;
+    /// Query guardrail: the requested field path names no field, alias, or
+    /// condition, or a short name matches several entries. The run stops;
+    /// qualify the full dotted path.
+    pub const QUERY_UNANSWERABLE: u16 = 408;
+    /// Query guardrail: the `--manifest` document cannot be read. Distinct
+    /// from `MANIFEST_INVALID`: a missing or unreadable path is not invalid
+    /// contents, and default machine output stays path-safe.
+    pub const MANIFEST_UNREADABLE: u16 = 409;
+    /// Query guardrail: the `--manifest` document is not a valid
+    /// resolved-schema manifest.
+    pub const MANIFEST_INVALID: u16 = 410;
 }
 
 fn invocation_id() -> &'static str {
@@ -224,8 +240,13 @@ enum Commands {
         after_help = "Comments: inline (*>) allowed by default; use --strict-comments to disable."
     )]
     Inspect {
-        /// Copybook file path
-        copybook: PathBuf,
+        /// Copybook file path (required unless --manifest answers the query)
+        copybook: Option<PathBuf>,
+        /// Record format (explicit, no auto-detection). Supplies framing for
+        /// source-backed ownership queries unless --profile does; the legacy
+        /// layout report and --emit-manifest need no flag.
+        #[arg(long)]
+        format: Option<RecordFormat>,
         /// Character encoding: ascii, cp037, cp273, cp500, cp1047, or cp1140.
         #[arg(long, value_parser = crate::cli_config::parse_codepage)]
         codepage: Option<Codepage>,
@@ -250,6 +271,23 @@ enum Commands {
         /// exists. Without this flag, emission refuses to replace a file.
         #[arg(long, requires = "emit_manifest")]
         overwrite_manifest: bool,
+        /// Answer an ownership query from a pre-generated manifest document.
+        /// Reads no copybook and no record data; conflicts with COPYBOOK
+        /// and --profile, which the manifest already binds.
+        #[arg(long, value_name = "FILE")]
+        manifest: Option<PathBuf>,
+        /// Payload-relative byte to own. Exactly one of --payload-byte
+        /// and --field starts query mode.
+        #[arg(long, value_name = "N")]
+        payload_byte: Option<u32>,
+        /// Field path to locate (full dotted path or a unique short name,
+        /// case-insensitive). Exactly one of --payload-byte and --field
+        /// starts query mode.
+        #[arg(long, value_name = "PATH")]
+        field: Option<String>,
+        /// Query rendering: human or json (default: human).
+        #[arg(long, value_enum, default_value = "human")]
+        output: crate::commands::inspect::InspectQueryFormat,
     },
     /// Decode binary data to JSONL
     #[command(

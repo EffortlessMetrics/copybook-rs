@@ -775,3 +775,68 @@ fn cobol_manifest_rejects_empty_renames_and_misordered_storage() {
         "got {err}"
     );
 }
+
+/// OCCURS repetition bounds ride the `fields` wire items (#1122).
+const OCCURS_COPYBOOK: &str = concat!(
+    "       01 TBL-REC.\n",
+    "           05 CELLS PIC X(4) OCCURS 3 TIMES.\n",
+    "           05 HOWMANY PIC 9(2).\n",
+    "           05 AMOUNTS OCCURS 1 TO 5 TIMES DEPENDING ON HOWMANY PIC X(3).\n",
+);
+
+fn generate_manifest_for(copybook: &str, root: &str) -> ResolvedManifest {
+    let profile = InterpretationProfile::parse(JOURNEY_PROFILE).expect("profile parses");
+    let bundle = SourceBundle::single(root, copybook.as_bytes()).expect("bundle builds");
+    let mut schema = parse_copybook(copybook).expect("copybook parses");
+    resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
+    ResolvedManifest::generate(test_inputs(&bundle, &schema, Some(&profile)))
+        .expect("manifest generates")
+}
+
+#[test]
+fn cobol_manifest_fields_carry_occurs_bounds() {
+    let manifest = generate_manifest_for(OCCURS_COPYBOOK, "TBL-REC");
+    let cells = manifest
+        .fields
+        .iter()
+        .find(|field| field.path == "TBL-REC.CELLS")
+        .expect("fixed table present");
+    let fixed = cells.occurs.as_ref().expect("fixed occurs present");
+    assert_eq!(fixed.kind, "fixed");
+    assert_eq!(fixed.count, 3);
+    assert_eq!(fixed.min_count, 3);
+    assert!(fixed.counter_path.is_none());
+
+    let amounts = manifest
+        .fields
+        .iter()
+        .find(|field| field.path == "TBL-REC.AMOUNTS")
+        .expect("odo table present");
+    let odo = amounts.occurs.as_ref().expect("odo occurs present");
+    assert_eq!(odo.kind, "odo");
+    assert_eq!(odo.count, 5);
+    assert_eq!(odo.min_count, 1);
+    assert_eq!(odo.counter_path.as_deref(), Some("HOWMANY"));
+
+    let scalar = manifest
+        .fields
+        .iter()
+        .find(|field| field.path == "TBL-REC.HOWMANY")
+        .expect("scalar present");
+    assert!(scalar.occurs.is_none());
+}
+
+#[test]
+fn cobol_manifest_omits_occurs_for_scalar_layouts() {
+    // Scalar-only manifests must re-serialize without the optional key so
+    // pre-existing fingerprints stay stable.
+    let manifest = generate_manifest();
+    let value: serde_json::Value =
+        serde_json::from_slice(&manifest.to_json().expect("serializes")).expect("json parses");
+    for field in value["fields"].as_array().expect("fields array") {
+        assert!(
+            field.get("occurs").is_none(),
+            "scalar field carries no occurs key: {field}"
+        );
+    }
+}

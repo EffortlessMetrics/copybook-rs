@@ -28,6 +28,7 @@ pub mod file;
 pub mod iterator;
 /// Core library API: record decode/encode and file-level processing.
 pub mod lib_api;
+pub mod ownership;
 /// Codec-owned runtime support for scratch buffers, streaming, and workers.
 pub mod runtime;
 /// Compatibility alias for the pre-0.6 memory module path.

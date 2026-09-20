@@ -177,7 +177,18 @@
           "kind": {"type": "string"},
           "redefines": {"type": ["string", "null"]},
           "synchronized": {"type": "boolean"},
-          "blank_when_zero": {"type": "boolean"}
+          "blank_when_zero": {"type": "boolean"},
+          "occurs": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "required": ["kind", "count", "min_count"],
+            "properties": {
+              "kind": {"type": "string", "enum": ["fixed", "odo"]},
+              "count": {"type": "integer", "minimum": 1, "description": "Fixed repetition count, or the ODO maximum."},
+              "min_count": {"type": "integer", "minimum": 0, "description": "Minimum repetitions; equals count for fixed tables."},
+              "counter_path": {"type": "string", "description": "ODO counter field path; absent for fixed tables."}
+            }
+          }
         }
       }
     },

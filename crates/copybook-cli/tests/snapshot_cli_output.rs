@@ -174,9 +174,16 @@ fn snapshot_inspect_help_shows_expected_options() -> TestResult<()> {
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout)?;
 
-    assert!(stdout.contains("<COPYBOOK>"), "missing COPYBOOK argument");
+    // COPYBOOK is optional so manifest-backed queries parse.
+    assert!(stdout.contains("[COPYBOOK]"), "missing COPYBOOK argument");
     assert!(stdout.contains("--codepage"), "missing --codepage option");
     assert!(stdout.contains("--dialect"), "missing --dialect option");
+    assert!(
+        stdout.contains("--payload-byte"),
+        "missing --payload-byte option"
+    );
+    assert!(stdout.contains("--field"), "missing --field option");
+    assert!(stdout.contains("--manifest"), "missing --manifest option");
 
     Ok(())
 }

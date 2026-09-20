@@ -1013,7 +1013,7 @@ The complete command-level table, including `CBK?` and command-specific
 
 ## Error Code Index
 
-All 71 stable error codes across 10 families:
+All 72 stable error codes across 10 families:
 
 | Code | Category | Severity | Description |
 |------|----------|----------|-------------|

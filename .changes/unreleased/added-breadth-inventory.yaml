@@ -1,0 +1,15 @@
+kind: added
+body: '**research**: external breadth decision packet for #1007 with a runnable
+  JRecord differential seed for #1021. `docs/evidence/differential-breadth/`
+  carries a machine-readable 11-row capability inventory (story, physical and
+  layout organization, fixtures, external implementations, current behavior,
+  oracle, read/write/accounting requirements, stability class, 0.10 / 0.11 /
+  beta-later selection, rationale, stop rule) plus the executed-lane notes.
+  `scripts/differential-jrecord.sh` provisions the pinned JRecord 0.93.2
+  bundle by digest into a verified cache and runs five lanes (varied VB,
+  line-delimited text, short fixed tail, multi-01, generic prefix) with
+  closed-vocabulary classifications. Selections: 0.10 takes line-delimited
+  text, retained fixed-blocked policy, and varied-VB underflow policy;
+  prefixes, field lengths, discriminator breadth, multisegment assembly, and
+  the framing seam go to 0.11. Cobrix lanes stay inconclusive (no Spark).'
+time: '2026-09-20T12:15:00Z'

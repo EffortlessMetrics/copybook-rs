@@ -705,12 +705,21 @@ input is consumed and an over-cap RDW/VB record fails with
 above the cap fails before input is consumed and an over-cap produced
 or replayed payload fails with the same code.
 
-All keys except `decode.json_numbers` apply to `encode` as well.
-`limits.maximum_record_length` is enforced on encode paths: a fixed
-layout above the cap fails before input is consumed and an over-cap
-produced or replayed payload fails with
-`CBKF226_RECORD_BOUND_EXCEEDED`. `framing.reserved_bytes` has no effect
-on encode (writers emit zero reserved bytes).
+`encode` consumes exactly four profile intents: `source.dialect`,
+`framing.kind`, `decode.codepage`, and `limits.*` (both bounds enforced:
+a fixed layout above the cap fails before input is consumed and an
+over-cap produced or replayed payload fails with
+`CBKF226_RECORD_BOUND_EXCEEDED`). Everything else is direct-only:
+`decode.unmappable` and `decode.json_numbers` are ignored by `encode`
+(no Encode decision is inferred from a decode-named field), and
+`--use-raw`, `--bwz-encode`, `--strict`, `--coerce-numbers`,
+`--zoned-encoding-override`, `--float-format`, `--threads`, `--select`,
+and the fail-fast/continue policy have no profile counterpart (the
+profile supplies only the `maximum_errors` budget). `decode.codepage`
+under `[decode]` is a provisional borrowing pending the shared/encode
+schema split (#1120); `framing.reserved_bytes` has no effect on canonical
+emission (writers emit zero reserved bytes) and does not govern
+`--use-raw` replay of stored `record+rdw` bytes, which is direct-only.
 
 ```toml
 schema_version = 1

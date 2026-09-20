@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::unreachable)]
 // SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, TextTerminator,
     UnmappablePolicy, ZonedEncodingFormat, decode_record, decode_record_with_scratch,
     encode_record, memory::ScratchBuffers,
 };
@@ -22,6 +22,7 @@ fn make_opts() -> (EncodeOptions, DecodeOptions) {
         codepage: Codepage::CP037,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
         float_format: copybook_codec::FloatFormat::IeeeBigEndian,
+        text_terminator: TextTerminator::default(),
         use_raw: false,
         bwz_encode: false,
         strict_mode: true,

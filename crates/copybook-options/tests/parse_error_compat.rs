@@ -24,7 +24,7 @@ fn encoding_compatibility_package_forwards_typed_parse_contract() -> Result<(), 
 
     assert_eq!(error.kind(), CodecOptionKind::RecordFormat);
     assert_eq!(error.input(), "stream");
-    assert_eq!(error.accepted_spellings(), &["fixed", "rdw"]);
+    assert_eq!(error.accepted_spellings(), &["fixed", "rdw", "vb", "text"]);
     assert_eq!(error.to_string(), "unsupported record format `stream`");
     Ok(())
 }

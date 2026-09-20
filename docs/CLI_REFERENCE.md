@@ -195,7 +195,7 @@ copybook decode <COPYBOOK> <DATA> [OPTIONS]
 **Output:**
 - `-o, --output <FILE>` - Output JSONL file (required; use `-` for stdout)
 - `--profile <FILE>` - Reviewed interpretation profile (TOML); supplies framing, decode options, dialect, and error budget (see Interpretation Profiles)
-- `--format <FORMAT>` - Record format: fixed, rdw (required unless `--profile` supplies framing)
+- `--format <FORMAT>` - Record format: fixed, rdw, vb, text (required unless `--profile` supplies framing). `text` decodes LF/CRLF-terminated lines with fixed-width payloads; the final line may omit its terminator, and short/long lines fail with `CBKR101` naming expected/actual lengths
 - `--select <FIELD[,FIELD...]>` - Include only specific fields in output (comma-separated or repeated); ODO counters and parent groups are included automatically
 
 **Character Encoding:**
@@ -297,7 +297,7 @@ copybook encode <COPYBOOK> <JSONL> [OPTIONS]
 **Output:**
 - `-o, --output <FILE>` - Output binary file (required; use `-` for stdout)
 - `--profile <FILE>` - Reviewed interpretation profile (TOML); supplies framing, codepage, dialect, and error budget (see Interpretation Profiles)
-- `--format <FORMAT>` - Record format: fixed, rdw (required unless `--profile` supplies framing)
+- `--format <FORMAT>` - Record format: fixed, rdw, vb, text (required unless `--profile` supplies framing). `text` emits one LF/CRLF-terminated line per record (see `--text-terminator`)
 - `--select <FIELD[,FIELD...]>` - Validate only specific fields during encoding (comma-separated or repeated); ODO counters and parent groups are included automatically
 
 **Character Encoding:**
@@ -308,6 +308,7 @@ copybook encode <COPYBOOK> <JSONL> [OPTIONS]
   distinguishes payload-only `record` bytes from framed `record+rdw` bytes for RDW output
 - `--bwz-encode` - Encode zero values as spaces for BLANK WHEN ZERO fields
 - `--coerce-numbers` - Coerce non-string JSON numbers to strings before encoding
+- `--text-terminator <TERM>` - Line terminator under `--format text`: lf, crlf (default: lf)
 
 **Zoned Decimal Encoding (Experimental):**
 - `--zoned-encoding-override <FORMAT>` - Override zoned decimal format: ascii, ebcdic (default: respect preserved formats)
@@ -376,7 +377,7 @@ copybook verify <COPYBOOK> <DATA> [OPTIONS]
 
 **Options:**
 - `--profile <FILE>` - Reviewed interpretation profile (TOML); supplies framing, codepage, dialect, and error budget (see Interpretation Profiles)
-- `--format <FORMAT>` - Record format: fixed, rdw (required unless `--profile` supplies framing)
+- `--format <FORMAT>` - Record format: fixed, rdw, vb, text (required unless `--profile` supplies framing)
 - `--codepage <CP>` - Character encoding (default: cp037)
 - `--strict` - Enable strict mode validation
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility (affects copybook parsing only, not data validation)
@@ -455,7 +456,7 @@ copybook determinism <MODE> <COPYBOOK> <INPUT> [OPTIONS]
 
 **Options (shared by all modes):**
 - `--profile <FILE>` - Reviewed interpretation profile (TOML); supplies framing, codepage, dialect, and decode/encode policy (see Interpretation Profiles). A flag that disagrees with the profile is a contradiction (exit 3)
-- `--format <FORMAT>` - Record format: fixed, rdw (required unless `--profile` supplies framing)
+- `--format <FORMAT>` - Record format: fixed, rdw, vb, text (required unless `--profile` supplies framing)
 - `--codepage <CP>` - Character encoding (default: cp037)
 - `--json-number <MODE>` - JSON number format: lossless, native (default: lossless)
 - `--emit-meta` - Include metadata in JSON output (direct presentation-only flag, never from a profile)
@@ -557,7 +558,7 @@ copybook doctor <COPYBOOK> [INPUT] [OPTIONS]
 - `[INPUT]` - Path to data file (omit for copybook-only diagnosis)
 
 **Options:**
-- `--format <FORMAT>` - Record format: fixed, rdw, vb (omit to probe all three framings; an ambiguous probe stays inconclusive instead of guessing)
+- `--format <FORMAT>` - Record format: fixed, rdw, vb, text (omit to probe all four framings; an ambiguous probe stays inconclusive instead of guessing)
 - `--codepage <CP>` - Character encoding: ascii, cp037, cp273, cp500, cp1047, cp1140 (omit to probe)
 - `--sample <N>` - Trial-decode this many leading records, 0 skips trial decode (default: 3)
 - `--json` - Emit a machine-readable JSON report
@@ -949,6 +950,12 @@ Binary field sizes are determined by PIC digits: ≤4→16b, 5–9→32b, 10–1
 - Bytes 0-1: big-endian data length (excluding RDW)
 - Bytes 2-3: reserved (should be 0x0000)
 - Use `--format rdw`
+
+### Line-Delimited Text Records
+- One fixed-width payload per LF/CRLF-terminated line
+- Terminators are framing: excluded from payloads and raw capture
+- Final line may omit its terminator; short/long lines fail with `CBKR101`
+- Use `--format text` (encode terminator: `--text-terminator lf|crlf`)
 
 ## JSON Output Format
 

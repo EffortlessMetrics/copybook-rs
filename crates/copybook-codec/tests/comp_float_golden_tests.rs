@@ -10,7 +10,7 @@
 
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat,
-    UnmappablePolicy, ZonedEncodingFormat, decode_record, encode_record,
+    TextTerminator, UnmappablePolicy, ZonedEncodingFormat, decode_record, encode_record,
 };
 use copybook_core::parse_copybook;
 
@@ -47,6 +47,7 @@ fn encode_opts_ieee() -> EncodeOptions {
         json_number_mode: JsonNumberMode::Native,
         zoned_encoding_override: None,
         float_format: FloatFormat::IeeeBigEndian,
+        text_terminator: TextTerminator::default(),
     }
 }
 
@@ -60,6 +61,7 @@ fn decode_opts_ibm() -> DecodeOptions {
 fn encode_opts_ibm() -> EncodeOptions {
     EncodeOptions {
         float_format: FloatFormat::IbmHex,
+        text_terminator: TextTerminator::default(),
         ..encode_opts_ieee()
     }
 }

@@ -9,7 +9,7 @@ use crate::utils::{
 };
 use crate::{write_stderr_all, write_stdout_all};
 use anyhow::bail;
-use copybook::codec::{Codepage, EncodeOptions, FloatFormat, RecordFormat};
+use copybook::codec::{Codepage, EncodeOptions, FloatFormat, RecordFormat, TextTerminator};
 use std::fmt::Write as _;
 use std::path::Path;
 use tracing::info;
@@ -29,6 +29,7 @@ pub struct EncodeCliOptions<'a> {
     pub strict_comments: bool,
     pub zoned_encoding_override: Option<copybook::codec::ZonedEncodingFormat>,
     pub float_format: FloatFormat,
+    pub text_terminator: TextTerminator,
     pub dialect: copybook::core::dialect::Dialect,
     pub select: &'a [String],
     pub execution_policy: copybook::codec::ExecutionPolicy,
@@ -75,7 +76,8 @@ pub fn run(
         .with_coerce_numbers(options.coerce_numbers)
         .with_zoned_encoding_override(options.zoned_encoding_override)
         .with_unmappable_policy(options.on_encode_unmappable)
-        .with_float_format(options.float_format);
+        .with_float_format(options.float_format)
+        .with_text_terminator(options.text_terminator);
 
     let (summary, write_to_stdout) =
         run_with_output(input, output, |input_file, output_writer| {

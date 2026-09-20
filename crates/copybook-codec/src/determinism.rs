@@ -355,7 +355,7 @@ fn validate_decode_input(
     strict_mode: bool,
 ) -> Result<()> {
     match format {
-        crate::options::RecordFormat::Fixed => {
+        crate::options::RecordFormat::Fixed | crate::options::RecordFormat::Text => {
             if let Some(lrecl) = schema.lrecl_fixed {
                 policy.check_fixed_lrecl(lrecl)?;
             }

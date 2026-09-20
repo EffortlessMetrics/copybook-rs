@@ -18,7 +18,7 @@ use clap::Args;
 use clap::error::ErrorKind as ClapErrorKind;
 use clap::{ColorChoice, Parser, Subcommand};
 use copybook::codec::{
-    Codepage, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
+    Codepage, FloatFormat, JsonNumberMode, RawMode, RecordFormat, TextTerminator, UnmappablePolicy,
 };
 use copybook::core::{Error as CoreError, Feature};
 use std::borrow::Cow;
@@ -433,6 +433,9 @@ Field Projection:\n\
         /// COMP-1/COMP-2 floating-point binary format.
         #[arg(long, default_value = "ieee-be")]
         float_format: FloatFormat,
+        /// Line terminator emitted after each record under `--format text`.
+        #[arg(long, default_value = "lf")]
+        text_terminator: TextTerminator,
         /// Dialect for ODO `min_count` interpretation (n=normative, 0=zero-tolerant, 1=one-tolerant)
         #[arg(long, value_enum)]
         dialect: Option<DialectPreference>,

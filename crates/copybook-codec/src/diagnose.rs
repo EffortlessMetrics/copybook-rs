@@ -276,7 +276,7 @@ pub fn diagnose(
         codepage_explicit || (codepage_winner && trial.all_decoded && trial.framed > 0);
     diagnosis.evidence.variable_layout = lrecl.is_none();
     let (record_length, record_length_exact) = match resolved_format {
-        RecordFormat::Fixed => (lrecl.map(u64::from), true),
+        RecordFormat::Fixed | RecordFormat::Text => (lrecl.map(u64::from), true),
         RecordFormat::RDW => (trial.max_wire_len, false),
         RecordFormat::Vb => (None, false),
     };
@@ -306,7 +306,9 @@ fn scan_reserved_nonzero(bytes: &[u8], format: RecordFormat, limit: usize) -> bo
         return false;
     }
     match format {
-        RecordFormat::Fixed => false,
+        // Fixed framing has no reserved bytes; text terminators are
+        // framing, not reserved bytes either.
+        RecordFormat::Fixed | RecordFormat::Text => false,
         RecordFormat::RDW => {
             let mut reader = RDWRecordReader::new(Cursor::new(bytes), true);
             for _ in 0..limit {
@@ -509,7 +511,78 @@ fn confirm_format(
         RecordFormat::Fixed => confirm_fixed(diagnosis, total_bytes, lrecl),
         RecordFormat::RDW => confirm_rdw(diagnosis, bytes, scope_complete),
         RecordFormat::Vb => confirm_vb(diagnosis, bytes, scope_complete),
+        RecordFormat::Text => confirm_text(diagnosis, bytes, lrecl),
     }
+}
+
+/// Confirm an explicit text request: every line payload must hold exactly
+/// `lrecl` bytes after terminator stripping, tolerating a final line
+/// without a terminator.
+fn confirm_text(diagnosis: &mut Diagnosis, bytes: &[u8], lrecl: Option<u32>) {
+    let Some(len) = lrecl.map(usize::try_from).and_then(Result::ok) else {
+        push(
+            &mut *diagnosis,
+            DiagnosisFinding {
+                check: "format-confirm",
+                status: DiagnosisStatus::Warn,
+                detail: "variable-length layout with text framing requested".to_string(),
+                code: None,
+                remediation: "Use RDW framing for variable records, or check the ODO definition."
+                    .to_string(),
+                next: None,
+            },
+        );
+        return;
+    };
+    match split_text_payloads(bytes) {
+        payloads if !payloads.is_empty() && payloads.iter().all(|line| line.len() == len) => {
+            push(
+                &mut *diagnosis,
+                DiagnosisFinding {
+                    check: "format-confirm",
+                    status: DiagnosisStatus::Pass,
+                    detail: format!(
+                        "{} line(s) frame as text records ({len} bytes each)",
+                        payloads.len()
+                    ),
+                    code: None,
+                    remediation: String::new(),
+                    next: None,
+                },
+            );
+        }
+        _ => {
+            push(
+                &mut *diagnosis,
+                DiagnosisFinding {
+                    check: "format-confirm",
+                    status: DiagnosisStatus::Warn,
+                    detail: format!(
+                        "bytes do not frame as {len}-byte text lines; short/long lines are rejected"
+                    ),
+                    code: Some("CBKR101_FIXED_RECORD_ERROR".to_string()),
+                    remediation: remediation_for("CBKR101_FIXED_RECORD_ERROR"),
+                    next: None,
+                },
+            );
+        }
+    }
+}
+
+/// Split text-framed bytes into payloads: LF terminates, one CR before the
+/// LF is stripped, and a final unterminated line is accepted. Splitting
+/// never refuses; length policy belongs to the caller.
+fn split_text_payloads(bytes: &[u8]) -> Vec<Vec<u8>> {
+    let mut chunks: Vec<&[u8]> = bytes.split(|byte| *byte == b'\n').collect();
+    // A final LF terminates the last line; the split residue after it is
+    // not a new (empty) line.
+    if bytes.last() == Some(&b'\n') {
+        chunks.pop();
+    }
+    chunks
+        .iter()
+        .map(|chunk| chunk.strip_suffix(b"\r").unwrap_or(chunk).to_vec())
+        .collect()
 }
 
 /// Confirm an explicit fixed request against the full file size.
@@ -648,6 +721,23 @@ fn probe_format(
     };
     let rdw_fits = read_rdw_records(bytes, 3, scope_complete, true).is_some();
     let vb_fits = read_vb_records(bytes, 3, scope_complete, true).is_some();
+    // Text fits when the bytes carry line structure (at least one LF
+    // terminator) and every line payload holds the known layout width (or
+    // a single consistent width when the layout is variable). A lone
+    // newline-free run of exactly `lrecl` bytes is fixed evidence, not
+    // text evidence.
+    let text_fits = {
+        bytes.contains(&b'\n') && {
+            let payloads = split_text_payloads(bytes);
+            !payloads.is_empty()
+                && if let Some(len) = lrecl {
+                    payloads.iter().all(|line| line.len() == len as usize)
+                } else {
+                    let first = payloads[0].len();
+                    first > 0 && payloads.iter().all(|line| line.len() == first)
+                }
+        }
+    };
     if bytes.len() >= 4 && rdw_is_suspect_ascii_corruption_slice(&bytes[..4]) {
         push(
             &mut *diagnosis,
@@ -672,6 +762,9 @@ fn probe_format(
     if vb_fits {
         fits.push(RecordFormat::Vb);
     }
+    if text_fits {
+        fits.push(RecordFormat::Text);
+    }
     match fits.as_slice() {
         [single] => {
             probe_pass(diagnosis, format_probe_name(*single));
@@ -681,7 +774,7 @@ fn probe_format(
             push(&mut *diagnosis, DiagnosisFinding {
                 check: "format-probe",
                 status: DiagnosisStatus::Fail,
-                detail: "bytes fit neither fixed, RDW, nor VB framing".to_string(),
+                detail: "bytes fit neither fixed, RDW, VB, nor text framing".to_string(),
                 code: None,
                 remediation: "Check the transfer mode (binary, not text), the record length, and whether the file carries BDW block headers."
                     .to_string(),
@@ -723,6 +816,7 @@ fn format_probe_name(format: RecordFormat) -> &'static str {
         RecordFormat::Fixed => "fixed",
         RecordFormat::RDW => "RDW",
         RecordFormat::Vb => "VB",
+        RecordFormat::Text => "text",
     }
 }
 
@@ -732,6 +826,7 @@ fn format_flag_name(format: RecordFormat) -> &'static str {
         RecordFormat::Fixed => "fixed",
         RecordFormat::RDW => "rdw",
         RecordFormat::Vb => "vb",
+        RecordFormat::Text => "text",
     }
 }
 
@@ -835,6 +930,7 @@ fn frame_records(
             };
             records
         }
+        RecordFormat::Text => frame_text_records(diagnosis, bytes, lrecl, sample)?,
     };
     if records.is_empty() {
         push(
@@ -851,6 +947,48 @@ fn frame_records(
         return None;
     }
     Some(records)
+}
+
+/// Trial-frame text bytes into payloads: every line must hold `lrecl`
+/// bytes. A short/long line fails the trial with `CBKR101` instead of
+/// padding or truncating silently.
+fn frame_text_records(
+    diagnosis: &mut Diagnosis,
+    bytes: &[u8],
+    lrecl: Option<u32>,
+    sample: u32,
+) -> Option<Vec<Vec<u8>>> {
+    let Some(width) = lrecl.filter(|len| *len > 0).map(|len| len as usize) else {
+        push(
+            &mut *diagnosis,
+            DiagnosisFinding {
+                check: "trial-decode",
+                status: DiagnosisStatus::Warn,
+                detail: "variable-length layout; trial decode skipped".to_string(),
+                code: None,
+                remediation: "Run copybook decode directly; text lines need a known length."
+                    .to_string(),
+                next: None,
+            },
+        );
+        return None;
+    };
+    let payloads = split_text_payloads(bytes);
+    if let Some(line) = payloads.iter().find(|line| line.len() != width) {
+        push(
+            &mut *diagnosis,
+            DiagnosisFinding {
+                check: "trial-decode",
+                status: DiagnosisStatus::Fail,
+                detail: format!("text line holds {} bytes, expected {width}", line.len()),
+                code: Some("CBKR101_FIXED_RECORD_ERROR".to_string()),
+                remediation: remediation_for("CBKR101_FIXED_RECORD_ERROR"),
+                next: None,
+            },
+        );
+        return None;
+    }
+    Some(payloads.into_iter().take(sample as usize).collect())
 }
 
 /// Read up to `limit` RDW records; `None` when framing fails early.

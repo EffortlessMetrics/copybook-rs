@@ -137,6 +137,11 @@ fn decode_profile_matches_direct_vb() {
     assert_profile_matches_direct("vb", "fixtures/corpus/mini_vb.bin");
 }
 
+#[test]
+fn decode_profile_matches_direct_text() {
+    assert_profile_matches_direct("text", "fixtures/corpus/mini_text.txt");
+}
+
 fn rdw_profile(reserved: &str) -> String {
     format!(
         "\

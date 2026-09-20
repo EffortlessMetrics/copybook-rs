@@ -409,6 +409,7 @@ fn framing_spelling(kind: FramingKind) -> String {
         FramingKind::Fixed => "fixed",
         FramingKind::Rdw => "rdw",
         FramingKind::Vb => "vb",
+        FramingKind::Text => "text",
     }
     .to_owned()
 }

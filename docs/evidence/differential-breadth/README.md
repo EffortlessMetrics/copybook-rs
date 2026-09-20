@@ -53,14 +53,16 @@ Copybook `lines.cpy` (two `PIC X(4)` fields), records `lines8.txt`
 
 ### Lane 3 — short final fixed block (capability `fixed-blocked-retained`)
 
-Copybooks `multi01.cpy` (two 01s; copybook-rs concatenates to LRECL 8,
-JRecord overlays at stride 4 — see lane 5), records `fb-14.bin`
-(14 bytes: 3.5 four-byte records).
+Copybook `lines.cpy` (single 01, two `PIC X(4)` fields: one 8-byte stride
+for both tools, so layout policy cannot contaminate the framing
+comparison), records `fb-short-8.bin` (14 bytes: one full record plus a
+6-byte tail).
 
 - copybook-rs `--format fixed`: `CBKR101_FIXED_RECORD_ERROR`, expected 8
-  bytes at the short tail. Strict multiple enforcement.
-- JRecord `-IFS Fixed_Length`: emits 3 full rows plus a fourth row padded
-  with NUL bytes (`MN\0\0`, verified by hexdump of the CSV).
+  bytes at record 2. Strict multiple enforcement.
+- JRecord `-IFS Fixed_Length`: emits the full row plus a second row with
+  the 6 tail bytes NUL-padded (`EFGH,56` + `0x0000`, verified by hexdump
+  of the CSV).
 - Classification: **policy/dialect difference** (strict rejection vs
   silent NUL-pad). The 0.10 selection keeps strict rejection and names
   expected/actual lengths; the JRecord pole documents the lenient
@@ -82,7 +84,8 @@ no reserved bytes).
 ### Lane 5 — multiple 01-level layouts (capability `multi-01-layouts`)
 
 Copybook `multi01.cpy` (`A-REC` with `A-FIELD X(4)`, `B-REC` with
-`B-FIELD 9(4)`), records `fb-14.bin` / exact multiples.
+`B-FIELD 9(4)`), records `fb-short-8.bin` (14 bytes: 3.5 four-byte rows
+at the overlaid stride).
 
 - copybook-rs: concatenates both 01s into one 8-byte layout (inspect
   reports `Fixed LRECL: 8 bytes`).

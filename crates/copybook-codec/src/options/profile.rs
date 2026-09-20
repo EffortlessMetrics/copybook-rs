@@ -119,9 +119,8 @@ pub struct InterpretationProfile {
     pub representation: RepresentationSection,
     /// Byte decoding interpretation.
     pub decode: DecodeSection,
-    /// Byte encoding interpretation. Parsed, fingerprinted, and resolved;
-    /// runtime enforcement lands in a later #1120 slice (encode currently
-    /// uses direct-only error behavior).
+    /// Byte encoding interpretation. Parsed, fingerprinted, resolved, and
+    /// enforced on the encode string-to-bytes path.
     pub encode: EncodeSection,
     /// Explicit run bounds.
     pub limits: LimitsSection,
@@ -187,9 +186,9 @@ pub struct DecodeSection {
 /// Byte encoding interpretation: write-only policy.
 ///
 /// Operation-specific unless semantics are proven identical, so encode
-/// policy lives here even where a decode-named twin exists. Runtime
-/// enforcement lands in a later #1120 slice; until then the section is
-/// parsed, fingerprinted, and resolved but does not steer the run.
+/// policy lives here even where a decode-named twin exists. The policy
+/// steers the encode string-to-bytes conversion (`ASCII` targets stay
+/// transparent pass-through under every policy, mirroring decode).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[non_exhaustive]

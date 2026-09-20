@@ -2697,7 +2697,11 @@ fn encode_single_field(
                 )?;
 
                 // Convert to EBCDIC and write to buffer
-                let bytes = crate::charset::utf8_to_ebcdic(&encoded, options.codepage)?;
+                let bytes = crate::charset::utf8_to_ebcdic_with_policy(
+                    &encoded,
+                    options.codepage,
+                    options.on_encode_unmappable,
+                )?;
                 let field_len = field.len as usize;
                 let copy_len = bytes.len().min(field_len);
 
@@ -2980,7 +2984,11 @@ fn encode_alphanum_field(
         .and_then(|value| value.as_str())
     {
         // Validate encoded byte length doesn't exceed field capacity.
-        let bytes = crate::charset::utf8_to_ebcdic(text, options.codepage)?;
+        let bytes = crate::charset::utf8_to_ebcdic_with_policy(
+            text,
+            options.codepage,
+            options.on_encode_unmappable,
+        )?;
         if bytes.len() > field_len {
             return Err(Error::new(
                 ErrorCode::CBKE515_STRING_LENGTH_VIOLATION,

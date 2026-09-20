@@ -27,6 +27,7 @@ const FORMAT_PROFILE_KEY: &str = "framing.kind";
 const CODEPAGE_PROFILE_KEY: &str = "representation.codepage";
 const JSON_NUMBERS_PROFILE_KEY: &str = "decode.json_numbers";
 const UNMAPPABLE_PROFILE_KEY: &str = "decode.unmappable";
+const ENCODE_UNMAPPABLE_PROFILE_KEY: &str = "encode.unmappable";
 const DIALECT_PROFILE_KEY: &str = "source.dialect";
 const MAX_ERRORS_PROFILE_KEY: &str = "limits.maximum_errors";
 
@@ -301,6 +302,33 @@ pub(crate) fn resolve_decode(
     })
 }
 
+/// Effective encode-only inputs covered by the profile.
+///
+/// There is no `--on-encode-unmappable` flag, so the profile value or the
+/// direct default (`error`) always wins; the key exists so the resolved
+/// write policy carries provenance instead of a silent default.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ResolvedEncodeInputs {
+    /// Effective write-side unmappable-character policy.
+    pub unmappable: UnmappablePolicy,
+}
+
+pub(crate) fn resolve_encode(
+    profile: Option<&InterpretationProfile>,
+) -> Result<ResolvedEncodeInputs, ProfileInputError> {
+    let unmappable = resolve_field(
+        ENCODE_UNMAPPABLE_PROFILE_KEY,
+        None,
+        profile.map(|profile| profile.encode.unmappable),
+        None,
+        UnmappablePolicy::Error,
+    )
+    .map(|resolved| resolved.value)
+    .map_err(ProfileInputError::Conflict)?;
+
+    Ok(ResolvedEncodeInputs { unmappable })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -449,5 +477,21 @@ mod tests {
         let error = load_profile(Some(&dir)).expect_err("unknown framing kind must fail");
         assert!(matches!(error, ProfileInputError::Invalid { .. }));
         let _ = std::fs::remove_file(&dir);
+    }
+
+    /// Version 2 profile carrying a non-default write policy.
+    const ENCODE_PROFILE_TOML: &str = "schema_version = 2\n[source]\ndialect = \"normative\"\n[framing]\nkind = \"fixed\"\nreserved_bytes = \"lenient\"\n[representation]\ncodepage = \"cp037\"\n[decode]\nunmappable = \"error\"\njson_numbers = \"lossless\"\n[encode]\nunmappable = \"replace\"\n[limits]\nmaximum_record_length = 32760\nmaximum_errors = 100\n";
+
+    #[test]
+    fn resolve_encode_reads_write_policy() {
+        let profile = InterpretationProfile::parse(ENCODE_PROFILE_TOML).expect("parses");
+        let resolved = resolve_encode(Some(&profile)).expect("resolves");
+        assert_eq!(resolved.unmappable, UnmappablePolicy::Replace);
+    }
+
+    #[test]
+    fn resolve_encode_defaults_without_profile() {
+        let resolved = resolve_encode(None).expect("resolves");
+        assert_eq!(resolved.unmappable, UnmappablePolicy::Error);
     }
 }

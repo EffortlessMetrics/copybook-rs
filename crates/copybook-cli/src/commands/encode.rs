@@ -32,6 +32,7 @@ pub struct EncodeCliOptions<'a> {
     pub dialect: copybook::core::dialect::Dialect,
     pub select: &'a [String],
     pub execution_policy: copybook::codec::ExecutionPolicy,
+    pub on_encode_unmappable: copybook::codec::UnmappablePolicy,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -73,6 +74,7 @@ pub fn run(
         .with_threads(options.threads)
         .with_coerce_numbers(options.coerce_numbers)
         .with_zoned_encoding_override(options.zoned_encoding_override)
+        .with_unmappable_policy(options.on_encode_unmappable)
         .with_float_format(options.float_format);
 
     let (summary, write_to_stdout) =

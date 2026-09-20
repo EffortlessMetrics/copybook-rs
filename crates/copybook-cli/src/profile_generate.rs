@@ -177,9 +177,7 @@ impl Drafter<'_> {
         ));
         self.pin("decode.unmappable=error (default; no probe distinguishes policies)");
         self.pin("decode.json_numbers=lossless (default; decode-only)");
-        self.pin(
-            "encode.unmappable=error (default; write policy, runtime enforcement pending #1120)",
-        );
+        self.pin("encode.unmappable=error (default; write policy)");
     }
 }
 

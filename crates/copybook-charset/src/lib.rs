@@ -437,6 +437,35 @@ pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy)
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
+    utf8_to_ebcdic_with_policy(text, codepage, UnmappablePolicy::Error)
+}
+
+/// Convert UTF-8 string to EBCDIC bytes honoring an unmappable policy.
+///
+/// `ASCII` stays transparent 8-bit pass-through under every policy,
+/// mirroring [`ebcdic_to_utf8`]: ASCII has no mapping table, so there is
+/// nothing to be unmappable against. For EBCDIC targets, `Error` rejects
+/// the first unmappable character, `Replace` substitutes `?` (`0x3F`) with
+/// a warning, and `Skip` drops the character with a warning.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_charset::{utf8_to_ebcdic_with_policy, Codepage, UnmappablePolicy};
+///
+/// let replaced = utf8_to_ebcdic_with_policy("A日", Codepage::CP037, UnmappablePolicy::Replace).unwrap();
+/// assert_eq!(replaced, vec![0xC1, 0x6F]);
+/// ```
+///
+/// # Errors
+/// Returns an error if the policy is `Error` and the UTF-8 text contains characters that cannot be mapped to the target codepage.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
+pub fn utf8_to_ebcdic_with_policy(
+    text: &str,
+    codepage: Codepage,
+    policy: UnmappablePolicy,
+) -> Result<Vec<u8>> {
     // ASCII pass-through mode (transparent 8-bit, not Windows-1252)
     if codepage == Codepage::ASCII {
         return Ok(text.as_bytes().to_vec());
@@ -469,10 +498,25 @@ pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
         if let Some(&ebcdic_byte) = reverse_table.get(&ch) {
             result.push(ebcdic_byte);
         } else {
-            return Err(Error::new(
-                ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
-                format!("Character '{ch}' cannot be mapped to {codepage:?}"),
-            ));
+            match policy {
+                UnmappablePolicy::Error => {
+                    return Err(Error::new(
+                        ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+                        format!("Character '{ch}' cannot be mapped to {codepage:?}"),
+                    ));
+                }
+                UnmappablePolicy::Replace => {
+                    warn!(
+                        "CBKC301_INVALID_EBCDIC_BYTE: Character '{ch}' cannot be mapped to {codepage:?}, replacing with '?'"
+                    );
+                    result.push(0x6F);
+                }
+                UnmappablePolicy::Skip => {
+                    warn!(
+                        "CBKC301_INVALID_EBCDIC_BYTE: Character '{ch}' cannot be mapped to {codepage:?}, skipping"
+                    );
+                }
+            }
         }
     }
 
@@ -880,6 +924,39 @@ mod tests {
     fn test_utf8_to_ebcdic_emoji_unmappable() {
         let err = utf8_to_ebcdic("😀", Codepage::CP037).unwrap_err();
         assert_eq!(err.code, ErrorCode::CBKC301_INVALID_EBCDIC_BYTE);
+    }
+
+    #[test]
+    fn test_utf8_to_ebcdic_policy_matrix() {
+        // Unmappable CJK character under every EBCDIC page: Error
+        // rejects, Replace substitutes '?', Skip drops.
+        for cp in ALL_EBCDIC {
+            let err = utf8_to_ebcdic_with_policy("A日", cp, UnmappablePolicy::Error).unwrap_err();
+            assert_eq!(err.code, ErrorCode::CBKC301_INVALID_EBCDIC_BYTE);
+            let replaced =
+                utf8_to_ebcdic_with_policy("A日", cp, UnmappablePolicy::Replace).unwrap();
+            // Capitals are invariant across the five pages; '?' is 0x6F.
+            assert_eq!(replaced, vec![0xC1, 0x6F], "Replace failed for {cp:?}");
+            let skipped = utf8_to_ebcdic_with_policy("A日", cp, UnmappablePolicy::Skip).unwrap();
+            assert_eq!(skipped, vec![0xC1], "Skip failed for {cp:?}");
+        }
+    }
+
+    #[test]
+    fn test_utf8_to_ebcdic_ascii_ignores_policy() {
+        // ASCII is transparent pass-through under every policy.
+        for policy in [
+            UnmappablePolicy::Error,
+            UnmappablePolicy::Replace,
+            UnmappablePolicy::Skip,
+        ] {
+            let bytes = utf8_to_ebcdic_with_policy("Aé", Codepage::ASCII, policy).unwrap();
+            assert_eq!(
+                bytes,
+                "Aé".as_bytes(),
+                "ASCII must pass through under {policy:?}"
+            );
+        }
     }
 
     // --- 5. Empty input ---

@@ -1,0 +1,9 @@
+kind: fixed
+body: '**encode**: enforce the profile write-side unmappable policy at
+  runtime. `[encode].unmappable` now steers the string-to-bytes path:
+  `error` fails the record naming the character and code (CBKC301),
+  `replace` writes `?` with a warning, `skip` drops the character with
+  a warning. ASCII targets stay transparent pass-through under every
+  policy, mirroring decode. The default policy preserves the exact
+  prior error identity, message, and exit mapping.'
+time: '2026-09-20T02:10:00Z'

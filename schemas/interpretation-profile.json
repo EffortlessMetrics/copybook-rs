@@ -127,7 +127,7 @@
             "replace",
             "skip"
           ],
-          "description": "Write-side unmappable-character policy. Parsed, fingerprinted, and resolved; runtime enforcement lands in a later #1120 slice."
+          "description": "Write-side unmappable-character policy, enforced on the encode string-to-bytes path (ASCII targets stay transparent pass-through under every policy)."
         }
       }
     },

@@ -202,6 +202,10 @@ path = "e2e_cli_text_format.rs"
 name = "e2e_cli_blocked_tails"
 path = "e2e_cli_blocked_tails.rs"
 
+[[test]]
+name = "e2e_cli_vb_underflow"
+path = "e2e_cli_vb_underflow.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

@@ -376,6 +376,67 @@ fn inspect_record_query_undecodable_json_carries_note() {
     );
 }
 
+/// A byte past a short undecodable payload names nothing: the answer is
+/// out of range with the refusal attached, not its static owner.
+#[test]
+fn inspect_record_query_byte_past_short_payload_is_out_of_range() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let copybook = write_temp_file(&dir, "odo.cpy", ODO_COPYBOOK.as_bytes());
+    // 4-byte RDW payload of a 6-byte maximum; CNT="XX" fails decoding.
+    let input = write_temp_file(
+        &dir,
+        "short-bad.rdw",
+        &[0x00, 0x04, 0x00, 0x00, b'X', b'X', b'A', b'A'],
+    );
+
+    cmd()
+        .args(["inspect", "--format", "rdw", "--codepage", "ascii"])
+        .arg(&copybook)
+        .args(["--payload-byte", "5"])
+        .args(["--input"])
+        .arg(&input)
+        .args(["--record", "1"])
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("out of range"))
+        .stdout(predicates::str::contains("CBKD411_ZONED_BAD_SIGN"));
+}
+
+/// The failure pointer replays the resolved interpretation: strict mode
+/// and dialect ride the hint so the occurrence reproduces the failure.
+#[test]
+fn inspect_record_query_hint_replays_strict_interpretation() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let copybook = write_temp_file(&dir, "odo.cpy", ODO_COPYBOOK.as_bytes());
+    let input = write_temp_file(&dir, "bad.bin", b"XXAABB");
+
+    let output = cmd()
+        .args([
+            "inspect",
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            "--strict",
+            "--dialect",
+            "0",
+        ])
+        .arg(&copybook)
+        .args(["--field", "REC.CNT"])
+        .args(["--input"])
+        .arg(&input)
+        .args(["--record", "1"])
+        .output()
+        .expect("strict failing-record query");
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
+    assert!(stdout.contains("--strict"), "hint replays strict mode");
+    assert!(
+        stdout.contains("--dialect 0"),
+        "hint replays the resolved dialect"
+    );
+}
+
 /// A truncated fixed payload has no bytes to interpret: framing failures
 /// still fail closed instead of answering.
 #[test]

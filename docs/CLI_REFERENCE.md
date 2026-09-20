@@ -121,10 +121,13 @@ static answer.
 The selector resolves over static repetition bounds with the decoder's
 refusal attached (`Note:` with the stable code, message, and field/byte
 location when known, plus a `decode_note` object in JSON), because ODO
-actuals are unknown. Human output points at the runnable deep dive
-(`copybook explain CODE --copybook … --input … --record N …`); framing
-failures with no bytes to interpret (unreadable inputs, truncated payloads)
-stay closed.
+actuals are unknown. No range outlives the payload: a byte or path past
+its length is `out_of_range`, and every reported range clamps to it.
+Human output points at the runnable deep dive, replaying the resolved
+strict mode, comment policy, and dialect so the occurrence reproduces the
+failure (`copybook explain CODE --copybook … --input … --record N …`);
+framing failures with no bytes to interpret (unreadable inputs, truncated
+payloads) stay closed.
 
 **Exit codes:** 0 = layout printed or query answered (any state), 3 = usage, profile,
 manifest, or query failure (contradictory selectors/inputs, unknown or ambiguous path,

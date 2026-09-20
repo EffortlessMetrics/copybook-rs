@@ -463,8 +463,11 @@ pub fn select_record(
 /// [`answer_query`], and the answer echoes the record with the decoder's
 /// refusal attached instead of clamped counts.
 ///
-/// ODO-sensitive ranges are bounds, never actuals: the note says so, and
-/// the human rendering points at the `explain` occurrence for the record.
+/// No range outlives the interpreted record: a byte past the payload is
+/// `out_of_range` rather than its static owner, and every reported range
+/// clamps to the payload length. ODO-sensitive ranges are bounds, never
+/// actuals: the note says so, and the human rendering points at the
+/// `explain` occurrence for the record.
 pub fn answer_query_undecoded(
     manifest: &ResolvedManifest,
     selector: OwnershipSelector,
@@ -472,6 +475,12 @@ pub fn answer_query_undecoded(
     record_len: u32,
     note: DecodeNote,
 ) -> Result<OwnershipReport, QueryRefusal> {
+    // A byte past the payload names nothing: capture the question before
+    // the selector moves into the static answer.
+    let byte_past = match &selector {
+        OwnershipSelector::PayloadByte(byte) => *byte >= record_len,
+        OwnershipSelector::FieldPath(_) => false,
+    };
     let mut answered = answer_query(manifest, selector)?;
     answered.record_len = record_len;
     answered.record = Some(RecordContext {
@@ -479,6 +488,25 @@ pub fn answer_query_undecoded(
         odo_counts: Vec::new(),
     });
     answered.decode_note = Some(note);
+    // The byte does not exist in this record: no static owner applies.
+    if byte_past {
+        answered.state = OwnershipState::OutOfRange;
+        answered.matches.clear();
+        answered.truncated = false;
+        return Ok(answered);
+    }
+    for item in &mut answered.matches {
+        item.end = item.end.min(record_len);
+        item.len = item.end.saturating_sub(item.offset);
+    }
+    // A path wholly past the payload names nothing either: field answers
+    // resolve to one match, so a single start past the extent switches the
+    // state instead of reporting an empty owned range.
+    if answered.matches.len() == 1 && answered.matches[0].offset >= record_len {
+        answered.state = OwnershipState::OutOfRange;
+        answered.matches.clear();
+        answered.truncated = false;
+    }
     Ok(answered)
 }
 
@@ -603,26 +631,60 @@ fn render_decode_note(output: &mut String, note: &DecodeNote) {
     );
 }
 
+/// Resolved interpretation a failure pointer replays: everything the
+/// `explain` occurrence mode accepts that `inspect` also resolves, so the
+/// replay reproduces the failure instead of decoding clean under defaults.
+pub struct ExplainReplay<'a> {
+    /// Copybook file the interpretation resolves from.
+    pub copybook: &'a Path,
+    /// Record data file holding the failing record.
+    pub input: &'a Path,
+    /// 1-based failing record number within the input.
+    pub index: u64,
+    /// Resolved framing for record iteration.
+    pub format: copybook::codec::RecordFormat,
+    /// Resolved character encoding.
+    pub codepage: Codepage,
+    /// Effective strict mode.
+    pub strict: bool,
+    /// Whether inline comments were disabled for the run.
+    pub strict_comments: bool,
+    /// Resolved ODO `min_count` interpretation.
+    pub dialect: copybook::core::dialect::Dialect,
+}
+
 /// Point a failing record at its deep dive: the `explain` occurrence mode
-/// replays this record under the same framing and codepage.
+/// replays this record under the resolved interpretation.
 ///
-/// Human output only: machine answers carry the note's code and message,
-/// never local paths.
+/// Strict mode, comment policy, and dialect ride the hint because `explain`
+/// defaults them independently: without them a strict-only failure would
+/// replay clean. Paths render shell-quoted for paste safety. Human output
+/// only: machine answers carry the note's code and message, never local
+/// paths.
 #[must_use]
-pub fn explain_hint(
-    code: &str,
-    copybook: &Path,
-    input: &Path,
-    index: u64,
-    format: copybook::codec::RecordFormat,
-    codepage: Codepage,
-) -> String {
-    format!(
-        "See: copybook explain {code} --copybook {} --input {} --record {index} \
-         --record-format {format} --codepage {codepage}",
-        copybook.display(),
-        input.display(),
-    )
+pub fn explain_hint(code: &str, replay: &ExplainReplay<'_>) -> String {
+    use copybook::codec::diagnose::shell_quote;
+    let dialect_flag = match replay.dialect {
+        copybook::core::dialect::Dialect::Normative => "n",
+        copybook::core::dialect::Dialect::ZeroTolerant => "0",
+        copybook::core::dialect::Dialect::OneTolerant => "1",
+    };
+    let mut hint = format!(
+        "See: copybook explain {code} --copybook {} --input {} --record {} \
+         --record-format {} --codepage {} --dialect {dialect_flag}",
+        shell_quote(replay.copybook),
+        shell_quote(replay.input),
+        replay.index,
+        replay.format,
+        replay.codepage,
+    );
+    if replay.strict {
+        hint.push_str(" --strict");
+    }
+    if replay.strict_comments {
+        hint.push_str(" --strict-comments");
+    }
+    hint
 }
 
 /// One-line role label for the human table.
@@ -1095,16 +1157,44 @@ mod tests {
     fn explain_hint_names_runnable_occurrence() {
         let hint = explain_hint(
             "CBKD411_ZONED_BAD_SIGN",
-            Path::new("a.cpy"),
-            Path::new("b.bin"),
-            2,
-            copybook::codec::RecordFormat::Fixed,
-            Codepage::CP037,
+            &ExplainReplay {
+                copybook: Path::new("a.cpy"),
+                input: Path::new("b.bin"),
+                index: 2,
+                format: copybook::codec::RecordFormat::Fixed,
+                codepage: Codepage::CP037,
+                strict: false,
+                strict_comments: false,
+                dialect: copybook::core::dialect::Dialect::Normative,
+            },
         );
         assert_eq!(
             hint,
             "See: copybook explain CBKD411_ZONED_BAD_SIGN --copybook a.cpy \
-             --input b.bin --record 2 --record-format fixed --codepage cp037"
+             --input b.bin --record 2 --record-format fixed --codepage cp037 --dialect n"
+        );
+    }
+
+    #[test]
+    fn explain_hint_replays_strict_quotes_paths() {
+        let hint = explain_hint(
+            "CBKD411_ZONED_BAD_SIGN",
+            &ExplainReplay {
+                copybook: Path::new("my dir/a.cpy"),
+                input: Path::new("b$(x).bin"),
+                index: 2,
+                format: copybook::codec::RecordFormat::Fixed,
+                codepage: Codepage::CP037,
+                strict: true,
+                strict_comments: true,
+                dialect: copybook::core::dialect::Dialect::ZeroTolerant,
+            },
+        );
+        assert_eq!(
+            hint,
+            "See: copybook explain CBKD411_ZONED_BAD_SIGN --copybook 'my dir/a.cpy' \
+             --input 'b$(x).bin' --record 2 --record-format fixed --codepage cp037 \
+             --dialect 0 --strict --strict-comments"
         );
     }
 }

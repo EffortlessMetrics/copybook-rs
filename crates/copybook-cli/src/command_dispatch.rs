@@ -452,11 +452,16 @@ fn answer_selected_record(
                 Ok(report) => {
                     let hint = commands::inspect::explain_hint(
                         &code,
-                        &built.copybook,
-                        input_path,
-                        index,
-                        built.options.format,
-                        built.options.codepage,
+                        &commands::inspect::ExplainReplay {
+                            copybook: &built.copybook,
+                            input: input_path,
+                            index,
+                            format: built.options.format,
+                            codepage: built.options.codepage,
+                            strict: built.options.strict_mode,
+                            strict_comments: built.strict_comments,
+                            dialect: built.dialect,
+                        },
                     );
                     Ok((report, Some(hint)))
                 }
@@ -502,7 +507,7 @@ fn resolve_query_input(
                 ));
             }
             match load_query_manifest(path) {
-                Ok(manifest) => Ok(QueryInput::Manifest(manifest)),
+                Ok(manifest) => Ok(QueryInput::Manifest(Box::new(manifest))),
                 Err(error) => Err(error),
             }
         }
@@ -524,7 +529,7 @@ fn resolve_query_input(
                 dialect,
             };
             match build_query_manifest(&source, feature_flags) {
-                Ok(built) => Ok(QueryInput::Source(built)),
+                Ok(built) => Ok(QueryInput::Source(Box::new(built))),
                 Err(outcome) => Err(outcome),
             }
         }
@@ -655,15 +660,22 @@ struct SourceManifest {
     /// Copybook file the interpretation resolves from, for human-only
     /// failure pointers that must never enter machine output.
     copybook: std::path::PathBuf,
+    /// Whether inline comments were disabled for the run.
+    strict_comments: bool,
+    /// Resolved ODO `min_count` interpretation, replayed by failure
+    /// pointers because `explain` defaults it independently.
+    dialect: copybook::core::dialect::Dialect,
 }
 
 /// Where an ownership query answers from: a bound manifest document, or a
-/// freshly resolved source interpretation.
+/// freshly resolved source interpretation. Both sides ride behind boxes:
+/// the manifest binds the full layout and the source side additionally
+/// carries the schema and decode policy.
 enum QueryInput {
     /// Pre-generated manifest document; reads no copybook and no records.
-    Manifest(copybook::codec::resolved_manifest::ResolvedManifest),
+    Manifest(Box<copybook::codec::resolved_manifest::ResolvedManifest>),
     /// Resolved source interpretation; also decodes record selections.
-    Source(SourceManifest),
+    Source(Box<SourceManifest>),
 }
 
 /// Build the manifest for a source-backed ownership query.
@@ -739,6 +751,8 @@ fn build_query_manifest(
             options,
             policy,
             copybook: source.copybook.clone(),
+            strict_comments: source.strict_comments,
+            dialect: common.dialect,
         }),
         Err(error) => Err((Err(error), "inspect")),
     }

@@ -425,12 +425,13 @@ pub fn select_record(
                             payload.len()
                         ),
                     })?;
-                let decoded = copybook::codec::decode_record(schema, &payload, options).map_err(
-                    |error| Failure::Undecodable {
-                        index,
-                        detail: error.to_string(),
-                    },
-                )?;
+                let decoded =
+                    copybook::codec::decode_record(schema, &payload, options).map_err(|error| {
+                        Failure::Undecodable {
+                            index,
+                            detail: error.to_string(),
+                        }
+                    })?;
                 let presence = RecordPresence::from_decoded(manifest, &decoded, record_len)
                     .map_err(|error| Failure::Refused(map_ownership_error(error)))?;
                 return Ok(SelectedRecord { index, presence });

@@ -37,7 +37,14 @@ fn decode_short_tail_names_expected_and_actual_lengths() {
     let out = dir.path().join("out.jsonl");
 
     let assertion = cmd()
-        .args(["decode", "--format", "fixed", "--codepage", "ascii", "--output"])
+        .args([
+            "decode",
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            "--output",
+        ])
         .arg(&out)
         .arg(workspace_path("fixtures/corpus/mini.cpy"))
         .arg(&data)
@@ -60,7 +67,14 @@ fn decode_exact_multiple_succeeds() {
     let dir = TempDir::new().unwrap();
     let out = dir.path().join("out.jsonl");
     cmd()
-        .args(["decode", "--format", "fixed", "--codepage", "ascii", "--output"])
+        .args([
+            "decode",
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            "--output",
+        ])
         .arg(&out)
         .arg(workspace_path("fixtures/corpus/mini.cpy"))
         .arg(workspace_path("fixtures/corpus/mini_fixed.bin"))
@@ -77,7 +91,14 @@ fn decode_empty_file_yields_zero_records() {
     std::fs::write(&data, []).unwrap();
     let out = dir.path().join("out.jsonl");
     cmd()
-        .args(["decode", "--format", "fixed", "--codepage", "ascii", "--output"])
+        .args([
+            "decode",
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            "--output",
+        ])
         .arg(&out)
         .arg(workspace_path("fixtures/corpus/mini.cpy"))
         .arg(&data)
@@ -107,7 +128,11 @@ fn encode_short_raw_capture_is_refused_not_emitted() {
         .assert()
         .success();
     let first: Value = serde_json::from_str(
-        std::fs::read_to_string(&decoded).unwrap().lines().next().unwrap(),
+        std::fs::read_to_string(&decoded)
+            .unwrap()
+            .lines()
+            .next()
+            .unwrap(),
     )
     .unwrap();
     let mut short = first.clone();
@@ -115,15 +140,21 @@ fn encode_short_raw_capture_is_refused_not_emitted() {
         .decode(short["raw_b64"].as_str().unwrap())
         .unwrap();
     assert_eq!(raw.len(), 14);
-    short["raw_b64"] = Value::String(
-        base64::engine::general_purpose::STANDARD.encode(&raw[..10]),
-    );
+    short["raw_b64"] = Value::String(base64::engine::general_purpose::STANDARD.encode(&raw[..10]));
     let input = dir.path().join("short.jsonl");
     std::fs::write(&input, serde_json::to_string(&short).unwrap()).unwrap();
 
     let out = dir.path().join("out.bin");
     let assertion = cmd()
-        .args(["encode", "--format", "fixed", "--codepage", "ascii", "--use-raw", "--output"])
+        .args([
+            "encode",
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            "--use-raw",
+            "--output",
+        ])
         .arg(&out)
         .arg(workspace_path("fixtures/corpus/mini.cpy"))
         .arg(&input)
@@ -131,7 +162,10 @@ fn encode_short_raw_capture_is_refused_not_emitted() {
     let output = assertion.get_output();
     assert!(!output.status.success(), "short raw must fail");
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("CBKE532"), "refusal names the code: {stderr}");
+    assert!(
+        stderr.contains("CBKE532"),
+        "refusal names the code: {stderr}"
+    );
     assert!(
         stderr.contains("10") && stderr.contains("14"),
         "refusal names captured (10) and layout (14) lengths: {stderr}"
@@ -160,7 +194,15 @@ fn encode_exact_raw_capture_round_trips_byte_identical() {
         .success();
     let out = dir.path().join("out.bin");
     cmd()
-        .args(["encode", "--format", "fixed", "--codepage", "ascii", "--use-raw", "--output"])
+        .args([
+            "encode",
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            "--use-raw",
+            "--output",
+        ])
         .arg(&out)
         .arg(workspace_path("fixtures/corpus/mini.cpy"))
         .arg(&decoded)

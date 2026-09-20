@@ -1,0 +1,10 @@
+kind: added
+body: '**decode**: pinned the multi-block VB strictness policy end to end
+  (`vb-multi-block-varied`, #1161). Framing holds across BDW blocks while a
+  short payload is a classified per-record `CBKF221` naming actual and
+  schema lengths (the JRecord short-record leniency stays rejected);
+  truncated BDW blocks fail with `CBKF223` and RDW lengths escaping their
+  block fail with `CBKF224`, both naming block, record, and offset, and
+  framing never consumes bytes past a block end. Covered by
+  `e2e_cli_vb_underflow` (varied sizes, truncated BDW, escaping RDW).'
+time: '2026-09-20T15:45:00Z'

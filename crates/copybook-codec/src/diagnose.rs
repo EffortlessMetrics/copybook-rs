@@ -511,14 +511,15 @@ fn confirm_format(
         RecordFormat::Fixed => confirm_fixed(diagnosis, total_bytes, lrecl),
         RecordFormat::RDW => confirm_rdw(diagnosis, bytes, scope_complete),
         RecordFormat::Vb => confirm_vb(diagnosis, bytes, scope_complete),
-        RecordFormat::Text => confirm_text(diagnosis, bytes, lrecl),
+        RecordFormat::Text => confirm_text(diagnosis, bytes, scope_complete, lrecl),
     }
 }
 
 /// Confirm an explicit text request: every line payload must hold exactly
 /// `lrecl` bytes after terminator stripping, tolerating a final line
-/// without a terminator.
-fn confirm_text(diagnosis: &mut Diagnosis, bytes: &[u8], lrecl: Option<u32>) {
+/// without a terminator. A truncated inspection scope drops its trailing
+/// partial line first: the fragment was chosen away, not proven corrupt.
+fn confirm_text(diagnosis: &mut Diagnosis, bytes: &[u8], scope_complete: bool, lrecl: Option<u32>) {
     let Some(len) = lrecl.map(usize::try_from).and_then(Result::ok) else {
         push(
             &mut *diagnosis,
@@ -534,6 +535,12 @@ fn confirm_text(diagnosis: &mut Diagnosis, bytes: &[u8], lrecl: Option<u32>) {
         );
         return;
     };
+    let bytes = complete_text_prefix(bytes, scope_complete);
+    // A truncated scope that ends mid-line carries no complete line to
+    // confirm; silence beats a false malformation finding.
+    if bytes.is_empty() && !scope_complete {
+        return;
+    }
     match split_text_payloads(bytes) {
         payloads if !payloads.is_empty() && payloads.iter().all(|line| line.len() == len) => {
             push(
@@ -566,6 +573,21 @@ fn confirm_text(diagnosis: &mut Diagnosis, bytes: &[u8], lrecl: Option<u32>) {
                 },
             );
         }
+    }
+}
+
+/// Drop the trailing partial line of a truncated inspection scope.
+///
+/// Diagnosis never ingests a whole large input; when the scope ends
+/// mid-line that fragment is an artifact of the inspection cap, not
+/// evidence. Complete scopes pass through untouched.
+fn complete_text_prefix(bytes: &[u8], scope_complete: bool) -> &[u8] {
+    if scope_complete {
+        return bytes;
+    }
+    match bytes.iter().rposition(|byte| *byte == b'\n') {
+        Some(pos) => &bytes[..=pos],
+        None => &[],
     }
 }
 
@@ -728,7 +750,7 @@ fn probe_format(
     // text evidence.
     let text_fits = {
         bytes.contains(&b'\n') && {
-            let payloads = split_text_payloads(bytes);
+            let payloads = split_text_payloads(complete_text_prefix(bytes, scope_complete));
             !payloads.is_empty()
                 && if let Some(len) = lrecl {
                     payloads.iter().all(|line| line.len() == len as usize)
@@ -930,7 +952,7 @@ fn frame_records(
             };
             records
         }
-        RecordFormat::Text => frame_text_records(diagnosis, bytes, lrecl, sample)?,
+        RecordFormat::Text => frame_text_records(diagnosis, bytes, scope_complete, lrecl, sample)?,
     };
     if records.is_empty() {
         push(
@@ -955,6 +977,7 @@ fn frame_records(
 fn frame_text_records(
     diagnosis: &mut Diagnosis,
     bytes: &[u8],
+    scope_complete: bool,
     lrecl: Option<u32>,
     sample: u32,
 ) -> Option<Vec<Vec<u8>>> {
@@ -973,7 +996,7 @@ fn frame_text_records(
         );
         return None;
     };
-    let payloads = split_text_payloads(bytes);
+    let payloads = split_text_payloads(complete_text_prefix(bytes, scope_complete));
     if let Some(line) = payloads.iter().find(|line| line.len() != width) {
         push(
             &mut *diagnosis,

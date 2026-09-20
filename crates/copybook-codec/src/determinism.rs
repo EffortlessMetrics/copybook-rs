@@ -420,6 +420,9 @@ fn validate_rdw_input(data: &[u8], policy: ExecutionPolicy, strict_mode: bool) -
 
 #[inline]
 fn payload_for_format(data: &[u8], format: crate::options::RecordFormat) -> Result<&[u8]> {
+    if format == crate::options::RecordFormat::Text {
+        return payload_for_text(data);
+    }
     if format != crate::options::RecordFormat::RDW {
         return Ok(data);
     }
@@ -461,6 +464,24 @@ fn payload_for_format(data: &[u8], format: crate::options::RecordFormat) -> Resu
     }
 
     Ok(&data[copybook_rdw::RDW_HEADER_LEN..expected_len])
+}
+
+/// Strip one text line to its payload for single-record comparison.
+///
+/// Determinism compares one record, so the input must hold exactly one
+/// line: terminators strip, and anything past the first line is a
+/// classified refusal rather than a silently compared prefix. Payload
+/// width stays with the decode that runs next.
+fn payload_for_text(data: &[u8]) -> Result<&[u8]> {
+    let line = data.strip_suffix(b"\n").unwrap_or(data);
+    let payload = line.strip_suffix(b"\r").unwrap_or(line);
+    if payload.contains(&b'\n') {
+        return Err(Error::new(
+            ErrorCode::CBKR101_FIXED_RECORD_ERROR,
+            "Determinism compares one text record; input holds more than one line",
+        ));
+    }
+    Ok(payload)
 }
 
 #[cfg(test)]

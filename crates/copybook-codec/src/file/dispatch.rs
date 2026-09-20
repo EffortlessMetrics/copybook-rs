@@ -47,9 +47,11 @@ pub fn read_record(
                     "Text framing needs a fixed layout width, but the schema has none",
                 ));
             };
-            let mut reader = std::io::BufReader::new(input);
+            // Unbuffered on purpose: a per-call `BufReader` would keep
+            // read-ahead bytes past the newline and drop them, corrupting
+            // repeated single-shot reads on one stream.
             let mut scratch = Vec::new();
-            super::text::read_text_record(&mut reader, &mut scratch, width as usize, None, 0)
+            super::text::read_text_record_unbuffered(input, &mut scratch, width as usize, None, 0)
         }
     }
 }

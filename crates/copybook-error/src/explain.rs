@@ -197,6 +197,13 @@ pub const EXPLANATIONS: &[Explanation] = &[
         resolution: "Reduce the value to f32 range or change the field to COMP-2 (f64)",
     },
     Explanation {
+        code: "CBKE532_RAW_LENGTH_MISMATCH",
+        severity: "Error",
+        description: "Captured raw bytes do not match the fixed layout width",
+        context: "Record number, expected vs captured bytes",
+        resolution: "Re-decode the record to capture exact-width raw bytes, or encode from fields instead of --use-raw",
+    },
+    Explanation {
         code: "CBKF001_FILE_READ_ERROR",
         severity: "Fatal",
         description: "A file named on the command line could not be opened or read",

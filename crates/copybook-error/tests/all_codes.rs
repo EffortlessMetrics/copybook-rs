@@ -80,6 +80,7 @@ pub fn all_error_codes() -> Vec<ErrorCode> {
         ErrorCode::CBKE521_ARRAY_LEN_OOB,
         ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
         ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW,
+        ErrorCode::CBKE532_RAW_LENGTH_MISMATCH,
         // CBKF
         ErrorCode::CBKF001_FILE_READ_ERROR,
         ErrorCode::CBKF102_RECORD_LENGTH_INVALID,

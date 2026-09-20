@@ -628,6 +628,22 @@ Field: ROOT.MEASUREMENT.RATIO (COMP-1)
 Value: 3.5e50 exceeds f32 range
 ```
 
+#### CBKE532_RAW_LENGTH_MISMATCH
+**Description**: Captured raw bytes do not match the fixed layout width
+**Severity**: Error
+**Context**: Record number, expected vs captured bytes
+**Resolution**: Re-decode the record to capture exact-width raw bytes, or encode from fields instead of --use-raw
+
+Use this code when `--use-raw` replay carries `raw_b64` bytes that are
+shorter or longer than the fixed layout width: emitting them would write a
+short tail (or an overlong record) that fixed decoders reject. The error
+names expected and captured lengths.
+
+```
+Error: CBKE532_RAW_LENGTH_MISMATCH
+Record 1: raw_b64 holds 10 bytes, fixed layout needs 14
+```
+
 ### Iterator and Infrastructure Errors (CBKI*)
 
 Iterator pipelines emit these errors when runtime configuration is inconsistent or missing required context.
@@ -1057,6 +1073,7 @@ All 71 stable error codes across 10 families:
 | CBKE521 | Encode | Fatal | Array length OOB |
 | CBKE530 | Encode | Error | SIGN SEPARATE encode error |
 | CBKE531 | Encode | Error | Float encode overflow (f64 to f32) |
+| CBKE532 | Encode | Error | Raw capture length mismatch vs fixed layout |
 | CBKF001 | File | Fatal | Input file could not be read |
 | CBKF102 | File | Fatal | RDW length invalid |
 | CBKF104 | File | Warning | RDW suspect ASCII |

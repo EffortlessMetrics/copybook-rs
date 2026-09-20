@@ -1,0 +1,9 @@
+kind: fixed
+body: '**encode**: `--use-raw` replay under fixed-width framings (`fixed`,
+  `text`) now refuses captured `raw_b64` bytes that do not match the layout
+  width with `CBKE532_RAW_LENGTH_MISMATCH` (naming captured and expected
+  lengths) instead of emitting a short tail or overlong record no fixed
+  decoder accepts. Exact-width captures still round-trip byte-identically.
+  This pins the `fixed-blocked-retained` 0.10 selection: exact multiples
+  only, on both read and write paths.'
+time: '2026-09-20T15:00:00Z'

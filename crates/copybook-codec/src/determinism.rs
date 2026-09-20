@@ -5,9 +5,9 @@
 //! This module verifies that encode/decode operations produce identical outputs
 //! across repeated runs with the same schema, data, and options.
 
-use crate::lib_api::{decode_record, encode_record};
-use crate::options::{DecodeOptions, EncodeOptions};
-use copybook_core::{Error, ErrorCode, Result, Schema};
+use crate::lib_api::{decode_record, encode_record_with_policy};
+use crate::options::{DecodeOptions, EncodeOptions, ExecutionPolicy};
+use copybook_core::{Error, ErrorCode, ErrorContext, Result, Schema};
 use copybook_rdw::RdwHeader;
 
 /// Default cap used when collecting byte-level differences.
@@ -188,6 +188,32 @@ pub fn check_decode_determinism(
     data: &[u8],
     options: &DecodeOptions,
 ) -> Result<DeterminismResult> {
+    check_decode_determinism_with_policy(schema, data, options, ExecutionPolicy::direct(false))
+}
+
+/// Check that decoding the same binary data twice produces identical JSON
+/// output under a reviewed [`ExecutionPolicy`].
+///
+/// The policy gates the compared input exactly as the operating `decode`
+/// path gates it: a fixed layout over the reviewed bound fails with
+/// `CBKF226_RECORD_BOUND_EXCEEDED`, and an RDW record with non-zero
+/// reserved bytes under a strict reserved policy fails with
+/// `CBKR211_RDW_RESERVED_NONZERO`. A comparison therefore never reports
+/// `DETERMINISTIC` for input the same profile would reject.
+///
+/// # Errors
+///
+/// Returns the policy rejection, or an error if decoding or JSON
+/// serialization fails.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
+pub fn check_decode_determinism_with_policy(
+    schema: &Schema,
+    data: &[u8],
+    options: &DecodeOptions,
+    policy: ExecutionPolicy,
+) -> Result<DeterminismResult> {
+    validate_decode_input(schema, data, options.format, policy, options.strict_mode)?;
     let payload = payload_for_format(data, options.format)?;
     let value1 = decode_record(schema, payload, options)?;
     let value2 = decode_record(schema, payload, options)?;
@@ -210,8 +236,29 @@ pub fn check_encode_determinism(
     json_data: &serde_json::Value,
     options: &EncodeOptions,
 ) -> Result<DeterminismResult> {
-    let binary1 = encode_record(schema, json_data, options)?;
-    let binary2 = encode_record(schema, json_data, options)?;
+    check_encode_determinism_with_policy(schema, json_data, options, ExecutionPolicy::direct(false))
+}
+
+/// Check that encoding the same JSON twice produces identical binary output
+/// under a reviewed [`ExecutionPolicy`].
+///
+/// Both compared encodings run through [`encode_record_with_policy`], so an
+/// over-cap payload fails with `CBKF226_RECORD_BOUND_EXCEEDED` exactly as
+/// the operating `encode` path fails it.
+///
+/// # Errors
+///
+/// Returns the policy rejection, or an error if encoding fails.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
+pub fn check_encode_determinism_with_policy(
+    schema: &Schema,
+    json_data: &serde_json::Value,
+    options: &EncodeOptions,
+    policy: ExecutionPolicy,
+) -> Result<DeterminismResult> {
+    let binary1 = encode_record_with_policy(schema, json_data, options, policy)?;
+    let binary2 = encode_record_with_policy(schema, json_data, options, policy)?;
 
     Ok(compare_outputs(
         DeterminismMode::EncodeOnly,
@@ -233,9 +280,45 @@ pub fn check_round_trip_determinism(
     decode_opts: &DecodeOptions,
     encode_opts: &EncodeOptions,
 ) -> Result<DeterminismResult> {
+    check_round_trip_determinism_with_policy(
+        schema,
+        data,
+        decode_opts,
+        encode_opts,
+        ExecutionPolicy::direct(false),
+    )
+}
+
+/// Check full round-trip determinism under a reviewed [`ExecutionPolicy`]:
+/// decode->encode->decode.
+///
+/// The input record and the re-encoded payload are both gated by the
+/// policy, so the comparison proves the round trip the operating commands
+/// would actually run.
+///
+/// # Errors
+///
+/// Returns the policy rejection, or an error if any decode/encode or JSON
+/// serialization step fails.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
+pub fn check_round_trip_determinism_with_policy(
+    schema: &Schema,
+    data: &[u8],
+    decode_opts: &DecodeOptions,
+    encode_opts: &EncodeOptions,
+    policy: ExecutionPolicy,
+) -> Result<DeterminismResult> {
+    validate_decode_input(
+        schema,
+        data,
+        decode_opts.format,
+        policy,
+        decode_opts.strict_mode,
+    )?;
     let decoded_payload = payload_for_format(data, decode_opts.format)?;
     let json1 = decode_record(schema, decoded_payload, decode_opts)?;
-    let binary = encode_record(schema, &json1, encode_opts)?;
+    let binary = encode_record_with_policy(schema, &json1, encode_opts, policy)?;
     let encoded_payload = payload_for_format(&binary, decode_opts.format)?;
     let json2 = decode_record(schema, encoded_payload, decode_opts)?;
 
@@ -247,6 +330,92 @@ pub fn check_round_trip_determinism(
         &serialized1,
         &serialized2,
     ))
+}
+
+/// Gate one compared input record on the reviewed execution policy.
+///
+/// Fixed layouts reuse [`ExecutionPolicy::check_fixed_lrecl`], the same
+/// call the operating paths make before consuming input. RDW inputs mirror
+/// the record-iterator contract byte for byte: non-zero reserved bytes fail
+/// with `CBKR211_RDW_RESERVED_NONZERO` under strict framing, and a declared
+/// payload over the reviewed bound fails with
+/// `CBKF226_RECORD_BOUND_EXCEEDED`. VB block structure and per-record
+/// bounds stay with the operating decode path, which parses blocks the
+/// single-record comparison never sees.
+///
+/// # Errors
+///
+/// Returns `CBKF226_RECORD_BOUND_EXCEEDED` or
+/// `CBKR211_RDW_RESERVED_NONZERO` when the policy rejects the input.
+fn validate_decode_input(
+    schema: &Schema,
+    data: &[u8],
+    format: crate::options::RecordFormat,
+    policy: ExecutionPolicy,
+    strict_mode: bool,
+) -> Result<()> {
+    match format {
+        crate::options::RecordFormat::Fixed => {
+            if let Some(lrecl) = schema.lrecl_fixed {
+                policy.check_fixed_lrecl(lrecl)?;
+            }
+            Ok(())
+        }
+        crate::options::RecordFormat::RDW => validate_rdw_input(data, policy, strict_mode),
+        crate::options::RecordFormat::Vb => Ok(()),
+    }
+}
+
+/// Mirror the record-iterator RDW contract for one compared input.
+///
+/// Reserved-byte and bound checks run in iterator order (reserved first,
+/// then bound) with identical codes, messages, and diagnostic context, so
+/// a rejection names the same identity the operating path would name.
+/// Payload integrity stays with [`payload_for_format`], which runs next.
+fn validate_rdw_input(data: &[u8], policy: ExecutionPolicy, strict_mode: bool) -> Result<()> {
+    let header_bytes: [u8; copybook_rdw::RDW_HEADER_LEN] = data
+        .get(..copybook_rdw::RDW_HEADER_LEN)
+        .and_then(|slice| slice.try_into().ok())
+        .ok_or_else(|| {
+            Error::new(
+                ErrorCode::CBKF221_RDW_UNDERFLOW,
+                "RDW data is shorter than the 4-byte RDW header",
+            )
+        })?;
+    let header = RdwHeader::from_bytes(header_bytes);
+    let reserved = header.reserved();
+    if reserved != 0 && policy.framing_strict(strict_mode) {
+        return Err(Error::new(
+            ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
+            format!("RDW reserved bytes are non-zero: {reserved:04X}"),
+        )
+        .with_context(ErrorContext {
+            record_index: Some(1),
+            field_path: None,
+            byte_offset: Some(2),
+            line_number: None,
+            details: Some(format!("Expected 0000, got {reserved:04X}")),
+        }));
+    }
+    let length = usize::from(header.length());
+    if let Some(cap) = policy.maximum_record_length()
+        && u64::try_from(length).is_ok_and(|declared| declared > cap)
+    {
+        return Err(Error::new(
+            ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED,
+            format!(
+                "RDW record 1 declares {length} payload bytes, exceeding the reviewed bound of {cap}"
+            ),
+        )
+        .with_context(ErrorContext {
+            record_index: Some(1),
+            field_path: None,
+            byte_offset: Some(4),
+            line_number: None,
+            details: Some(format!("declared {length}, bound {cap}")),
+        }));
+    }
+    Ok(())
 }
 
 #[inline]
@@ -353,6 +522,150 @@ mod tests {
             "Expected deterministic decode for COMP-3 schema"
         );
         assert!(result.passed());
+    }
+
+    fn reviewed_policy(reserved_strict: bool, bound: u64) -> ExecutionPolicy {
+        ExecutionPolicy::reviewed(reserved_strict, bound).expect("valid test policy")
+    }
+
+    fn rdw_decode_opts() -> DecodeOptions {
+        DecodeOptions::new()
+            .with_codepage(crate::options::Codepage::ASCII)
+            .with_format(RecordFormat::RDW)
+    }
+
+    #[test]
+    fn decode_with_policy_rejects_fixed_layout_over_bound() {
+        let schema = parse_copybook("01 RECORD.\n 05 FIELD-A PIC X(10).").expect("parse copybook");
+        let data = vec![0xC1; 10];
+        let error = check_decode_determinism_with_policy(
+            &schema,
+            &data,
+            &decode_opts(),
+            reviewed_policy(false, 5),
+        )
+        .expect_err("over-cap layout must fail");
+        assert_eq!(
+            error.code(),
+            copybook_core::ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED
+        );
+    }
+
+    #[test]
+    fn decode_with_policy_accepts_layout_at_bound() {
+        let schema = parse_copybook("01 RECORD.\n 05 FIELD-A PIC X(10).").expect("parse copybook");
+        let data = vec![0xC1; 10];
+        let result = check_decode_determinism_with_policy(
+            &schema,
+            &data,
+            &decode_opts(),
+            reviewed_policy(false, 10),
+        )
+        .expect("at-cap layout must pass");
+        assert!(result.is_deterministic);
+    }
+
+    #[test]
+    fn decode_with_policy_rejects_strict_rdw_reserved() {
+        let schema = parse_copybook("01 RECORD.\n 05 NAME PIC X(10).\n 05 AMOUNT PIC 9(5).")
+            .expect("parse copybook");
+        let mut data = vec![0x00, 0x0F, 0x00, 0x01];
+        data.extend_from_slice(b"ALICE     00100");
+        let error = check_decode_determinism_with_policy(
+            &schema,
+            &data,
+            &rdw_decode_opts(),
+            reviewed_policy(true, 32760),
+        )
+        .expect_err("strict reserved policy must fail");
+        assert_eq!(
+            error.code(),
+            copybook_core::ErrorCode::CBKR211_RDW_RESERVED_NONZERO
+        );
+    }
+
+    #[test]
+    fn decode_with_policy_passes_lenient_rdw_reserved() {
+        let schema = parse_copybook("01 RECORD.\n 05 NAME PIC X(10).\n 05 AMOUNT PIC 9(5).")
+            .expect("parse copybook");
+        let mut data = vec![0x00, 0x0F, 0x00, 0x01];
+        data.extend_from_slice(b"ALICE     00100");
+        let result = check_decode_determinism_with_policy(
+            &schema,
+            &data,
+            &rdw_decode_opts(),
+            reviewed_policy(false, 32760),
+        )
+        .expect("lenient reserved policy must pass");
+        assert!(result.is_deterministic);
+    }
+
+    #[test]
+    fn decode_with_policy_rejects_rdw_declared_over_bound() {
+        let schema = parse_copybook("01 RECORD.\n 05 NAME PIC X(10).\n 05 AMOUNT PIC 9(5).")
+            .expect("parse copybook");
+        let mut data = vec![0x00, 0x0F, 0x00, 0x00];
+        data.extend_from_slice(b"ALICE     00100");
+        let error = check_decode_determinism_with_policy(
+            &schema,
+            &data,
+            &rdw_decode_opts(),
+            reviewed_policy(false, 5),
+        )
+        .expect_err("over-cap declared payload must fail");
+        assert_eq!(
+            error.code(),
+            copybook_core::ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED
+        );
+    }
+
+    #[test]
+    fn encode_with_policy_rejects_over_cap_payload() {
+        let schema = parse_copybook("01 RECORD.\n 05 FIELD-A PIC X(5).").expect("parse copybook");
+        let json = serde_json::json!({"FIELD-A": "HELLO"});
+        let error = check_encode_determinism_with_policy(
+            &schema,
+            &json,
+            &encode_opts(),
+            reviewed_policy(false, 4),
+        )
+        .expect_err("over-cap payload must fail");
+        assert_eq!(
+            error.code(),
+            copybook_core::ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED
+        );
+    }
+
+    #[test]
+    fn encode_with_policy_accepts_payload_at_bound() {
+        let schema = parse_copybook("01 RECORD.\n 05 FIELD-A PIC X(5).").expect("parse copybook");
+        let json = serde_json::json!({"FIELD-A": "HELLO"});
+        let result = check_encode_determinism_with_policy(
+            &schema,
+            &json,
+            &encode_opts(),
+            reviewed_policy(false, 5),
+        )
+        .expect("at-cap payload must pass");
+        assert!(result.is_deterministic);
+    }
+
+    #[test]
+    fn round_trip_with_policy_rejects_over_cap_layout() {
+        let schema = parse_copybook("01 RECORD.\n 05 FIELD-A PIC X(10).").expect("parse copybook");
+        let data = vec![0xC1; 10];
+        let error = check_round_trip_determinism_with_policy(
+            &schema,
+            &data,
+            &decode_opts(),
+            &encode_opts(),
+            reviewed_policy(false, 5),
+        )
+        .expect_err("over-cap layout must fail");
+        assert_eq!(
+            error.code(),
+            copybook_core::ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED
+        );
     }
 
     #[test]

@@ -59,10 +59,7 @@ pub(crate) fn run_command(
         command @ Commands::Audit { .. } => run_audit_command(command, feature_flags),
         command @ Commands::Verify { .. } => run_verify_command(command, feature_flags),
         Commands::Support { args } => (commands::support::run(&args, feature_flags), "support"),
-        Commands::Determinism { command } => (
-            commands::determinism::run(&command, feature_flags),
-            "determinism",
-        ),
+        Commands::Determinism { command } => run_determinism_command(&command, feature_flags),
         command @ Commands::Doctor { .. } => run_doctor_command(command, verbose),
         command @ Commands::Explain { .. } => run_explain_command(command, feature_flags),
         Commands::Compat {
@@ -365,6 +362,96 @@ fn run_inspect_emit_manifest(
             overwrite,
         ),
         "inspect",
+    )
+}
+
+/// Resolve the profile for a determinism comparison and run it.
+///
+/// The comparison consumes the same resolution as the operating commands
+/// (explicit flag, then profile, then ambient environment, then product
+/// default), so repeated decode/encode/round-trip runs prove exactly what
+/// `decode`/`encode` would run. Determinism carries no `--dialect` or
+/// `--max-errors` flags: dialect falls back through profile, environment,
+/// and default, and the single-record comparison performs no multi-record
+/// error budgeting.
+fn run_determinism_command(
+    command: &commands::determinism::DeterminismCommand,
+    feature_flags: &FeatureFlags,
+) -> CommandOutcome {
+    let common = commands::determinism::common_args(command);
+    let loaded = match crate::profile_inputs::load_profile(common.profile.as_deref()) {
+        Ok(loaded) => loaded,
+        Err(error) => return profile_failure("determinism", &error),
+    };
+    let resolved = match crate::profile_inputs::resolve_common(
+        common.format,
+        common.codepage,
+        None, // No --dialect flag: profile, ambient environment, then default.
+        None, // No --max-errors flag: a single-record comparison budgets nothing.
+        loaded.as_ref(),
+    ) {
+        Ok(resolved) => resolved,
+        Err(error) => return profile_failure("determinism", &error),
+    };
+    let decode_only =
+        match crate::profile_inputs::resolve_decode(common.json_number, None, loaded.as_ref()) {
+            Ok(decode_only) => decode_only,
+            Err(error) => return profile_failure("determinism", &error),
+        };
+    let encode_only = match crate::profile_inputs::resolve_encode(loaded.as_ref()) {
+        Ok(encode_only) => encode_only,
+        Err(error) => return profile_failure("determinism", &error),
+    };
+    let profile_path = common
+        .profile
+        .as_ref()
+        .map_or("<profile>".to_string(), |path| path.display().to_string());
+    // Same inputs as the operating commands' own error-policy computation:
+    // determinism carries no --strict/--fail-fast/--max-errors flags, so
+    // the direct strict mode is unconditionally false and only a bound
+    // profile can supply reviewed framing and record policy.
+    let strict_mode = effective_error_policy(false, false, None).strict_mode;
+    let execution_policy = match crate::profile_inputs::resolve_policy(loaded.as_ref(), strict_mode)
+    {
+        Ok(policy) => policy,
+        Err(error) => {
+            return profile_failure(
+                "determinism",
+                &crate::profile_inputs::ProfileInputError::Invalid {
+                    path: profile_path.clone(),
+                    message: error.to_string(),
+                },
+            );
+        }
+    };
+    let fingerprint = match &loaded {
+        Some(profile) => match profile.fingerprint() {
+            Ok(fingerprint) => Some(fingerprint),
+            Err(error) => {
+                return profile_failure(
+                    "determinism",
+                    &crate::profile_inputs::ProfileInputError::Invalid {
+                        path: profile_path,
+                        message: error.to_string(),
+                    },
+                );
+            }
+        },
+        None => None,
+    };
+    let inputs = commands::determinism::DeterminismInputs {
+        format: resolved.format,
+        codepage: resolved.codepage,
+        dialect: resolved.dialect,
+        json_number: decode_only.json_number,
+        decode_unmappable: decode_only.unmappable,
+        encode_unmappable: encode_only.unmappable,
+        execution_policy,
+        profile_fingerprint: fingerprint,
+    };
+    (
+        commands::determinism::run(command, &inputs, feature_flags),
+        "determinism",
     )
 }
 

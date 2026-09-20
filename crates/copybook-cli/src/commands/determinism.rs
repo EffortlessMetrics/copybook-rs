@@ -11,10 +11,10 @@ use crate::write_stdout_all;
 use anyhow::Context;
 use clap::{Args, Subcommand, ValueEnum};
 use copybook::codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat,
+    Codepage, DecodeOptions, EncodeOptions, ExecutionPolicy, JsonNumberMode, RecordFormat,
     determinism::{
-        DeterminismResult, check_decode_determinism, check_encode_determinism,
-        check_round_trip_determinism,
+        DeterminismResult, blake3_hex, check_decode_determinism_with_policy,
+        check_encode_determinism_with_policy, check_round_trip_determinism_with_policy,
     },
 };
 use copybook::core::{FeatureFlags, ParseOptions, Schema, parse_copybook_with_feature_flags};
@@ -51,6 +51,12 @@ pub enum DeterminismMode {
 pub type DeterminismModeCommand = DeterminismMode;
 
 /// Shared determinism arguments.
+///
+/// `format`, `codepage`, and `json_number` are optional so a reviewed
+/// `--profile` can supply them through the same resolution layers as
+/// `decode`/`encode`: explicit flag, then profile, then ambient
+/// environment, then product default. A flag that disagrees with the
+/// profile is a contradiction, not an override.
 #[derive(Args, Debug, Clone)]
 pub struct CommonDeterminismArgs {
     /// Copybook schema file.
@@ -58,16 +64,21 @@ pub struct CommonDeterminismArgs {
     pub copybook: PathBuf,
 
     /// Record format.
-    #[arg(long, default_value = "fixed")]
-    pub format: RecordFormat,
+    #[arg(long)]
+    pub format: Option<RecordFormat>,
 
     /// EBCDIC codepage.
-    #[arg(long, default_value = "cp037")]
-    pub codepage: Codepage,
+    #[arg(long)]
+    pub codepage: Option<Codepage>,
 
     /// JSON number handling mode.
-    #[arg(long, value_name = "MODE", default_value = "lossless")]
-    pub json_number: JsonNumberMode,
+    #[arg(long, value_name = "MODE")]
+    pub json_number: Option<JsonNumberMode>,
+
+    /// Reviewed interpretation profile (TOML) supplying framing, decode
+    /// and encode policy, dialect, and the report identity.
+    #[arg(long, value_name = "FILE")]
+    pub profile: Option<PathBuf>,
 
     /// Include metadata in JSON output.
     #[arg(long)]
@@ -82,6 +93,35 @@ pub struct CommonDeterminismArgs {
     pub max_diffs: usize,
 }
 
+/// Profile-resolved inputs for one determinism comparison.
+///
+/// Built by dispatch through the same resolution the operating commands
+/// use, so the comparison runs exactly what `decode`/`encode` would run.
+/// `profile_fingerprint` is `None` for direct (profile-less) runs, which
+/// the report renders explicitly instead of implying an identity.
+#[derive(Debug, Clone)]
+pub struct DeterminismInputs {
+    /// Effective record format.
+    pub format: RecordFormat,
+    /// Effective codepage.
+    pub codepage: Codepage,
+    /// Effective ODO dialect.
+    pub dialect: copybook::core::dialect::Dialect,
+    /// Effective JSON number mode.
+    pub json_number: JsonNumberMode,
+    /// Effective decode-side unmappable policy.
+    pub decode_unmappable: copybook::codec::UnmappablePolicy,
+    /// Effective encode-side unmappable policy.
+    pub encode_unmappable: copybook::codec::UnmappablePolicy,
+    /// Effective physical execution policy: reviewed framing and record
+    /// bound when a profile is bound, legacy direct behavior otherwise.
+    /// The comparison enforces it exactly as the operating commands do, so
+    /// a verdict never attests to input the same profile would reject.
+    pub execution_policy: ExecutionPolicy,
+    /// Canonical fingerprint of the bound profile, if any.
+    pub profile_fingerprint: Option<String>,
+}
+
 /// Available output rendering modes.
 ///
 /// Human-readable output or structured JSON output.
@@ -91,6 +131,77 @@ pub enum OutputFormat {
     Human,
     /// Structured JSON output for CI integration.
     Json,
+}
+
+/// Profile identity recorded in a determinism report.
+///
+/// A comparison either runs under a reviewed profile (identified by the
+/// profile's canonical SHA-256 fingerprint) or directly from flags and
+/// product defaults. The report names which one so a verdict can never be
+/// mistaken for a differently-configured run.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ReportProfile {
+    /// Direct run: no reviewed profile was bound.
+    Direct,
+    /// Profile-bound run: canonical fingerprint of the bound profile.
+    Profile {
+        /// Lowercase hex SHA-256 over the profile's canonical bytes.
+        fingerprint: String,
+    },
+}
+
+/// Identity envelope for one determinism comparison (`--output json`).
+///
+/// The codec-level [`DeterminismResult`] carries the output hashes and the
+/// verdict; this envelope binds them to the comparison kind that produced
+/// them, the profile (or explicit direct) identity, the compared input
+/// bytes, and the evidence the comparison cannot supply.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct DeterminismReport {
+    /// Compared operation: `decode`, `encode`, or `round-trip`.
+    pub comparison: String,
+    /// Profile identity for the run.
+    pub profile: ReportProfile,
+    /// BLAKE3 hash (lowercase hex) of the compared input bytes.
+    pub input_hash: String,
+    /// Evidence the comparison cannot supply, stated explicitly.
+    pub limitations: Vec<String>,
+    /// Codec comparison outcome.
+    pub result: DeterminismResult,
+}
+
+/// Resolved manifest evidence is not emitted for determinism comparisons:
+/// the check binds the profile fingerprint directly instead of routing
+/// through a manifest document.
+const LIMITATION_NO_MANIFEST: &str = "resolved manifest is not emitted for determinism comparisons; profile identity is the fingerprint above";
+
+/// Determinism compares one record at a time, so no worker scheduling
+/// exists: worker count cannot change record ordering or the verdict.
+const LIMITATION_SINGLE_RECORD_WORKERS: &str = "single-record comparison performs no worker scheduling; worker count cannot change ordering or verdict";
+
+/// A round-trip check is internal self-consistency (decode then encode then
+/// decode again), not an independent external oracle for either direction.
+const LIMITATION_INTERNAL_ROUND_TRIP: &str =
+    "round-trip is internal self-consistency, not an independent external oracle";
+
+/// VB block structure and per-record bounds are parsed and enforced by the
+/// operating decode path; the single-record comparison never sees blocks,
+/// so it does not re-validate them.
+const LIMITATION_VB_BLOCK_POLICY: &str = "vb block structure and per-record bounds are enforced by the operating decode path, not re-validated here";
+
+/// Shared arguments for the selected determinism comparison mode.
+///
+/// Dispatch resolves the profile through these flags, so the comparison
+/// runs exactly what `decode`/`encode` would run.
+#[inline]
+#[must_use]
+pub fn common_args(cmd: &DeterminismCommand) -> &CommonDeterminismArgs {
+    match &cmd.mode {
+        DeterminismModeCommand::Decode(args) => &args.common,
+        DeterminismModeCommand::Encode(args) => &args.common,
+        DeterminismModeCommand::RoundTrip(args) => &args.common,
+    }
 }
 
 /// Decode command arguments.
@@ -182,26 +293,35 @@ impl DeterminismVerdict {
 
 /// Execute a determinism subcommand and return output plus verdict.
 ///
+/// `inputs` carries the dispatch-resolved comparison options, so the
+/// check runs exactly what the operating commands would run.
+///
 /// # Errors
 ///
 /// Returns an error if schema loading, data reading, or determinism checks fail.
 #[inline]
 pub fn run_check(
     cmd: &DeterminismCommand,
+    inputs: &DeterminismInputs,
     feature_flags: &FeatureFlags,
 ) -> anyhow::Result<DeterminismRun> {
     let result = match &cmd.mode {
-        DeterminismModeCommand::Decode(args) => run_decode(args, feature_flags),
-        DeterminismModeCommand::Encode(args) => run_encode(args, feature_flags),
-        DeterminismModeCommand::RoundTrip(args) => run_round_trip(args, feature_flags),
+        DeterminismModeCommand::Decode(args) => run_decode(args, inputs, feature_flags),
+        DeterminismModeCommand::Encode(args) => run_encode(args, inputs, feature_flags),
+        DeterminismModeCommand::RoundTrip(args) => run_round_trip(args, inputs, feature_flags),
     }?;
 
     Ok(result)
 }
 
 /// Determinism validation for encode/decode operations.
-pub fn run(cmd: &DeterminismCommand, feature_flags: &FeatureFlags) -> anyhow::Result<ExitCode> {
-    let result = run_check(cmd, feature_flags).context("Determinism command execution failed")?;
+pub fn run(
+    cmd: &DeterminismCommand,
+    inputs: &DeterminismInputs,
+    feature_flags: &FeatureFlags,
+) -> anyhow::Result<ExitCode> {
+    let result =
+        run_check(cmd, inputs, feature_flags).context("Determinism command execution failed")?;
     write_stdout_all(result.output.as_bytes())?;
 
     let exit_code = match result.verdict {
@@ -214,10 +334,11 @@ pub fn run(cmd: &DeterminismCommand, feature_flags: &FeatureFlags) -> anyhow::Re
 /// Run decode determinism check.
 fn run_decode(
     args: &DecodeDeterminismArgs,
+    inputs: &DeterminismInputs,
     feature_flags: &FeatureFlags,
 ) -> anyhow::Result<DeterminismRun> {
-    let schema = load_schema(&args.common.copybook, feature_flags)?;
-    let decode_opts = build_decode_options(&args.common);
+    let schema = load_schema(&args.common.copybook, inputs, feature_flags)?;
+    let decode_opts = build_decode_options(&args.common, inputs);
     let data = read_bytes_or_stdin(&args.data).with_context(|| {
         format!(
             "Failed to read data file for determinism check: {}",
@@ -225,19 +346,21 @@ fn run_decode(
         )
     })?;
 
-    let result = check_decode_determinism(&schema, &data, &decode_opts)
-        .context("Decode determinism check failed")?;
+    let result =
+        check_decode_determinism_with_policy(&schema, &data, &decode_opts, inputs.execution_policy)
+            .context("Decode determinism check failed")?;
 
-    render_result(&result, &args.common)
+    render_result(&result, &args.common, "decode", &data, inputs)
 }
 
 /// Run encode determinism check.
 fn run_encode(
     args: &EncodeDeterminismArgs,
+    inputs: &DeterminismInputs,
     feature_flags: &FeatureFlags,
 ) -> anyhow::Result<DeterminismRun> {
-    let schema = load_schema(&args.common.copybook, feature_flags)?;
-    let encode_opts = build_encode_options(&args.common);
+    let schema = load_schema(&args.common.copybook, inputs, feature_flags)?;
+    let encode_opts = build_encode_options(inputs);
     let json_text = read_text_or_stdin(&args.json).with_context(|| {
         format!(
             "Failed to read JSON input for determinism check: {}",
@@ -252,20 +375,32 @@ fn run_encode(
     let value: serde_json::Value =
         serde_json::from_str(first_line).context("Failed to parse JSON input")?;
 
-    let result = check_encode_determinism(&schema, &value, &encode_opts)
-        .context("Encode determinism check failed")?;
+    let result = check_encode_determinism_with_policy(
+        &schema,
+        &value,
+        &encode_opts,
+        inputs.execution_policy,
+    )
+    .context("Encode determinism check failed")?;
 
-    render_result(&result, &args.common)
+    render_result(
+        &result,
+        &args.common,
+        "encode",
+        first_line.as_bytes(),
+        inputs,
+    )
 }
 
 /// Run round-trip determinism check.
 fn run_round_trip(
     args: &RoundTripDeterminismArgs,
+    inputs: &DeterminismInputs,
     feature_flags: &FeatureFlags,
 ) -> anyhow::Result<DeterminismRun> {
-    let schema = load_schema(&args.common.copybook, feature_flags)?;
-    let decode_opts = build_decode_options(&args.common);
-    let encode_opts = build_encode_options(&args.common);
+    let schema = load_schema(&args.common.copybook, inputs, feature_flags)?;
+    let decode_opts = build_decode_options(&args.common, inputs);
+    let encode_opts = build_encode_options(inputs);
     let data = read_bytes_or_stdin(&args.data).with_context(|| {
         format!(
             "Failed to read data file for round-trip determinism check: {}",
@@ -273,20 +408,39 @@ fn run_round_trip(
         )
     })?;
 
-    let result = check_round_trip_determinism(&schema, &data, &decode_opts, &encode_opts)
-        .context("Round-trip determinism check failed")?;
+    let result = check_round_trip_determinism_with_policy(
+        &schema,
+        &data,
+        &decode_opts,
+        &encode_opts,
+        inputs.execution_policy,
+    )
+    .context("Round-trip determinism check failed")?;
 
-    render_result(&result, &args.common)
+    render_result(&result, &args.common, "round-trip", &data, inputs)
 }
 
 /// Common renderer for result + status.
+///
+/// `comparison` names the compared operation (`decode`, `encode`, or
+/// `round-trip`), `data` holds the compared input bytes, and `inputs`
+/// carries the dispatch-resolved profile identity.
 fn render_result(
     result: &DeterminismResult,
     common: &CommonDeterminismArgs,
+    comparison: &str,
+    data: &[u8],
+    inputs: &DeterminismInputs,
 ) -> anyhow::Result<DeterminismRun> {
     let output = match common.output {
-        OutputFormat::Json => render_json_result(result),
-        OutputFormat::Human => Ok(render_human_result(result, common.max_diffs)),
+        OutputFormat::Json => render_json_report(comparison, data, inputs, result),
+        OutputFormat::Human => Ok(render_human_report(
+            comparison,
+            data,
+            inputs,
+            result,
+            common.max_diffs,
+        )),
     }?;
 
     Ok(DeterminismRun {
@@ -295,14 +449,90 @@ fn render_result(
     })
 }
 
-/// Create JSON formatted output string.
+/// Profile identity for a report: the bound profile's fingerprint, or an
+/// explicit direct marker when no profile was bound.
+#[inline]
+#[must_use]
+pub fn report_profile(inputs: &DeterminismInputs) -> ReportProfile {
+    match &inputs.profile_fingerprint {
+        Some(fingerprint) => ReportProfile::Profile {
+            fingerprint: fingerprint.clone(),
+        },
+        None => ReportProfile::Direct,
+    }
+}
+
+/// Evidence the named comparison cannot supply, stated explicitly instead
+/// of left for the reader to guess.
+#[inline]
+#[must_use]
+pub fn report_limitations(comparison: &str, format: RecordFormat) -> Vec<String> {
+    let mut limitations = vec![
+        LIMITATION_NO_MANIFEST.to_string(),
+        LIMITATION_SINGLE_RECORD_WORKERS.to_string(),
+    ];
+    if comparison == "round-trip" {
+        limitations.push(LIMITATION_INTERNAL_ROUND_TRIP.to_string());
+    }
+    if format == RecordFormat::Vb {
+        limitations.push(LIMITATION_VB_BLOCK_POLICY.to_string());
+    }
+    limitations
+}
+
+/// Create the JSON identity envelope for one comparison.
 ///
 /// # Errors
 ///
 /// Returns an error if JSON serialization fails.
 #[inline]
-pub fn render_json_result(result: &DeterminismResult) -> anyhow::Result<String> {
-    serde_json::to_string_pretty(result).context("Failed to serialize determinism result to JSON")
+pub fn render_json_report(
+    comparison: &str,
+    data: &[u8],
+    inputs: &DeterminismInputs,
+    result: &DeterminismResult,
+) -> anyhow::Result<String> {
+    let report = DeterminismReport {
+        comparison: comparison.to_string(),
+        profile: report_profile(inputs),
+        input_hash: blake3_hex(data),
+        limitations: report_limitations(comparison, inputs.format),
+        result: result.clone(),
+    };
+    serde_json::to_string_pretty(&report).context("Failed to serialize determinism report to JSON")
+}
+
+/// Create human-readable output with the comparison identity header and
+/// the evidence limitations the comparison cannot supply.
+#[inline]
+#[must_use]
+pub fn render_human_report(
+    comparison: &str,
+    data: &[u8],
+    inputs: &DeterminismInputs,
+    result: &DeterminismResult,
+    max_diffs: usize,
+) -> String {
+    let mut output = String::new();
+    let _ = writeln!(&mut output, "Comparison: {comparison}");
+    match report_profile(inputs) {
+        ReportProfile::Direct => {
+            let _ = writeln!(&mut output, "Profile: direct (no reviewed profile)");
+        }
+        ReportProfile::Profile { fingerprint } => {
+            let _ = writeln!(&mut output, "Profile: sha256:{fingerprint}");
+        }
+    }
+    let _ = writeln!(&mut output, "Input hash: {}", blake3_hex(data));
+    output.push_str(&render_human_result(result, max_diffs));
+    if !output.ends_with('\n') {
+        output.push('\n');
+    }
+    output.push_str("\nLimitations:\n");
+    for limitation in report_limitations(comparison, inputs.format) {
+        let _ = writeln!(&mut output, "  - {limitation}");
+    }
+    output
 }
 
 /// Create human-readable output string.
@@ -360,38 +590,58 @@ pub fn render_human_result(result: &DeterminismResult, max_diffs: usize) -> Stri
     output
 }
 
-/// Build `DecodeOptions` from shared arguments.
+/// Build `DecodeOptions` from the dispatch-resolved comparison inputs.
+///
+/// Framing, codepage, JSON numbers, and the decode-side unmappable policy
+/// come from the profile resolution in `inputs` (exactly what `decode`
+/// would run); `emit_meta` stays a direct presentation-only flag.
 #[inline]
 #[must_use]
-pub fn build_decode_options(common: &CommonDeterminismArgs) -> DecodeOptions {
+pub fn build_decode_options(
+    common: &CommonDeterminismArgs,
+    inputs: &DeterminismInputs,
+) -> DecodeOptions {
     DecodeOptions::new()
-        .with_codepage(common.codepage)
-        .with_format(common.format)
-        .with_json_number_mode(common.json_number)
+        .with_codepage(inputs.codepage)
+        .with_format(inputs.format)
+        .with_json_number_mode(inputs.json_number)
         .with_emit_meta(common.emit_meta)
+        .with_unmappable_policy(inputs.decode_unmappable)
 }
 
-/// Build `EncodeOptions` from shared arguments.
+/// Build `EncodeOptions` from the dispatch-resolved comparison inputs.
+///
+/// The write-side unmappable policy comes from the profile resolution in
+/// `inputs` (exactly what `encode` would run).
 #[inline]
 #[must_use]
-pub fn build_encode_options(common: &CommonDeterminismArgs) -> EncodeOptions {
+pub fn build_encode_options(inputs: &DeterminismInputs) -> EncodeOptions {
     EncodeOptions::new()
-        .with_codepage(common.codepage)
-        .with_format(common.format)
-        .with_json_number_mode(common.json_number)
+        .with_codepage(inputs.codepage)
+        .with_format(inputs.format)
+        .with_json_number_mode(inputs.json_number)
+        .with_unmappable_policy(inputs.encode_unmappable)
 }
 
-/// Load and parse schema from a file or stdin.
+/// Load and parse schema from a file or stdin under the resolved dialect.
 ///
 /// # Errors
 ///
 /// Returns an error if the file cannot be read or parsed.
 #[inline]
-pub fn load_schema(path: &Path, feature_flags: &FeatureFlags) -> anyhow::Result<Schema> {
+pub fn load_schema(
+    path: &Path,
+    inputs: &DeterminismInputs,
+    feature_flags: &FeatureFlags,
+) -> anyhow::Result<Schema> {
     let text = read_text_or_stdin(path)?;
     // #656 Phase D: CLI-resolved flags passed explicitly; no global state.
-    let schema = parse_copybook_with_feature_flags(&text, &ParseOptions::default(), feature_flags)
-        .with_context(|| format!("Failed to parse copybook: {}", path.display()))?;
+    let schema = parse_copybook_with_feature_flags(
+        &text,
+        &ParseOptions::default().with_dialect(inputs.dialect),
+        feature_flags,
+    )
+    .with_context(|| format!("Failed to parse copybook: {}", path.display()))?;
     Ok(schema)
 }
 
@@ -518,11 +768,11 @@ mod tests {
             is_deterministic: true,
             byte_differences: None,
         };
-        let json = render_json_result(&result).unwrap();
+        let json = render_json_report("round-trip", b"x", &test_inputs(None), &result).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed["is_deterministic"], true);
-        assert_eq!(parsed["mode"], "round_trip");
-        assert!(parsed.get("byte_differences").is_none());
+        assert_eq!(parsed["result"]["is_deterministic"], true);
+        assert_eq!(parsed["result"]["mode"], "round_trip");
+        assert!(parsed["result"].get("byte_differences").is_none());
     }
 
     #[test]
@@ -538,10 +788,10 @@ mod tests {
                 round2_byte: 0x20,
             }]),
         };
-        let json = render_json_result(&result).unwrap();
+        let json = render_json_report("decode", b"x", &test_inputs(None), &result).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed["is_deterministic"], false);
-        let diffs = parsed["byte_differences"].as_array().unwrap();
+        assert_eq!(parsed["result"]["is_deterministic"], false);
+        let diffs = parsed["result"]["byte_differences"].as_array().unwrap();
         assert_eq!(diffs.len(), 1);
         assert_eq!(diffs[0]["offset"], 5);
     }
@@ -576,6 +826,146 @@ mod tests {
     #[test]
     fn truncate_hash_empty_string() {
         assert_eq!(truncate_hash(""), "");
+    }
+
+    fn test_inputs(fingerprint: Option<&str>) -> DeterminismInputs {
+        DeterminismInputs {
+            format: RecordFormat::Fixed,
+            codepage: Codepage::CP037,
+            dialect: copybook::core::dialect::Dialect::Normative,
+            json_number: JsonNumberMode::Lossless,
+            decode_unmappable: copybook::codec::UnmappablePolicy::Error,
+            encode_unmappable: copybook::codec::UnmappablePolicy::Replace,
+            execution_policy: ExecutionPolicy::direct(false),
+            profile_fingerprint: fingerprint.map(str::to_string),
+        }
+    }
+
+    fn test_common() -> CommonDeterminismArgs {
+        CommonDeterminismArgs {
+            copybook: PathBuf::from("test.cpy"),
+            // Flags that disagree with `test_inputs` on purpose: the
+            // resolved inputs must win so the comparison runs exactly what
+            // the operating commands would run.
+            format: Some(RecordFormat::RDW),
+            codepage: Some(Codepage::CP500),
+            json_number: Some(JsonNumberMode::Native),
+            profile: None,
+            emit_meta: true,
+            output: OutputFormat::Human,
+            max_diffs: DEFAULT_MAX_DIFFS,
+        }
+    }
+
+    fn test_result() -> DeterminismResult {
+        DeterminismResult {
+            mode: CodecDeterminismMode::DecodeOnly,
+            round1_hash: "a".repeat(64),
+            round2_hash: "a".repeat(64),
+            is_deterministic: true,
+            byte_differences: None,
+        }
+    }
+
+    #[test]
+    fn decode_options_consume_resolved_inputs_not_flags() {
+        let options = build_decode_options(&test_common(), &test_inputs(None));
+        assert_eq!(options.format, RecordFormat::Fixed);
+        assert_eq!(options.codepage, Codepage::CP037);
+        assert_eq!(options.json_number_mode, JsonNumberMode::Lossless);
+        assert_eq!(
+            options.on_decode_unmappable,
+            copybook::codec::UnmappablePolicy::Error
+        );
+        assert!(options.emit_meta);
+    }
+
+    #[test]
+    fn encode_options_consume_resolved_inputs() {
+        let options = build_encode_options(&test_inputs(None));
+        assert_eq!(options.format, RecordFormat::Fixed);
+        assert_eq!(options.codepage, Codepage::CP037);
+        assert_eq!(options.json_number_mode, JsonNumberMode::Lossless);
+        assert_eq!(
+            options.on_encode_unmappable,
+            copybook::codec::UnmappablePolicy::Replace
+        );
+    }
+
+    #[test]
+    fn json_report_binds_comparison_and_profile_identities() {
+        let data = b"input-bytes";
+        let json =
+            render_json_report("decode", data, &test_inputs(Some("fp")), &test_result()).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["comparison"], "decode");
+        assert_eq!(parsed["profile"]["kind"], "profile");
+        assert_eq!(parsed["profile"]["fingerprint"], "fp");
+        assert_eq!(parsed["input_hash"], blake3_hex(data));
+        assert_eq!(parsed["result"]["is_deterministic"], true);
+        let limitations = parsed["limitations"].as_array().unwrap();
+        assert_eq!(limitations.len(), 2);
+    }
+
+    #[test]
+    fn json_report_direct_run_names_direct_identity() {
+        let json = render_json_report("encode", b"x", &test_inputs(None), &test_result()).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["profile"]["kind"], "direct");
+        assert!(parsed["profile"].get("fingerprint").is_none());
+    }
+
+    #[test]
+    fn json_report_round_trip_states_internal_oracle_limitation() {
+        let json =
+            render_json_report("round-trip", b"x", &test_inputs(None), &test_result()).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let limitations = parsed["limitations"].as_array().unwrap();
+        assert_eq!(limitations.len(), 3);
+        assert!(limitations.iter().any(|limitation| {
+            limitation
+                .as_str()
+                .unwrap_or_default()
+                .contains("worker count")
+        }));
+        assert!(limitations.iter().any(|limitation| {
+            limitation
+                .as_str()
+                .unwrap_or_default()
+                .contains("not an independent external oracle")
+        }));
+    }
+
+    #[test]
+    fn human_report_shows_identity_header_and_limitations() {
+        let output = render_human_report("encode", b"x", &test_inputs(None), &test_result(), 100);
+        assert!(output.contains("Comparison: encode"));
+        assert!(output.contains("Profile: direct (no reviewed profile)"));
+        assert!(output.contains("Input hash: "));
+        assert!(output.contains("Limitations:"));
+        assert!(output.contains("worker count cannot change ordering or verdict"));
+
+        let profiled = render_human_report(
+            "decode",
+            b"x",
+            &test_inputs(Some("fp")),
+            &test_result(),
+            100,
+        );
+        assert!(profiled.contains("Comparison: decode"));
+        assert!(profiled.contains("Profile: sha256:fp"));
+    }
+
+    #[test]
+    fn human_report_vb_states_block_policy_limitation() {
+        let mut vb_inputs = test_inputs(None);
+        vb_inputs.format = RecordFormat::Vb;
+        let output = render_human_report("decode", b"x", &vb_inputs, &test_result(), 100);
+        assert!(output.contains("not re-validated here"));
+
+        let fixed_output =
+            render_human_report("decode", b"x", &test_inputs(None), &test_result(), 100);
+        assert!(!fixed_output.contains("not re-validated here"));
     }
 
     #[test]
@@ -656,10 +1046,16 @@ mod tests {
                     }])
                 },
             };
-            let json = render_json_result(&result).expect("json output");
-            let de = serde_json::from_str::<DeterminismResult>(&json).expect("round-trip decode");
-            assert_eq!(de.mode, result.mode);
-            assert_eq!(de.is_deterministic, result.is_deterministic);
+            let json = render_json_report("round-trip", b"input", &test_inputs(None), &result)
+                .expect("json output");
+            let parsed: serde_json::Value =
+                serde_json::from_str(&json).expect("report parses");
+            prop_assert_eq!(parsed["comparison"].as_str(), Some("round-trip"));
+            prop_assert_eq!(parsed["result"]["mode"].as_str(), Some("round_trip"));
+            prop_assert_eq!(
+                parsed["result"]["is_deterministic"].as_bool(),
+                Some(result.is_deterministic)
+            );
         }
     }
 }

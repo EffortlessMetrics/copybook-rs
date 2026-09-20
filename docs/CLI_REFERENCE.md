@@ -380,12 +380,17 @@ copybook determinism <MODE> <COPYBOOK> <INPUT> [OPTIONS]
 - `round-trip <COPYBOOK> <DATA>` - Check full round-trip determinism (binary -> JSON -> binary -> JSON)
 
 **Options (shared by all modes):**
-- `--format <FORMAT>` - Record format: fixed, rdw (default: fixed)
+- `--profile <FILE>` - Reviewed interpretation profile (TOML); supplies framing, codepage, dialect, and decode/encode policy (see Interpretation Profiles). A flag that disagrees with the profile is a contradiction (exit 3)
+- `--format <FORMAT>` - Record format: fixed, rdw (required unless `--profile` supplies framing)
 - `--codepage <CP>` - Character encoding (default: cp037)
 - `--json-number <MODE>` - JSON number format: lossless, native (default: lossless)
-- `--emit-meta` - Include metadata in JSON output
+- `--emit-meta` - Include metadata in JSON output (direct presentation-only flag, never from a profile)
 - `--output <FORMAT>` - Output rendering: human, json (default: human)
 - `--max-diffs <N>` - Maximum number of byte diffs to report
+
+**Report identity:** every run names its comparison kind (`decode`, `encode`, `round-trip`), the profile identity (`sha256:<fingerprint>` of the bound profile, or explicit `direct` when no profile was given), and the BLAKE3 hash of the compared input bytes, followed by the verdict, the output hashes, and any byte diffs. The report then states its limitations explicitly: no resolved manifest is emitted for determinism comparisons; the single-record comparison performs no worker scheduling, so worker count cannot change ordering or verdict; `round-trip` is internal self-consistency, not an independent external oracle.
+
+**JSON envelope (`--output json`):** `{"comparison": ..., "profile": {"kind": "profile"|"direct", "fingerprint": ...}, "input_hash": ..., "limitations": [...], "result": {"mode": ..., "round1_hash": ..., "round2_hash": ..., "is_deterministic": ..., "byte_differences": ...}}`.
 
 **Exit codes:** 0 = deterministic (hashes match), 2 = non-deterministic (drift detected), 3 = codec/usage error.
 
@@ -393,6 +398,9 @@ copybook determinism <MODE> <COPYBOOK> <INPUT> [OPTIONS]
 ```bash
 # Check decode determinism
 copybook determinism decode customer.cpy data.bin --format fixed
+
+# Check decode determinism under a reviewed profile
+copybook determinism decode --profile customer.toml customer.cpy data.bin
 
 # Check round-trip determinism with JSON output for CI
 copybook determinism round-trip customer.cpy data.bin --output json
@@ -659,9 +667,10 @@ The `--dialect` flag is supported on all copybook-processing commands:
 
 ## Interpretation Profiles
 
-`decode` and `verify` accept `--profile <FILE>`, a reviewed TOML document
-that records what a copybook and its bytes mean: framing, decode options,
-dialect, and error budget. The machine-checkable wire contract is
+`decode`, `encode`, `verify`, and `determinism` accept `--profile <FILE>`,
+a reviewed TOML document that records what a copybook and its bytes mean:
+framing, codepage, dialect, decode/encode policy, and error budget. The
+machine-checkable wire contract is
 `schemas/interpretation-profile.json` (beta; the
 `copybook_codec::options::profile::InterpretationProfile` type is
 authoritative). The profile is the reviewed intent; command

@@ -1071,3 +1071,183 @@ fn encoding_cp037_cp500_bracket_bytes() {
         );
     }
 }
+
+// =========================================================================
+// Determinism consumption (#1120 slice 5)
+// =========================================================================
+// Determinism resolves the same profile layers as the operating commands,
+// names the comparison kind, records profile/input/output identities, and
+// states the evidence it cannot supply.
+
+/// Profile-driven decode determinism passes and names the comparison kind
+/// plus the bound profile fingerprint.
+#[test]
+fn determinism_decode_profile_passes_with_identity() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+
+    cmd()
+        .args(["determinism", "decode", "--profile"])
+        .arg(&profile)
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Comparison: decode"))
+        .stdout(predicate::str::contains("Profile: sha256:"))
+        .stdout(predicate::str::contains("DETERMINISTIC"))
+        .stdout(predicate::str::contains("Limitations:"))
+        .stdout(predicate::str::contains(
+            "worker count cannot change ordering or verdict",
+        ));
+}
+
+/// Profile-driven encode determinism proves the write side under the same
+/// profile that governs `encode`.
+#[test]
+fn determinism_encode_profile_passes_with_identity() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+    let jsonl = dir.path().join("records.jsonl");
+
+    cmd()
+        .args(["decode", "--profile"])
+        .arg(&profile)
+        .args(["--output"])
+        .arg(&jsonl)
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .success();
+
+    cmd()
+        .args(["determinism", "encode", "--profile"])
+        .arg(&profile)
+        .arg(&copybook)
+        .arg(&jsonl)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Comparison: encode"))
+        .stdout(predicate::str::contains("Profile: sha256:"))
+        .stdout(predicate::str::contains("DETERMINISTIC"));
+}
+
+/// Profile-driven round-trip determinism passes and labels itself internal
+/// self-consistency rather than an independent external oracle.
+#[test]
+fn determinism_round_trip_profile_states_oracle_limitation() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+
+    cmd()
+        .args(["determinism", "round-trip", "--profile"])
+        .arg(&profile)
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Comparison: round-trip"))
+        .stdout(predicate::str::contains("DETERMINISTIC"))
+        .stdout(predicate::str::contains(
+            "not an independent external oracle",
+        ));
+}
+
+/// Profile-only and profile-plus-equal-flags determinism runs are
+/// byte-identical: equal flags confirm intent without changing the run.
+#[test]
+fn determinism_profile_matches_profile_plus_equal_flags() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+
+    let profile_only = cmd()
+        .args(["determinism", "decode", "--profile"])
+        .arg(&profile)
+        .arg(&copybook)
+        .arg(&data)
+        .output()
+        .expect("profile-only determinism");
+    assert_eq!(profile_only.status.code(), Some(0));
+
+    let with_equal_flags = cmd()
+        .args(["determinism", "decode", "--profile"])
+        .arg(&profile)
+        .args(["--format", "fixed", "--codepage", "cp037"])
+        .arg(&copybook)
+        .arg(&data)
+        .output()
+        .expect("profile-plus-equal-flags determinism");
+    assert_eq!(with_equal_flags.status.code(), Some(0));
+    assert_eq!(
+        with_equal_flags.stdout, profile_only.stdout,
+        "equal flags must confirm intent without changing the determinism report"
+    );
+}
+
+/// The JSON report binds comparison kind, profile fingerprint, input hash,
+/// output verdict, and limitations in one machine-readable envelope.
+#[test]
+fn determinism_json_report_binds_identities() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+
+    let output = cmd()
+        .args(["determinism", "decode", "--profile"])
+        .arg(&profile)
+        .args(["--output", "json"])
+        .arg(&copybook)
+        .arg(&data)
+        .output()
+        .expect("profile determinism json");
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout).expect("determinism JSON report parses");
+    assert_eq!(parsed["comparison"], "decode");
+    assert_eq!(parsed["profile"]["kind"], "profile");
+    let fingerprint = parsed["profile"]["fingerprint"]
+        .as_str()
+        .expect("fingerprint");
+    assert_eq!(fingerprint.len(), 64, "fingerprint is sha256 hex");
+    assert!(fingerprint.bytes().all(|byte| byte.is_ascii_hexdigit()));
+    let input_hash = parsed["input_hash"].as_str().expect("input hash");
+    assert_eq!(input_hash.len(), 64, "input hash is blake3 hex");
+    assert_eq!(parsed["result"]["is_deterministic"], true);
+    assert_eq!(
+        parsed["limitations"].as_array().expect("limitations").len(),
+        2
+    );
+}
+
+/// A flag that contradicts the profile fails with exit 3 before any
+/// comparison output is produced.
+#[test]
+fn determinism_profile_format_conflict_fails_before_output() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+
+    cmd()
+        .args(["determinism", "decode", "--profile"])
+        .arg(&profile)
+        .args(["--format", "rdw"])
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicate::str::contains("conflicting"))
+        .stderr(predicate::str::contains("framing.kind"))
+        .stdout(predicate::str::contains("DETERMINISTIC").not());
+}

@@ -179,7 +179,8 @@
           "synchronized": {"type": "boolean"},
           "blank_when_zero": {"type": "boolean"},
           "occurs": {
-            "type": ["object", "null"],
+            "type": "object",
+            "description": "OCCURS repetition bound; omit for scalar fields (explicit null does not round-trip).",
             "additionalProperties": false,
             "required": ["kind", "count", "min_count"],
             "properties": {

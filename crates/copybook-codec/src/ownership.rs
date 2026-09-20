@@ -265,6 +265,7 @@ pub fn query_byte_owner(manifest: &ResolvedManifest, byte: u32) -> OwnershipRepo
 /// Returns [`OwnershipError::UnknownField`] when nothing matches, or
 /// [`OwnershipError::AmbiguousField`] when a short name matches several
 /// entries.
+#[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn query_field_range(
     manifest: &ResolvedManifest,
@@ -433,8 +434,11 @@ fn descend(
         end,
         inherited.to_vec(),
     ));
+    // Nonrepeating entries still shift under a projected ancestor: children
+    // stay relative to the working base, exactly as in the repeating branch.
     for child in direct_children(manifest, &field.path) {
-        descend(manifest, child, child.offset, byte, inherited, matches);
+        let child_base = base.saturating_add(child.offset.saturating_sub(field.offset));
+        descend(manifest, child, child_base, byte, inherited, matches);
     }
 }
 
@@ -445,6 +449,29 @@ fn direct_children<'a>(manifest: &'a ResolvedManifest, path: &str) -> Vec<&'a Ma
         .iter()
         .filter(|field| parent_path(&field.path).as_deref() == Some(path))
         .collect()
+}
+
+/// The REDEFINES owner this entry views, if any: its own clause, else the
+/// nearest redefining ancestor's. Children of a redefining group are views
+/// of that storage, so they must never pass the storage filter in primary
+/// selection even though they carry no clause themselves.
+fn redefines_view(manifest: &ResolvedManifest, field: &ManifestField) -> Option<String> {
+    if field.redefines.is_some() {
+        return field.redefines.clone();
+    }
+    let mut ancestor = parent_path(&field.path);
+    while let Some(path) = ancestor {
+        if let Some(entry) = manifest
+            .fields
+            .iter()
+            .find(|candidate| candidate.path == path)
+            && entry.redefines.is_some()
+        {
+            return entry.redefines.clone();
+        }
+        ancestor = parent_path(&path);
+    }
+    None
 }
 
 /// Build one match for a manifest field at its working base byte,
@@ -471,7 +498,7 @@ fn field_match_at(
             min_count: occurs_min(occurs),
             counter_path: occurs.counter_path.clone(),
         }),
-        redefines: field.redefines.clone(),
+        redefines: redefines_view(manifest, field),
         numeric: numeric_for(manifest, &field.path),
         odo: odo_for(manifest, &field.path),
         conditions: conditions_under(manifest, &field.path),
@@ -899,6 +926,55 @@ mod tests {
             .find(|item| item.path == "REC.SECONDARY")
             .expect("view present");
         assert_eq!(view.redefines.as_deref(), Some("REC.PRIMARY"));
+    }
+
+    #[test]
+    fn byte_query_in_later_occurrence_projects_through_plain_groups() {
+        let manifest = manifest_for(concat!(
+            "       01 REC.\n",
+            "           05 TBL OCCURS 3 TIMES.\n",
+            "               10 GRP.\n",
+            "                   15 ITEM PIC X(2).\n",
+            "           05 TAIL PIC X.\n",
+        ));
+        // Byte 3 sits in occurrence 1 of TBL, inside GRP.ITEM: the plain
+        // group must carry the projected base to its children, not reset
+        // them to first-occurrence offsets.
+        let report = query_byte_owner(&manifest, 3);
+        let owner = primary(&report);
+        assert_eq!(owner.path, "REC.TBL.GRP.ITEM");
+        assert_eq!((owner.offset, owner.len), (2, 2));
+        assert_eq!(
+            owner.occurrences,
+            vec![OccurrenceIndex {
+                path: "REC.TBL".to_owned(),
+                index: 1,
+                presence: OccurrencePresence::Guaranteed,
+            }]
+        );
+    }
+
+    #[test]
+    fn byte_query_prefers_storage_over_redefines_group_children() {
+        let manifest = manifest_for(concat!(
+            "       01 REC.\n",
+            "           05 STORAGE.\n",
+            "               10 A PIC X(4).\n",
+            "           05 VIEW-GRP REDEFINES STORAGE.\n",
+            "               10 B1 PIC X(1).\n",
+            "               10 B2 PIC X(3).\n",
+        ));
+        // Byte 0 is covered by A and by the narrower B1. B1 is part of a
+        // redefining view, so storage A stays primary and B1 renders a view.
+        let report = query_byte_owner(&manifest, 0);
+        assert_eq!(primary(&report).path, "REC.STORAGE.A");
+        let child = report
+            .matches
+            .iter()
+            .find(|item| item.path == "REC.VIEW-GRP.B1")
+            .expect("redefining child present");
+        assert_eq!(child.role, MatchRole::View);
+        assert_eq!(child.redefines.as_deref(), Some("REC.STORAGE"));
     }
 
     #[test]

@@ -248,6 +248,23 @@ fn cobol_manifest_rejects_unknown_keys() {
 }
 
 #[test]
+fn cobol_manifest_rejects_null_occurs_before_verification() {
+    let manifest = generate_manifest();
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&manifest.to_json().expect("serializes")).expect("json parses");
+    value["fields"][0]["occurs"] = serde_json::Value::Null;
+    // The stale fingerprint is intact, so only the null guard reports: an
+    // explicit null would deserialize away while staying in the verified
+    // body, splitting the reported fingerprint from the document's own.
+    let nulled = serde_json::to_vec(&value).expect("re-serializes");
+    let err = ResolvedManifest::from_json(&nulled).expect_err("null occurs fails");
+    assert!(
+        matches!(err, ManifestError::MalformedManifest { .. }),
+        "got {err}"
+    );
+}
+
+#[test]
 fn cobol_manifest_rejects_oversized_input() {
     use copybook_codec::resolved_manifest::MAX_MANIFEST_BYTES;
     let oversized = vec![b' '; MAX_MANIFEST_BYTES + 1];

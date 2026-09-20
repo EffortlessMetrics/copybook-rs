@@ -61,7 +61,8 @@ copybook inspect <COPYBOOK> [OPTIONS]
   and `--field` starts query mode
 - `--field <PATH>` - Locate a field path (full dotted path or a unique short name,
   case-insensitive). Exactly one of `--payload-byte` and `--field` starts query mode
-- `--output <FORMAT>` - Query rendering: human, json (default: human)
+- `--output <FORMAT>` - Query rendering: human, json (default: human). Query mode
+  only; a non-default value without `--payload-byte` or `--field` is an error (exit 3)
 - `--codepage <CP>` - Character encoding (default: cp037)
 - `--strict` - Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
@@ -88,7 +89,12 @@ bytes resolve to the true within-occurrence child with its occurrence index; ODO
 occurrences at or past the minimum report `possible` presence. Unknown and ambiguous
 paths fail closed (exit 3); answered states exit 0. `--output json` emits the same
 typed answer as machine output (fingerprints, never local paths). Manifest-backed and
-source-backed queries answer byte-identically.
+source-backed queries answer byte-identically. Foreign (non-contract) properties are
+verified by the fingerprint, then ignored: answers bind the contract body the query
+interpreted. Manifests generated before the `occurs` field detail existed carry no
+repetition bounds: queries over them still name a true covering owner, but repeated
+tables answer at group granularity. Regenerate the manifest with the current tool to
+restore leaf-level occurrence precision.
 
 **Exit codes:** 0 = layout printed or query answered (any state), 3 = usage, profile,
 manifest, or query failure (contradictory selectors/inputs, unknown or ambiguous path,

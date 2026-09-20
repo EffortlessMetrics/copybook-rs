@@ -608,6 +608,27 @@ impl ResolvedManifest {
             .ok_or_else(|| ManifestError::MalformedManifest {
                 reason: "manifest document is not a JSON object".to_owned(),
             })?;
+        // Explicit nulls deserialize away (`Option::None` plus
+        // `skip_serializing_if`) but stay in the verified body, so the
+        // reported fingerprint would disagree with the document's own.
+        // Genuine documents omit absent properties; refuse the
+        // normalization before verification.
+        if body
+            .get("fields")
+            .and_then(|fields| fields.as_array())
+            .is_some_and(|fields| {
+                fields.iter().any(|field| {
+                    field.as_object().is_some_and(|field| {
+                        field.get("occurs").is_some_and(serde_json::Value::is_null)
+                    })
+                })
+            })
+        {
+            return Err(ManifestError::MalformedManifest {
+                reason: "manifest field declares null occurs; omit the property or provide the repetition bound"
+                    .to_owned(),
+            });
+        }
         let fingerprint = body
             .get(FINGERPRINT_PROPERTY)
             .and_then(serde_json::Value::as_str)

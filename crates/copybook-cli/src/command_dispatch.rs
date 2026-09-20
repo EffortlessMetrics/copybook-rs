@@ -220,7 +220,10 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
         return dispatch_mismatch("inspect");
     };
 
-    if payload_byte.is_some() || field.is_some() {
+    // `--manifest` alone also enters query validation: without a selector the
+    // contradiction fails closed instead of silently running the layout
+    // report that ignores the manifest.
+    if payload_byte.is_some() || field.is_some() || manifest.is_some() {
         return run_inspect_query_command(
             copybook.as_ref(),
             profile.as_ref(),
@@ -235,6 +238,17 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
             dialect,
             emit_manifest.as_ref(),
             feature_flags,
+        );
+    }
+
+    // `--output` renders queries only: the layout report and manifest
+    // emission have no machine rendering, so a non-default value without a
+    // selector is a contradiction, never a silent default.
+    if output != commands::inspect::InspectQueryFormat::Human {
+        return query_failure(
+            "inspect",
+            crate::subcode::QUERY_CONTRADICTION,
+            "--output json needs an ownership query: pass --payload-byte <N> or --field <PATH>",
         );
     }
 
@@ -486,6 +500,23 @@ fn build_query_manifest(
 fn load_query_manifest(
     path: &std::path::PathBuf,
 ) -> Result<copybook::codec::resolved_manifest::ResolvedManifest, CommandOutcome> {
+    // Refuse oversize documents before allocating: `from_json` enforces the
+    // same bound after the read, so this pre-check only moves the rejection
+    // ahead of the allocation. A missing file still falls through to the
+    // unreadable refusal below.
+    if path.metadata().is_ok_and(|meta| {
+        meta.len() > copybook::codec::resolved_manifest::MAX_MANIFEST_BYTES as u64
+    }) {
+        return Err(query_failure(
+            "inspect",
+            crate::subcode::MANIFEST_INVALID,
+            &format!(
+                "manifest {} exceeds the {}-byte manifest bound",
+                path.display(),
+                copybook::codec::resolved_manifest::MAX_MANIFEST_BYTES
+            ),
+        ));
+    }
     let Ok(bytes) = std::fs::read(path) else {
         return Err(query_failure(
             "inspect",

@@ -11,7 +11,8 @@ body: '**inspect**: static ownership queries answer which field owns a
   `possible` presence, REDEFINES bytes report one storage owner plus
   views, and RENAMES aliases and Level-88 relationships are reported
   truthfully. Unknown and ambiguous paths fail closed with exit 3
-  (subcodes 407/408); answered states, including `gap` and `out_of_range`,
+  (subcode 408); contradictory selectors or inputs use subcode 407.
+  Answered states, including `gap` and `out_of_range`,
   exit 0. Manifest wire items gain optional OCCURS repetition bounds;
   scalar-only manifests re-serialize byte-identically.'
 time: '2026-09-20T06:30:00Z'

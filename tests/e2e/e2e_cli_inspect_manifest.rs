@@ -577,6 +577,73 @@ fn inspect_query_manifest_and_copybook_conflict() {
         .stderr(predicates::str::contains("--manifest reads no copybook"));
 }
 
+/// An oversize `--manifest` is refused before allocation, with the same
+/// invalid-manifest subcode `from_json` reports after the read.
+#[test]
+fn inspect_query_oversize_manifest_refused_without_read() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let big = vec![b' '; 1_048_577];
+    let manifest = write_temp_file(&dir, "big.manifest.json", &big);
+
+    cmd()
+        .args(["inspect", "--manifest"])
+        .arg(&manifest)
+        .args(["--payload-byte", "0"])
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicates::str::contains("exceeds the"))
+        .stderr(predicates::str::contains("subcode=410"));
+}
+
+/// `--manifest` without a selector enters query validation instead of
+/// silently running the legacy layout report that ignores the manifest.
+#[test]
+fn inspect_query_manifest_without_selector_fails() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let manifest_path = dir.path().join("simple.manifest.json");
+
+    cmd()
+        .args(["inspect", "--profile"])
+        .arg(&profile)
+        .args(["--emit-manifest"])
+        .arg(&manifest_path)
+        .arg(&copybook)
+        .assert()
+        .success();
+
+    cmd()
+        .args(["inspect", "--manifest"])
+        .arg(&manifest_path)
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicates::str::contains(
+            "needs --payload-byte <N> or --field <PATH>",
+        ))
+        .stderr(predicates::str::contains("subcode=407"));
+}
+
+/// Non-default `--output` without a query selector is rejected: the layout
+/// report has no machine rendering to honor it with.
+#[test]
+fn inspect_output_json_without_selector_fails() {
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+
+    cmd()
+        .args(["inspect", "--output", "json"])
+        .arg(&copybook)
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicates::str::contains(
+            "--output json needs an ownership query",
+        ))
+        .stderr(predicates::str::contains("subcode=407"));
+}
+
 /// REDEFINES bytes report one storage owner plus views.
 #[test]
 fn inspect_query_redefines_reports_owner_and_views() {

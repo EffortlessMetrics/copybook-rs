@@ -690,6 +690,7 @@ Profile keys and their flag equivalents:
 | `decode.json_numbers` (`decode` only) | `--json-number` | `lossless` |
 | `source.dialect` | `--dialect` | `n` (normative) |
 | `limits.maximum_errors` | `--max-errors` | unlimited (`decode`), `10` (`verify`) |
+| `limits.maximum_record_length` | none | uncapped without a profile; every profile states its bound explicitly (`32760` is the `doctor --emit-profile` draft starting point, the RDW architectural maximum, not a claim about fixed layouts) |
 
 `framing.reserved_bytes = "strict"` fails non-zero RDW/BDW reserved bytes
 (`CBKR211_RDW_RESERVED_NONZERO` / `CBKF225_BDW_RESERVED_NONZERO`) without

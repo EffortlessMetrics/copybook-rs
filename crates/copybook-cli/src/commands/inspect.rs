@@ -84,6 +84,39 @@ pub enum InspectQueryFormat {
     Json,
 }
 
+/// Ownership-query inputs for `inspect`: framing, document, selector, and
+/// rendering.
+///
+/// A flattened group rather than inline variant fields, so the top-level
+/// command builder stays small: the full CLI tree already sits close to the
+/// Windows main-thread stack bound in debug builds, and inline fields were
+/// enough to overflow it there.
+#[derive(clap::Args, Debug)]
+pub struct InspectQueryArgs {
+    /// Record format (explicit, no auto-detection). Supplies framing for
+    /// source-backed ownership queries unless --profile does; the legacy
+    /// layout report and --emit-manifest need no flag.
+    #[arg(long)]
+    pub format: Option<copybook::codec::RecordFormat>,
+    /// Answer an ownership query from a pre-generated manifest document.
+    /// Reads no copybook and no record data; conflicts with COPYBOOK
+    /// and --profile, which the manifest already binds.
+    #[arg(long, value_name = "FILE")]
+    pub manifest: Option<PathBuf>,
+    /// Payload-relative byte to own. Exactly one of --payload-byte
+    /// and --field starts query mode.
+    #[arg(long, value_name = "N")]
+    pub payload_byte: Option<u32>,
+    /// Field path to locate (full dotted path or a unique short name,
+    /// case-insensitive). Exactly one of --payload-byte and --field
+    /// starts query mode.
+    #[arg(long, value_name = "PATH")]
+    pub field: Option<String>,
+    /// Query rendering: human or json (default: human).
+    #[arg(long, value_enum, default_value = "human")]
+    pub output: InspectQueryFormat,
+}
+
 /// Build the resolved manifest for a copybook without writing it anywhere.
 ///
 /// Emission and source-backed queries share this constructor, so a query

@@ -203,7 +203,6 @@ fn run_parse_command(command: Commands, feature_flags: &FeatureFlags) -> Command
 fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> CommandOutcome {
     let Commands::Inspect {
         copybook,
-        format,
         codepage,
         strict,
         strict_comments,
@@ -211,10 +210,14 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
         profile,
         emit_manifest,
         overwrite_manifest,
-        manifest,
-        payload_byte,
-        field,
-        output,
+        query:
+            commands::inspect::InspectQueryArgs {
+                format,
+                manifest,
+                payload_byte,
+                field,
+                output,
+            },
     } = command
     else {
         return dispatch_mismatch("inspect");

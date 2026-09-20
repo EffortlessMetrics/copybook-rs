@@ -242,11 +242,9 @@ enum Commands {
     Inspect {
         /// Copybook file path (required unless --manifest answers the query)
         copybook: Option<PathBuf>,
-        /// Record format (explicit, no auto-detection). Supplies framing for
-        /// source-backed ownership queries unless --profile does; the legacy
-        /// layout report and --emit-manifest need no flag.
-        #[arg(long)]
-        format: Option<RecordFormat>,
+        /// Ownership query inputs: framing, document, selector, rendering.
+        #[command(flatten)]
+        query: crate::commands::inspect::InspectQueryArgs,
         /// Character encoding: ascii, cp037, cp273, cp500, cp1047, or cp1140.
         #[arg(long, value_parser = crate::cli_config::parse_codepage)]
         codepage: Option<Codepage>,
@@ -271,23 +269,6 @@ enum Commands {
         /// exists. Without this flag, emission refuses to replace a file.
         #[arg(long, requires = "emit_manifest")]
         overwrite_manifest: bool,
-        /// Answer an ownership query from a pre-generated manifest document.
-        /// Reads no copybook and no record data; conflicts with COPYBOOK
-        /// and --profile, which the manifest already binds.
-        #[arg(long, value_name = "FILE")]
-        manifest: Option<PathBuf>,
-        /// Payload-relative byte to own. Exactly one of --payload-byte
-        /// and --field starts query mode.
-        #[arg(long, value_name = "N")]
-        payload_byte: Option<u32>,
-        /// Field path to locate (full dotted path or a unique short name,
-        /// case-insensitive). Exactly one of --payload-byte and --field
-        /// starts query mode.
-        #[arg(long, value_name = "PATH")]
-        field: Option<String>,
-        /// Query rendering: human or json (default: human).
-        #[arg(long, value_enum, default_value = "human")]
-        output: crate::commands::inspect::InspectQueryFormat,
     },
     /// Decode binary data to JSONL
     #[command(

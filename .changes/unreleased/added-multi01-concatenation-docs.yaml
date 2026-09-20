@@ -1,0 +1,8 @@
+kind: added
+body: '**docs**: documented the multi-01 concatenation contract
+  (`multi-01-layouts`, #1161): a copybook declaring several 01-level
+  records decodes as one concatenated layout with accumulating offsets,
+  `inspect` reports the concatenated width, and no per-record layout
+  selection exists. The JRecord first-01 overlay pole is recorded as the
+  explicit divergence (lane 5). Pinned by `e2e_cli_multi01`.'
+time: '2026-09-20T16:00:00Z'

@@ -957,6 +957,17 @@ Binary field sizes are determined by PIC digits: ≤4→16b, 5–9→32b, 10–1
 - Final line may omit its terminator; short/long lines fail with `CBKR101`
 - Use `--format text` (encode terminator: `--text-terminator lf|crlf`)
 
+### Multiple 01-Level Layouts
+- A copybook declaring several 01-level records decodes as one concatenated
+  layout: field offsets accumulate across 01s (`A-REC X(4)` + `B-REC 9(4)`
+  reads 8-byte records with `B-FIELD` at bytes 4..8)
+- `inspect` reports the concatenated width (`Fixed LRECL: 8 bytes`)
+- No per-record layout selection exists: every record decodes under the one
+  concatenated layout, and no discriminator chooses between 01s
+- Divergence note: JRecord strides by the first 01 and overlays every field
+  at offset 0; copybook-rs concatenates instead. Neither side selects per
+  record (evidenced in `docs/evidence/differential-breadth/README.md`, lane 5)
+
 ## JSON Output Format
 
 ### Field Ordering

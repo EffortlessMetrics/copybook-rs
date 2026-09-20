@@ -111,6 +111,8 @@ impl RecordPresence {
     /// under a repeating ancestor (one flat count cannot name per-occurrence
     /// arrays), or [`OwnershipError::MissingOdoCount`] when the decoded
     /// value holds no array for a table.
+    #[must_use = "Handle the Result or propagate the error"]
+    #[inline]
     pub fn from_decoded(
         manifest: &ResolvedManifest,
         decoded: &serde_json::Value,

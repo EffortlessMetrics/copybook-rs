@@ -71,6 +71,22 @@ pub mod subcode {
     /// Policy enforcement: an environment input (today `COPYBOOK_DIALECT`)
     /// names no known value. Rejected explicitly; never a silent default.
     pub const ENV_INVALID: u16 = 406;
+    /// Query guardrail: the inspect ownership selectors contradict each
+    /// other or their input (`--payload-byte` with `--field`, `--manifest`
+    /// with `COPYBOOK` or `--profile`, a query with no input). The run
+    /// stops; pass exactly one selector and one input.
+    pub const QUERY_CONTRADICTION: u16 = 407;
+    /// Query guardrail: the requested field path names no field, alias, or
+    /// condition, or a short name matches several entries. The run stops;
+    /// qualify the full dotted path.
+    pub const QUERY_UNANSWERABLE: u16 = 408;
+    /// Query guardrail: the `--manifest` document cannot be read. Distinct
+    /// from `MANIFEST_INVALID`: a missing or unreadable path is not invalid
+    /// contents, and default machine output stays path-safe.
+    pub const MANIFEST_UNREADABLE: u16 = 409;
+    /// Query guardrail: the `--manifest` document is not a valid
+    /// resolved-schema manifest.
+    pub const MANIFEST_INVALID: u16 = 410;
 }
 
 fn invocation_id() -> &'static str {
@@ -224,8 +240,11 @@ enum Commands {
         after_help = "Comments: inline (*>) allowed by default; use --strict-comments to disable."
     )]
     Inspect {
-        /// Copybook file path
-        copybook: PathBuf,
+        /// Copybook file path (required unless --manifest answers the query)
+        copybook: Option<PathBuf>,
+        /// Ownership query inputs: framing, document, selector, rendering.
+        #[command(flatten)]
+        query: crate::commands::inspect::InspectQueryArgs,
         /// Character encoding: ascii, cp037, cp273, cp500, cp1047, or cp1140.
         #[arg(long, value_parser = crate::cli_config::parse_codepage)]
         codepage: Option<Codepage>,

@@ -7,16 +7,20 @@ use crate::utils::{
     InputRole, atomic_write, atomic_write_new, print_identity_hint, read_input_or_stdin,
 };
 use crate::write_stdout_all;
+use anyhow::Context as _;
 use copybook::codec::Codepage;
 use copybook::codec::options::profile::InterpretationProfile;
 use copybook::codec::options::resolve::Resolved;
+use copybook::codec::ownership::{
+    MatchRole, OwnershipError, OwnershipReport, OwnershipState, query_byte_owner, query_field_range,
+};
 use copybook::codec::resolved_manifest::{GenerateInputs, ManifestTool, ResolvedManifest};
 use copybook::core::source_bundle::SourceBundle;
 use copybook::core::{
     FeatureFlags, Field, FieldKind, Occurs, ParseOptions, Schema, parse_copybook_with_feature_flags,
 };
 use std::fmt::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 /// Minimum widths for the layout table columns.
@@ -71,26 +75,62 @@ pub fn run(
 }
 
 /// Inspect with manifest emission: the layout report goes to stdout and a
-/// resolved-schema manifest binding the reviewed inputs goes to `manifest_path`.
+/// Query output rendering.
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InspectQueryFormat {
+    /// Human-readable ownership answer.
+    Human,
+    /// Machine-readable ownership answer (fingerprints, no local paths).
+    Json,
+}
+
+/// Ownership-query inputs for `inspect`: framing, document, selector, and
+/// rendering.
 ///
-/// The manifest records the exact [`ResolvedCommonInputs`] the run resolved,
-/// so the file reproduces the run's interpretation without re-resolution.
+/// A flattened group rather than inline variant fields, so the top-level
+/// command builder stays small: the full CLI tree already sits close to the
+/// Windows main-thread stack bound in debug builds, and inline fields were
+/// enough to overflow it there.
+#[derive(clap::Args, Debug)]
+pub struct InspectQueryArgs {
+    /// Record format (explicit, no auto-detection). Supplies framing for
+    /// source-backed ownership queries unless --profile does; the legacy
+    /// layout report and --emit-manifest need no flag.
+    #[arg(long)]
+    pub format: Option<copybook::codec::RecordFormat>,
+    /// Answer an ownership query from a pre-generated manifest document.
+    /// Reads no copybook and no record data; conflicts with COPYBOOK
+    /// and --profile, which the manifest already binds.
+    #[arg(long, value_name = "FILE")]
+    pub manifest: Option<PathBuf>,
+    /// Payload-relative byte to own. Exactly one of --payload-byte
+    /// and --field starts query mode.
+    #[arg(long, value_name = "N")]
+    pub payload_byte: Option<u32>,
+    /// Field path to locate (full dotted path or a unique short name,
+    /// case-insensitive). Exactly one of --payload-byte and --field
+    /// starts query mode.
+    #[arg(long, value_name = "PATH")]
+    pub field: Option<String>,
+    /// Query rendering: human or json (default: human).
+    #[arg(long, value_enum, default_value = "human")]
+    pub output: InspectQueryFormat,
+}
+
+/// Build the resolved manifest for a copybook without writing it anywhere.
 ///
-/// Publication is atomic and, unless `overwrite` is set, no-clobber: a target
-/// that appears after dispatch's pre-check still cannot be replaced.
-#[allow(clippy::too_many_arguments)]
-pub fn run_with_manifest(
-    copybook: &PathBuf,
+/// Emission and source-backed queries share this constructor, so a query
+/// over `COPYBOOK` answers exactly what the emitted manifest contains.
+/// Returns the manifest with the schema it was generated from for callers
+/// that also render the legacy layout table.
+pub fn build_manifest(
+    copybook: &Path,
     common: &ResolvedCommonInputs,
     profile: Option<&InterpretationProfile>,
     strict: bool,
     strict_comments: bool,
     feature_flags: &FeatureFlags,
-    manifest_path: &PathBuf,
-    overwrite: bool,
-) -> anyhow::Result<ExitCode> {
-    info!("Inspecting copybook with manifest emission: {copybook:?}");
-
+) -> anyhow::Result<(ResolvedManifest, Schema)> {
     // The parse path already requires valid UTF-8 source, so the text bytes
     // are exactly the file bytes the bundle fingerprints.
     let copybook_text = read_input_or_stdin(InputRole::Copybook, copybook)?;
@@ -110,7 +150,7 @@ pub fn run_with_manifest(
         .unwrap_or("copybook");
     let bundle = SourceBundle::single(logical_id, copybook_text.as_bytes())
         .map_err(|error| anyhow::anyhow!("cannot build source bundle for {logical_id}: {error}"))?;
-    let manifest = ResolvedManifest::generate(GenerateInputs {
+    ResolvedManifest::generate(GenerateInputs {
         bundle: &bundle,
         profile,
         tool: ManifestTool {
@@ -132,18 +172,58 @@ pub fn run_with_manifest(
         record_bound: common.record_bound.clone(),
         schema: &schema,
     })
-    .map_err(|error| anyhow::anyhow!("cannot generate resolved manifest: {error}"))?;
+    .map_err(|error| anyhow::anyhow!("cannot generate resolved manifest: {error}"))
+    .map(|manifest| (manifest, schema))
+}
+
+/// Where a resolved manifest is written when `inspect --emit-manifest` runs.
+pub struct ManifestEmission<'a> {
+    /// Destination document path for the emitted manifest.
+    pub manifest_path: &'a PathBuf,
+    /// Replace the destination when it already exists.
+    pub overwrite: bool,
+}
+
+/// Emit the resolved-schema manifest binding the reviewed inputs.
+///
+/// The manifest records the exact [`ResolvedCommonInputs`] the run resolved,
+/// so the file reproduces the run's interpretation without re-resolution.
+///
+/// Publication is atomic and, unless overwrite is set, no-clobber: a target
+/// that appears after dispatch's pre-check still cannot be replaced.
+pub fn run_with_manifest(
+    copybook: &PathBuf,
+    common: &ResolvedCommonInputs,
+    profile: Option<&InterpretationProfile>,
+    strict: bool,
+    strict_comments: bool,
+    feature_flags: &FeatureFlags,
+    emission: &ManifestEmission<'_>,
+) -> anyhow::Result<ExitCode> {
+    info!("Inspecting copybook with manifest emission: {copybook:?}");
+
+    let (manifest, schema) = build_manifest(
+        copybook,
+        common,
+        profile,
+        strict,
+        strict_comments,
+        feature_flags,
+    )?;
     let json = manifest
         .to_json()
         .map_err(|error| anyhow::anyhow!("cannot serialize resolved manifest: {error}"))?;
     let write = |writer: &mut dyn std::io::Write| writer.write_all(&json);
-    if overwrite {
-        atomic_write(manifest_path, write)
+    if emission.overwrite {
+        atomic_write(emission.manifest_path, write)
     } else {
-        atomic_write_new(manifest_path, write)
+        atomic_write_new(emission.manifest_path, write)
     }
     .map_err(|error| {
-        anyhow::anyhow!("cannot write manifest {}: {error}", manifest_path.display())
+        anyhow::anyhow!(
+            "cannot write manifest {}: {error}",
+            emission.manifest_path.display()
+        )
     })?;
 
     let rows: Vec<Row> = schema
@@ -156,6 +236,191 @@ pub fn run_with_manifest(
 
     info!("Inspect with manifest emission completed successfully");
     Ok(ExitCode::Ok)
+}
+
+/// A query the dispatcher refuses without guessing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum QueryRefusal {
+    /// No field, alias, or condition matches the requested path.
+    UnknownField {
+        /// Requested path as given.
+        query: String,
+    },
+    /// A short name matches several entries; the caller must qualify it.
+    AmbiguousField {
+        /// Requested path as given.
+        query: String,
+        /// Fully-qualified candidates in manifest order.
+        candidates: Vec<String>,
+    },
+}
+
+/// One validated ownership selector. Dispatch guarantees exactly one side
+/// before calling [`answer_query`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OwnershipSelector {
+    /// Own a payload-relative byte.
+    PayloadByte(u32),
+    /// Locate a field path.
+    FieldPath(String),
+}
+
+/// Answer one ownership query against an already-resolved manifest.
+///
+/// Returns the typed report for the dispatcher to render, or the refusal
+/// for structured diagnostics: unknown and ambiguous paths are refused
+/// rather than guessed. Answered states — including `gap` and
+/// `out_of_range` — render with an explicit state.
+pub fn answer_query(
+    manifest: &ResolvedManifest,
+    selector: OwnershipSelector,
+) -> Result<OwnershipReport, QueryRefusal> {
+    let report = match selector {
+        OwnershipSelector::PayloadByte(byte) => Ok(query_byte_owner(manifest, byte)),
+        OwnershipSelector::FieldPath(path) => query_field_range(manifest, &path),
+    };
+    report.map_err(|error| match error {
+        OwnershipError::UnknownField { query } => QueryRefusal::UnknownField { query },
+        OwnershipError::AmbiguousField { query, candidates } => {
+            QueryRefusal::AmbiguousField { query, candidates }
+        }
+    })
+}
+
+/// Render one ownership answer as JSON.
+///
+/// # Errors
+///
+/// Returns an error when serialization fails.
+pub fn render_json_report(report: &OwnershipReport) -> anyhow::Result<String> {
+    serde_json::to_string_pretty(report).context("cannot serialize ownership answer to JSON")
+}
+
+/// Render one ownership answer for humans.
+#[must_use]
+pub fn render_human_report(report: &OwnershipReport) -> String {
+    let mut output = String::new();
+    let query_line = match &report.query {
+        copybook::codec::ownership::OwnershipQuery::PayloadByte { byte } => {
+            format!("payload byte {byte}")
+        }
+        copybook::codec::ownership::OwnershipQuery::FieldPath { path } => {
+            format!("field path {path}")
+        }
+    };
+    let _ = writeln!(
+        &mut output,
+        "Ownership query: {query_line} ({})",
+        report.coordinate_system
+    );
+    let _ = writeln!(&mut output, "Manifest: {}", report.manifest_fingerprint);
+    match &report.profile_fingerprint {
+        Some(fingerprint) => {
+            let _ = writeln!(&mut output, "Profile: sha256:{fingerprint}");
+        }
+        None => {
+            let _ = writeln!(&mut output, "Profile: direct (no reviewed profile)");
+        }
+    }
+    let _ = writeln!(
+        &mut output,
+        "Layout: {}  Record extent: {} bytes",
+        report.schema_fingerprint, report.record_len
+    );
+    let state_line = match report.state {
+        OwnershipState::Owned => "owned".to_owned(),
+        OwnershipState::Gap => "gap (byte inside the record extent, no field covers it)".to_owned(),
+        OwnershipState::OutOfRange => format!(
+            "out of range (record extent is {} bytes)",
+            report.record_len
+        ),
+    };
+    let _ = writeln!(&mut output, "State: {state_line}");
+    for item in &report.matches {
+        let _ = writeln!(
+            &mut output,
+            "{}  {}  {}..{} (len {})  {}{}",
+            role_label(item.role),
+            item.path,
+            item.offset,
+            item.end,
+            item.len,
+            item.kind,
+            match_details(item)
+        );
+    }
+    if report.truncated {
+        let _ = writeln!(
+            &mut output,
+            "Note: matches truncated at {MAX} entries",
+            MAX = copybook::codec::ownership::MAX_OWNERSHIP_MATCHES
+        );
+    }
+    output
+}
+
+/// One-line role label for the human table.
+fn role_label(role: MatchRole) -> &'static str {
+    match role {
+        MatchRole::Primary => "PRIMARY  ",
+        MatchRole::Container => "CONTAINER",
+        MatchRole::View => "VIEW     ",
+        MatchRole::Alias => "ALIAS    ",
+    }
+}
+
+/// Trailing human details for one match.
+fn match_details(item: &copybook::codec::ownership::OwnershipMatch) -> String {
+    use copybook::codec::ownership::OccurrencePresence;
+    let mut details = String::new();
+    if item.filler {
+        details.push_str("  padding");
+    }
+    for occurrence in &item.occurrences {
+        let presence = match occurrence.presence {
+            OccurrencePresence::Guaranteed => "guaranteed",
+            OccurrencePresence::Possible => "possible",
+        };
+        let _ = write!(
+            &mut details,
+            "  occ {}[{}] ({presence})",
+            occurrence.path, occurrence.index
+        );
+    }
+    if let Some(repetition) = &item.repetition {
+        let _ = write!(
+            &mut details,
+            "  repeats {}x{}",
+            repetition.kind, repetition.count
+        );
+        if let Some(counter) = &repetition.counter_path {
+            let _ = write!(&mut details, " counter {counter}");
+        }
+    }
+    if let Some(owner) = &item.redefines {
+        let _ = write!(&mut details, "  redefines {owner}");
+    }
+    if let Some(numeric) = &item.numeric {
+        let _ = write!(
+            &mut details,
+            "  digits={} scale={} signed={} encoding={}",
+            numeric.digits, numeric.scale, numeric.signed, numeric.encoding
+        );
+    }
+    if let Some(odo) = &item.odo {
+        let _ = write!(
+            &mut details,
+            "  odo {}..{} counter {}",
+            odo.min_count, odo.max_count, odo.counter_path
+        );
+    }
+    if !item.conditions.is_empty() {
+        let _ = write!(&mut details, "  conditions={}", item.conditions.join(","));
+    }
+    if !item.members.is_empty() {
+        let _ = write!(&mut details, "  members={}", item.members.join(","));
+    }
+    details
 }
 
 /// Parse one copybook text with explicit options, hinting the identity fix.

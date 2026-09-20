@@ -210,9 +210,57 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
         profile,
         emit_manifest,
         overwrite_manifest,
+        query:
+            commands::inspect::InspectQueryArgs {
+                format,
+                manifest,
+                payload_byte,
+                field,
+                output,
+            },
     } = command
     else {
         return dispatch_mismatch("inspect");
+    };
+
+    // `--manifest` alone also enters query validation: without a selector the
+    // contradiction fails closed instead of silently running the layout
+    // report that ignores the manifest.
+    if payload_byte.is_some() || field.is_some() || manifest.is_some() {
+        return run_inspect_query_command(
+            copybook.as_ref(),
+            profile.as_ref(),
+            manifest.as_ref(),
+            payload_byte,
+            field,
+            output,
+            format,
+            codepage,
+            strict,
+            strict_comments,
+            dialect,
+            emit_manifest.as_ref(),
+            feature_flags,
+        );
+    }
+
+    // `--output` renders queries only: the layout report and manifest
+    // emission have no machine rendering, so a non-default value without a
+    // selector is a contradiction, never a silent default.
+    if output != commands::inspect::InspectQueryFormat::Human {
+        return query_failure(
+            "inspect",
+            crate::subcode::QUERY_CONTRADICTION,
+            "--output json needs an ownership query: pass --payload-byte <N> or --field <PATH>",
+        );
+    }
+
+    let Some(copybook) = copybook else {
+        return query_failure(
+            "inspect",
+            crate::subcode::QUERY_CONTRADICTION,
+            "inspect needs COPYBOOK; ownership queries take --manifest instead",
+        );
     };
 
     if let Some(manifest_path) = emit_manifest {
@@ -244,6 +292,266 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
         ),
         "inspect",
     )
+}
+
+/// Ownership query mode: answer one static field/byte question.
+///
+/// Exactly one selector (`--payload-byte` or `--field`) and exactly one
+/// input (`--manifest` or `COPYBOOK`) is required; every other combination
+/// is a contradiction, never a silent default. Manifest-backed queries read
+/// no copybook and no record data; source-backed queries build the manifest
+/// through the same constructor emission uses, so both inputs agree. Query
+/// refusals (unknown or ambiguous paths) render structured diagnostics with
+/// an `Encode` (validation) exit. `--emit-manifest` stays a separate run so
+/// the layout report never mixes into a query answer.
+#[allow(clippy::too_many_arguments)]
+fn run_inspect_query_command(
+    copybook: Option<&std::path::PathBuf>,
+    profile: Option<&std::path::PathBuf>,
+    manifest_path: Option<&std::path::PathBuf>,
+    payload_byte: Option<u32>,
+    field: Option<String>,
+    output: commands::inspect::InspectQueryFormat,
+    record_format: Option<copybook::codec::RecordFormat>,
+    codepage: Option<copybook::codec::Codepage>,
+    strict: bool,
+    strict_comments: bool,
+    dialect: Option<crate::DialectPreference>,
+    emit_manifest: Option<&std::path::PathBuf>,
+    feature_flags: &FeatureFlags,
+) -> CommandOutcome {
+    let selector = match select_ownership_query(payload_byte, field) {
+        Ok(selector) => selector,
+        Err(outcome) => return outcome,
+    };
+    if emit_manifest.is_some() {
+        return query_failure(
+            "inspect",
+            crate::subcode::QUERY_CONTRADICTION,
+            "--emit-manifest and ownership queries are separate runs: emit first, then query the file",
+        );
+    }
+    let manifest = match (manifest_path, copybook) {
+        (Some(_), Some(_)) => {
+            return query_failure(
+                "inspect",
+                crate::subcode::QUERY_CONTRADICTION,
+                "--manifest reads no copybook: pass exactly one query input",
+            );
+        }
+        (None, None) => {
+            return query_failure(
+                "inspect",
+                crate::subcode::QUERY_CONTRADICTION,
+                "inspect query needs --manifest or COPYBOOK",
+            );
+        }
+        (Some(path), None) => {
+            if profile.is_some() {
+                return query_failure(
+                    "inspect",
+                    crate::subcode::QUERY_CONTRADICTION,
+                    "--profile contradicts --manifest: the manifest already binds its reviewed inputs",
+                );
+            }
+            match load_query_manifest(path) {
+                Ok(manifest) => manifest,
+                Err(error) => return error,
+            }
+        }
+        (None, Some(path)) => {
+            if path.as_os_str() == "-" {
+                return query_failure(
+                    "inspect",
+                    crate::subcode::QUERY_CONTRADICTION,
+                    "inspect query needs a copybook file; stdin has no stable source identity",
+                );
+            }
+            let source = QuerySource {
+                copybook: path,
+                profile,
+                record_format,
+                codepage,
+                strict,
+                strict_comments,
+                dialect,
+            };
+            match build_query_manifest(&source, feature_flags) {
+                Ok(manifest) => manifest,
+                Err(outcome) => return outcome,
+            }
+        }
+    };
+    let report = match commands::inspect::answer_query(&manifest, selector) {
+        Ok(report) => report,
+        Err(commands::inspect::QueryRefusal::UnknownField { query }) => {
+            return query_failure(
+                "inspect",
+                crate::subcode::QUERY_UNANSWERABLE,
+                &format!(
+                    "unknown field path '{query}': no field, alias, or condition matches \
+                     (short names must name exactly one entry)"
+                ),
+            );
+        }
+        Err(commands::inspect::QueryRefusal::AmbiguousField { query, candidates }) => {
+            return query_failure(
+                "inspect",
+                crate::subcode::QUERY_UNANSWERABLE,
+                &format!(
+                    "ambiguous field path '{query}': {} (qualify the full dotted path)",
+                    candidates.join(", ")
+                ),
+            );
+        }
+    };
+    let output = match output {
+        commands::inspect::InspectQueryFormat::Human => {
+            commands::inspect::render_human_report(&report)
+        }
+        commands::inspect::InspectQueryFormat::Json => {
+            match commands::inspect::render_json_report(&report) {
+                Ok(json) => json,
+                Err(error) => return (Err(error), "inspect"),
+            }
+        }
+    };
+    match crate::write_stdout_all(output.as_bytes()) {
+        Ok(()) => (Ok(crate::ExitCode::Ok), "inspect"),
+        Err(error) => (Err(anyhow!(error)), "inspect"),
+    }
+}
+
+/// Exactly one ownership selector: `--payload-byte` or `--field`, never
+/// both, never neither.
+fn select_ownership_query(
+    payload_byte: Option<u32>,
+    field: Option<String>,
+) -> Result<commands::inspect::OwnershipSelector, CommandOutcome> {
+    use commands::inspect::OwnershipSelector;
+    match (payload_byte, field) {
+        (Some(_), Some(_)) => Err(query_failure(
+            "inspect",
+            crate::subcode::QUERY_CONTRADICTION,
+            "inspect query needs exactly one of --payload-byte <N> or --field <PATH>",
+        )),
+        (Some(byte), None) => Ok(OwnershipSelector::PayloadByte(byte)),
+        (None, Some(path)) => Ok(OwnershipSelector::FieldPath(path)),
+        (None, None) => Err(query_failure(
+            "inspect",
+            crate::subcode::QUERY_CONTRADICTION,
+            "inspect query needs --payload-byte <N> or --field <PATH>",
+        )),
+    }
+}
+
+/// Source-backed query inputs: a copybook resolved through the same
+/// layers as emission, so source queries answer what manifests contain.
+struct QuerySource<'a> {
+    copybook: &'a std::path::PathBuf,
+    profile: Option<&'a std::path::PathBuf>,
+    record_format: Option<copybook::codec::RecordFormat>,
+    codepage: Option<copybook::codec::Codepage>,
+    strict: bool,
+    strict_comments: bool,
+    dialect: Option<crate::DialectPreference>,
+}
+
+/// Build the manifest for a source-backed ownership query.
+fn build_query_manifest(
+    source: &QuerySource<'_>,
+    feature_flags: &FeatureFlags,
+) -> Result<copybook::codec::resolved_manifest::ResolvedManifest, CommandOutcome> {
+    if source.copybook.as_os_str() == "-" {
+        return Err(query_failure(
+            "inspect",
+            crate::subcode::QUERY_CONTRADICTION,
+            "inspect query needs a copybook file; stdin has no stable source identity",
+        ));
+    }
+    let loaded = match crate::profile_inputs::load_profile(
+        source.profile.map(std::path::PathBuf::as_path),
+    ) {
+        Ok(loaded) => loaded,
+        Err(error) => return Err(profile_failure("inspect", &error)),
+    };
+    let common = match crate::profile_inputs::resolve_common(
+        source.record_format,
+        source.codepage,
+        source.dialect,
+        None,
+        loaded.as_ref(),
+    ) {
+        Ok(common) => common,
+        Err(error) => return Err(profile_failure("inspect", &error)),
+    };
+    match commands::inspect::build_manifest(
+        source.copybook,
+        &common,
+        loaded.as_ref(),
+        source.strict,
+        source.strict_comments,
+        feature_flags,
+    ) {
+        Ok((manifest, _)) => Ok(manifest),
+        Err(error) => Err((Err(error), "inspect")),
+    }
+}
+
+/// Load a manifest document for a manifest-backed ownership query, mapping
+/// unreadable files and invalid documents to their guardrail subcodes.
+fn load_query_manifest(
+    path: &std::path::PathBuf,
+) -> Result<copybook::codec::resolved_manifest::ResolvedManifest, CommandOutcome> {
+    // Refuse oversize documents before allocating: `from_json` enforces the
+    // same bound after the read, so this pre-check only moves the rejection
+    // ahead of the allocation. A missing file still falls through to the
+    // unreadable refusal below.
+    if path.metadata().is_ok_and(|meta| {
+        meta.len() > copybook::codec::resolved_manifest::MAX_MANIFEST_BYTES as u64
+    }) {
+        return Err(query_failure(
+            "inspect",
+            crate::subcode::MANIFEST_INVALID,
+            &format!(
+                "manifest {} exceeds the {}-byte manifest bound",
+                path.display(),
+                copybook::codec::resolved_manifest::MAX_MANIFEST_BYTES
+            ),
+        ));
+    }
+    let Ok(bytes) = std::fs::read(path) else {
+        return Err(query_failure(
+            "inspect",
+            crate::subcode::MANIFEST_UNREADABLE,
+            &format!("cannot read manifest {}", path.display()),
+        ));
+    };
+    match copybook::codec::resolved_manifest::ResolvedManifest::from_json(&bytes) {
+        Ok(manifest) => Ok(manifest),
+        Err(error) => Err(query_failure(
+            "inspect",
+            crate::subcode::MANIFEST_INVALID,
+            &format!("cannot parse manifest {}: {error}", path.display()),
+        )),
+    }
+}
+
+/// A refused inspect ownership query. Dispatch renders this as structured
+/// diagnostics with an `Encode` (validation) exit, never as a silent
+/// default or an internal error.
+fn query_failure(op: &'static str, subcode: u16, message: &str) -> CommandOutcome {
+    let diagnostics = crate::ExitDiagnostics::new(
+        crate::ExitCode::Encode,
+        message,
+        op,
+        "", // op_stage will be overridden by emit_exit_diagnostics_stage
+        tracing::Level::ERROR,
+        crate::ExitCode::Encode.as_i32(),
+    )
+    .with_subcode(Some(subcode));
+    crate::emit_exit_diagnostics_stage(&diagnostics, crate::Stage::Execute);
+    (Ok(crate::ExitCode::Encode), op)
 }
 
 /// An environment input naming no known value. Dispatch renders this as
@@ -358,8 +666,10 @@ fn run_inspect_emit_manifest(
             strict,
             strict_comments,
             feature_flags,
-            manifest_path,
-            overwrite,
+            &commands::inspect::ManifestEmission {
+                manifest_path,
+                overwrite,
+            },
         ),
         "inspect",
     )

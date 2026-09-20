@@ -689,12 +689,15 @@ fn parse_missing_copybook_fails() -> TestResult<()> {
 
 #[test]
 fn inspect_missing_copybook_fails() -> TestResult<()> {
+    // COPYBOOK is optional so manifest-backed queries parse; with neither
+    // input the run stops as a query contradiction, not a clap usage error.
     bin()
         .arg("inspect")
         .assert()
         .failure()
         .code(3)
-        .stderr(predicates::str::contains("Usage:"));
+        .stderr(predicates::str::contains("inspect needs COPYBOOK"))
+        .stderr(predicates::str::contains("subcode=407"));
     Ok(())
 }
 

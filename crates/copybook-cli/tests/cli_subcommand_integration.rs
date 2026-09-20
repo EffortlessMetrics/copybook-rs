@@ -249,12 +249,16 @@ fn inspect_binary_file_as_copybook_fails() -> TestResult<()> {
 
 #[test]
 fn inspect_help_exits_zero() -> TestResult<()> {
+    // COPYBOOK is optional so manifest-backed queries parse; the help names
+    // both the positional input and the query selectors.
     cargo_bin_cmd!("copybook")
         .args(["inspect", "--help"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("<COPYBOOK>"))
-        .stdout(predicate::str::contains("--codepage"));
+        .stdout(predicate::str::contains("[COPYBOOK]"))
+        .stdout(predicate::str::contains("--codepage"))
+        .stdout(predicate::str::contains("--payload-byte"))
+        .stdout(predicate::str::contains("--manifest"));
     Ok(())
 }
 

@@ -272,6 +272,25 @@ pub struct ManifestField {
     pub synchronized: bool,
     /// Whether this field carries a BLANK WHEN ZERO clause.
     pub blank_when_zero: bool,
+    /// OCCURS repetition bound (`None` for scalar fields). Optional and
+    /// omitted when absent, so manifests generated before this field
+    /// existed re-serialize byte-identically.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub occurs: Option<ManifestOccurs>,
+}
+
+/// OCCURS repetition bound for one flattened layout field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ManifestOccurs {
+    /// Repetition kind: `fixed` or `odo`.
+    pub kind: String,
+    /// Fixed repetition count, or the ODO maximum.
+    pub count: u32,
+    /// Minimum repetitions (equals `count` for fixed tables).
+    pub min_count: u32,
+    /// ODO counter field path (`None` for fixed tables).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub counter_path: Option<String>,
 }
 
 /// Numeric usage detail for one flattened field.
@@ -589,6 +608,27 @@ impl ResolvedManifest {
             .ok_or_else(|| ManifestError::MalformedManifest {
                 reason: "manifest document is not a JSON object".to_owned(),
             })?;
+        // Explicit nulls deserialize away (`Option::None` plus
+        // `skip_serializing_if`) but stay in the verified body, so the
+        // reported fingerprint would disagree with the document's own.
+        // Genuine documents omit absent properties; refuse the
+        // normalization before verification.
+        if body
+            .get("fields")
+            .and_then(|fields| fields.as_array())
+            .is_some_and(|fields| {
+                fields.iter().any(|field| {
+                    field.as_object().is_some_and(|field| {
+                        field.get("occurs").is_some_and(serde_json::Value::is_null)
+                    })
+                })
+            })
+        {
+            return Err(ManifestError::MalformedManifest {
+                reason: "manifest field declares null occurs; omit the property or provide the repetition bound"
+                    .to_owned(),
+            });
+        }
         let fingerprint = body
             .get(FINGERPRINT_PROPERTY)
             .and_then(serde_json::Value::as_str)
@@ -1007,6 +1047,25 @@ fn flatten_fields(
             redefines: field.redefines_of.clone(),
             synchronized: field.synchronized,
             blank_when_zero: field.blank_when_zero,
+            occurs: match &field.occurs {
+                Some(Occurs::Fixed { count }) => Some(ManifestOccurs {
+                    kind: "fixed".to_owned(),
+                    count: *count,
+                    min_count: *count,
+                    counter_path: None,
+                }),
+                Some(Occurs::ODO {
+                    min,
+                    max,
+                    counter_path,
+                }) => Some(ManifestOccurs {
+                    kind: "odo".to_owned(),
+                    count: *max,
+                    min_count: *min,
+                    counter_path: Some(counter_path.clone()),
+                }),
+                None => None,
+            },
         });
         if let Some(detail) = numeric_detail(&field.path, &field.kind) {
             flat.numerics.push(detail);

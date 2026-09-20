@@ -49,9 +49,20 @@ copybook inspect <COPYBOOK> [OPTIONS]
 ```
 
 **Arguments:**
-- `<COPYBOOK>` - Path to COBOL copybook file
+- `<COPYBOOK>` - Path to COBOL copybook file (required unless `--manifest` answers the query)
 
 **Options:**
+- `--format <FORMAT>` - Record format: fixed, rdw. Supplies framing for source-backed
+  ownership queries unless `--profile` does; the legacy layout report needs no framing
+- `--manifest <FILE>` - Answer an ownership query from a pre-generated manifest document.
+  Reads no copybook and no record data; conflicts with `COPYBOOK` and `--profile`,
+  which the manifest already binds
+- `--payload-byte <N>` - Own a payload-relative byte. Exactly one of `--payload-byte`
+  and `--field` starts query mode
+- `--field <PATH>` - Locate a field path (full dotted path or a unique short name,
+  case-insensitive). Exactly one of `--payload-byte` and `--field` starts query mode
+- `--output <FORMAT>` - Query rendering: human, json (default: human). Query mode
+  only; a non-default value without `--payload-byte` or `--field` is an error (exit 3)
 - `--codepage <CP>` - Character encoding (default: cp037)
 - `--strict` - Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
@@ -69,6 +80,26 @@ copybook inspect <COPYBOOK> [OPTIONS]
 
 **Binary widths:** `≤4 → 16-bit`, `5–9 → 32-bit`, `10–18 → 64-bit`.
 
+**Ownership queries:** static field-to-byte and byte-to-field answers over payload-relative
+schema offsets — no record data is read. Every answer names its coordinate system
+(`payload-relative`), the manifest/profile/layout fingerprints, the record extent, an
+explicit state (`owned`, `gap`, `out_of_range`), and role-tagged matches (one `primary`
+storage owner, then `view`s, `container`s, and `alias`es in stable order). Fixed OCCURS
+bytes resolve to the true within-occurrence child with its occurrence index; ODO
+occurrences at or past the minimum report `possible` presence. Unknown and ambiguous
+paths fail closed (exit 3); answered states exit 0. `--output json` emits the same
+typed answer as machine output (fingerprints, never local paths). Manifest-backed and
+source-backed queries answer byte-identically. Foreign (non-contract) properties are
+verified by the fingerprint, then ignored: answers bind the contract body the query
+interpreted. Manifests generated before the `occurs` field detail existed carry no
+repetition bounds: queries over them still name a true covering owner, but repeated
+tables answer at group granularity. Regenerate the manifest with the current tool to
+restore leaf-level occurrence precision.
+
+**Exit codes:** 0 = layout printed or query answered (any state), 3 = usage, profile,
+manifest, or query failure (contradictory selectors/inputs, unknown or ambiguous path,
+unreadable or invalid manifest).
+
 **Examples:**
 ```bash
 # Basic layout inspection
@@ -82,6 +113,13 @@ copybook inspect customer.cpy --codepage cp500
 
 # Emit a resolved-schema manifest for the reviewed interpretation
 copybook inspect customer.cpy --profile customer.toml --emit-manifest customer.manifest.json
+
+# Own a payload byte (source-backed and manifest-backed agree byte-identically)
+copybook inspect customer.cpy --profile customer.toml --payload-byte 38
+copybook inspect --manifest customer.manifest.json --payload-byte 38
+
+# Locate a field path as JSON
+copybook inspect customer.cpy --profile customer.toml --field balance --output json
 ```
 
 **Output:** a header block followed by one row per field. The `Type` column

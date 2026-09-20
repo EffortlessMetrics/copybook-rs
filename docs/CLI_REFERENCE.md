@@ -661,7 +661,10 @@ The `--dialect` flag is supported on all copybook-processing commands:
 
 `decode` and `verify` accept `--profile <FILE>`, a reviewed TOML document
 that records what a copybook and its bytes mean: framing, decode options,
-dialect, and error budget. The profile is the reviewed intent; command
+dialect, and error budget. The machine-checkable wire contract is
+`schemas/interpretation-profile.json` (beta; the
+`copybook_codec::options::profile::InterpretationProfile` type is
+authoritative). The profile is the reviewed intent; command
 flags are the per-run overrides. Exactly one value wins per field:
 
 1. Explicit command flag (strongest)

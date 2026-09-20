@@ -1,0 +1,9 @@
+kind: fixed
+body: '**profile**: publish a machine-checkable wire schema at
+  `schemas/interpretation-profile.json` (beta; the
+  `InterpretationProfile` Rust type stays authoritative). Every
+  canonical profile fixture validates against it, and unknown keys,
+  wrong enum spellings, missing sections, and out-of-range bounds are
+  pinned as rejections. The CLI reference links the schema from
+  Interpretation Profiles.'
+time: '2026-09-20T00:30:00Z'

@@ -456,6 +456,23 @@ maximum_errors = 100
 /// One JSONL line matching `SIMPLE_CPY`: 10-byte name, 5-byte amount.
 const SIMPLE_JSONL: &str = "{\"NAME\":\"ALICE     \",\"AMOUNT\":\"00100\"}\n";
 
+/// Profile identical to `FIXED_ASCII_PROFILE` except for one decode-only
+/// field value, for proving `encode` ignores decode-named policy (#1120).
+fn fixed_ascii_profile_with(field: &str, value: &str) -> String {
+    FIXED_ASCII_PROFILE
+        .lines()
+        .map(|line| {
+            if line.starts_with(&format!("{field} = ")) {
+                format!("{field} = \"{value}\"")
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n"
+}
+
 /// Expected 15-byte fixed record for `SIMPLE_JSONL` under ASCII.
 fn expected_simple_record() -> Vec<u8> {
     let mut record = vec![b' '; 15];
@@ -765,5 +782,85 @@ fn encode_profile_rdw_over_cap_lenient_counts_failure() {
     assert!(
         std::fs::read(&out).expect("read output").is_empty(),
         "over-cap record leaves no bytes behind"
+    );
+}
+
+// =========================================================================
+// encode ignores decode-named policy (#1120 slice 1: no Encode decision
+// is inferred from an unrelated decode-only field).
+// =========================================================================
+
+#[test]
+fn encode_ignores_profile_unmappable_policy() {
+    // É (U+00C9) is not representable in ASCII, yet both profiles encode
+    // byte-identical output: `decode.unmappable` steers nothing on encode.
+    // (Whether encode should enforce representability is runtime policy
+    // for a later #1120 slice; this pins that the profile field is inert.)
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
+    let input = write_temp_file(
+        &dir,
+        "input.jsonl",
+        "{\"NAME\":\"ALICÉ    \",\"AMOUNT\":\"00100\"}\n".as_bytes(),
+    );
+    let mut outputs = Vec::new();
+    for policy in ["error", "replace"] {
+        let profile = write_temp_file(
+            &dir,
+            &format!("{policy}.toml"),
+            fixed_ascii_profile_with("unmappable", policy).as_bytes(),
+        );
+        let out = dir.path().join(format!("{policy}.bin"));
+        cmd()
+            .args(["encode", "--profile"])
+            .arg(&profile)
+            .arg(&cpy)
+            .arg(&input)
+            .args(["--output"])
+            .arg(&out)
+            .assert()
+            .success();
+        outputs.push(std::fs::read(&out).expect("read output"));
+    }
+    assert_eq!(
+        outputs[0], outputs[1],
+        "encode output must not depend on decode.unmappable"
+    );
+}
+
+#[test]
+fn encode_ignores_profile_json_numbers() {
+    // Same numeric payload under lossless vs native: byte-identical
+    // records, proving `decode.json_numbers` steers nothing on encode.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
+    let input = write_temp_file(&dir, "input.jsonl", SIMPLE_JSONL.as_bytes());
+    let mut outputs = Vec::new();
+    for mode in ["lossless", "native"] {
+        let profile = write_temp_file(
+            &dir,
+            &format!("{mode}.toml"),
+            fixed_ascii_profile_with("json_numbers", mode).as_bytes(),
+        );
+        let out = dir.path().join(format!("{mode}.bin"));
+        cmd()
+            .args(["encode", "--profile"])
+            .arg(&profile)
+            .arg(&cpy)
+            .arg(&input)
+            .args(["--output"])
+            .arg(&out)
+            .assert()
+            .success();
+        outputs.push(std::fs::read(&out).expect("read output"));
+    }
+    assert_eq!(
+        outputs[0], outputs[1],
+        "encode output must not depend on decode.json_numbers"
+    );
+    assert_eq!(
+        outputs[0],
+        expected_simple_record(),
+        "both modes emit the expected record"
     );
 }

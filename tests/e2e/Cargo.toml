@@ -198,6 +198,10 @@ path = "e2e_cli_inspect_record.rs"
 name = "e2e_cli_text_format"
 path = "e2e_cli_text_format.rs"
 
+[[test]]
+name = "e2e_cli_blocked_tails"
+path = "e2e_cli_blocked_tails.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

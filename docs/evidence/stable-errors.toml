@@ -289,6 +289,11 @@ stability_class = "stable"
 evidence_status = "direct"
 direct_test = "tests/e2e/e2e_error_taxonomy_complete.rs::cbke531_float_encode_overflow"
 [[errors]]
+code = "CBKE532_RAW_LENGTH_MISMATCH"
+stability_class = "stable"
+evidence_status = "direct"
+direct_test = "tests/e2e/e2e_cli_blocked_tails.rs::encode_short_raw_capture_is_refused_not_emitted"
+[[errors]]
 code = "CBKF001_FILE_READ_ERROR"
 stability_class = "stable"
 evidence_status = "direct"

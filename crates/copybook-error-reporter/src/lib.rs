@@ -406,6 +406,7 @@ impl ErrorReporter {
             | ErrorCode::CBKE521_ARRAY_LEN_OOB
             | ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR
             | ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW
+            | ErrorCode::CBKE532_RAW_LENGTH_MISMATCH
             | ErrorCode::CBKF102_RECORD_LENGTH_INVALID
             | ErrorCode::CBKF221_RDW_UNDERFLOW
             | ErrorCode::CBKF222_BDW_LENGTH_INVALID
@@ -1058,6 +1059,7 @@ mod tests {
             ErrorCode::CBKE521_ARRAY_LEN_OOB,
             ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
             ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW,
+            ErrorCode::CBKE532_RAW_LENGTH_MISMATCH,
         ];
         for code in encode_codes {
             let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);

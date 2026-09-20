@@ -252,6 +252,8 @@ pub enum ErrorCode {
     CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
     /// CBKE531: Float encode overflow (f64 value too large for f32 COMP-1 field)
     CBKE531_FLOAT_ENCODE_OVERFLOW,
+    /// CBKE532: Captured raw bytes do not match the fixed layout width
+    CBKE532_RAW_LENGTH_MISMATCH,
 
     // =============================================================================
     // File/Format Errors (CBKF*) - File structure and format validation
@@ -358,6 +360,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKE521_ARRAY_LEN_OOB => "CBKE521_ARRAY_LEN_OOB",
             ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR => "CBKE530_SIGN_SEPARATE_ENCODE_ERROR",
             ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW => "CBKE531_FLOAT_ENCODE_OVERFLOW",
+            ErrorCode::CBKE532_RAW_LENGTH_MISMATCH => "CBKE532_RAW_LENGTH_MISMATCH",
             ErrorCode::CBKF001_FILE_READ_ERROR => "CBKF001_FILE_READ_ERROR",
             ErrorCode::CBKF102_RECORD_LENGTH_INVALID => "CBKF102_RECORD_LENGTH_INVALID",
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII => "CBKF104_RDW_SUSPECT_ASCII",
@@ -437,7 +440,8 @@ impl ErrorCode {
             | Self::CBKE515_STRING_LENGTH_VIOLATION
             | Self::CBKE521_ARRAY_LEN_OOB
             | Self::CBKE530_SIGN_SEPARATE_ENCODE_ERROR
-            | Self::CBKE531_FLOAT_ENCODE_OVERFLOW => "CBKE",
+            | Self::CBKE531_FLOAT_ENCODE_OVERFLOW
+            | Self::CBKE532_RAW_LENGTH_MISMATCH => "CBKE",
             Self::CBKF001_FILE_READ_ERROR
             | Self::CBKF102_RECORD_LENGTH_INVALID
             | Self::CBKF104_RDW_SUSPECT_ASCII
@@ -932,6 +936,7 @@ mod tests {
             ErrorCode::CBKE521_ARRAY_LEN_OOB,
             ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
             ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW,
+            ErrorCode::CBKE532_RAW_LENGTH_MISMATCH,
         ];
         for code in codes {
             assert_eq!(code.family_prefix(), "CBKE", "failed for {code}");

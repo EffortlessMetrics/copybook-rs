@@ -1978,6 +1978,25 @@ fn encode_raw_replay(
         (RecordFormat::Vb, _) => parse_vb_raw_rdw_frame(&raw_data)?.1.len(),
     };
 
+    // Fixed-width replay refuses short tails and overlong captures: only
+    // exact multiples decode, so only exact widths encode. Framed
+    // (`record+rdw`) captures keep their own conflict error below.
+    if matches!(options.format, RecordFormat::Fixed | RecordFormat::Text)
+        && !matches!(capture, Some(RawCapture::RecordRdw))
+        && let Some(width) = schema.lrecl_fixed
+        && raw_data.len() != width as usize
+    {
+        // The record index rides in the error context the caller attaches;
+        // duplicating it here reads twice on the CLI.
+        return Err(Error::new(
+            ErrorCode::CBKE532_RAW_LENGTH_MISMATCH,
+            format!(
+                "raw_b64 holds {} bytes, fixed layout needs {width}",
+                raw_data.len(),
+            ),
+        ));
+    }
+
     match options.format {
         RecordFormat::Fixed => encode_fixed_raw_replay(raw_data, capture),
         // Raw capture holds payload bytes only; text framing re-appends the

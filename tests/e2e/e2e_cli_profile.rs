@@ -57,6 +57,86 @@ const SIMPLE_CPY: &str = "\
            05  AMOUNT   PIC 9(5).
 ";
 
+/// ASCII profile for one framing kind, mirroring `product_defaults` with
+/// framing and codepage overwritten (#1113 item 4: truthful defaults).
+fn ascii_profile(kind: &str) -> String {
+    format!(
+        "\
+schema_version = 1
+[source]
+dialect = \"normative\"
+[framing]
+kind = \"{kind}\"
+reserved_bytes = \"lenient\"
+[decode]
+codepage = \"ascii\"
+unmappable = \"error\"
+json_numbers = \"lossless\"
+[limits]
+maximum_record_length = 32760
+maximum_errors = 100
+"
+    )
+}
+
+/// A profile-driven decode must emit byte-identical JSONL to the direct
+/// flag-driven decode of the same records (#1113 item 4: product-default
+/// equivalence executed against current direct behavior).
+fn assert_profile_matches_direct(kind: &str, data: &str) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "profile.toml", ascii_profile(kind).as_bytes());
+    let direct_out = dir.path().join("direct.jsonl");
+    let profile_out = dir.path().join("profile.jsonl");
+    let copybook = workspace_path("fixtures/corpus/mini.cpy");
+    let records = workspace_path(data);
+
+    cmd()
+        .args([
+            "decode",
+            "--format",
+            kind,
+            "--codepage",
+            "ascii",
+            "--output",
+        ])
+        .arg(&direct_out)
+        .arg(&copybook)
+        .arg(&records)
+        .assert()
+        .success();
+    cmd()
+        .args(["decode", "--profile"])
+        .arg(&profile)
+        .args(["--output"])
+        .arg(&profile_out)
+        .arg(&copybook)
+        .arg(&records)
+        .assert()
+        .success();
+
+    let direct = std::fs::read(&direct_out).expect("read direct output");
+    let via_profile = std::fs::read(&profile_out).expect("read profile output");
+    assert_eq!(
+        via_profile, direct,
+        "profile-driven {kind} decode must reproduce direct decode byte-for-byte"
+    );
+}
+
+#[test]
+fn decode_profile_matches_direct_fixed() {
+    assert_profile_matches_direct("fixed", "fixtures/corpus/mini_fixed.bin");
+}
+
+#[test]
+fn decode_profile_matches_direct_rdw() {
+    assert_profile_matches_direct("rdw", "fixtures/corpus/mini_rdw.bin");
+}
+
+#[test]
+fn decode_profile_matches_direct_vb() {
+    assert_profile_matches_direct("vb", "fixtures/corpus/mini_vb.bin");
+}
+
 fn rdw_profile(reserved: &str) -> String {
     format!(
         "\

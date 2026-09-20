@@ -4,9 +4,10 @@
 use std::fmt;
 
 const FLOAT_FORMAT_SPELLINGS: &[&str] = &["ieee-be", "ieee", "ieee-big-endian", "ibm-hex", "ibm"];
-const RECORD_FORMAT_SPELLINGS: &[&str] = &["fixed", "rdw"];
+const RECORD_FORMAT_SPELLINGS: &[&str] = &["fixed", "rdw", "vb", "text"];
 const JSON_NUMBER_MODE_SPELLINGS: &[&str] = &["lossless", "native"];
 const RAW_MODE_SPELLINGS: &[&str] = &["off", "record", "field", "record+rdw"];
+const TEXT_TERMINATOR_SPELLINGS: &[&str] = &["lf", "\\n", "unix", "crlf", "\\r\\n", "windows"];
 
 /// Codec option family whose textual value could not be parsed.
 ///
@@ -20,6 +21,8 @@ pub enum CodecOptionKind {
     FloatFormat,
     /// Record framing selected by [`super::RecordFormat`].
     RecordFormat,
+    /// Text line terminator selected by [`super::TextTerminator`].
+    TextTerminator,
     /// JSON number representation selected by [`super::JsonNumberMode`].
     JsonNumberMode,
     /// Raw-data capture selected by [`super::RawMode`].
@@ -36,6 +39,7 @@ impl CodecOptionKind {
             Self::RecordFormat => RECORD_FORMAT_SPELLINGS,
             Self::JsonNumberMode => JSON_NUMBER_MODE_SPELLINGS,
             Self::RawMode => RAW_MODE_SPELLINGS,
+            Self::TextTerminator => TEXT_TERMINATOR_SPELLINGS,
         }
     }
 
@@ -46,6 +50,7 @@ impl CodecOptionKind {
             Self::RecordFormat => "record format",
             Self::JsonNumberMode => "JSON number mode",
             Self::RawMode => "raw mode",
+            Self::TextTerminator => "text terminator",
         }
     }
 }

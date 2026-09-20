@@ -225,12 +225,75 @@ pub struct EncodeOptions {
     /// Floating-point representation for COMP-1/COMP-2 fields.
     #[serde(default)]
     pub float_format: FloatFormat,
+    /// Line terminator emitted between records under `--format text`.
+    #[serde(default)]
+    pub text_terminator: TextTerminator,
+}
+
+/// Line terminator for text-framed record emission.
+///
+/// Decode accepts both spellings regardless of this setting; it only
+/// governs what `encode --format text` writes.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_codec::options::TextTerminator;
+///
+/// let term = TextTerminator::default();
+/// assert_eq!(term, TextTerminator::Lf);
+/// assert_eq!(term.as_bytes(), b"\n");
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum TextTerminator {
+    /// LF (`\n`), the canonical terminator.
+    #[default]
+    Lf,
+    /// CRLF (`\r\n`), for CRLF-native consumers.
+    Crlf,
+}
+
+impl TextTerminator {
+    /// Terminator bytes emitted after each record payload.
+    #[must_use]
+    pub const fn as_bytes(self) -> &'static [u8] {
+        match self {
+            Self::Lf => b"\n",
+            Self::Crlf => b"\r\n",
+        }
+    }
+}
+
+impl fmt::Display for TextTerminator {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Lf => write!(f, "lf"),
+            Self::Crlf => write!(f, "crlf"),
+        }
+    }
+}
+
+impl FromStr for TextTerminator {
+    type Err = ParseCodecOptionError;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input.to_ascii_lowercase().as_str() {
+            "lf" | "\\n" | "unix" => Ok(Self::Lf),
+            "crlf" | "\\r\\n" | "windows" => Ok(Self::Crlf),
+            _ => Err(ParseCodecOptionError::new(
+                CodecOptionKind::TextTerminator,
+                input,
+            )),
+        }
+    }
 }
 
 /// Record format specification
 ///
-/// Controls whether records have a fixed byte length (LRECL) or use
-/// variable-length RDW (Record Descriptor Word) framing.
+/// Controls whether records have a fixed byte length (LRECL), use
+/// variable-length RDW (Record Descriptor Word) framing, or arrive as
+/// line-delimited text with fixed-width payloads.
 ///
 /// # Examples
 ///
@@ -250,6 +313,10 @@ pub enum RecordFormat {
     RDW,
     /// Variable-blocked records: RDW records grouped in BDW blocks (beta)
     Vb,
+    /// Line-delimited text: LF/CRLF-terminated lines, each holding one
+    /// fixed-width (`lrecl`) payload. Terminators are framing and never
+    /// reach field decoding or raw capture.
+    Text,
 }
 
 impl FromStr for RecordFormat {
@@ -260,6 +327,7 @@ impl FromStr for RecordFormat {
             "fixed" => Ok(Self::Fixed),
             "rdw" => Ok(Self::RDW),
             "vb" => Ok(Self::Vb),
+            "text" => Ok(Self::Text),
             _ => Err(ParseCodecOptionError::new(
                 CodecOptionKind::RecordFormat,
                 input,
@@ -269,10 +337,13 @@ impl FromStr for RecordFormat {
 }
 
 impl RecordFormat {
-    /// Check if this is a fixed-length record format
+    /// Check if this is a fixed-width record format
+    ///
+    /// Text counts as fixed-width: every line must decode to exactly
+    /// `lrecl` payload bytes once its terminator is stripped.
     #[must_use]
     pub const fn is_fixed(self) -> bool {
-        matches!(self, Self::Fixed)
+        matches!(self, Self::Fixed | Self::Text)
     }
 
     /// Check if this is a variable-length record format
@@ -288,6 +359,7 @@ impl RecordFormat {
             Self::Fixed => "Fixed-length records",
             Self::RDW => "Variable-length records with Record Descriptor Word",
             Self::Vb => "Variable-blocked records with BDW blocks (beta)",
+            Self::Text => "Line-delimited text with fixed-width records",
         }
     }
 }
@@ -529,6 +601,7 @@ impl Default for EncodeOptions {
             json_number_mode: DEFAULT_JSON_NUMBER_MODE,
             zoned_encoding_override: None,
             float_format: DEFAULT_FLOAT_FORMAT,
+            text_terminator: TextTerminator::default(),
         }
     }
 }
@@ -624,6 +697,16 @@ impl EncodeOptions {
         self.zoned_encoding_override = Some(format);
         self
     }
+
+    /// Set the line terminator emitted after each record under text framing.
+    ///
+    /// Decode accepts LF and CRLF regardless; this only governs encode.
+    #[must_use]
+    #[inline]
+    pub fn with_text_terminator(mut self, terminator: TextTerminator) -> Self {
+        self.text_terminator = terminator;
+        self
+    }
 }
 impl fmt::Display for RecordFormat {
     #[inline]
@@ -632,6 +715,7 @@ impl fmt::Display for RecordFormat {
             Self::Fixed => write!(f, "fixed"),
             Self::RDW => write!(f, "rdw"),
             Self::Vb => write!(f, "vb"),
+            Self::Text => write!(f, "text"),
         }
     }
 }

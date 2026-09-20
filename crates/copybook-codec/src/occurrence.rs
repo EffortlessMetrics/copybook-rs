@@ -164,7 +164,9 @@ pub fn explain_occurrence<R: Read>(
                 let physical_offset = match options.format {
                     RecordFormat::Fixed => lrecl.map(|len| (record_index - 1) * len),
                     RecordFormat::RDW => Some(rdw_offset),
-                    RecordFormat::Vb => None,
+                    // VB blocks and text terminators make stride arithmetic
+                    // unreliable; occurrence identity is the record index.
+                    RecordFormat::Vb | RecordFormat::Text => None,
                 };
                 rdw_offset += 4 + payload.len() as u64;
                 match decode_record_with_raw_data(
@@ -298,7 +300,9 @@ fn framing_occurrence(
         physical_offset: match options.format {
             RecordFormat::Fixed => lrecl.map(|len| (record_index - 1) * len),
             RecordFormat::RDW => Some(rdw_offset),
-            RecordFormat::Vb => None,
+            // VB blocks and text terminators make stride arithmetic
+            // unreliable; occurrence identity is the record index.
+            RecordFormat::Vb | RecordFormat::Text => None,
         },
         field_path: error
             .context

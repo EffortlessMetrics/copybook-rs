@@ -170,8 +170,9 @@ pub fn run(
                 );
             }
         }
-        RecordFormat::RDW | RecordFormat::Vb => {
-            // RDW and VB/BDW format validation happens during record iteration
+        RecordFormat::RDW | RecordFormat::Vb | RecordFormat::Text => {
+            // RDW, VB/BDW, and text line-length validation happen during
+            // record iteration; only fixed byte multiples pre-check here.
         }
     }
 

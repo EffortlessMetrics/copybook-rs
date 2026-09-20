@@ -1212,6 +1212,7 @@ fn run_encode_command(command: Commands, feature_flags: &FeatureFlags) -> Comman
         strict_comments,
         zoned_encoding_override,
         float_format,
+        text_terminator,
         dialect,
         select,
     } = command
@@ -1278,6 +1279,7 @@ fn run_encode_command(command: Commands, feature_flags: &FeatureFlags) -> Comman
                 strict_comments,
                 zoned_encoding_override,
                 float_format,
+                text_terminator,
                 dialect: common.dialect,
                 select: &select,
                 on_encode_unmappable: encode_only.unmappable,

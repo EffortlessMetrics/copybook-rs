@@ -2,6 +2,7 @@
 
 use copybook_codec::{
     CodecOptionKind, FloatFormat, JsonNumberMode, ParseCodecOptionError, RawMode, RecordFormat,
+    TextTerminator,
 };
 use std::{error::Error, io, str::FromStr};
 
@@ -55,7 +56,7 @@ fn encoding_invalid_values_return_inspectable_typed_error() -> Result<(), Box<dy
             CodecOptionKind::RecordFormat,
             "blocked",
             "unsupported record format `blocked`",
-            &["fixed", "rdw"][..],
+            &["fixed", "rdw", "vb", "text"][..],
         ),
         (
             parse_error::<JsonNumberMode>("decimal")?,
@@ -90,7 +91,14 @@ fn encoding_accepted_spellings_remain_complete_and_case_insensitive() -> Result<
         CodecOptionKind::FloatFormat,
         &["ieee-be", "ieee", "ieee-big-endian", "ibm-hex", "ibm"],
     )?;
-    assert_spellings::<RecordFormat>(CodecOptionKind::RecordFormat, &["fixed", "rdw"])?;
+    assert_spellings::<RecordFormat>(
+        CodecOptionKind::RecordFormat,
+        &["fixed", "rdw", "vb", "text"],
+    )?;
+    assert_spellings::<TextTerminator>(
+        CodecOptionKind::TextTerminator,
+        &["lf", "\\n", "unix", "crlf", "\\r\\n", "windows"],
+    )?;
     assert_spellings::<JsonNumberMode>(CodecOptionKind::JsonNumberMode, &["lossless", "native"])?;
     assert_spellings::<RawMode>(
         CodecOptionKind::RawMode,

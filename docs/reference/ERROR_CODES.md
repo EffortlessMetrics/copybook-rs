@@ -307,13 +307,15 @@ Resolution: Check field name with `copybook inspect schema.cpy`
 Errors in record framing and I/O processing.
 
 #### CBKR101_FIXED_RECORD_ERROR
-**Description**: Error processing fixed-length record framing or I/O
+**Description**: Error processing fixed-width record framing or I/O (fixed records and text lines)
 **Severity**: Fatal
 **Context**: Record number, byte offset when available, error details
-**Resolution**: Check the configured LRECL, record boundaries, input/output integrity, and available address space
+**Resolution**: Check the configured LRECL, record boundaries, line lengths under --format text, input/output integrity, and available address space
 
 Use this code for fixed-format framing failures such as truncated input,
-oversize output records, and read/write/flush failures. RDW framing paths that
+oversize output records, and read/write/flush failures. Under `--format text`
+it also covers short/long lines, naming expected and actual payload lengths.
+RDW framing paths that
 use `CBKF*` continue to use those record-format codes; other RDW-specific
 failures, such as `CBKR201_RDW_READ_ERROR` and `CBKR211_RDW_RESERVED_NONZERO`,
 remain separate.

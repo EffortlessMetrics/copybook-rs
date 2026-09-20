@@ -51,7 +51,8 @@
           "enum": [
             "fixed",
             "rdw",
-            "vb"
+            "vb",
+            "text"
           ],
           "description": "Physical record framing."
         },

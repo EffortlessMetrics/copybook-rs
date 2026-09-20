@@ -16,7 +16,7 @@ mod comp_float_codec {
     };
     use copybook_codec::{
         Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
-        UnmappablePolicy, ZonedEncodingFormat,
+        TextTerminator, UnmappablePolicy, ZonedEncodingFormat,
     };
     // #656 Phase C: COMP-1/COMP-2 parse unconditionally; no flag setup needed.
 
@@ -470,6 +470,7 @@ mod comp_float_codec {
             json_number_mode: JsonNumberMode::Native,
             zoned_encoding_override: None,
             float_format: FloatFormat::IbmHex,
+            text_terminator: TextTerminator::default(),
         };
 
         let json = serde_json::json!({ "RATE": 1.0 });

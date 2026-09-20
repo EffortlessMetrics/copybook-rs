@@ -1915,6 +1915,13 @@ fn encode_record_impl(
             writer.finish()?;
             Ok(block)
         }
+        RecordFormat::Text => {
+            let mut payload =
+                encode_fields_to_bytes(schema, fields_value, encoding_metadata, options)?;
+            policy.check_encoded_payload(payload.len(), options.format, record_index)?;
+            payload.extend_from_slice(options.text_terminator.as_bytes());
+            Ok(payload)
+        }
     }
 }
 
@@ -1965,7 +1972,7 @@ fn encode_raw_replay(
     // The parse calls below re-validate header consistency; they cannot
     // disagree with the replay below because both read the same bytes.
     let payload_len = match (options.format, capture) {
-        (RecordFormat::Fixed, _)
+        (RecordFormat::Fixed | RecordFormat::Text, _)
         | (RecordFormat::RDW | RecordFormat::Vb, Some(RawCapture::Record)) => raw_data.len(),
         (RecordFormat::RDW, _) => parse_raw_rdw_frame(&raw_data)?.1.len(),
         (RecordFormat::Vb, _) => parse_vb_raw_rdw_frame(&raw_data)?.1.len(),
@@ -1973,6 +1980,19 @@ fn encode_raw_replay(
 
     match options.format {
         RecordFormat::Fixed => encode_fixed_raw_replay(raw_data, capture),
+        // Raw capture holds payload bytes only; text framing re-appends the
+        // configured terminator the same way field encoding does.
+        RecordFormat::Text => {
+            if matches!(capture, Some(RawCapture::RecordRdw)) {
+                return Err(Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    "raw_capture 'record+rdw' conflicts with text record format",
+                ));
+            }
+            let mut framed = raw_data;
+            framed.extend_from_slice(options.text_terminator.as_bytes());
+            Ok(framed)
+        }
         RecordFormat::RDW => encode_rdw_raw_replay(
             raw_data,
             capture,
@@ -3363,6 +3383,9 @@ pub fn decode_file_to_jsonl_with_policy(
         RecordFormat::Vb => {
             process_vb_records(schema, input, &mut output, options, policy, &mut summary)?;
         }
+        RecordFormat::Text => {
+            process_text_records(schema, input, &mut output, options, policy, &mut summary)?;
+        }
     }
 
     let elapsed_ms = start_time.elapsed().as_millis();
@@ -3435,6 +3458,76 @@ fn process_fixed_records<R: Read, W: Write>(
             raw_data_for_decode.as_deref(),
             record_index,
             Some(current_offset),
+            &mut scratch,
+        ) {
+            Ok(json_value) => {
+                write_json_record(output, &json_value)?;
+                summary.records_processed += 1;
+            }
+            Err(error) => {
+                summary.note_failure(record_index, &error);
+                telemetry::record_error(error.family_prefix());
+                if options.strict_mode {
+                    return Err(error);
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Decode line-delimited text records: each line holds one `lrecl` payload.
+///
+/// Line splitting is inherently sequential (record boundaries are discovered
+/// while scanning), so this path stays single-threaded regardless of
+/// `options.threads`. The per-record decode body mirrors
+/// [`process_fixed_records`]; only framing differs.
+fn process_text_records<R: Read, W: Write>(
+    schema: &Schema,
+    reader: R,
+    output: &mut W,
+    options: &DecodeOptions,
+    policy: ExecutionPolicy,
+    summary: &mut RunSummary,
+) -> Result<()> {
+    let width = crate::file::fixed::lrecl(schema)?;
+    policy.check_fixed_lrecl(width)?;
+    let lrecl = width as usize;
+    let bound = policy.maximum_record_length();
+    let mut reader = std::io::BufReader::new(reader);
+    let mut scratch = crate::memory::ScratchBuffers::new();
+    let mut line_scratch = Vec::new();
+    let mut record_index = 0u64;
+
+    loop {
+        let seen = record_index;
+        let record = crate::file::text::read_text_record(
+            &mut reader,
+            &mut line_scratch,
+            lrecl,
+            bound,
+            seen,
+        )?;
+        let Some(record_data) = record else {
+            break;
+        };
+        record_index += 1;
+        summary.bytes_processed += record_data.len() as u64;
+        telemetry::record_read(record_data.len(), options);
+
+        let raw_data_for_decode = match options.emit_raw {
+            crate::options::RawMode::Record => Some(record_data.clone()),
+            _ => None,
+        };
+
+        match decode_record_with_scratch_and_raw(
+            schema,
+            &record_data,
+            options,
+            raw_data_for_decode.as_deref(),
+            record_index,
+            None,
             &mut scratch,
         ) {
             Ok(json_value) => {

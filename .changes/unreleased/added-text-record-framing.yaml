@@ -1,0 +1,12 @@
+kind: added
+body: '**decode/encode**: new `--format text` framing for line-delimited
+  mainframe-unload text with fixed-width fields per line. Decode strips LF/CRLF
+  terminators (excluded from payloads and raw capture), accepts a final line
+  without a terminator, and rejects short/long lines with `CBKR101` naming
+  expected and actual lengths instead of padding or truncating silently
+  (evidenced against JRecord 0.93.2 `-IFS Text`; see
+  `docs/evidence/differential-breadth/README.md`). Encode emits one terminated
+  line per record with the configured `--text-terminator` (`lf`, default, or
+  `crlf`). Profiles accept `framing.kind = "text"`; `diagnose` probes and
+  confirms text framing alongside fixed/RDW/VB.'
+time: '2026-09-20T13:00:00Z'

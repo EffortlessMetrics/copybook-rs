@@ -325,9 +325,9 @@ pub const EXPLANATIONS: &[Explanation] = &[
     Explanation {
         code: "CBKR101_FIXED_RECORD_ERROR",
         severity: "Fatal",
-        description: "Error processing fixed-length record framing or I/O",
+        description: "Error processing fixed-width record framing or I/O (fixed records and text lines)",
         context: "Record number, byte offset when available, error details",
-        resolution: "Check the configured LRECL, record boundaries, input/output integrity, and available address space",
+        resolution: "Check the configured LRECL, record boundaries, line lengths under --format text, input/output integrity, and available address space",
     },
     Explanation {
         code: "CBKR201_RDW_READ_ERROR",

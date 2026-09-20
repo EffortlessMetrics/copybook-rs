@@ -64,8 +64,8 @@ pub use numeric::{SmallDecimal, ZonedEncodingInfo};
 
 pub use options::{
     CodecOptionKind, Codepage, DecodeOptions, EncodeOptions, ExecutionPolicy, FloatFormat,
-    JsonNumberMode, ParseCodecOptionError, PolicyError, RawMode, RecordFormat, UnmappablePolicy,
-    ZonedEncodingFormat,
+    JsonNumberMode, ParseCodecOptionError, PolicyError, RawMode, RecordFormat, TextTerminator,
+    UnmappablePolicy, ZonedEncodingFormat,
 };
 
 pub use determinism::{

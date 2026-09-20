@@ -40,6 +40,19 @@ pub fn read_record(
                 .read_record()
                 .map(|record| record.map(|record| record.payload))
         }
+        RecordFormat::Text => {
+            let Some(width) = lrecl else {
+                return Err(Error::new(
+                    ErrorCode::CBKR101_FIXED_RECORD_ERROR,
+                    "Text framing needs a fixed layout width, but the schema has none",
+                ));
+            };
+            // Unbuffered on purpose: a per-call `BufReader` would keep
+            // read-ahead bytes past the newline and drop them, corrupting
+            // repeated single-shot reads on one stream.
+            let mut scratch = Vec::new();
+            super::text::read_text_record_unbuffered(input, &mut scratch, width as usize, None, 0)
+        }
     }
 }
 
@@ -91,6 +104,23 @@ pub fn write_record(output: &mut impl Write, data: &[u8], format: RecordFormat) 
             let mut writer = VbBlockWriter::new(output);
             writer.write_record_from_payload(data, 0)?;
             writer.finish()
+        }
+        RecordFormat::Text => {
+            // Canonical LF terminator; the encode path selects LF vs CRLF
+            // from `EncodeOptions::text_terminator` instead.
+            output.write_all(data).map_err(|e| {
+                Error::new(
+                    ErrorCode::CBKR101_FIXED_RECORD_ERROR,
+                    format!("Write error: {e}"),
+                )
+            })?;
+            output.write_all(b"\n").map_err(|e| {
+                Error::new(
+                    ErrorCode::CBKR101_FIXED_RECORD_ERROR,
+                    format!("Write error: {e}"),
+                )
+            })?;
+            Ok(())
         }
     }
 }

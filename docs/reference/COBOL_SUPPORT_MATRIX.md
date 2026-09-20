@@ -74,6 +74,7 @@ The standard and scratch-buffer codec paths share this contract; see
 |---------|--------|---------------|-------|
 | Fixed-Length | ✅ Fully Supported | `comprehensive_numeric_tests.rs::test_record_length_validation`, `binary_roundtrip_fidelity_tests.rs::test_customer_record_roundtrip_fidelity`, `enterprise_mainframe_production_scenarios.rs::test_enterprise_banking_transaction_processing` | Streaming support with fixed-length records |
 | RDW (Variable-Length) | ✅ Fully Supported | `rdw_comprehensive.rs::test_rdw_normal_processing`, `comprehensive_rdw_tests.rs::test_rdw_basic_parsing`, `rdw_comprehensive.rs::test_rdw_length_recomputation_on_encode` | Record Descriptor Word with streaming iterator |
+| Text (Line-Delimited) | ✅ Fully Supported | `e2e_cli_text_format.rs::text_decodes_line_delimited_fixed_records`, `e2e_cli_text_format.rs::text_encode_decode_round_trip` | LF/CRLF-terminated lines with fixed-width payloads; strict line lengths (`CBKR101`); evidence vs JRecord `-IFS Text` in `docs/evidence/differential-breadth/README.md` |
 
 ## Codepages (EBCDIC)
 

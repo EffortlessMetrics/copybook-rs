@@ -78,6 +78,7 @@ mod imp {
             RecordFormat::Fixed => "fixed",
             RecordFormat::RDW => "rdw",
             RecordFormat::Vb => "vb",
+            RecordFormat::Text => "text",
         }
     }
 

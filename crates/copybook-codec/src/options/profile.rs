@@ -232,6 +232,8 @@ pub enum FramingKind {
     Rdw,
     /// Variable-blocked records (beta).
     Vb,
+    /// Line-delimited text with fixed-width payloads.
+    Text,
 }
 
 /// Reserved-bytes policy in profile spelling.
@@ -543,6 +545,7 @@ impl From<FramingKind> for RecordFormat {
             FramingKind::Fixed => Self::Fixed,
             FramingKind::Rdw => Self::RDW,
             FramingKind::Vb => Self::Vb,
+            FramingKind::Text => Self::Text,
         }
     }
 }
@@ -553,6 +556,7 @@ impl From<RecordFormat> for FramingKind {
             RecordFormat::Fixed => Self::Fixed,
             RecordFormat::RDW => Self::Rdw,
             RecordFormat::Vb => Self::Vb,
+            RecordFormat::Text => Self::Text,
         }
     }
 }
@@ -598,6 +602,7 @@ impl fmt::Display for FramingKind {
             Self::Fixed => write!(f, "fixed"),
             Self::Rdw => write!(f, "rdw"),
             Self::Vb => write!(f, "vb"),
+            Self::Text => write!(f, "text"),
         }
     }
 }
@@ -610,8 +615,9 @@ impl FromStr for FramingKind {
             "fixed" => Ok(Self::Fixed),
             "rdw" => Ok(Self::Rdw),
             "vb" => Ok(Self::Vb),
+            "text" => Ok(Self::Text),
             _ => Err(format!(
-                "unsupported framing kind `{input}`; expected fixed, rdw, or vb"
+                "unsupported framing kind `{input}`; expected fixed, rdw, vb, or text"
             )),
         }
     }

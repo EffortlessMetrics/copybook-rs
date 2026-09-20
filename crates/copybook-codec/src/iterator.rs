@@ -369,7 +369,8 @@ impl<R: Read> RecordIterator<R> {
         };
         // Reject a profile whose cap sits below the fixed layout before any
         // input is consumed; variable framings enforce per record instead.
-        if options.format == RecordFormat::Fixed
+        // Text counts as fixed-width: every line must hold `lrecl` bytes.
+        if options.format.is_fixed()
             && let Some(lrecl) = schema.lrecl_fixed
         {
             policy.check_fixed_lrecl(lrecl)?;
@@ -577,6 +578,26 @@ impl<R: Read> RecordIterator<R> {
                 self.policy,
                 self.options.strict_mode,
             )?,
+            RecordFormat::Text => {
+                let lrecl = crate::file::fixed::lrecl(&self.schema)? as usize;
+                let bound = self.policy.maximum_record_length();
+                let seen = self.record_index;
+                if crate::file::text::read_text_record(
+                    reader,
+                    &mut self.buffer,
+                    lrecl,
+                    bound,
+                    seen,
+                )?
+                .is_some()
+                {
+                    self.record_index += 1;
+                    Some(self.buffer.clone())
+                } else {
+                    self.eof_reached = true;
+                    return Ok(None);
+                }
+            }
             RecordFormat::Vb => {
                 return Err(Error::new(
                     ErrorCode::CBKI001_INVALID_STATE,

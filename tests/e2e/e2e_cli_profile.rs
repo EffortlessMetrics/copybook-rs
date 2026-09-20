@@ -514,6 +514,7 @@ fn encode_profile_format_conflict() {
     let input = write_temp_file(&dir, "input.jsonl", SIMPLE_JSONL.as_bytes());
     let profile = write_temp_file(&dir, "profile.toml", FIXED_ASCII_PROFILE.as_bytes());
     let out = dir.path().join("out.bin");
+    std::fs::write(&out, b"SENTINEL").expect("seed output");
 
     cmd()
         .args(["encode", "--profile"])
@@ -528,6 +529,11 @@ fn encode_profile_format_conflict() {
         .code(3)
         .stderr(predicate::str::contains("conflicting"))
         .stderr(predicate::str::contains("framing.kind"));
+    assert_eq!(
+        std::fs::read(&out).expect("read output"),
+        b"SENTINEL",
+        "contradictory flags leave existing output untouched"
+    );
 }
 
 #[test]
@@ -537,6 +543,7 @@ fn encode_profile_codepage_conflict() {
     let input = write_temp_file(&dir, "input.jsonl", SIMPLE_JSONL.as_bytes());
     let profile = write_temp_file(&dir, "profile.toml", FIXED_ASCII_PROFILE.as_bytes());
     let out = dir.path().join("out.bin");
+    std::fs::write(&out, b"SENTINEL").expect("seed output");
 
     cmd()
         .args(["encode", "--profile"])
@@ -550,6 +557,11 @@ fn encode_profile_codepage_conflict() {
         .failure()
         .code(3)
         .stderr(predicate::str::contains("representation.codepage"));
+    assert_eq!(
+        std::fs::read(&out).expect("read output"),
+        b"SENTINEL",
+        "contradictory flags leave existing output untouched"
+    );
 }
 
 /// Profile with a caller-selected record bound over the 15-byte layout.
@@ -955,4 +967,107 @@ fn encode_ignores_profile_json_numbers() {
         expected_simple_record(),
         "both modes emit the expected record"
     );
+}
+
+// =========================================================================
+// Encode/projection evidence (#1120 slice 4): equivalent combined
+// invocations reproduce profile-only bytes; codepage bytes are pinned
+// against the EBCDIC standard, not the product encoder.
+// =========================================================================
+
+/// Profile-only encode must match the same run with equal explicit
+/// flags: equal values agree (no contradiction) and reproduce
+/// profile-only bytes. Provenance follows the flag on agreement by
+/// implemented contract; this pins the byte equivalence.
+fn assert_encode_combined_matches_profile_only(kind: &str) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "profile.toml", ascii_profile(kind).as_bytes());
+    let alone_out = dir.path().join("alone.bin");
+    let combined_out = dir.path().join("combined.bin");
+    let copybook = workspace_path("fixtures/corpus/mini.cpy");
+    let records = workspace_path("fixtures/corpus/mini.jsonl");
+
+    cmd()
+        .args(["encode", "--profile"])
+        .arg(&profile)
+        .args(["--output"])
+        .arg(&alone_out)
+        .arg(&copybook)
+        .arg(&records)
+        .assert()
+        .success();
+    cmd()
+        .args(["encode", "--profile"])
+        .arg(&profile)
+        .args(["--format", kind, "--codepage", "ascii", "--output"])
+        .arg(&combined_out)
+        .arg(&copybook)
+        .arg(&records)
+        .assert()
+        .success();
+
+    let alone = std::fs::read(&alone_out).expect("read profile-only output");
+    let combined = std::fs::read(&combined_out).expect("read combined output");
+    assert_eq!(
+        combined, alone,
+        "profile + equal flags must reproduce profile-only {kind} bytes"
+    );
+}
+
+#[test]
+fn encoding_combined_matches_profile_only_fixed() {
+    assert_encode_combined_matches_profile_only("fixed");
+}
+
+#[test]
+fn encoding_combined_matches_profile_only_rdw() {
+    assert_encode_combined_matches_profile_only("rdw");
+}
+
+#[test]
+fn encoding_combined_matches_profile_only_vb() {
+    assert_encode_combined_matches_profile_only("vb");
+}
+
+#[test]
+fn encoding_cp037_cp500_bracket_bytes() {
+    // `[` is the classic discriminator: 0xBA in CP037, 0x4A in CP500
+    // (EBCDIC standard; capitals and space are invariant). Full-record
+    // literals, not encoder output.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cpy = write_temp_file(&dir, "schema.cpy", SIMPLE_CPY.as_bytes());
+    let input = write_temp_file(
+        &dir,
+        "input.jsonl",
+        "{\"NAME\":\"A[bCDEFGH\",\"AMOUNT\":\"00100\"}\n".as_bytes(),
+    );
+    let expected_037: Vec<u8> = vec![
+        0xC1, 0xBA, 0x82, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0x40, 0xF0, 0xF0, 0xF1, 0xF0, 0xF0,
+    ];
+    let expected_500: Vec<u8> = vec![
+        0xC1, 0x4A, 0x82, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0x40, 0xF0, 0xF0, 0xF1, 0xF0, 0xF0,
+    ];
+    assert_ne!(expected_037, expected_500, "codepages must discriminate");
+    for (codepage, expected) in [("cp037", &expected_037), ("cp500", &expected_500)] {
+        let out = dir.path().join(format!("{codepage}.bin"));
+        cmd()
+            .args([
+                "encode",
+                "--format",
+                "fixed",
+                "--codepage",
+                codepage,
+                "--output",
+            ])
+            .arg(&out)
+            .arg(&cpy)
+            .arg(&input)
+            .assert()
+            .success();
+        assert_eq!(
+            &std::fs::read(&out).expect("read output"),
+            expected,
+            "{codepage} must emit the standard bytes"
+        );
+    }
 }

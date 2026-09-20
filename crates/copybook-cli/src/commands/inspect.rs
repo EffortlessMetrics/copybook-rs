@@ -377,16 +377,19 @@ pub enum RecordSelectionFailure {
 /// off the decoded value: every manifest ODO table resolves to the length
 /// of the array the decoder produced for it.
 ///
-/// Records frame exactly as decode frames them (fixed strides by the
-/// schema length, RDW by headers); the index is 1-based to match the
-/// `record_index` decode envelopes report. Selection fails closed:
-/// unreadable inputs, short inputs, undecodable records, and unusable
-/// counts never fall back to static bounds.
+/// Records frame and decode exactly as decode handles them: the caller
+/// passes the resolved [`DecodeOptions`](copybook::codec::DecodeOptions)
+/// and [`ExecutionPolicy`](copybook::codec::ExecutionPolicy), so `--strict`
+/// and profile framing strictness, record bounds, and decode options
+/// apply here too. The index is 1-based to match the `record_index`
+/// decode envelopes report. Selection fails closed: unreadable inputs,
+/// short inputs, undecodable records, and unusable counts never fall back
+/// to static bounds.
 pub fn select_record(
     manifest: &ResolvedManifest,
     schema: &Schema,
-    format: copybook::codec::RecordFormat,
-    codepage: Codepage,
+    options: &copybook::codec::DecodeOptions,
+    policy: copybook::codec::ExecutionPolicy,
     input: &Path,
     index: u64,
 ) -> Result<SelectedRecord, RecordSelectionFailure> {
@@ -394,14 +397,10 @@ pub fn select_record(
     let file = std::fs::File::open(input).map_err(|error| Failure::Unreadable {
         detail: format!("cannot read input {}: {error}", input.display()),
     })?;
-    let options = copybook::codec::DecodeOptions::new()
-        .with_format(format)
-        .with_codepage(codepage);
-    let mut iterator =
-        copybook::codec::RecordIterator::new(file, schema, &options).map_err(|error| {
-            Failure::Unreadable {
-                detail: format!("cannot frame {} as {format}: {error}", input.display()),
-            }
+    let format = options.format;
+    let mut iterator = copybook::codec::RecordIterator::with_policy(file, schema, options, policy)
+        .map_err(|error| Failure::Unreadable {
+            detail: format!("cannot frame {} as {format}: {error}", input.display()),
         })?;
     let mut available: u64 = 0;
     loop {
@@ -426,7 +425,7 @@ pub fn select_record(
                             payload.len()
                         ),
                     })?;
-                let decoded = copybook::codec::decode_record(schema, &payload, &options).map_err(
+                let decoded = copybook::codec::decode_record(schema, &payload, options).map_err(
                     |error| Failure::Undecodable {
                         index,
                         detail: error.to_string(),

@@ -102,17 +102,20 @@ tables answer at group granularity. Regenerate the manifest with the current too
 restore leaf-level occurrence precision.
 
 **Record-specific queries:** `--input FILE --record N` answers the same selector
-inside the Nth decoded record instead of over static bounds. Records frame exactly
-as decode frames them (fixed strides by the schema length, RDW by headers). ODO
-tables clamp to the record's actual counts read off the decoded arrays — later
-occurrences vanish, the query extent is the record payload length, and a table
-with zero occurrences in that record reports `absent`. Clamped occurrences report
-`guaranteed` presence. The answer echoes the record it interpreted (`Record: #N`
-with per-table counts in human output, a `record` object with the 1-based index
-and actual counts in JSON). Selection fails closed: half a selection, `--record 0`,
-a record past the end of the input, an unreadable input file, an undecodable
-record, and unusable ODO counts (nested tables needing per-occurrence selection)
-are exit 3, never a silent static answer.
+inside the Nth decoded record instead of over static bounds. Records frame and
+decode exactly as decode handles them (fixed strides by the schema length, RDW
+by headers) under the same reviewed inputs: `--strict`, profile framing
+strictness and record bounds, and decode options all apply. ODO tables clamp to
+the record's actual counts read off the decoded arrays — later occurrences
+vanish, the query extent is the record payload length, every reported range
+stays inside it, and a table with zero occurrences in that record reports
+`absent`. Clamped occurrences report `guaranteed` presence. The answer echoes
+the record it interpreted (`Record: #N` with per-table counts in human output,
+a `record` object with the 1-based index and actual counts in JSON). Selection
+fails closed: half a selection, `--record 0`, a record past the end of the
+input, an unreadable input file, an undecodable record, and unusable ODO counts
+(nested tables needing per-occurrence selection) are exit 3, never a silent
+static answer.
 
 **Exit codes:** 0 = layout printed or query answered (any state), 3 = usage, profile,
 manifest, or query failure (contradictory selectors/inputs, unknown or ambiguous path,

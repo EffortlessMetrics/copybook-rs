@@ -1024,6 +1024,17 @@ fn report(
     matches: Vec<OwnershipMatch>,
     record: Option<&RecordPresence>,
 ) -> OwnershipReport {
+    // A record answer never ranges past the record it interpreted: static
+    // group spans cover the manifest maximum, but a short record holds
+    // fewer bytes, so containers clamp to the query extent. Leaves always
+    // fit: a record that decodes holds every field the schema names.
+    let mut matches = matches;
+    if let Some(presence) = record {
+        for item in &mut matches {
+            item.end = item.end.min(presence.record_len);
+            item.len = item.end.saturating_sub(item.offset);
+        }
+    }
     OwnershipReport {
         query,
         coordinate_system: COORDINATE_SYSTEM.to_owned(),
@@ -1496,6 +1507,35 @@ mod tests {
                 presence: OccurrencePresence::Guaranteed,
             }]
         );
+    }
+
+    #[test]
+    fn record_query_clamps_ranges_to_record_extent() {
+        let manifest = manifest_for(ODO_GROUP_COPYBOOK);
+        // HOWMANY=1: the record holds 7 payload bytes of an 11-byte maximum.
+        // Leaves fit, but the static group spans (REC 0..11) must not range
+        // past the record the answer interpreted.
+        let record = record_presence(&[("REC.TBL", 1)], 7);
+        let report = query_byte_owner_in_record(&manifest, 3, &record).expect("byte answers");
+        assert_eq!(report.record_len, 7);
+        for item in &report.matches {
+            assert!(
+                item.end <= 7,
+                "record match ranges past the record: {} {}..{}",
+                item.path,
+                item.offset,
+                item.end
+            );
+        }
+        let group = report
+            .matches
+            .iter()
+            .find(|item| item.path == "REC")
+            .expect("record group answers");
+        assert_eq!((group.offset, group.end, group.len), (0, 7, 7));
+        let field = query_field_range_in_record(&manifest, "REC", &record).expect("field answers");
+        let group = primary(&field);
+        assert_eq!((group.offset, group.end, group.len), (0, 7, 7));
     }
 
     #[test]

@@ -395,8 +395,8 @@ fn run_inspect_query_command(
             let selected = match commands::inspect::select_record(
                 &built.manifest,
                 &built.schema,
-                built.format,
-                built.codepage,
+                &built.options,
+                built.policy,
                 input_path,
                 index,
             ) {
@@ -580,18 +580,19 @@ struct QuerySource<'a> {
 }
 
 /// Resolved source-backed query inputs: the manifest answers static queries,
-/// and the schema plus framing decodes the selected record for
+/// and the schema plus decode options decodes the selected record for
 /// record-specific ones. Both come from one resolution, so record answers
-/// interpret exactly what the manifest contains.
+/// interpret exactly what decode reports under the same reviewed inputs:
+/// framing, codepage, strict mode, decode options, and execution policy.
 struct SourceManifest {
     /// Manifest answering the query.
     manifest: copybook::codec::resolved_manifest::ResolvedManifest,
     /// Schema decoding the selected record.
     schema: copybook::core::Schema,
-    /// Resolved framing for record iteration.
-    format: copybook::codec::RecordFormat,
-    /// Resolved codepage for record decoding.
-    codepage: copybook::codec::Codepage,
+    /// Resolved decode options for record iteration and decoding.
+    options: copybook::codec::DecodeOptions,
+    /// Resolved execution policy for record framing.
+    policy: copybook::codec::ExecutionPolicy,
 }
 
 /// Where an ownership query answers from: a bound manifest document, or a
@@ -631,6 +632,37 @@ fn build_query_manifest(
         Ok(common) => common,
         Err(error) => return Err(profile_failure("inspect", &error)),
     };
+    // Record selection decodes with the same policy decode runs under:
+    // `--strict` enables strict mode (inspect carries no `--fail-fast`),
+    // the profile supplies framing strictness, the record bound, and the
+    // decode-only options. Defaults preserve the direct (profile-less)
+    // behavior by construction.
+    let strict_mode =
+        crate::utils::effective_error_policy(source.strict, false, common.max_errors).strict_mode;
+    let decode_only = match crate::profile_inputs::resolve_decode(None, None, loaded.as_ref()) {
+        Ok(decode_only) => decode_only,
+        Err(error) => return Err(profile_failure("inspect", &error)),
+    };
+    let policy = match crate::profile_inputs::resolve_policy(loaded.as_ref(), strict_mode) {
+        Ok(policy) => policy,
+        Err(error) => {
+            return Err(profile_failure(
+                "inspect",
+                &crate::profile_inputs::ProfileInputError::Invalid {
+                    path: source
+                        .profile
+                        .map_or("<profile>".to_string(), |path| path.display().to_string()),
+                    message: error.to_string(),
+                },
+            ));
+        }
+    };
+    let options = copybook::codec::DecodeOptions::new()
+        .with_format(common.format)
+        .with_codepage(common.codepage)
+        .with_strict_mode(strict_mode)
+        .with_json_number_mode(decode_only.json_number)
+        .with_unmappable_policy(decode_only.unmappable);
     match commands::inspect::build_manifest(
         source.copybook,
         &common,
@@ -642,8 +674,8 @@ fn build_query_manifest(
         Ok((manifest, schema)) => Ok(SourceManifest {
             manifest,
             schema,
-            format: common.format,
-            codepage: common.codepage,
+            options,
+            policy,
         }),
         Err(error) => Err((Err(error), "inspect")),
     }

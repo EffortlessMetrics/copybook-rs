@@ -225,6 +225,68 @@ fn inspect_record_selection_past_end_fails() {
         .stderr(predicates::str::contains("subcode=408"));
 }
 
+/// A short RDW record clamps container ranges to the payload it holds:
+///
+/// the 4-byte record below fills one of two ODO cells of a 6-byte maximum,
+/// so the record group answers 0..4, never the static 0..6.
+#[test]
+fn inspect_record_query_short_rdw_record_clamps_ranges() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let copybook = write_temp_file(&dir, "odo.cpy", ODO_COPYBOOK.as_bytes());
+    // RDW header: 4 payload bytes, zero reserved bytes; then CNT="01" and
+    // one cell.
+    let input = write_temp_file(
+        &dir,
+        "short.rdw",
+        &[0x00, 0x04, 0x00, 0x00, b'0', b'1', b'A', b'A'],
+    );
+
+    cmd()
+        .args(["inspect", "--format", "rdw", "--codepage", "ascii"])
+        .arg(&copybook)
+        .args(["--payload-byte", "2"])
+        .args(["--input"])
+        .arg(&input)
+        .args(["--record", "1"])
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("Record: #1"))
+        .stdout(predicates::str::contains("REC.TBL=1"))
+        .stdout(predicates::str::contains("State: owned"))
+        .stdout(predicates::str::contains("0..4"));
+}
+
+/// Record selection decodes under the reviewed profile: a strict
+/// reserved-bytes framing rejects the nonzero RDW header instead of
+/// answering over it.
+#[test]
+fn inspect_record_query_honors_profile_framing_policy() {
+    const RDW_STRICT_PROFILE: &str = "schema_version = 1\n[source]\ndialect = \"normative\"\n[framing]\nkind = \"rdw\"\nreserved_bytes = \"strict\"\n[decode]\ncodepage = \"ascii\"\nunmappable = \"error\"\njson_numbers = \"lossless\"\n[limits]\nmaximum_record_length = 32760\nmaximum_errors = 100\n";
+    let dir = tempfile::tempdir().expect("tempdir");
+    let copybook = write_temp_file(&dir, "odo.cpy", ODO_COPYBOOK.as_bytes());
+    let profile = write_temp_file(&dir, "rdw-strict.toml", RDW_STRICT_PROFILE.as_bytes());
+    // Same short record, but the RDW reserved bytes are nonzero.
+    let input = write_temp_file(
+        &dir,
+        "strict.rdw",
+        &[0x00, 0x04, 0x00, 0x01, b'0', b'1', b'A', b'A'],
+    );
+
+    cmd()
+        .args(["inspect", "--profile"])
+        .arg(&profile)
+        .arg(&copybook)
+        .args(["--field", "REC.TBL"])
+        .args(["--input"])
+        .arg(&input)
+        .args(["--record", "1"])
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicates::str::contains("RDW_RESERVED_NONZERO"))
+        .stderr(predicates::str::contains("subcode=411"));
+}
+
 /// An unreadable record file names the file with its own subcode.
 #[test]
 fn inspect_record_selection_unreadable_input_fails() {

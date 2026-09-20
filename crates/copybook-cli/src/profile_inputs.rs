@@ -18,13 +18,13 @@ use copybook::core::dialect::Dialect;
 use std::path::Path;
 
 /// Profile keys a flag conflict names. The corresponding command flag is the
-/// same concept in flag spelling (`framing.kind` is `--format`, `decode.codepage`
-/// is `--codepage`, `decode.json_numbers` is `--json-number`,
+/// same concept in flag spelling (`framing.kind` is `--format`,
+/// `representation.codepage` is `--codepage`, `decode.json_numbers` is `--json-number`,
 /// `decode.unmappable` is `--on-decode-unmappable`, `source.dialect` is
 /// `--dialect`, `limits.maximum_errors` is `--max-errors`); the full mapping
 /// lives in `docs/CLI_REFERENCE.md`.
 const FORMAT_PROFILE_KEY: &str = "framing.kind";
-const CODEPAGE_PROFILE_KEY: &str = "decode.codepage";
+const CODEPAGE_PROFILE_KEY: &str = "representation.codepage";
 const JSON_NUMBERS_PROFILE_KEY: &str = "decode.json_numbers";
 const UNMAPPABLE_PROFILE_KEY: &str = "decode.unmappable";
 const DIALECT_PROFILE_KEY: &str = "source.dialect";
@@ -210,7 +210,7 @@ pub(crate) fn resolve_common(
     let codepage = resolve_field(
         CODEPAGE_PROFILE_KEY,
         codepage_flag,
-        profile.map(|profile| profile.decode.codepage),
+        profile.map(|profile| profile.representation.codepage),
         None,
         Codepage::CP037,
     )

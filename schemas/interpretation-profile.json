@@ -2,20 +2,22 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/EffortlessMetrics/copybook-rs/schemas/interpretation-profile.json",
   "title": "InterpretationProfile",
-  "description": "Reviewed interpretation-profile wire contract (#1113), document schema version 1. Stability class: beta (evolving; see the copybook_codec::options::profile stability notes). Reference for the copybook_codec::options::profile::InterpretationProfile contract; the Rust type is authoritative. The wire form is TOML (tables map to objects here); unknown keys are rejected, so additive fields require a version bump, never silent acceptance.",
+  "description": "Reviewed interpretation-profile wire contract (#1113, split per #1120), document schema version 2. Stability class: beta (evolving; see the copybook_codec::options::profile stability notes). Reference for the copybook_codec::options::profile::InterpretationProfile contract; the Rust type is authoritative. The wire form is TOML (tables map to objects here); unknown keys are rejected, so additive fields require a version bump, never silent acceptance. Version 1 documents (codepage under [decode], no [encode]) migrate deterministically at parse; this schema describes the canonical version 2 form.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schema_version",
     "source",
     "framing",
+    "representation",
     "decode",
+    "encode",
     "limits"
   ],
   "properties": {
     "schema_version": {
       "type": "integer",
-      "const": 1,
+      "const": 2,
       "description": "Profile document schema version."
     },
     "source": {
@@ -63,13 +65,11 @@
         }
       }
     },
-    "decode": {
+    "representation": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "codepage",
-        "unmappable",
-        "json_numbers"
+        "codepage"
       ],
       "properties": {
         "codepage": {
@@ -82,8 +82,18 @@
             "cp1047",
             "cp1140"
           ],
-          "description": "Record text encoding."
-        },
+          "description": "Shared character-encoding authority for the decode and encode read paths (version 1 spelled this [decode].codepage)."
+        }
+      }
+    },
+    "decode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unmappable",
+        "json_numbers"
+      ],
+      "properties": {
         "unmappable": {
           "type": "string",
           "enum": [
@@ -91,7 +101,7 @@
             "replace",
             "skip"
           ],
-          "description": "Unmappable-character policy."
+          "description": "Decode-side unmappable-character policy."
         },
         "json_numbers": {
           "type": "string",
@@ -100,6 +110,24 @@
             "native"
           ],
           "description": "JSON number representation (decode only)."
+        }
+      }
+    },
+    "encode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unmappable"
+      ],
+      "properties": {
+        "unmappable": {
+          "type": "string",
+          "enum": [
+            "error",
+            "replace",
+            "skip"
+          ],
+          "description": "Write-side unmappable-character policy. Parsed, fingerprinted, and resolved; runtime enforcement lands in a later #1120 slice."
         }
       }
     },

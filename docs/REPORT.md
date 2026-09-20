@@ -55,7 +55,7 @@ responsibilities:
 ### Test Coverage
 
 <!-- TEST_STATUS:BEGIN -->
-**conformance:** 9295/9295  • **skipped:** 0<br>
+**conformance:** 9298/9298  • **skipped:** 0<br>
 _Source: CI receipts (nextest/junit). This block is updated automatically._
 <!-- TEST_STATUS:END -->
 

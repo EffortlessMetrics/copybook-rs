@@ -549,7 +549,7 @@ fn encode_profile_codepage_conflict() {
         .assert()
         .failure()
         .code(3)
-        .stderr(predicate::str::contains("decode.codepage"));
+        .stderr(predicate::str::contains("representation.codepage"));
 }
 
 /// Profile with a caller-selected record bound over the 15-byte layout.

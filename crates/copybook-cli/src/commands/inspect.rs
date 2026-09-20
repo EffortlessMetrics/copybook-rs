@@ -12,7 +12,8 @@ use copybook::codec::Codepage;
 use copybook::codec::options::profile::InterpretationProfile;
 use copybook::codec::options::resolve::Resolved;
 use copybook::codec::ownership::{
-    MatchRole, OwnershipError, OwnershipReport, OwnershipState, query_byte_owner, query_field_range,
+    MatchRole, OwnershipError, OwnershipReport, OwnershipState, RecordContext, RecordPresence,
+    query_byte_owner, query_byte_owner_in_record, query_field_range, query_field_range_in_record,
 };
 use copybook::codec::resolved_manifest::{GenerateInputs, ManifestTool, ResolvedManifest};
 use copybook::core::source_bundle::SourceBundle;
@@ -115,6 +116,18 @@ pub struct InspectQueryArgs {
     /// Query rendering: human or json (default: human).
     #[arg(long, value_enum, default_value = "human")]
     pub output: InspectQueryFormat,
+    /// Record data file answering a record-specific query. Reads no record
+    /// data without `--record`; conflicts with `--manifest`, which binds no
+    /// decode schema. Record queries answer inside one decoded record:
+    /// ODO tables clamp to that record's actual counts.
+    #[arg(long, value_name = "FILE")]
+    pub input: Option<PathBuf>,
+    /// 1-based record number within `--input` to answer inside, matching
+    /// the `record_index` decode envelopes report. Requires `--input` and
+    /// a query selector; without record selection queries answer over
+    /// static repetition bounds.
+    #[arg(long, value_name = "N")]
+    pub record: Option<u64>,
 }
 
 /// Build the resolved manifest for a copybook without writing it anywhere.
@@ -253,6 +266,20 @@ pub enum QueryRefusal {
         /// Fully-qualified candidates in manifest order.
         candidates: Vec<String>,
     },
+    /// A record-specific query names an ODO table the selected record
+    /// carries no usable count for. Counts come from the decoded record,
+    /// never from guessing.
+    MissingRecordCount {
+        /// Fully-qualified ODO table path.
+        table: String,
+    },
+    /// A record-specific query names an ODO table under a repeating
+    /// ancestor: each ancestor occurrence holds its own array, so one flat
+    /// count cannot describe it without per-occurrence selection.
+    NestedOdoTable {
+        /// Fully-qualified ODO table path.
+        table: String,
+    },
 }
 
 /// One validated ownership selector. Dispatch guarantees exactly one side
@@ -279,12 +306,152 @@ pub fn answer_query(
         OwnershipSelector::PayloadByte(byte) => Ok(query_byte_owner(manifest, byte)),
         OwnershipSelector::FieldPath(path) => query_field_range(manifest, &path),
     };
-    report.map_err(|error| match error {
+    report.map_err(map_ownership_error)
+}
+
+/// Answer one ownership query inside a selected record: ODO tables clamp
+/// to the record's actual counts, so later occurrences vanish and the
+/// query extent is the record length, not the manifest maximum.
+///
+/// Static selectors behave as in [`answer_query`]; record-only refusals
+/// ([`QueryRefusal::MissingRecordCount`], [`QueryRefusal::NestedOdoTable`])
+/// fail closed instead of falling back to static bounds. The answer echoes
+/// the 1-based `record_index` it interpreted with the counts it clamped
+/// to, so machine output stays self-describing.
+pub fn answer_query_in_record(
+    manifest: &ResolvedManifest,
+    selector: OwnershipSelector,
+    record: &RecordPresence,
+    record_index: u64,
+) -> Result<OwnershipReport, QueryRefusal> {
+    let report = match selector {
+        OwnershipSelector::PayloadByte(byte) => query_byte_owner_in_record(manifest, byte, record),
+        OwnershipSelector::FieldPath(path) => query_field_range_in_record(manifest, &path, record),
+    };
+    report
+        .map(|mut answered| {
+            answered.record = Some(RecordContext {
+                index: record_index,
+                odo_counts: record.odo_counts.clone(),
+            });
+            answered
+        })
+        .map_err(map_ownership_error)
+}
+
+/// One decoded record selected for a record-specific query.
+pub struct SelectedRecord {
+    /// 1-based record number within the input, as answered.
+    pub index: u64,
+    /// Actual ODO presence the selected record decodes to.
+    pub presence: RecordPresence,
+}
+
+/// Why a record selection cannot be answered.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RecordSelectionFailure {
+    /// The input file cannot be opened or streamed.
+    Unreadable {
+        /// What went wrong, naming the input.
+        detail: String,
+    },
+    /// The input holds fewer records than requested.
+    NoSuchRecord {
+        /// Requested 1-based record number.
+        index: u64,
+        /// Records the input holds.
+        available: u64,
+    },
+    /// The selected record cannot be decoded.
+    Undecodable {
+        /// Requested 1-based record number.
+        index: u64,
+        /// Decoder's refusal.
+        detail: String,
+    },
+    /// The decoded record carries no usable ODO count.
+    Refused(QueryRefusal),
+}
+
+/// Select the `--record`th record from `--input` and read its ODO presence
+/// off the decoded value: every manifest ODO table resolves to the length
+/// of the array the decoder produced for it.
+///
+/// Records frame exactly as decode frames them (fixed strides by the
+/// schema length, RDW by headers); the index is 1-based to match the
+/// `record_index` decode envelopes report. Selection fails closed:
+/// unreadable inputs, short inputs, undecodable records, and unusable
+/// counts never fall back to static bounds.
+pub fn select_record(
+    manifest: &ResolvedManifest,
+    schema: &Schema,
+    format: copybook::codec::RecordFormat,
+    codepage: Codepage,
+    input: &Path,
+    index: u64,
+) -> Result<SelectedRecord, RecordSelectionFailure> {
+    use RecordSelectionFailure as Failure;
+    let file = std::fs::File::open(input).map_err(|error| Failure::Unreadable {
+        detail: format!("cannot read input {}: {error}", input.display()),
+    })?;
+    let options = copybook::codec::DecodeOptions::new()
+        .with_format(format)
+        .with_codepage(codepage);
+    let mut iterator =
+        copybook::codec::RecordIterator::new(file, schema, &options).map_err(|error| {
+            Failure::Unreadable {
+                detail: format!("cannot frame {} as {format}: {error}", input.display()),
+            }
+        })?;
+    let mut available: u64 = 0;
+    loop {
+        match iterator
+            .read_raw_record()
+            .map_err(|error| Failure::Unreadable {
+                detail: format!("cannot read input {}: {error}", input.display()),
+            })? {
+            None => {
+                return Err(Failure::NoSuchRecord { index, available });
+            }
+            Some(payload) => {
+                available = available.saturating_add(1);
+                if available < index {
+                    continue;
+                }
+                let record_len =
+                    u32::try_from(payload.len()).map_err(|_| Failure::Undecodable {
+                        index,
+                        detail: format!(
+                            "record payload ({} bytes) exceeds the query extent",
+                            payload.len()
+                        ),
+                    })?;
+                let decoded = copybook::codec::decode_record(schema, &payload, &options).map_err(
+                    |error| Failure::Undecodable {
+                        index,
+                        detail: error.to_string(),
+                    },
+                )?;
+                let presence = RecordPresence::from_decoded(manifest, &decoded, record_len)
+                    .map_err(|error| Failure::Refused(map_ownership_error(error)))?;
+                return Ok(SelectedRecord { index, presence });
+            }
+        }
+    }
+}
+
+/// Map every ownership refusal to its dispatcher refusal without guessing:
+/// static paths refuse unknown and ambiguous names, record paths
+/// additionally refuse unusable ODO counts.
+fn map_ownership_error(error: OwnershipError) -> QueryRefusal {
+    match error {
         OwnershipError::UnknownField { query } => QueryRefusal::UnknownField { query },
         OwnershipError::AmbiguousField { query, candidates } => {
             QueryRefusal::AmbiguousField { query, candidates }
         }
-    })
+        OwnershipError::MissingOdoCount { table } => QueryRefusal::MissingRecordCount { table },
+        OwnershipError::NestedOdoTable { table } => QueryRefusal::NestedOdoTable { table },
+    }
 }
 
 /// Render one ownership answer as JSON.
@@ -327,6 +494,14 @@ pub fn render_human_report(report: &OwnershipReport) -> String {
         "Layout: {}  Record extent: {} bytes",
         report.schema_fingerprint, report.record_len
     );
+    if let Some(selected) = &report.record {
+        let mut line = format!("Record: #{} ({} bytes", selected.index, report.record_len);
+        for count in &selected.odo_counts {
+            let _ = write!(line, "; {}={}", count.table_path, count.actual);
+        }
+        line.push(')');
+        let _ = writeln!(&mut output, "{line}");
+    }
     let state_line = match report.state {
         OwnershipState::Owned => "owned".to_owned(),
         OwnershipState::Gap => "gap (byte inside the record extent, no field covers it)".to_owned(),
@@ -334,6 +509,9 @@ pub fn render_human_report(report: &OwnershipReport) -> String {
             "out of range (record extent is {} bytes)",
             report.record_len
         ),
+        OwnershipState::Absent => {
+            "absent (no extent in this record: an ODO table has zero occurrences)".to_owned()
+        }
     };
     let _ = writeln!(&mut output, "State: {state_line}");
     for item in &report.matches {

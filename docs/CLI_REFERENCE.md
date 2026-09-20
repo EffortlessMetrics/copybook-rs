@@ -63,6 +63,11 @@ copybook inspect <COPYBOOK> [OPTIONS]
   case-insensitive). Exactly one of `--payload-byte` and `--field` starts query mode
 - `--output <FORMAT>` - Query rendering: human, json (default: human). Query mode
   only; a non-default value without `--payload-byte` or `--field` is an error (exit 3)
+- `--input <FILE>` - Record data file for a record-specific query. Requires `--record`
+  and a selector; conflicts with `--manifest`, which binds no decode schema
+- `--record <N>` - 1-based record number within `--input` to answer inside, matching
+  the `record_index` decode envelopes report. Requires `--input` and a selector;
+  without record selection queries answer over static repetition bounds
 - `--codepage <CP>` - Character encoding (default: cp037)
 - `--strict` - Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
@@ -96,9 +101,22 @@ repetition bounds: queries over them still name a true covering owner, but repea
 tables answer at group granularity. Regenerate the manifest with the current tool to
 restore leaf-level occurrence precision.
 
+**Record-specific queries:** `--input FILE --record N` answers the same selector
+inside the Nth decoded record instead of over static bounds. Records frame exactly
+as decode frames them (fixed strides by the schema length, RDW by headers). ODO
+tables clamp to the record's actual counts read off the decoded arrays — later
+occurrences vanish, the query extent is the record payload length, and a table
+with zero occurrences in that record reports `absent`. Clamped occurrences report
+`guaranteed` presence. The answer echoes the record it interpreted (`Record: #N`
+with per-table counts in human output, a `record` object with the 1-based index
+and actual counts in JSON). Selection fails closed: half a selection, `--record 0`,
+a record past the end of the input, an unreadable input file, an undecodable
+record, and unusable ODO counts (nested tables needing per-occurrence selection)
+are exit 3, never a silent static answer.
+
 **Exit codes:** 0 = layout printed or query answered (any state), 3 = usage, profile,
 manifest, or query failure (contradictory selectors/inputs, unknown or ambiguous path,
-unreadable or invalid manifest).
+unreadable or invalid manifest, unusable record selection).
 
 **Examples:**
 ```bash
@@ -120,6 +138,9 @@ copybook inspect --manifest customer.manifest.json --payload-byte 38
 
 # Locate a field path as JSON
 copybook inspect customer.cpy --profile customer.toml --field balance --output json
+
+# Answer inside record 2 of a data file (ODO tables clamp to its actual counts)
+copybook inspect customer.cpy --format fixed --field balance --input records.bin --record 2
 ```
 
 **Output:** a header block followed by one row per field. The `Type` column

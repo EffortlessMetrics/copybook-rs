@@ -1,0 +1,14 @@
+kind: added
+body: '**inspect**: record-specific ownership queries answer a `--payload-byte`
+  or `--field` selector inside one decoded record (`--input FILE --record N`,
+  1-based to match decode''s `record_index`). Records frame exactly as decode
+  frames them; ODO tables clamp to the record''s actual counts read off the
+  decoded arrays, so later occurrences vanish, the query extent is the record
+  payload length, clamped occurrences report `guaranteed` presence, and a
+  zero-count table reports `absent`. Answers echo the interpreted record with
+  its counts (a `Record: #N` line for humans, a `record` object for JSON);
+  static answers omit it, so their machine output is unchanged. Half a
+  selection, `--record 0`, `--manifest` with record selection, short inputs,
+  unreadable inputs (subcode 411), undecodable records, and unusable ODO
+  counts fail closed with exit 3, never a silent static answer.'
+time: '2026-09-20T10:10:00Z'

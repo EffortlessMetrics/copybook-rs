@@ -87,6 +87,11 @@ pub mod subcode {
     /// Query guardrail: the `--manifest` document is not a valid
     /// resolved-schema manifest.
     pub const MANIFEST_INVALID: u16 = 410;
+    /// Query guardrail: the `--input` record file cannot be opened, framed,
+    /// or streamed for a record-specific query. Distinct from
+    /// `MANIFEST_UNREADABLE`: this names record data, not the manifest
+    /// document, and default machine output stays path-safe.
+    pub const QUERY_INPUT_UNREADABLE: u16 = 411;
 }
 
 fn invocation_id() -> &'static str {

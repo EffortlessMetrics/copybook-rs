@@ -217,6 +217,8 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
                 payload_byte,
                 field,
                 output,
+                input,
+                record,
             },
     } = command
     else {
@@ -225,8 +227,15 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
 
     // `--manifest` alone also enters query validation: without a selector the
     // contradiction fails closed instead of silently running the layout
-    // report that ignores the manifest.
-    if payload_byte.is_some() || field.is_some() || manifest.is_some() {
+    // report that ignores the manifest. `--input`/`--record` likewise enter
+    // query validation: record selection without a selector must not
+    // silently answer nothing.
+    if payload_byte.is_some()
+        || field.is_some()
+        || manifest.is_some()
+        || input.is_some()
+        || record.is_some()
+    {
         return run_inspect_query_command(
             copybook.as_ref(),
             profile.as_ref(),
@@ -234,6 +243,8 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
             payload_byte,
             field,
             output,
+            input.as_ref(),
+            record,
             format,
             codepage,
             strict,
@@ -294,16 +305,20 @@ fn run_inspect_command(command: Commands, feature_flags: &FeatureFlags) -> Comma
     )
 }
 
-/// Ownership query mode: answer one static field/byte question.
+/// Ownership query mode: answer one static or record-specific field/byte
+/// question.
 ///
 /// Exactly one selector (`--payload-byte` or `--field`) and exactly one
 /// input (`--manifest` or `COPYBOOK`) is required; every other combination
 /// is a contradiction, never a silent default. Manifest-backed queries read
 /// no copybook and no record data; source-backed queries build the manifest
-/// through the same constructor emission uses, so both inputs agree. Query
-/// refusals (unknown or ambiguous paths) render structured diagnostics with
-/// an `Encode` (validation) exit. `--emit-manifest` stays a separate run so
-/// the layout report never mixes into a query answer.
+/// through the same constructor emission uses, so both inputs agree.
+/// `--input` with `--record` answers inside one decoded record instead:
+/// ODO tables clamp to that record's actual counts, and the answer echoes
+/// the record it interpreted. Query refusals (unknown or ambiguous paths,
+/// unusable record counts) render structured diagnostics with an `Encode`
+/// (validation) exit. `--emit-manifest` stays a separate run so the layout
+/// report never mixes into a query answer.
 #[allow(clippy::too_many_arguments)]
 fn run_inspect_query_command(
     copybook: Option<&std::path::PathBuf>,
@@ -312,6 +327,8 @@ fn run_inspect_query_command(
     payload_byte: Option<u32>,
     field: Option<String>,
     output: commands::inspect::InspectQueryFormat,
+    input: Option<&std::path::PathBuf>,
+    record: Option<u64>,
     record_format: Option<copybook::codec::RecordFormat>,
     codepage: Option<copybook::codec::Codepage>,
     strict: bool,
@@ -331,41 +348,122 @@ fn run_inspect_query_command(
             "--emit-manifest and ownership queries are separate runs: emit first, then query the file",
         );
     }
-    let manifest = match (manifest_path, copybook) {
-        (Some(_), Some(_)) => {
+    // Record selection needs both sides and a decode schema: `--manifest`
+    // binds no schema, so record queries run source-backed through COPYBOOK.
+    let selection = match check_record_selection(input, record, manifest_path) {
+        Ok(selection) => selection,
+        Err(outcome) => return outcome,
+    };
+    let source = match resolve_query_input(
+        manifest_path,
+        copybook,
+        profile,
+        record_format,
+        codepage,
+        strict,
+        strict_comments,
+        dialect,
+        feature_flags,
+    ) {
+        Ok(source) => source,
+        Err(outcome) => return outcome,
+    };
+    // Record selection decodes through the source schema with the resolved
+    // framing, so it runs source-backed only: the validation above already
+    // refused `--manifest` with `--input`/`--record`.
+    let report = match (source, selection) {
+        (QueryInput::Manifest(manifest), None) => {
+            match commands::inspect::answer_query(&manifest, selector) {
+                Ok(report) => report,
+                Err(refusal) => return query_refusal("inspect", refusal),
+            }
+        }
+        (QueryInput::Source(built), None) => {
+            match commands::inspect::answer_query(&built.manifest, selector) {
+                Ok(report) => report,
+                Err(refusal) => return query_refusal("inspect", refusal),
+            }
+        }
+        (QueryInput::Manifest(_), Some(_)) => {
             return query_failure(
                 "inspect",
                 crate::subcode::QUERY_CONTRADICTION,
-                "--manifest reads no copybook: pass exactly one query input",
+                "--manifest contradicts --input/--record: record queries decode through COPYBOOK",
             );
         }
-        (None, None) => {
-            return query_failure(
-                "inspect",
-                crate::subcode::QUERY_CONTRADICTION,
-                "inspect query needs --manifest or COPYBOOK",
-            );
+        (QueryInput::Source(built), Some((input_path, index))) => {
+            let selected = match commands::inspect::select_record(
+                &built.manifest,
+                &built.schema,
+                &built.options,
+                built.policy,
+                input_path,
+                index,
+            ) {
+                Ok(selected) => selected,
+                Err(failure) => return record_selection_failure("inspect", failure),
+            };
+            match commands::inspect::answer_query_in_record(
+                &built.manifest,
+                selector,
+                &selected.presence,
+                selected.index,
+            ) {
+                Ok(report) => report,
+                Err(refusal) => return query_refusal("inspect", refusal),
+            }
         }
+    };
+    render_query_report(output, &report)
+}
+
+/// Resolve where an ownership query answers from: exactly one of
+/// `--manifest` or `COPYBOOK`, never both, never neither. Manifest-backed
+/// queries read no copybook; source-backed queries build the manifest
+/// through the same constructor emission uses, so both inputs agree.
+#[allow(clippy::too_many_arguments)]
+fn resolve_query_input(
+    manifest_path: Option<&std::path::PathBuf>,
+    copybook: Option<&std::path::PathBuf>,
+    profile: Option<&std::path::PathBuf>,
+    record_format: Option<copybook::codec::RecordFormat>,
+    codepage: Option<copybook::codec::Codepage>,
+    strict: bool,
+    strict_comments: bool,
+    dialect: Option<crate::DialectPreference>,
+    feature_flags: &FeatureFlags,
+) -> Result<QueryInput, CommandOutcome> {
+    match (manifest_path, copybook) {
+        (Some(_), Some(_)) => Err(query_failure(
+            "inspect",
+            crate::subcode::QUERY_CONTRADICTION,
+            "--manifest reads no copybook: pass exactly one query input",
+        )),
+        (None, None) => Err(query_failure(
+            "inspect",
+            crate::subcode::QUERY_CONTRADICTION,
+            "inspect query needs --manifest or COPYBOOK",
+        )),
         (Some(path), None) => {
             if profile.is_some() {
-                return query_failure(
+                return Err(query_failure(
                     "inspect",
                     crate::subcode::QUERY_CONTRADICTION,
                     "--profile contradicts --manifest: the manifest already binds its reviewed inputs",
-                );
+                ));
             }
             match load_query_manifest(path) {
-                Ok(manifest) => manifest,
-                Err(error) => return error,
+                Ok(manifest) => Ok(QueryInput::Manifest(manifest)),
+                Err(error) => Err(error),
             }
         }
         (None, Some(path)) => {
             if path.as_os_str() == "-" {
-                return query_failure(
+                return Err(query_failure(
                     "inspect",
                     crate::subcode::QUERY_CONTRADICTION,
                     "inspect query needs a copybook file; stdin has no stable source identity",
-                );
+                ));
             }
             let source = QuerySource {
                 copybook: path,
@@ -377,46 +475,70 @@ fn run_inspect_query_command(
                 dialect,
             };
             match build_query_manifest(&source, feature_flags) {
-                Ok(manifest) => manifest,
-                Err(outcome) => return outcome,
+                Ok(built) => Ok(QueryInput::Source(built)),
+                Err(outcome) => Err(outcome),
             }
         }
-    };
-    let report = match commands::inspect::answer_query(&manifest, selector) {
-        Ok(report) => report,
-        Err(commands::inspect::QueryRefusal::UnknownField { query }) => {
-            return query_failure(
-                "inspect",
-                crate::subcode::QUERY_UNANSWERABLE,
-                &format!(
-                    "unknown field path '{query}': no field, alias, or condition matches \
-                     (short names must name exactly one entry)"
-                ),
-            );
+    }
+}
+
+/// A validated record selection: `--input` with a 1-based `--record`, or
+/// neither for a static query. Half a selection, a zero index, and
+/// `--manifest` with record selection are contradictions, never silent
+/// static answers: numbering matches decode's 1-based `record_index`, and
+/// `--manifest` binds no decode schema.
+fn check_record_selection<'a>(
+    input: Option<&'a std::path::PathBuf>,
+    record: Option<u64>,
+    manifest_path: Option<&std::path::PathBuf>,
+) -> Result<Option<(&'a std::path::PathBuf, u64)>, CommandOutcome> {
+    match (input, record) {
+        (None, None) => Ok(None),
+        (Some(_), Some(0)) => Err(query_failure(
+            "inspect",
+            crate::subcode::QUERY_CONTRADICTION,
+            "--record needs a 1-based record number within --input",
+        )),
+        (Some(_), None) => Err(query_failure(
+            "inspect",
+            crate::subcode::QUERY_CONTRADICTION,
+            "--input needs --record <N>: record queries answer inside one selected record",
+        )),
+        (None, Some(_)) => Err(query_failure(
+            "inspect",
+            crate::subcode::QUERY_CONTRADICTION,
+            "--record needs --input <FILE>: record queries answer inside one selected record",
+        )),
+        (Some(path), Some(index)) => {
+            if manifest_path.is_some() {
+                return Err(query_failure(
+                    "inspect",
+                    crate::subcode::QUERY_CONTRADICTION,
+                    "--manifest contradicts --input/--record: record queries decode through COPYBOOK",
+                ));
+            }
+            Ok(Some((path, index)))
         }
-        Err(commands::inspect::QueryRefusal::AmbiguousField { query, candidates }) => {
-            return query_failure(
-                "inspect",
-                crate::subcode::QUERY_UNANSWERABLE,
-                &format!(
-                    "ambiguous field path '{query}': {} (qualify the full dotted path)",
-                    candidates.join(", ")
-                ),
-            );
-        }
-    };
-    let output = match output {
+    }
+}
+
+/// Render one answered ownership query for the requested output format.
+fn render_query_report(
+    output: commands::inspect::InspectQueryFormat,
+    report: &copybook::codec::ownership::OwnershipReport,
+) -> CommandOutcome {
+    let rendered = match output {
         commands::inspect::InspectQueryFormat::Human => {
-            commands::inspect::render_human_report(&report)
+            commands::inspect::render_human_report(report)
         }
         commands::inspect::InspectQueryFormat::Json => {
-            match commands::inspect::render_json_report(&report) {
+            match commands::inspect::render_json_report(report) {
                 Ok(json) => json,
                 Err(error) => return (Err(error), "inspect"),
             }
         }
     };
-    match crate::write_stdout_all(output.as_bytes()) {
+    match crate::write_stdout_all(rendered.as_bytes()) {
         Ok(()) => (Ok(crate::ExitCode::Ok), "inspect"),
         Err(error) => (Err(anyhow!(error)), "inspect"),
     }
@@ -457,11 +579,36 @@ struct QuerySource<'a> {
     dialect: Option<crate::DialectPreference>,
 }
 
+/// Resolved source-backed query inputs: the manifest answers static queries,
+/// and the schema plus decode options decodes the selected record for
+/// record-specific ones. Both come from one resolution, so record answers
+/// interpret exactly what decode reports under the same reviewed inputs:
+/// framing, codepage, strict mode, decode options, and execution policy.
+struct SourceManifest {
+    /// Manifest answering the query.
+    manifest: copybook::codec::resolved_manifest::ResolvedManifest,
+    /// Schema decoding the selected record.
+    schema: copybook::core::Schema,
+    /// Resolved decode options for record iteration and decoding.
+    options: copybook::codec::DecodeOptions,
+    /// Resolved execution policy for record framing.
+    policy: copybook::codec::ExecutionPolicy,
+}
+
+/// Where an ownership query answers from: a bound manifest document, or a
+/// freshly resolved source interpretation.
+enum QueryInput {
+    /// Pre-generated manifest document; reads no copybook and no records.
+    Manifest(copybook::codec::resolved_manifest::ResolvedManifest),
+    /// Resolved source interpretation; also decodes record selections.
+    Source(SourceManifest),
+}
+
 /// Build the manifest for a source-backed ownership query.
 fn build_query_manifest(
     source: &QuerySource<'_>,
     feature_flags: &FeatureFlags,
-) -> Result<copybook::codec::resolved_manifest::ResolvedManifest, CommandOutcome> {
+) -> Result<SourceManifest, CommandOutcome> {
     if source.copybook.as_os_str() == "-" {
         return Err(query_failure(
             "inspect",
@@ -485,6 +632,37 @@ fn build_query_manifest(
         Ok(common) => common,
         Err(error) => return Err(profile_failure("inspect", &error)),
     };
+    // Record selection decodes with the same policy decode runs under:
+    // `--strict` enables strict mode (inspect carries no `--fail-fast`),
+    // the profile supplies framing strictness, the record bound, and the
+    // decode-only options. Defaults preserve the direct (profile-less)
+    // behavior by construction.
+    let strict_mode =
+        crate::utils::effective_error_policy(source.strict, false, common.max_errors).strict_mode;
+    let decode_only = match crate::profile_inputs::resolve_decode(None, None, loaded.as_ref()) {
+        Ok(decode_only) => decode_only,
+        Err(error) => return Err(profile_failure("inspect", &error)),
+    };
+    let policy = match crate::profile_inputs::resolve_policy(loaded.as_ref(), strict_mode) {
+        Ok(policy) => policy,
+        Err(error) => {
+            return Err(profile_failure(
+                "inspect",
+                &crate::profile_inputs::ProfileInputError::Invalid {
+                    path: source
+                        .profile
+                        .map_or("<profile>".to_string(), |path| path.display().to_string()),
+                    message: error.to_string(),
+                },
+            ));
+        }
+    };
+    let options = copybook::codec::DecodeOptions::new()
+        .with_format(common.format)
+        .with_codepage(common.codepage)
+        .with_strict_mode(strict_mode)
+        .with_json_number_mode(decode_only.json_number)
+        .with_unmappable_policy(decode_only.unmappable);
     match commands::inspect::build_manifest(
         source.copybook,
         &common,
@@ -493,8 +671,83 @@ fn build_query_manifest(
         source.strict_comments,
         feature_flags,
     ) {
-        Ok((manifest, _)) => Ok(manifest),
+        Ok((manifest, schema)) => Ok(SourceManifest {
+            manifest,
+            schema,
+            options,
+            policy,
+        }),
         Err(error) => Err((Err(error), "inspect")),
+    }
+}
+
+/// A refused ownership answer. Dispatch renders it as structured
+/// diagnostics with an `Encode` (validation) exit: unknown and ambiguous
+/// paths name the fix, and record-only refusals name the missing count or
+/// the per-occurrence selection they need instead of guessing.
+fn query_refusal(op: &'static str, refusal: commands::inspect::QueryRefusal) -> CommandOutcome {
+    use commands::inspect::QueryRefusal as Refusal;
+    match refusal {
+        Refusal::UnknownField { query } => query_failure(
+            op,
+            crate::subcode::QUERY_UNANSWERABLE,
+            &format!(
+                "unknown field path '{query}': no field, alias, or condition matches \
+                 (short names must name exactly one entry)"
+            ),
+        ),
+        Refusal::AmbiguousField { query, candidates } => query_failure(
+            op,
+            crate::subcode::QUERY_UNANSWERABLE,
+            &format!(
+                "ambiguous field path '{query}': {} (qualify the full dotted path)",
+                candidates.join(", ")
+            ),
+        ),
+        Refusal::MissingRecordCount { table } => query_failure(
+            op,
+            crate::subcode::QUERY_UNANSWERABLE,
+            &format!(
+                "no record count for ODO table '{table}': counts come from the decoded \
+                 record, never from guessing"
+            ),
+        ),
+        Refusal::NestedOdoTable { table } => query_failure(
+            op,
+            crate::subcode::QUERY_UNANSWERABLE,
+            &format!(
+                "nested ODO table '{table}' needs per-occurrence selection: each ancestor \
+                 occurrence holds its own array"
+            ),
+        ),
+    }
+}
+
+/// A record selection that cannot be answered. Dispatch renders it as
+/// structured diagnostics with an `Encode` (validation) exit: unreadable
+/// inputs name the file, short inputs name their length, undecodable
+/// records carry the decoder's refusal, and unusable counts reuse the
+/// query-refusal rendering instead of falling back to static bounds.
+fn record_selection_failure(
+    op: &'static str,
+    failure: commands::inspect::RecordSelectionFailure,
+) -> CommandOutcome {
+    use commands::inspect::RecordSelectionFailure as Failure;
+    match failure {
+        Failure::Unreadable { detail } => {
+            query_failure(op, crate::subcode::QUERY_INPUT_UNREADABLE, &detail)
+        }
+        Failure::NoSuchRecord { index, available } => query_failure(
+            op,
+            crate::subcode::QUERY_UNANSWERABLE,
+            &format!("record {index}: input holds only {available} records"),
+        ),
+        Failure::Undecodable { index, detail } => query_failure(
+            op,
+            crate::subcode::QUERY_UNANSWERABLE,
+            &format!("record {index} cannot be decoded: {detail}"),
+        ),
+        Failure::Refused(refusal) => query_refusal(op, refusal),
     }
 }
 

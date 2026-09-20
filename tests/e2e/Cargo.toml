@@ -190,6 +190,10 @@ path = "e2e_cli_profile.rs"
 name = "e2e_cli_inspect_manifest"
 path = "e2e_cli_inspect_manifest.rs"
 
+[[test]]
+name = "e2e_cli_inspect_record"
+path = "e2e_cli_inspect_record.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

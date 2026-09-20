@@ -58,6 +58,176 @@ pub enum OwnershipState {
     Gap,
     /// The byte lies past the record extent.
     OutOfRange,
+    /// The path resolves in the schema but has no extent in this record:
+    /// an ODO table (or its descendant) with zero actual occurrences.
+    /// Record-specific queries only; static queries never report it.
+    Absent,
+}
+
+/// Actual ODO presence for one table in a selected record, read off the
+/// decoded record (array lengths), never re-derived from counters.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OdoCount {
+    /// Fully-qualified ODO table path.
+    pub table_path: String,
+    /// Occurrences present in this record.
+    pub actual: u32,
+}
+
+/// Record-specific context for an ownership query: the payload length and
+/// the actual ODO presence the selected record decodes to.
+///
+/// Static queries answer over repetition bounds (ODO tails report
+/// [`OccurrencePresence::Possible`]); record queries clamp ODO tables to
+/// their actual counts, so later occurrences vanish and the table span
+/// shrinks to what this record holds.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordPresence {
+    /// Actual ODO counts by table path.
+    pub odo_counts: Vec<OdoCount>,
+    /// Selected record payload length in bytes; overrides the manifest
+    /// maximum as the query extent.
+    pub record_len: u32,
+}
+
+impl RecordPresence {
+    /// Actual occurrences for an ODO table path, when the context carries
+    /// one.
+    #[must_use]
+    pub fn actual_for(&self, table_path: &str) -> Option<u32> {
+        self.odo_counts
+            .iter()
+            .find(|count| count.table_path == table_path)
+            .map(|count| count.actual)
+    }
+
+    /// Build record presence from a decoded record value: every manifest
+    /// ODO table resolves to the length of the array the decoder produced
+    /// for it, which is exactly what decode reports for this record.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`OwnershipError::NestedOdoTable`] when an ODO table sits
+    /// under a repeating ancestor (one flat count cannot name per-occurrence
+    /// arrays), or [`OwnershipError::MissingOdoCount`] when the decoded
+    /// value holds no array for a table.
+    #[must_use = "Handle the Result or propagate the error"]
+    #[inline]
+    pub fn from_decoded(
+        manifest: &ResolvedManifest,
+        decoded: &serde_json::Value,
+        record_len: u32,
+    ) -> Result<Self, OwnershipError> {
+        let mut odo_counts = Vec::new();
+        for table in manifest.fields.iter().filter(|field| {
+            field
+                .occurs
+                .as_ref()
+                .is_some_and(|occurs| occurs.kind == "odo")
+        }) {
+            if has_repeating_ancestor(manifest, &table.path) {
+                return Err(OwnershipError::NestedOdoTable {
+                    table: table.path.clone(),
+                });
+            }
+            let array = match walk_decoded(decoded, &table.path) {
+                DecodedWalk::Found(value) => value.as_array(),
+                DecodedWalk::Missing => None,
+                DecodedWalk::NestedArray => {
+                    return Err(OwnershipError::NestedOdoTable {
+                        table: table.path.clone(),
+                    });
+                }
+            };
+            let Some(array) = array else {
+                return Err(OwnershipError::MissingOdoCount {
+                    table: table.path.clone(),
+                });
+            };
+            let actual = u32::try_from(array.len()).unwrap_or(u32::MAX);
+            odo_counts.push(OdoCount {
+                table_path: table.path.clone(),
+                actual,
+            });
+        }
+        Ok(Self {
+            odo_counts,
+            record_len,
+        })
+    }
+}
+
+/// Identity of the selected record behind a record-specific answer.
+///
+/// The answer echoes which record it interpreted (1-based, matching the
+/// `record_index` decode envelopes report) and the actual ODO counts it
+/// clamped to, so machine output stays self-describing without local
+/// paths. The payload length itself rides on
+/// [`OwnershipReport::record_len`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecordContext {
+    /// 1-based selected record number within the input.
+    pub index: u64,
+    /// Actual ODO counts the answer clamped to.
+    pub odo_counts: Vec<OdoCount>,
+}
+
+/// Outcome of walking a dotted path through a decoded record value.
+enum DecodedWalk<'a> {
+    /// The path resolves to a value.
+    Found(&'a serde_json::Value),
+    /// A segment is missing or not an object.
+    Missing,
+    /// An intermediate segment is an array: per-occurrence values a flat
+    /// lookup cannot name.
+    NestedArray,
+}
+
+/// Walk a dotted path through decoded output: full path first, then the
+/// root-stripped short form, mirroring the decoder-side lookup.
+fn walk_decoded<'a>(decoded: &'a serde_json::Value, path: &str) -> DecodedWalk<'a> {
+    let root = decoded
+        .as_object()
+        .and_then(|object| object.get("fields"))
+        .unwrap_or(decoded);
+    walk_decoded_exact(root, path)
+        .or_else(|| {
+            path.split_once('.')
+                .and_then(|(_, rest)| walk_decoded_exact(root, rest))
+        })
+        .unwrap_or(DecodedWalk::Missing)
+}
+
+/// Walk one dotted path without fallbacks.
+fn walk_decoded_exact<'a>(root: &'a serde_json::Value, path: &str) -> Option<DecodedWalk<'a>> {
+    let mut current = root;
+    let mut segments = path.split('.').peekable();
+    while let Some(segment) = segments.next() {
+        let next = current.as_object().and_then(|object| object.get(segment))?;
+        current = next;
+        if current.is_array() && segments.peek().is_some() {
+            return Some(DecodedWalk::NestedArray);
+        }
+    }
+    Some(DecodedWalk::Found(current))
+}
+
+/// True when any strict ancestor of `path` repeats (fixed or ODO, any
+/// bound): the decoder nests one array per ancestor occurrence, so no
+/// single count can describe the table for a record.
+fn has_repeating_ancestor(manifest: &ResolvedManifest, path: &str) -> bool {
+    let mut ancestor = parent_path(path);
+    while let Some(candidate) = ancestor {
+        if manifest
+            .fields
+            .iter()
+            .any(|field| field.path == candidate && field.occurs.is_some())
+        {
+            return true;
+        }
+        ancestor = parent_path(&candidate);
+    }
+    false
 }
 
 /// Role of one match inside the ownership answer.
@@ -184,8 +354,13 @@ pub struct OwnershipReport {
     pub profile_fingerprint: Option<String>,
     /// Resolved layout fingerprint.
     pub schema_fingerprint: String,
-    /// Maximum static record extent in bytes.
+    /// Query extent in bytes: the manifest maximum for static answers, the
+    /// selected record's payload length for record-specific answers.
     pub record_len: u32,
+    /// Selected record identity, present only for record-specific answers.
+    /// Static answers omit it, so their machine output is unchanged.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub record: Option<RecordContext>,
     /// Answered state.
     pub state: OwnershipState,
     /// Matches in stable order (primary first, then views, containers,
@@ -212,6 +387,22 @@ pub enum OwnershipError {
         /// Fully-qualified candidates in manifest order.
         candidates: Vec<String>,
     },
+    /// A record-specific query names an ODO table the record context
+    /// carries no usable count for. Counts come from the decoded record,
+    /// never from guessing.
+    #[error("no record count for ODO table: {table}")]
+    MissingOdoCount {
+        /// Fully-qualified ODO table path.
+        table: String,
+    },
+    /// A record-specific query names an ODO table under a repeating
+    /// ancestor: each ancestor occurrence holds its own array, so one flat
+    /// count cannot describe it without per-occurrence selection.
+    #[error("nested ODO table needs per-occurrence selection: {table}")]
+    NestedOdoTable {
+        /// Fully-qualified ODO table path.
+        table: String,
+    },
 }
 
 /// Answer which field owns payload-relative byte `byte`.
@@ -223,13 +414,42 @@ pub enum OwnershipError {
 /// total over the manifest: every input maps to an explicit state.
 #[must_use]
 pub fn query_byte_owner(manifest: &ResolvedManifest, byte: u32) -> OwnershipReport {
-    let state = if byte >= manifest.record_len {
+    query_byte_owner_inner(manifest, byte, None)
+}
+
+/// Answer which field owns payload-relative byte `byte` in a selected
+/// record: ODO tables clamp to their actual counts, so absent occurrences
+/// vanish and the query extent is the record length, not the manifest
+/// maximum.
+///
+/// # Errors
+///
+/// Returns [`OwnershipError::MissingOdoCount`] when the record context
+/// carries no count for a manifest ODO table.
+#[must_use = "Handle the Result or propagate the error"]
+#[inline]
+pub fn query_byte_owner_in_record(
+    manifest: &ResolvedManifest,
+    byte: u32,
+    record: &RecordPresence,
+) -> Result<OwnershipReport, OwnershipError> {
+    require_odo_counts(manifest, record)?;
+    Ok(query_byte_owner_inner(manifest, byte, Some(record)))
+}
+
+fn query_byte_owner_inner(
+    manifest: &ResolvedManifest,
+    byte: u32,
+    record: Option<&RecordPresence>,
+) -> OwnershipReport {
+    let extent = record.map_or(manifest.record_len, |presence| presence.record_len);
+    let state = if byte >= extent {
         OwnershipState::OutOfRange
     } else {
         OwnershipState::Owned
     };
     let mut matches = if state == OwnershipState::Owned {
-        collect_byte_matches(manifest, byte)
+        collect_byte_matches(manifest, byte, record)
     } else {
         Vec::new()
     };
@@ -239,6 +459,7 @@ pub fn query_byte_owner(manifest: &ResolvedManifest, byte: u32) -> OwnershipRepo
             OwnershipQuery::PayloadByte { byte },
             OwnershipState::Gap,
             Vec::new(),
+            record,
         );
     }
     sort_matches(&mut matches);
@@ -249,9 +470,38 @@ pub fn query_byte_owner(manifest: &ResolvedManifest, byte: u32) -> OwnershipRepo
         OwnershipQuery::PayloadByte { byte },
         state,
         matches,
+        record,
     );
     answered.truncated = truncated;
     answered
+}
+
+/// Fail closed when a record context cannot name every manifest ODO
+/// table: answering without a count would silently fall back to static
+/// bounds, and a nested table's per-occurrence arrays need selection no
+/// flat count can name.
+fn require_odo_counts(
+    manifest: &ResolvedManifest,
+    record: &RecordPresence,
+) -> Result<(), OwnershipError> {
+    for table in manifest.fields.iter().filter(|field| {
+        field
+            .occurs
+            .as_ref()
+            .is_some_and(|occurs| occurs.kind == "odo")
+    }) {
+        if has_repeating_ancestor(manifest, &table.path) {
+            return Err(OwnershipError::NestedOdoTable {
+                table: table.path.clone(),
+            });
+        }
+        if record.actual_for(&table.path).is_none() {
+            return Err(OwnershipError::MissingOdoCount {
+                table: table.path.clone(),
+            });
+        }
+    }
+    Ok(())
 }
 
 /// Answer which byte range backs field path `path`.
@@ -275,12 +525,13 @@ pub fn query_field_range(
         path: path.to_owned(),
     };
     if let Some(field) = exact_field(manifest, path) {
-        let field_match = field_match(manifest, field);
+        let field_match = field_match(manifest, field, None);
         return Ok(report(
             manifest,
             query,
             OwnershipState::Owned,
             vec![field_match],
+            None,
         ));
     }
     if let Some(alias_match) = exact_alias(manifest, path) {
@@ -289,6 +540,7 @@ pub fn query_field_range(
             query,
             OwnershipState::Owned,
             vec![alias_match],
+            None,
         ));
     }
     if let Some(condition_match) = exact_condition(manifest, path) {
@@ -297,6 +549,7 @@ pub fn query_field_range(
             query,
             OwnershipState::Owned,
             vec![condition_match],
+            None,
         ));
     }
     let mut candidates = short_name_candidates(manifest, path);
@@ -317,17 +570,142 @@ pub fn query_field_range(
     }
 }
 
+/// Answer which byte range backs field path `path` in a selected record:
+/// ODO tables shrink to their actual counts, and a path whose schema
+/// entry has no extent in this record reports [`OwnershipState::Absent`]
+/// instead of a range. Alias and condition answers stay schema-level:
+/// they name relationships, and storage presence is answered by byte
+/// queries.
+///
+/// # Errors
+///
+/// Returns [`OwnershipError::UnknownField`], [`OwnershipError::AmbiguousField`],
+/// [`OwnershipError::MissingOdoCount`], or [`OwnershipError::NestedOdoTable`]
+/// without guessing.
+#[must_use = "Handle the Result or propagate the error"]
+#[inline]
+pub fn query_field_range_in_record(
+    manifest: &ResolvedManifest,
+    path: &str,
+    record: &RecordPresence,
+) -> Result<OwnershipReport, OwnershipError> {
+    require_odo_counts(manifest, record)?;
+    let query = OwnershipQuery::FieldPath {
+        path: path.to_owned(),
+    };
+    if let Some(field) = exact_field(manifest, path) {
+        if odo_absent_in_record(manifest, field, record) {
+            return Ok(report(
+                manifest,
+                query,
+                OwnershipState::Absent,
+                Vec::new(),
+                Some(record),
+            ));
+        }
+        let field_match = field_match(manifest, field, Some(record));
+        return Ok(report(
+            manifest,
+            query,
+            OwnershipState::Owned,
+            vec![field_match],
+            Some(record),
+        ));
+    }
+    if let Some(alias_match) = exact_alias(manifest, path) {
+        return Ok(report(
+            manifest,
+            query,
+            OwnershipState::Owned,
+            vec![alias_match],
+            Some(record),
+        ));
+    }
+    if let Some(condition_match) = exact_condition(manifest, path) {
+        return Ok(report(
+            manifest,
+            query,
+            OwnershipState::Owned,
+            vec![condition_match],
+            Some(record),
+        ));
+    }
+    let mut candidates = short_name_candidates(manifest, path);
+    candidates.sort();
+    candidates.dedup();
+    match candidates.len() {
+        0 => Err(OwnershipError::UnknownField {
+            query: path.to_owned(),
+        }),
+        1 => {
+            let found = candidates[0].clone();
+            query_field_range_in_record(manifest, &found, record)
+        }
+        _ => Err(OwnershipError::AmbiguousField {
+            query: path.to_owned(),
+            candidates,
+        }),
+    }
+}
+
+/// True when a schema entry has no extent in this record: it is an ODO
+/// table with zero actual occurrences, or descends from one.
+fn odo_absent_in_record(
+    manifest: &ResolvedManifest,
+    field: &ManifestField,
+    record: &RecordPresence,
+) -> bool {
+    let mut current: Option<&ManifestField> = Some(field);
+    while let Some(entry) = current {
+        if entry
+            .occurs
+            .as_ref()
+            .is_some_and(|occurs| occurs.kind == "odo")
+            && record
+                .actual_for(&entry.path)
+                .is_some_and(|actual| actual == 0)
+        {
+            return true;
+        }
+        current = parent_path(&entry.path).and_then(|parent| {
+            manifest
+                .fields
+                .iter()
+                .find(|candidate| candidate.path == parent)
+        });
+    }
+    false
+}
+
 /// Effective covered span of one manifest field: single-occurrence length
-/// for scalars, stride times repetition bound for tables.
-fn effective_span(field: &ManifestField) -> (u32, u32) {
-    // `count` is the fixed repetition count or the ODO maximum: the static
-    // span bound in both cases. Minimums govern presence, not width.
-    let repetitions = field
+/// for scalars, stride times repetition bound for tables. A record context
+/// clamps ODO tables to their actual counts, shrinking the span to what
+/// the selected record holds.
+fn effective_span(field: &ManifestField, record: Option<&RecordPresence>) -> (u32, u32) {
+    let repetitions = repetitions_for(field, record);
+    let len = field.len.saturating_mul(repetitions);
+    (field.offset, field.offset.saturating_add(len))
+}
+
+/// Repetition bound for span and descent arithmetic: the static bound,
+/// except ODO tables under a record context resolve to their actual
+/// counts (clamped to the static bound, never beyond it). Missing counts
+/// fall back to the static bound; [`require_odo_counts`] keeps that
+/// fallback unreachable for record queries by failing closed first.
+fn repetitions_for(field: &ManifestField, record: Option<&RecordPresence>) -> u32 {
+    let bound = field
         .occurs
         .as_ref()
         .map_or(1, |occurs| occurs.count.max(1));
-    let len = field.len.saturating_mul(repetitions);
-    (field.offset, field.offset.saturating_add(len))
+    match (record, field.occurs.as_ref()) {
+        (Some(presence), Some(occurs)) if occurs.kind == "odo" => {
+            match presence.actual_for(&field.path) {
+                Some(actual) => bound.min(actual),
+                None => bound,
+            }
+        }
+        _ => bound,
+    }
 }
 
 /// True for zero-storage manifest kinds that can never own a byte.
@@ -341,7 +719,11 @@ fn is_non_storage(kind: &str) -> bool {
 /// itself with its occurrence index plus its descendants projected into that
 /// occurrence, so a byte in occurrence 2 names the true within-occurrence
 /// child rather than only the table. RENAMES aliases match as flat spans.
-fn collect_byte_matches(manifest: &ResolvedManifest, byte: u32) -> Vec<OwnershipMatch> {
+fn collect_byte_matches(
+    manifest: &ResolvedManifest,
+    byte: u32,
+    record: Option<&RecordPresence>,
+) -> Vec<OwnershipMatch> {
     let mut matches = Vec::new();
     for field in &manifest.fields {
         if parent_path(&field.path)
@@ -349,7 +731,15 @@ fn collect_byte_matches(manifest: &ResolvedManifest, byte: u32) -> Vec<Ownership
         {
             continue;
         }
-        descend(manifest, field, field.offset, byte, &[], &mut matches);
+        descend(
+            manifest,
+            field,
+            field.offset,
+            byte,
+            &[],
+            record,
+            &mut matches,
+        );
     }
     for renames in &manifest.renames {
         let end = renames.offset.saturating_add(renames.length);
@@ -387,15 +777,13 @@ fn descend(
     base: u32,
     byte: u32,
     inherited: &[OccurrenceIndex],
+    record: Option<&RecordPresence>,
     matches: &mut Vec<OwnershipMatch>,
 ) {
     if is_non_storage(&field.kind) || field.len == 0 {
         return;
     }
-    let repetitions = field
-        .occurs
-        .as_ref()
-        .map_or(1, |occurs| occurs.count.max(1));
+    let repetitions = repetitions_for(field, record);
     let span = field.len.saturating_mul(repetitions);
     let end = base.saturating_add(span);
     if byte < base || byte >= end {
@@ -412,10 +800,18 @@ fn descend(
         entered.push(OccurrenceIndex {
             path: field.path.clone(),
             index,
-            presence: if index < minimum {
-                OccurrencePresence::Guaranteed
-            } else {
-                OccurrencePresence::Possible
+            presence: match record {
+                // A record context resolves every surviving occurrence:
+                // only actual occurrences are projected, so each one is
+                // guaranteed for this record.
+                Some(_) => OccurrencePresence::Guaranteed,
+                None => {
+                    if index < minimum {
+                        OccurrencePresence::Guaranteed
+                    } else {
+                        OccurrencePresence::Possible
+                    }
+                }
             },
         });
         let occurrence_base = base.saturating_add(index.saturating_mul(stride));
@@ -423,7 +819,7 @@ fn descend(
         for child in direct_children(manifest, &field.path) {
             let child_base =
                 occurrence_base.saturating_add(child.offset.saturating_sub(field.offset));
-            descend(manifest, child, child_base, byte, &entered, matches);
+            descend(manifest, child, child_base, byte, &entered, record, matches);
         }
         return;
     }
@@ -438,7 +834,9 @@ fn descend(
     // stay relative to the working base, exactly as in the repeating branch.
     for child in direct_children(manifest, &field.path) {
         let child_base = base.saturating_add(child.offset.saturating_sub(field.offset));
-        descend(manifest, child, child_base, byte, inherited, matches);
+        descend(
+            manifest, child, child_base, byte, inherited, record, matches,
+        );
     }
 }
 
@@ -506,10 +904,14 @@ fn field_match_at(
     }
 }
 
-/// Build one match for a field-path query: the entry's own static range
-/// with no occurrence context.
-fn field_match(manifest: &ResolvedManifest, field: &ManifestField) -> OwnershipMatch {
-    let (start, end) = effective_span(field);
+/// Build one match for a field-path query: the entry's own range with no
+/// occurrence context (static bound, or the record-resolved span).
+fn field_match(
+    manifest: &ResolvedManifest,
+    field: &ManifestField,
+    record: Option<&RecordPresence>,
+) -> OwnershipMatch {
+    let (start, end) = effective_span(field, record);
     field_match_at(manifest, field, start, end, Vec::new())
 }
 
@@ -613,13 +1015,26 @@ fn truncate_matches(matches: &mut Vec<OwnershipMatch>) -> bool {
 }
 
 /// Assemble the report with manifest identities. Machine output carries
-/// fingerprints, never local paths.
+/// fingerprints, never local paths. A record context overrides the
+/// extent with the selected record length.
 fn report(
     manifest: &ResolvedManifest,
     query: OwnershipQuery,
     state: OwnershipState,
     matches: Vec<OwnershipMatch>,
+    record: Option<&RecordPresence>,
 ) -> OwnershipReport {
+    // A record answer never ranges past the record it interpreted: static
+    // group spans cover the manifest maximum, but a short record holds
+    // fewer bytes, so containers clamp to the query extent. Leaves always
+    // fit: a record that decodes holds every field the schema names.
+    let mut matches = matches;
+    if let Some(presence) = record {
+        for item in &mut matches {
+            item.end = item.end.min(presence.record_len);
+            item.len = item.end.saturating_sub(item.offset);
+        }
+    }
     OwnershipReport {
         query,
         coordinate_system: COORDINATE_SYSTEM.to_owned(),
@@ -630,7 +1045,8 @@ fn report(
             .as_ref()
             .map(|profile| profile.fingerprint.clone()),
         schema_fingerprint: manifest.schema_fingerprint.clone(),
-        record_len: manifest.record_len,
+        record_len: record.map_or(manifest.record_len, |presence| presence.record_len),
+        record: None,
         state,
         matches,
         truncated: false,
@@ -1035,6 +1451,225 @@ mod tests {
             }]
         );
         assert!(owner.odo.is_some());
+    }
+
+    const ODO_GROUP_COPYBOOK: &str = concat!(
+        "       01 REC.\n",
+        "           05 HOWMANY PIC 9(2).\n",
+        "           05 TAIL PIC X.\n",
+        "           05 TBL OCCURS 1 TO 2 TIMES DEPENDING ON HOWMANY.\n",
+        "               10 CELL PIC X(4).\n",
+    );
+
+    fn record_presence(counts: &[(&str, u32)], record_len: u32) -> RecordPresence {
+        RecordPresence {
+            odo_counts: counts
+                .iter()
+                .map(|(table, actual)| OdoCount {
+                    table_path: (*table).to_owned(),
+                    actual: *actual,
+                })
+                .collect(),
+            record_len,
+        }
+    }
+
+    /// Decode record bytes with the fixture encoding so `from_decoded`
+    /// tests prove the true decoded shape, not a hand-built guess.
+    fn decode_odo_record(copybook: &str, bytes: &[u8]) -> (ResolvedManifest, serde_json::Value) {
+        use crate::{Codepage, DecodeOptions, RecordFormat, decode_record};
+
+        let manifest = manifest_for(copybook);
+        let mut schema: Schema = parse_copybook(copybook).expect("copybook parses");
+        resolve_layout(&mut schema, Dialect::Normative).expect("layout resolves");
+        let options = DecodeOptions::new()
+            .with_codepage(Codepage::CP037)
+            .with_format(RecordFormat::Fixed);
+        let decoded = decode_record(&schema, bytes, &options).expect("record decodes");
+        (manifest, decoded)
+    }
+
+    #[test]
+    fn record_query_resolves_present_odo_occurrence() {
+        let manifest = manifest_for(ODO_GROUP_COPYBOOK);
+        // HOWMANY=2: TBL holds occurrences 0..2 (bytes 3..11).
+        let record = record_presence(&[("REC.TBL", 2)], 11);
+        let report = query_byte_owner_in_record(&manifest, 7, &record).expect("byte answers");
+        assert_eq!(report.record_len, 11);
+        let owner = primary(&report);
+        assert_eq!(owner.path, "REC.TBL.CELL");
+        assert_eq!((owner.offset, owner.len), (7, 4));
+        assert_eq!(
+            owner.occurrences,
+            vec![OccurrenceIndex {
+                path: "REC.TBL".to_owned(),
+                index: 1,
+                presence: OccurrencePresence::Guaranteed,
+            }]
+        );
+    }
+
+    #[test]
+    fn record_query_clamps_ranges_to_record_extent() {
+        let manifest = manifest_for(ODO_GROUP_COPYBOOK);
+        // HOWMANY=1: the record holds 7 payload bytes of an 11-byte maximum.
+        // Leaves fit, but the static group spans (REC 0..11) must not range
+        // past the record the answer interpreted.
+        let record = record_presence(&[("REC.TBL", 1)], 7);
+        let report = query_byte_owner_in_record(&manifest, 3, &record).expect("byte answers");
+        assert_eq!(report.record_len, 7);
+        for item in &report.matches {
+            assert!(
+                item.end <= 7,
+                "record match ranges past the record: {} {}..{}",
+                item.path,
+                item.offset,
+                item.end
+            );
+        }
+        let group = report
+            .matches
+            .iter()
+            .find(|item| item.path == "REC")
+            .expect("record group answers");
+        assert_eq!((group.offset, group.end, group.len), (0, 7, 7));
+        let field = query_field_range_in_record(&manifest, "REC", &record).expect("field answers");
+        let group = primary(&field);
+        assert_eq!((group.offset, group.end, group.len), (0, 7, 7));
+    }
+
+    #[test]
+    fn record_query_absent_odo_extent_falls_back_to_group() {
+        let manifest = manifest_for(ODO_GROUP_COPYBOOK);
+        // HOWMANY=1: byte 8 sits where occurrence 1 would start, but only
+        // occurrence 0 exists; TBL contributes no match there while the
+        // record group still owns the byte.
+        let record = record_presence(&[("REC.TBL", 1)], 11);
+        let report = query_byte_owner_in_record(&manifest, 8, &record).expect("byte answers");
+        assert_eq!(report.state, OwnershipState::Owned);
+        assert_eq!(primary(&report).path, "REC");
+        assert!(
+            report
+                .matches
+                .iter()
+                .all(|item| item.path != "REC.TBL.CELL"),
+            "absent occurrence names no leaf"
+        );
+    }
+
+    #[test]
+    fn record_query_zero_odo_field_reports_absent() {
+        let manifest = manifest_for(ODO_GROUP_COPYBOOK);
+        let record = record_presence(&[("REC.TBL", 0)], 3);
+        let report =
+            query_field_range_in_record(&manifest, "REC.TBL.CELL", &record).expect("path answers");
+        assert_eq!(report.state, OwnershipState::Absent);
+        assert!(report.matches.is_empty());
+        let table =
+            query_field_range_in_record(&manifest, "REC.TBL", &record).expect("table answers");
+        assert_eq!(table.state, OwnershipState::Absent);
+    }
+
+    #[test]
+    fn record_query_missing_count_fails_closed() {
+        let manifest = manifest_for(ODO_GROUP_COPYBOOK);
+        let record = record_presence(&[], 11);
+        let error = query_byte_owner_in_record(&manifest, 2, &record).expect_err("count missing");
+        assert!(
+            matches!(error, OwnershipError::MissingOdoCount { .. }),
+            "got {error:?}"
+        );
+    }
+
+    #[test]
+    fn record_query_nested_odo_fails_closed() {
+        // The parser refuses nested ODO, so this hostile shape is built by
+        // hand: an ODO table under a fixed table holds one array per outer
+        // occurrence, which no flat count can name.
+        let mut manifest = manifest_for(concat!(
+            "       01 REC.\n",
+            "           05 OUTER OCCURS 2 TIMES.\n",
+            "               10 INNER PIC X(2).\n",
+            "           05 HOWMANY PIC 9(2).\n",
+        ));
+        let inner = manifest
+            .fields
+            .iter_mut()
+            .find(|field| field.path == "REC.OUTER.INNER")
+            .expect("inner present");
+        inner.occurs = Some(ManifestOccurs {
+            kind: "odo".to_owned(),
+            count: 2,
+            min_count: 1,
+            counter_path: Some("REC.HOWMANY".to_owned()),
+        });
+        let record = record_presence(&[("REC.OUTER.INNER", 1)], 8);
+        let error = query_byte_owner_in_record(&manifest, 4, &record).expect_err("nested refused");
+        assert!(
+            matches!(error, OwnershipError::NestedOdoTable { .. }),
+            "got {error:?}"
+        );
+    }
+
+    #[test]
+    fn record_presence_from_decoded_refuses_nested_arrays() {
+        let mut manifest = manifest_for(concat!(
+            "       01 REC.\n",
+            "           05 OUTER OCCURS 2 TIMES.\n",
+            "               10 INNER PIC X(2).\n",
+            "           05 HOWMANY PIC 9(2).\n",
+        ));
+        let inner = manifest
+            .fields
+            .iter_mut()
+            .find(|field| field.path == "REC.OUTER.INNER")
+            .expect("inner present");
+        inner.occurs = Some(ManifestOccurs {
+            kind: "odo".to_owned(),
+            count: 2,
+            min_count: 1,
+            counter_path: Some("REC.HOWMANY".to_owned()),
+        });
+        let decoded = serde_json::json!({
+            "REC": {
+                "OUTER": [{"INNER": ["a"]}, {"INNER": ["b"]}],
+                "HOWMANY": 1,
+            }
+        });
+        let error =
+            RecordPresence::from_decoded(&manifest, &decoded, 8).expect_err("nested refused");
+        assert!(
+            matches!(error, OwnershipError::NestedOdoTable { .. }),
+            "got {error:?}"
+        );
+    }
+
+    #[test]
+    fn record_presence_from_decoded_reads_array_lengths() {
+        // EBCDIC: HOWMANY "02", TAIL "Z", two CELLs.
+        let bytes: Vec<u8> = [
+            &[0xF0, 0xF2][..],
+            &[0xE9][..],
+            &[0x81, 0x81, 0x81, 0x81][..],
+            &[0x82, 0x82, 0x82, 0x82][..],
+        ]
+        .concat();
+        let (manifest, decoded) = decode_odo_record(ODO_GROUP_COPYBOOK, &bytes);
+        let record = RecordPresence::from_decoded(
+            &manifest,
+            &decoded,
+            u32::try_from(bytes.len()).expect("len fits"),
+        )
+        .expect("counts resolve");
+        assert_eq!(
+            record.odo_counts,
+            vec![OdoCount {
+                table_path: "REC.TBL".to_owned(),
+                actual: 2,
+            }]
+        );
+        let report = query_byte_owner_in_record(&manifest, 7, &record).expect("byte answers");
+        assert_eq!(primary(&report).path, "REC.TBL.CELL");
     }
 
     #[test]

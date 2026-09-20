@@ -10,5 +10,9 @@ body: '**determinism**: consume the reviewed interpretation profile through
   its limitations: no manifest emission, single-record worker invariance,
   and round-trip as internal self-consistency rather than an external
   oracle. `--output json` emits one `{comparison, profile, input_hash,
-  limitations, result}` envelope.'
+  limitations, result}` envelope. Comparisons enforce the bound profile
+  execution policy exactly as the operating commands do: over-cap fixed
+  layouts and encoded payloads fail with `CBKF226_RECORD_BOUND_EXCEEDED`
+  and strict-reserved RDW violations fail with `CBKR211_RDW_RESERVED_NONZERO`
+  instead of reporting a verdict.'
 time: '2026-09-20T04:30:00Z'

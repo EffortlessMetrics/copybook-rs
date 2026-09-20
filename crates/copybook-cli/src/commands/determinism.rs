@@ -11,10 +11,10 @@ use crate::write_stdout_all;
 use anyhow::Context;
 use clap::{Args, Subcommand, ValueEnum};
 use copybook::codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat,
+    Codepage, DecodeOptions, EncodeOptions, ExecutionPolicy, JsonNumberMode, RecordFormat,
     determinism::{
-        DeterminismResult, blake3_hex, check_decode_determinism, check_encode_determinism,
-        check_round_trip_determinism,
+        DeterminismResult, blake3_hex, check_decode_determinism_with_policy,
+        check_encode_determinism_with_policy, check_round_trip_determinism_with_policy,
     },
 };
 use copybook::core::{FeatureFlags, ParseOptions, Schema, parse_copybook_with_feature_flags};
@@ -113,6 +113,11 @@ pub struct DeterminismInputs {
     pub decode_unmappable: copybook::codec::UnmappablePolicy,
     /// Effective encode-side unmappable policy.
     pub encode_unmappable: copybook::codec::UnmappablePolicy,
+    /// Effective physical execution policy: reviewed framing and record
+    /// bound when a profile is bound, legacy direct behavior otherwise.
+    /// The comparison enforces it exactly as the operating commands do, so
+    /// a verdict never attests to input the same profile would reject.
+    pub execution_policy: ExecutionPolicy,
     /// Canonical fingerprint of the bound profile, if any.
     pub profile_fingerprint: Option<String>,
 }
@@ -179,6 +184,11 @@ const LIMITATION_SINGLE_RECORD_WORKERS: &str = "single-record comparison perform
 /// decode again), not an independent external oracle for either direction.
 const LIMITATION_INTERNAL_ROUND_TRIP: &str =
     "round-trip is internal self-consistency, not an independent external oracle";
+
+/// VB block structure and per-record bounds are parsed and enforced by the
+/// operating decode path; the single-record comparison never sees blocks,
+/// so it does not re-validate them.
+const LIMITATION_VB_BLOCK_POLICY: &str = "vb block structure and per-record bounds are enforced by the operating decode path, not re-validated here";
 
 /// Shared arguments for the selected determinism comparison mode.
 ///
@@ -336,8 +346,9 @@ fn run_decode(
         )
     })?;
 
-    let result = check_decode_determinism(&schema, &data, &decode_opts)
-        .context("Decode determinism check failed")?;
+    let result =
+        check_decode_determinism_with_policy(&schema, &data, &decode_opts, inputs.execution_policy)
+            .context("Decode determinism check failed")?;
 
     render_result(&result, &args.common, "decode", &data, inputs)
 }
@@ -364,8 +375,13 @@ fn run_encode(
     let value: serde_json::Value =
         serde_json::from_str(first_line).context("Failed to parse JSON input")?;
 
-    let result = check_encode_determinism(&schema, &value, &encode_opts)
-        .context("Encode determinism check failed")?;
+    let result = check_encode_determinism_with_policy(
+        &schema,
+        &value,
+        &encode_opts,
+        inputs.execution_policy,
+    )
+    .context("Encode determinism check failed")?;
 
     render_result(
         &result,
@@ -392,8 +408,14 @@ fn run_round_trip(
         )
     })?;
 
-    let result = check_round_trip_determinism(&schema, &data, &decode_opts, &encode_opts)
-        .context("Round-trip determinism check failed")?;
+    let result = check_round_trip_determinism_with_policy(
+        &schema,
+        &data,
+        &decode_opts,
+        &encode_opts,
+        inputs.execution_policy,
+    )
+    .context("Round-trip determinism check failed")?;
 
     render_result(&result, &args.common, "round-trip", &data, inputs)
 }
@@ -444,13 +466,16 @@ pub fn report_profile(inputs: &DeterminismInputs) -> ReportProfile {
 /// of left for the reader to guess.
 #[inline]
 #[must_use]
-pub fn report_limitations(comparison: &str) -> Vec<String> {
+pub fn report_limitations(comparison: &str, format: RecordFormat) -> Vec<String> {
     let mut limitations = vec![
         LIMITATION_NO_MANIFEST.to_string(),
         LIMITATION_SINGLE_RECORD_WORKERS.to_string(),
     ];
     if comparison == "round-trip" {
         limitations.push(LIMITATION_INTERNAL_ROUND_TRIP.to_string());
+    }
+    if format == RecordFormat::Vb {
+        limitations.push(LIMITATION_VB_BLOCK_POLICY.to_string());
     }
     limitations
 }
@@ -471,7 +496,7 @@ pub fn render_json_report(
         comparison: comparison.to_string(),
         profile: report_profile(inputs),
         input_hash: blake3_hex(data),
-        limitations: report_limitations(comparison),
+        limitations: report_limitations(comparison, inputs.format),
         result: result.clone(),
     };
     serde_json::to_string_pretty(&report).context("Failed to serialize determinism report to JSON")
@@ -504,7 +529,7 @@ pub fn render_human_report(
         output.push('\n');
     }
     output.push_str("\nLimitations:\n");
-    for limitation in report_limitations(comparison) {
+    for limitation in report_limitations(comparison, inputs.format) {
         let _ = writeln!(&mut output, "  - {limitation}");
     }
     output
@@ -811,6 +836,7 @@ mod tests {
             json_number: JsonNumberMode::Lossless,
             decode_unmappable: copybook::codec::UnmappablePolicy::Error,
             encode_unmappable: copybook::codec::UnmappablePolicy::Replace,
+            execution_policy: ExecutionPolicy::direct(false),
             profile_fingerprint: fingerprint.map(str::to_string),
         }
     }
@@ -928,6 +954,18 @@ mod tests {
         );
         assert!(profiled.contains("Comparison: decode"));
         assert!(profiled.contains("Profile: sha256:fp"));
+    }
+
+    #[test]
+    fn human_report_vb_states_block_policy_limitation() {
+        let mut vb_inputs = test_inputs(None);
+        vb_inputs.format = RecordFormat::Vb;
+        let output = render_human_report("decode", b"x", &vb_inputs, &test_result(), 100);
+        assert!(output.contains("not re-validated here"));
+
+        let fixed_output =
+            render_human_report("decode", b"x", &test_inputs(None), &test_result(), 100);
+        assert!(!fixed_output.contains("not re-validated here"));
     }
 
     #[test]

@@ -402,25 +402,41 @@ fn run_determinism_command(
         Ok(encode_only) => encode_only,
         Err(error) => return profile_failure("determinism", &error),
     };
-    let fingerprint = match &loaded {
-        Some(profile) => {
-            let path = common
-                .profile
-                .as_ref()
-                .map_or("<profile>".to_string(), |path| path.display().to_string());
-            match profile.fingerprint() {
-                Ok(fingerprint) => Some(fingerprint),
-                Err(error) => {
-                    return profile_failure(
-                        "determinism",
-                        &crate::profile_inputs::ProfileInputError::Invalid {
-                            path,
-                            message: error.to_string(),
-                        },
-                    );
-                }
-            }
+    let profile_path = common
+        .profile
+        .as_ref()
+        .map_or("<profile>".to_string(), |path| path.display().to_string());
+    // Same inputs as the operating commands' own error-policy computation:
+    // determinism carries no --strict/--fail-fast/--max-errors flags, so
+    // the direct strict mode is unconditionally false and only a bound
+    // profile can supply reviewed framing and record policy.
+    let strict_mode = effective_error_policy(false, false, None).strict_mode;
+    let execution_policy = match crate::profile_inputs::resolve_policy(loaded.as_ref(), strict_mode)
+    {
+        Ok(policy) => policy,
+        Err(error) => {
+            return profile_failure(
+                "determinism",
+                &crate::profile_inputs::ProfileInputError::Invalid {
+                    path: profile_path.clone(),
+                    message: error.to_string(),
+                },
+            );
         }
+    };
+    let fingerprint = match &loaded {
+        Some(profile) => match profile.fingerprint() {
+            Ok(fingerprint) => Some(fingerprint),
+            Err(error) => {
+                return profile_failure(
+                    "determinism",
+                    &crate::profile_inputs::ProfileInputError::Invalid {
+                        path: profile_path,
+                        message: error.to_string(),
+                    },
+                );
+            }
+        },
         None => None,
     };
     let inputs = commands::determinism::DeterminismInputs {
@@ -430,6 +446,7 @@ fn run_determinism_command(
         json_number: decode_only.json_number,
         decode_unmappable: decode_only.unmappable,
         encode_unmappable: encode_only.unmappable,
+        execution_policy,
         profile_fingerprint: fingerprint,
     };
     (

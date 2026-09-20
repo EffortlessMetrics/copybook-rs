@@ -1229,6 +1229,188 @@ fn determinism_json_report_binds_identities() {
     );
 }
 
+/// A reviewed bound equal to the fixed LRECL (50) still passes: the bound
+/// is inclusive, matching the operating path.
+#[test]
+fn determinism_decode_bound_at_lrecl_passes() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile_toml = FIXED_CP037_PROFILE.replace(
+        "maximum_record_length = 32760",
+        "maximum_record_length = 50",
+    );
+    let profile = write_temp_file(&dir, "bound50.toml", profile_toml.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+
+    cmd()
+        .args(["determinism", "decode", "--profile"])
+        .arg(&profile)
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("DETERMINISTIC"));
+}
+
+/// A reviewed bound below the fixed LRECL (49 < 50) rejects the comparison
+/// with the same identity and exit code as `decode` with the same profile.
+#[test]
+fn determinism_decode_bound_below_lrecl_rejects_like_decode() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile_toml = FIXED_CP037_PROFILE.replace(
+        "maximum_record_length = 32760",
+        "maximum_record_length = 49",
+    );
+    let profile = write_temp_file(&dir, "bound49.toml", profile_toml.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+    let out = dir.path().join("out.jsonl");
+
+    cmd()
+        .args(["determinism", "decode", "--profile"])
+        .arg(&profile)
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .failure()
+        .code(4)
+        .stderr(predicate::str::contains("CBKF226_RECORD_BOUND_EXCEEDED"))
+        .stdout(predicate::str::contains("DETERMINISTIC").not());
+
+    cmd()
+        .args(["decode", "--profile"])
+        .arg(&profile)
+        .args(["--output"])
+        .arg(&out)
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .failure()
+        .code(4)
+        .stderr(predicate::str::contains("CBKF226_RECORD_BOUND_EXCEEDED"));
+}
+
+/// A reviewed bound below the encoded payload rejects the write-side
+/// comparison with the same identity and exit code as `encode`.
+#[test]
+fn determinism_encode_bound_rejects_like_encode() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "fixed.toml", FIXED_CP037_PROFILE.as_bytes());
+    let profile_toml = FIXED_CP037_PROFILE.replace(
+        "maximum_record_length = 32760",
+        "maximum_record_length = 49",
+    );
+    let bound = write_temp_file(&dir, "bound49.toml", profile_toml.as_bytes());
+    let copybook = workspace_path("fixtures/copybooks/simple.cpy");
+    let data = workspace_path("fixtures/data/simple.bin");
+    let jsonl = dir.path().join("records.jsonl");
+    let out = dir.path().join("out.bin");
+
+    cmd()
+        .args(["decode", "--profile"])
+        .arg(&profile)
+        .args(["--output"])
+        .arg(&jsonl)
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .success();
+
+    cmd()
+        .args(["determinism", "encode", "--profile"])
+        .arg(&bound)
+        .arg(&copybook)
+        .arg(&jsonl)
+        .assert()
+        .failure()
+        .code(4)
+        .stderr(predicate::str::contains("CBKF226_RECORD_BOUND_EXCEEDED"));
+
+    cmd()
+        .args(["encode", "--profile"])
+        .arg(&bound)
+        .args(["--output"])
+        .arg(&out)
+        .arg(&copybook)
+        .arg(&jsonl)
+        .assert()
+        .failure()
+        .code(4)
+        .stderr(predicate::str::contains("CBKF226_RECORD_BOUND_EXCEEDED"));
+}
+
+/// A strict reserved policy rejects an RDW record with non-zero reserved
+/// bytes on the comparison with the same identity and exit code as
+/// `decode` with the same profile.
+#[test]
+fn determinism_rdw_strict_reserved_rejects_like_decode() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile = write_temp_file(&dir, "strict.toml", rdw_profile("strict").as_bytes());
+    let copybook = write_temp_file(&dir, "rec.cpy", SIMPLE_CPY.as_bytes());
+    let data = write_temp_file(&dir, "record.bin", &rdw_record_nonzero_reserved());
+    let out = dir.path().join("out.jsonl");
+
+    cmd()
+        .args(["determinism", "decode", "--profile"])
+        .arg(&profile)
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .failure()
+        .code(4)
+        .stderr(predicate::str::contains("CBKR211_RDW_RESERVED_NONZERO"))
+        .stdout(predicate::str::contains("DETERMINISTIC").not());
+
+    cmd()
+        .args(["decode", "--profile"])
+        .arg(&profile)
+        .args(["--output"])
+        .arg(&out)
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .failure()
+        .code(4)
+        .stderr(predicate::str::contains("CBKR211_RDW_RESERVED_NONZERO"));
+}
+
+/// A reviewed bound below an RDW declared payload rejects the comparison
+/// with the same identity and exit code as `decode`.
+#[test]
+fn determinism_rdw_declared_over_bound_rejects_like_decode() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let profile_toml = rdw_profile("lenient")
+        .replace("maximum_record_length = 32760", "maximum_record_length = 5");
+    let profile = write_temp_file(&dir, "bound5.toml", profile_toml.as_bytes());
+    let copybook = write_temp_file(&dir, "rec.cpy", SIMPLE_CPY.as_bytes());
+    let mut record = rdw_record_nonzero_reserved();
+    record[3] = 0x00;
+    let data = write_temp_file(&dir, "record.bin", &record);
+    let out = dir.path().join("out.jsonl");
+
+    cmd()
+        .args(["determinism", "decode", "--profile"])
+        .arg(&profile)
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .failure()
+        .code(4)
+        .stderr(predicate::str::contains("CBKF226_RECORD_BOUND_EXCEEDED"));
+
+    cmd()
+        .args(["decode", "--profile"])
+        .arg(&profile)
+        .args(["--output"])
+        .arg(&out)
+        .arg(&copybook)
+        .arg(&data)
+        .assert()
+        .failure()
+        .code(4)
+        .stderr(predicate::str::contains("CBKF226_RECORD_BOUND_EXCEEDED"));
+}
+
 /// A flag that contradicts the profile fails with exit 3 before any
 /// comparison output is produced.
 #[test]

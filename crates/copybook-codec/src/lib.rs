@@ -69,5 +69,7 @@ pub use options::{
 
 pub use determinism::{
     ByteDiff, DeterminismMode, DeterminismResult, check_decode_determinism,
-    check_encode_determinism, check_round_trip_determinism,
+    check_decode_determinism_with_policy, check_encode_determinism,
+    check_encode_determinism_with_policy, check_round_trip_determinism,
+    check_round_trip_determinism_with_policy,
 };

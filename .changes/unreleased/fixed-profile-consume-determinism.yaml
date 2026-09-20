@@ -1,0 +1,14 @@
+kind: fixed
+body: '**determinism**: consume the reviewed interpretation profile through
+  the same resolution as the operating commands. `determinism
+  decode`/`encode`/`round-trip` accept `--profile`, resolve framing,
+  codepage, JSON numbers, decode/encode unmappable policy, and ODO dialect
+  from flag, profile, environment, then default, and run exactly what
+  `decode`/`encode` would run; contradictory flags fail with exit 3 before
+  any comparison. Every report names its comparison kind, profile identity
+  (`sha256:<fingerprint>` or explicit `direct`), and input hash, and states
+  its limitations: no manifest emission, single-record worker invariance,
+  and round-trip as internal self-consistency rather than an external
+  oracle. `--output json` emits one `{comparison, profile, input_hash,
+  limitations, result}` envelope.'
+time: '2026-09-20T04:30:00Z'

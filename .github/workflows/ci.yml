@@ -229,47 +229,73 @@ jobs:
     - name: Witness effective toolchain
       run: bash scripts/ci/witness_toolchain.sh "stable"
     - uses: Swatinem/rust-cache@v2
-    - name: Run cargo deny
-      uses: EmbarkStudios/cargo-deny-action@v2
+    # Each scanner remains independent: findings must not suppress evidence.
+    - name: Install cargo-deny
+      id: install_deny
+      continue-on-error: true
+      uses: taiki-e/install-action@v2
       with:
-        log-level: warn
-        command: check
-        arguments: --all-features
+        tool: cargo-deny@0.19.0
     - name: Install cargo-audit
-      run: cargo install cargo-audit --locked
-    # cargo audit exits 1 on warnings (e.g. unmaintained crates) AND
-    # vulnerabilities. We capture JSON regardless; continue-on-error lets
-    # the validation step below be the hard gate.
+      id: install_audit
+      if: always()
+      continue-on-error: true
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-audit@0.22.1
+    - name: Run cargo deny
+      id: deny
+      if: always()
+      continue-on-error: true
+      run: |
+        mkdir -p target/security
+        set +e
+        cargo deny --version > target/security/security.deny.version 2>&1
+        cargo deny --all-features --format json check > target/security/security.deny.stdout 2> target/security/security.deny.json
+        status=$?
+        echo "exit_status=$status" >> "$GITHUB_OUTPUT"
+        exit "$status"
     - name: Run cargo audit
       id: audit
+      if: always()
       continue-on-error: true
-      # `target/` need not exist yet: no earlier step in this job builds, and a
-      # cold `rust-cache` restores nothing. Without it the redirect fails before
-      # cargo-audit runs, and the validation step below reads that missing file
-      # as a tool failure.
       run: |
-        mkdir -p target
-        cargo audit -q --json > target/security.audit.json
-    - name: Validate audit results
+        mkdir -p target/security
+        set +e
+        cargo audit --version > target/security/security.audit.version 2>&1
+        cargo audit -q --json > target/security/security.audit.json 2> target/security/security.audit.stderr
+        status=$?
+        echo "exit_status=$status" >> "$GITHUB_OUTPUT"
+        exit "$status"
+    - name: Classify scanner results
+      id: classify
+      if: always()
       run: |
-        python3 - <<'PY'
-        import json, sys, pathlib
-        p = pathlib.Path("target/security.audit.json")
-        if not p.exists():
-          print("ERROR: cargo-audit produced no output — tool failure")
-          sys.exit(1)
-        j = json.load(p.open())
-        v = len(j.get("vulnerabilities",{}).get("list",[]))
-        print(f"cargo-audit: {v} vulnerabilities")
-        sys.exit(1 if v>0 else 0)
-        PY
+        python3 scripts/ci/security_scan_result.py classify \
+          --commit "$GITHUB_SHA" \
+          --deny-status "${{ steps.deny.outputs.exit_status }}" \
+          --audit-status "${{ steps.audit.outputs.exit_status }}"
     - name: Upload security receipts
+      id: upload_security
       if: always()
       uses: actions/upload-artifact@v7
       with:
         name: security-receipts-${{ github.sha }}
-        path: target/security.audit.json
+        path: target/security/
         retention-days: 90
+        if-no-files-found: error
+    - name: Enforce security results
+      if: always()
+      env:
+        CLASSIFY_OUTCOME: ${{ steps.classify.outcome }}
+        DENY_INSTALL_OUTCOME: ${{ steps.install_deny.outcome }}
+        AUDIT_INSTALL_OUTCOME: ${{ steps.install_audit.outcome }}
+      run: |
+        test "$CLASSIFY_OUTCOME" = success
+        test "$DENY_INSTALL_OUTCOME" = success
+        test "$AUDIT_INSTALL_OUTCOME" = success
+        python3 scripts/ci/security_scan_result.py enforce \
+          --upload "${{ steps.upload_security.outcome }}"
 
   determinism-smoke:
     name: Determinism Smoke

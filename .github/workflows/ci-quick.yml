@@ -75,6 +75,7 @@ jobs:
           python3 scripts/ci/test_leak_result.py
           python3 scripts/ci/test_docs_availability.py
           python3 scripts/ci/test_check_rustdoc_targets.py
+          python3 scripts/ci/test_security_scan_result.py
 
       - uses: dtolnay/rust-toolchain@stable
         with:

@@ -31,7 +31,7 @@ This document provides a canonical reference for all testing commands in copyboo
 | **Proptest Smoke** | `PROPTEST_CASES=256 PROPTEST_SEED=copybook-rs-proptest cargo test -p copybook-proptest --lib -- --test-threads=2 --nocapture` | PR-gate | 2-3 min | `copybook-core/tests/proptest-regressions/`, `copybook-codec/tests/proptest-regressions/` |
 | **Determinism Smoke** | `scripts/ci/determinism_smoke.sh` | PR-gate | 2-3 min | `target/determinism-simple.json`, `target/determinism-comp3.json` |
 | **Security (deny)** | `cargo deny check` | PR-gate | < 1 min | None |
-| **Security (audit)** | `cargo audit` | PR-gate (if Cargo.lock changed) | 1-2 min | `target/security.audit.json` |
+| **Security (audit)** | `cargo audit` | PR-gate (if Cargo.lock changed) | 1-2 min | `target/security/` |
 | **BDD Tests** | `cargo test -p copybook-bdd -- --nocapture` | Scheduled | 2-3 min | None |
 | **Feature Flags** | Matrix of 15 flags × enabled/disabled states | PR-gate | 5-10 min | None |
 | **Full Proptest** | `PROPTEST_CASES=1024 PROPTEST_SEED=copybook-rs-proptest cargo test -p copybook-proptest --lib -- --test-threads=2 --nocapture` | Scheduled | 5-10 min | `copybook-core/tests/proptest-regressions/`, `copybook-codec/tests/proptest-regressions/`, `tests/proptest-regressions/` |
@@ -1040,7 +1040,7 @@ cargo deny check
 cargo audit
 
 # Inspect the audit results
-cat target/security.audit.json | jq .
+cat target/security/security.audit.json | jq .
 ```
 
 #### Fuzzing Failure

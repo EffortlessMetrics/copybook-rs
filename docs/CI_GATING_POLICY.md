@@ -31,7 +31,7 @@ never counted as passes.
 | `Clippy` | `ci.yml` / `clippy` | required | expected |
 | `Test Suite (…)` | `ci.yml` / `test` (OS × toolchain × features matrix) | required | expected |
 | `Build Examples (…)` | `ci.yml` / `examples` | required | expected |
-| `Security Checks` | `ci.yml` / `security` (`cargo deny`; audit only if `Cargo.lock` changed) | required | expected |
+| `Security Checks` | `ci.yml` / `security` (`cargo deny` and `cargo audit`; independent evidence) | required | expected |
 | `Determinism Smoke` | `ci.yml` / `determinism-smoke` | required | expected |
 | `Governance + BDD Smoke` | `ci.yml` / `bdd-tests` | required | expected |
 | `RDW iterator tests` | `ci.yml` / `rdw-iterator-tests` | required | expected |
@@ -94,7 +94,12 @@ must change, and the helper policy with it.
 
 #### `Security Checks`
 - Runs `cargo deny check` on all PRs
-- Runs `cargo audit` only when `Cargo.lock` changes
+- Main `ci.yml` runs both scanners independently on every selected head; the
+  quick local `security.sh` path runs audit only when `Cargo.lock` changes.
+- Main CI retains raw output, versions, exit statuses, head and SHA-256 hashes.
+  Its final always-running gate rejects findings, tool errors, missing or malformed
+  outputs, failed installation, and failed artifact upload. The weekly normalized
+  receipt and issue lifecycle remain separate.
 - Checks for known security vulnerabilities in dependencies
 
 ## Scheduled Lane (Stochastic/Expensive)

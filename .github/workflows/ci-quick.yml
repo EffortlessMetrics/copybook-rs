@@ -64,6 +64,13 @@ jobs:
           set -euo pipefail
           git fetch --no-tags --depth=2 origin ${{ github.sha }}
 
+      - name: Lint GitHub Actions (offline)
+        uses: jdx/jactionlint@9e87e8f34edfc00b849a27807e26eff9d00b936d # v2.5.0
+        with:
+          profile: correctness
+          online: false
+          args: --shellcheck= --pyflakes=
+
       - name: Verify nightly lanes pin nightly toolchain
         run: |
           python3 scripts/ci/check_toolchain_pins.py

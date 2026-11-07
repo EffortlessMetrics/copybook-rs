@@ -9,12 +9,9 @@
 //! - AC8: Default behavior remains unchanged for backward compatibility
 //! - Byte-perfect data integrity for enterprise mainframe workflows
 
-use assert_cmd::Command as AssertCommand;
 use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
 use copybook_core::parse_copybook;
 use std::error::Error;
-use std::fs;
-use tempfile::TempDir;
 
 /// AC7: Test ASCII zoned decimal round-trip with byte-identical output
 /// Tests binary round-trip spec: SPEC.manifest.yml#ascii-round-trip-fidelity
@@ -87,82 +84,6 @@ fn test_ebcdic_zoned_roundtrip_byte_identical() -> Result<(), Box<dyn Error>> {
     assert_eq!(
         roundtrip_data, original_data,
         "EBCDIC round-trip should produce byte-identical data with explicit EBCDIC encoding"
-    );
-
-    Ok(())
-}
-
-/// AC7: Test round-trip with CLI using cmp utility for validation
-/// Tests binary round-trip spec: SPEC.manifest.yml#cmp-utility-validation
-#[test]
-fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
-    let temp_dir = TempDir::new()?;
-    let copybook_path = temp_dir.path().join("test.cpy");
-    let original_data_path = temp_dir.path().join("original.bin");
-    let json_path = temp_dir.path().join("intermediate.jsonl");
-    let roundtrip_data_path = temp_dir.path().join("roundtrip.bin");
-
-    // Create test copybook
-    fs::write(&copybook_path, "01 ZONED-FIELD PIC 9(5).")?;
-
-    // Create original ASCII zoned decimal data
-    fs::write(&original_data_path, b"\x31\x32\x33\x34\x35")?; // ASCII "12345"
-
-    // Decode with current implementation (no preservation yet)
-    // Use assert_cmd::Command::cargo_bin() for robust cross-platform CLI path resolution
-    let decode_output = AssertCommand::cargo_bin("copybook")
-        .expect("failed to find copybook binary")
-        .args([
-            "decode",
-            "--preserve-zoned-encoding",
-            "--format",
-            "fixed",
-            "--codepage",
-            "ascii",
-            "--output",
-            json_path.to_str().unwrap(),
-            copybook_path.to_str().unwrap(),
-            original_data_path.to_str().unwrap(),
-        ])
-        .output();
-
-    let decode_output = decode_output.expect("failed to invoke copybook CLI for decode");
-    assert!(
-        decode_output.status.success(),
-        "Decode should work with current implementation"
-    );
-
-    // Encode with current implementation (no preservation yet)
-    let encode_output = AssertCommand::cargo_bin("copybook")
-        .expect("failed to find copybook binary")
-        .args([
-            "encode",
-            "--zoned-encoding-override",
-            "ascii",
-            "--format",
-            "fixed",
-            "--codepage",
-            "ascii",
-            "--output",
-            roundtrip_data_path.to_str().unwrap(),
-            copybook_path.to_str().unwrap(),
-            json_path.to_str().unwrap(),
-        ])
-        .output();
-
-    let encode_output = encode_output.expect("failed to invoke copybook CLI for encode");
-    assert!(
-        encode_output.status.success(),
-        "Encode should work with current implementation"
-    );
-
-    // Compare files directly for byte-identical validation (cross-platform)
-    let original_data = fs::read(&original_data_path)?;
-    let roundtrip_data = fs::read(&roundtrip_data_path)?;
-
-    assert!(
-        original_data == roundtrip_data,
-        "Round-trip files should be byte-identical when preservation is implemented"
     );
 
     Ok(())

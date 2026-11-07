@@ -263,7 +263,10 @@ jobs:
         mkdir -p target/security
         set +e
         cargo audit --version > target/security/security.audit.version 2>&1
-        cargo audit -q --json > target/security/security.audit.json 2> target/security/security.audit.stderr
+        # cargo-audit defaults to ~/.cargo/advisory-db, which deny.toml also
+        # uses as its db-path: deny runs first and populates it, so audit
+        # must clone into a distinct directory or it refuses to fetch.
+        cargo audit --db ~/.cargo/advisory-dbs -q --json > target/security/security.audit.json 2> target/security/security.audit.stderr
         status=$?
         echo "exit_status=$status" >> "$GITHUB_OUTPUT"
         exit "$status"

@@ -382,6 +382,22 @@ class WorkflowInvariantTests(unittest.TestCase):
                 self.assertIn("exit_status", block)
                 self.assertIn("GITHUB_OUTPUT", block)
 
+    def test_audit_uses_distinct_advisory_db(self) -> None:
+        # cargo-audit defaults to ~/.cargo/advisory-db, which deny.toml also
+        # configures as its db-path; deny runs first and populates it, so the
+        # audit step must point --db elsewhere or fetching fails deterministically.
+        deny_db = None
+        for line in (ROOT / "deny.toml").read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if stripped.startswith("db-path"):
+                deny_db = stripped.split("=", 1)[1].strip().strip("\"'")
+        self.assertTrue(deny_db, "deny.toml must declare its advisory db-path")
+        block = self.find_id("audit")
+        match = re.search(r"--db\s+(\S+)", block)
+        self.assertIsNotNone(match, "audit step must pass an explicit --db path")
+        assert match is not None
+        self.assertNotEqual(match.group(1), deny_db)
+
     def test_classify_consumes_both_exit_statuses(self) -> None:
         block = self.find_id("classify")
         self.assertIn("if: always()", block)

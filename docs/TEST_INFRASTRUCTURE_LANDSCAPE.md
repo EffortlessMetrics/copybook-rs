@@ -277,7 +277,8 @@ Tests use tags for categorization:
 #### ci.yml (Main CI Pipeline)
 **Test Jobs**:
 1. **test** (pull_request, push, scheduled)
-   - Feature matrix: default features, `comp3_fast`, `audit`
+   - Feature matrix: default features, `audit` (`comp3_fast` removed as an
+     exact-duplicate leg in #1190: empty feature, default-on, no `cfg` uses)
    - Rust matrix: MSRV 1.95.0, stable, beta
    - Platform matrix: ubuntu-latest, macos-latest, windows-latest
    - Command: `cargo test --workspace`

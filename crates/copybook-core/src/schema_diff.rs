@@ -3,7 +3,7 @@
 //!
 //! Scenario assessments say whether tooling still understands a copybook;
 //! this module says whether downstream readers still see the same record.
-//! It compares two layout-resolved [`Schema`](crate::schema::Schema) values
+//! It compares two layout-resolved [`Schema`] values
 //! field by field (by hierarchical path) and reports added, removed, and
 //! changed data fields plus record-length drift. Anything unknown stays
 //! unknown: fields whose extent cannot be established are compared by

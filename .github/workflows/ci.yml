@@ -496,6 +496,8 @@ jobs:
     - name: Witness effective toolchain
       run: bash scripts/ci/witness_toolchain.sh "stable"
     - uses: Swatinem/rust-cache@v2
+    - name: Guard rustdoc target identities
+      run: python3 scripts/ci/check_rustdoc_targets.py
     - name: Check documentation
       run: cargo doc --all-features --workspace --no-deps
       env:

@@ -165,7 +165,7 @@ Report checks as pass, fail, or not run. A skipped policy lane is not a pass,
 and a green CI run proves only the checks that ran against that commit.
 
 For workflow, composite-action or Dependabot changes, run
-`jactionlint --profile correctness --no-online --shellcheck= --pyflakes=` at
+`jactionlint --config-file .github/jactionlint.yaml --profile correctness --no-online --shellcheck= --pyflakes=` at
 the repository root. See [CONTRIBUTING.md](CONTRIBUTING.md#github-actions-validation)
 for the pinned uv installation/fallback and the explicit embedded-script scope.
 Do not substitute a YAML parse or report an unavailable linter as passing.

@@ -78,14 +78,19 @@ introduced.
 ```bash
 uv tool install 'jactionlint==2.5.0'
 jactionlint --version
-jactionlint --profile correctness --no-online --shellcheck= --pyflakes=
+jactionlint --config-file .github/jactionlint.yaml --profile correctness --no-online --shellcheck= --pyflakes=
 ```
+
+The explicit repository config excludes user-global rule overrides and fails
+closed if the config is missing; it adds no suppressions or inline-ignore changes.
+`github-script-syntax` requires Node.js 20+ on PATH. Without it, jactionlint skips
+that rule with a note, so a clean run does not prove embedded JavaScript syntax.
 
 If a running agent shell does not see the installed executable, reopen it or
 run the same pinned tool without adding application dependencies:
 
 ```bash
-uvx --from jactionlint==2.5.0 jactionlint --profile correctness --no-online --shellcheck= --pyflakes=
+uvx --from jactionlint==2.5.0 jactionlint --config-file .github/jactionlint.yaml --profile correctness --no-online --shellcheck= --pyflakes=
 ```
 
 The command is `jactionlint`, not `actionlint`; v2 uses double-dash flags. This

@@ -15,6 +15,10 @@ publish = false
 [[bin]]
 name = "xtask"
 path = "src/main.rs"
+# Dev-only automation binary, not public API documentation: keep the
+# `target/doc/xtask/index.html` identity owned by the library target so the
+# workspace documentation build has no duplicate output identities (#1175).
+doc = false
 
 [lib]
 name = "xtask"

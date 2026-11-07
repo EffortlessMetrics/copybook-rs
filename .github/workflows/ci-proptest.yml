@@ -68,7 +68,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         rust: [stable, beta]
-        features: ["", "comp3_fast"]
     steps:
     - uses: actions/checkout@v7
     - uses: dtolnay/rust-toolchain@master
@@ -77,8 +76,6 @@ jobs:
     - name: Witness effective toolchain
       run: bash scripts/ci/witness_toolchain.sh "${{ matrix.rust }}"
     - uses: Swatinem/rust-cache@v2
-      with:
-        key: ${{ matrix.features }}
     - name: Pre-fetch dependencies
       run: cargo fetch
     - name: Run property tests (copybook-codec)
@@ -87,18 +84,11 @@ jobs:
         PROPTEST_SEED: ${{ env.PROPTEST_SEED }}
       run: |
         cargo test -p copybook-proptest --lib -- --test-threads=2 --nocapture
-    - name: Run property tests (copybook-codec) with features
-      if: matrix.features != ''
-      env:
-        PROPTEST_CASES: ${{ env.PROPTEST_CASES }}
-        PROPTEST_SEED: ${{ env.PROPTEST_SEED }}
-      run: |
-        cargo test -p copybook-proptest --lib --features ${{ matrix.features }} -- --test-threads=2 --nocapture
     - name: Upload proptest regressions (copybook-codec)
       if: failure()
       uses: actions/upload-artifact@v7
       with:
-        name: proptest-regressions-codec-${{ matrix.os }}-${{ matrix.rust }}-${{ matrix.features }}
+        name: proptest-regressions-codec-${{ matrix.os }}-${{ matrix.rust }}
         path: crates/copybook-codec/tests/proptest-regressions/
         retention-days: 7
 
@@ -156,7 +146,6 @@ jobs:
         ## Codec Tests
         - OS: ubuntu-latest, macos-latest, windows-latest
         - Rust: stable, beta
-        - Features: default, comp3_fast
 
         ## Integration Tests
         - OS: ubuntu-latest

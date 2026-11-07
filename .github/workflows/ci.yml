@@ -117,6 +117,18 @@ jobs:
     - uses: Swatinem/rust-cache@v2
       with:
         key: ${{ matrix.features }}
+    # Cross-package E2E (copybook-e2e) locates the CLI via CARGO_BIN_EXE at
+    # runtime. Newer cargo places test executables where assert_cmd's
+    # target-dir fallback cannot derive the binary path (#1183), so provision
+    # the exact binary identity up front instead of depending on build order.
+    - name: Provision copybook binary for cross-package E2E
+      shell: bash
+      run: |
+        set -euo pipefail
+        cargo build -p copybook-cli
+        exe="copybook"
+        if [ "${{ runner.os }}" = "Windows" ]; then exe="copybook.exe"; fi
+        echo "CARGO_BIN_EXE_copybook=$GITHUB_WORKSPACE/target/debug/$exe" >> "$GITHUB_ENV"
     - name: Install nextest (pinned)
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       uses: taiki-e/install-action@v2

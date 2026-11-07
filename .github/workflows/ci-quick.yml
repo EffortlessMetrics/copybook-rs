@@ -76,6 +76,7 @@ jobs:
           python3 scripts/ci/test_docs_availability.py
           python3 scripts/ci/test_check_rustdoc_targets.py
           python3 scripts/ci/test_security_scan_result.py
+          python3 scripts/ci/test_e2e_binary_provisioning.py
 
       - uses: dtolnay/rust-toolchain@stable
         with:

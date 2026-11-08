@@ -34,7 +34,7 @@ jobs:
 
   # Optional & infrequent to control costs
   macos:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 25
     if: github.event_name == 'workflow_dispatch'  # run only on demand
     steps:

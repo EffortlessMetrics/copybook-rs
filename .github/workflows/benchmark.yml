@@ -154,9 +154,10 @@ jobs:
         Path('perf.json').write_text(json.dumps(results, indent=2))
 
         # Set outputs for GitHub Actions
-        print(f"::set-output name=status::{results['status']}")
-        print(f"::set-output name=display_gibs::{results['display_gibs'] or 'N/A'}")
-        print(f"::set-output name=comp3_mibs::{results['comp3_mibs'] or 'N/A'}")
+        with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+            print(f"status={results['status']}", file=output)
+            print(f"display_gibs={results['display_gibs'] or 'N/A'}", file=output)
+            print(f"comp3_mibs={results['comp3_mibs'] or 'N/A'}", file=output)
 
         # Report status (advisory only per #74, #75)
         if results["status"] == "failure":

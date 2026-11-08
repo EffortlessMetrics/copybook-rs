@@ -68,6 +68,38 @@ just pr
 
 See [AGENTS.md](AGENTS.md) for the current command and maintenance contract.
 
+### GitHub Actions validation
+
+Run the pinned jactionlint from the repository root after workflow,
+composite-action or Dependabot changes. CI Quick runs the same offline
+correctness profile before Rust setup; no extra workflow or required check is
+introduced.
+
+```bash
+uv tool install 'jactionlint==2.5.0'
+jactionlint --version
+jactionlint --config-file .github/jactionlint.yaml --profile correctness --no-online --shellcheck= --pyflakes=
+```
+
+The explicit repository config excludes user-global rule overrides and fails
+closed if the config is missing; it adds no suppressions or inline-ignore changes.
+`github-script-syntax` requires Node.js 20+ on PATH. Without it, jactionlint skips
+that rule with a note, so a clean run does not prove embedded JavaScript syntax.
+
+If a running agent shell does not see the installed executable, reopen it or
+run the same pinned tool without adding application dependencies:
+
+```bash
+uvx --from jactionlint==2.5.0 jactionlint --config-file .github/jactionlint.yaml --profile correctness --no-online --shellcheck= --pyflakes=
+```
+
+The command is `jactionlint`, not `actionlint`; v2 uses double-dash flags. This
+initial semantic gate explicitly excludes external ShellCheck and Pyflakes;
+it does not claim embedded-script validation or remove any existing checks.
+Report the version, command and exit status. A Python YAML parse is not an
+equivalent check, and static lint does not establish hosted execution,
+release independence, or cold/warm cache timings.
+
 ## Code Style
 
 ### Quality Standards

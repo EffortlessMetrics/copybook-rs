@@ -193,6 +193,38 @@ class PolicyClosureTest(unittest.TestCase):
         result = assess(pr_doc(), rows, [], HEAD)
         self.assertEqual(result["verdict"], "ready")
 
+    def test_external_review_and_mergeability_successes_are_advisory(self):
+        for name in ("CodeRabbit", "Graphite / mergeability_check"):
+            with self.subTest(name=name):
+                rows = [run(n) for n in EXPECTED_SAMPLES] + [run(name)]
+                result = assess(pr_doc(), rows, [], HEAD)
+                self.assertEqual(result["verdict"], "ready")
+                self.assertEqual(result["unmapped"], [])
+                check = next(c for c in result["checks"] if c["name"] == name)
+                self.assertEqual((check["lane"], check["presence"]),
+                                 ("advisory", "conditional"))
+
+    def test_external_review_and_mergeability_failures_are_recorded(self):
+        for name in ("CodeRabbit", "Graphite / mergeability_check"):
+            with self.subTest(name=name):
+                rows = [run(n) for n in EXPECTED_SAMPLES] + [
+                    run(name, conclusion="failure")]
+                result = assess(pr_doc(), rows, [], HEAD)
+                self.assertEqual(result["verdict"], "ready")
+                self.assertIn(name, result["advisory_fail"])
+                self.assertNotIn(name, result["required_fail"])
+
+    def test_external_review_and_mergeability_pending_are_not_test_gates(self):
+        for name in ("CodeRabbit", "Graphite / mergeability_check"):
+            with self.subTest(name=name):
+                rows = [run(n) for n in EXPECTED_SAMPLES] + [
+                    run(name, status="in_progress", conclusion=None, completed=None)]
+                result = assess(pr_doc(), rows, [], HEAD)
+                self.assertEqual(result["verdict"], "ready")
+                self.assertNotIn(name, result["required_pending"])
+                check = next(c for c in result["checks"] if c["name"] == name)
+                self.assertEqual(check["bucket"], "pending")
+
     def test_conditional_perf_absent_stays_ready(self):
         # perf.yml runs on PRs only under its trigger path filter; a head
         # that does not touch those paths has no `perf` row and stays ready.

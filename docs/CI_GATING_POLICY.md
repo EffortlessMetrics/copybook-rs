@@ -57,6 +57,8 @@ never counted as passes.
 | `RIPR test-oracle pilot (advisory)` | `ripr.yml` (job-level `continue-on-error`) | advisory | conditional |
 | `Coverage Diff` | `ci-coverage.yml` (job-level `continue-on-error`) | advisory | conditional |
 | `codecov/*` | external coverage reporter | advisory | conditional |
+| `CodeRabbit` | external review-bot metadata; findings evaluated separately | advisory | conditional |
+| `Graphite / mergeability_check` | external mergeability report | advisory | conditional |
 
 Note: an earlier revision of this document described `lint`, `test`,
 `proptest-smoke`, `determinism` (advisory), and `security` jobs and claimed
@@ -249,6 +251,11 @@ The executable form of this section is `scripts/ci/pr_head_status.py`
 - External reporters (`codecov/*`, secret-scanner and review-bot checks) are
   informational; review-bot findings are still evaluated on their merits per
   `docs/design/AGENTIC_PR_OPERATIONS.md`.
+- `CodeRabbit` is review-bot metadata, not a substitute for addressing findings.
+  `Graphite / mergeability_check` is an external mergeability report, not a
+  repository test gate. Neither classification authorizes bypassing GitHub
+  protection or mergeability requirements; those remain enforced and checked
+  separately before integration.
 
 ### Non-Blocking
 

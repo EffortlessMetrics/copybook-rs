@@ -38,6 +38,9 @@ jobs:
               - 'rust-toolchain*'
               - 'scripts/ci/**'
               - '.github/workflows/**'
+              - '.github/actions/**'
+              - '.github/dependabot.yml'
+              - '.github/dependabot.yaml'
               - '.github/jactionlint.yaml'
 
   test:
@@ -77,6 +80,7 @@ jobs:
         run: |
           python3 scripts/ci/check_toolchain_pins.py
           python3 scripts/ci/test_toolchain_pins.py
+          python3 scripts/ci/test_workflow_lint_routing.py
           python3 scripts/ci/test_witness_toolchain.py
           python3 scripts/ci/test_crates_index_ready.py
           python3 scripts/ci/test_panic_policy_baseline.py

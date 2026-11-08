@@ -39,6 +39,8 @@ jobs:
               - 'scripts/ci/**'
               - '.github/workflows/**'
               - '.github/actions/**'
+              - '**/action.yml'
+              - '**/action.yaml'
               - '.github/dependabot.yml'
               - '.github/dependabot.yaml'
               - '.github/jactionlint.yaml'

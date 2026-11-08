@@ -36,6 +36,8 @@ class WorkflowLintRoutingTests(unittest.TestCase):
 
     def test_composite_action_changes_select_lint(self) -> None:
         self.assertIn(".github/actions/**", self.patterns)
+        self.assertIn("**/action.yml", self.patterns)
+        self.assertIn("**/action.yaml", self.patterns)
 
     def test_filter_output_controls_the_job_that_runs_lint(self) -> None:
         self.assertIn("rust: ${{ steps.filter.outputs.rust }}", self.workflow)

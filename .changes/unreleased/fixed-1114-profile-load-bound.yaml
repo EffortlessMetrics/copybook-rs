@@ -1,0 +1,8 @@
+kind: fixed
+body: '**cli**: bound interpretation-profile loading to a single snapshot read
+  with an explicit byte cap (#1114). Oversize profiles are rejected with the
+  existing `ProfileInputError::Invalid` typing instead of unbounded
+  `read_to_string`, and the retained snapshot feeds both parsing and later
+  identity use with no second read. No CLI surface or behavior change for
+  in-bound profiles.'
+time: '2026-11-09T06:30:00Z'

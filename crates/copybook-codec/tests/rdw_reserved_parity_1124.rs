@@ -263,6 +263,18 @@ fn neighboring_framing_failures_keep_distinct_identities() {
     assert_eq!(error.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
     assert_ne!(error.code, reserved);
 
+    // Declared length exceeds the reviewed bound with a complete body
+    // present: bound enforcement runs before any payload read, so this
+    // isolates over-declaration from truncation.
+    let mut overlong = vec![0x00, 0x64, 0x00, 0x00];
+    overlong.extend_from_slice(&[0x41; 100]);
+    let error = RDWRecordReader::new(Cursor::new(overlong), true)
+        .with_max_record_length(Some(8))
+        .read_record()
+        .expect_err("over-bound declaration must fail");
+    assert_eq!(error.code, ErrorCode::CBKF226_RECORD_BOUND_EXCEEDED);
+    assert_ne!(error.code, reserved);
+
     // Suspect ASCII transfer corruption (length bytes are digits).
     let mut suspect = vec![0x31, 0x32, 0x00, 0x00];
     suspect.extend_from_slice(b"AB");

@@ -9,12 +9,13 @@
 //! [`copybook::codec::options::resolve`] for the layer ordering.
 
 use crate::cli_config::DialectPreference;
-use copybook::codec::options::profile::{InterpretationProfile, ReservedPolicy};
+use copybook::codec::options::profile::{InterpretationProfile, MAX_PROFILE_BYTES, ReservedPolicy};
 use copybook::codec::options::resolve::{ConflictError, OptionSource, Resolved, resolve_field};
 use copybook::codec::{
     Codepage, ExecutionPolicy, JsonNumberMode, PolicyError, RecordFormat, UnmappablePolicy,
 };
 use copybook::core::dialect::Dialect;
+use std::io::Read as _;
 use std::path::Path;
 
 /// Profile keys a flag conflict names. The corresponding command flag is the
@@ -136,22 +137,71 @@ impl ProfileInputError {
 
 /// Load an interpretation profile, or `None` when no `--profile` was given.
 ///
+/// The file is read once into a single explicitly bounded snapshot: a
+/// metadata pre-check refuses obviously oversize files before allocating,
+/// and the read itself is capped at one byte past [`MAX_PROFILE_BYTES`] so
+/// the post-read length check stays authoritative even if the file grows
+/// between the check and the read. The same snapshot feeds parsing, and
+/// profile identity (the canonical fingerprint) derives from the parsed
+/// profile, so the path is never read a second time.
+///
 /// # Errors
 ///
-/// Returns [`ProfileInputError`] when the file cannot be read or is invalid.
+/// Returns [`ProfileInputError::Unreadable`] when the file cannot be read
+/// and [`ProfileInputError::Invalid`] when the snapshot exceeds
+/// [`MAX_PROFILE_BYTES`], is not valid UTF-8, or fails profile validation.
 pub(crate) fn load_profile(
     path: Option<&Path>,
 ) -> Result<Option<InterpretationProfile>, ProfileInputError> {
     let Some(path) = path else {
         return Ok(None);
     };
-    let text = std::fs::read_to_string(path).map_err(|error| ProfileInputError::Unreadable {
-        path: path.display().to_string(),
+    let display = path.display().to_string();
+    // Refuse oversize documents before allocating: the bounded read below
+    // enforces the same bound after the read, so this pre-check only moves
+    // the rejection ahead of the allocation. A missing file still falls
+    // through to the unreadable error below.
+    if let Ok(metadata) = path.metadata()
+        && metadata.len() > MAX_PROFILE_BYTES
+    {
+        let found = metadata.len();
+        return Err(ProfileInputError::Invalid {
+            path: display,
+            message: format!(
+                "profile document is {found} bytes, exceeding the limit of {MAX_PROFILE_BYTES}"
+            ),
+        });
+    }
+    let file = std::fs::File::open(path).map_err(|error| ProfileInputError::Unreadable {
+        path: display.clone(),
+        message: error.to_string(),
+    })?;
+    let mut snapshot = Vec::new();
+    file.take(MAX_PROFILE_BYTES + 1)
+        .read_to_end(&mut snapshot)
+        .map_err(|error| ProfileInputError::Unreadable {
+            path: display.clone(),
+            message: error.to_string(),
+        })?;
+    // `take` caps the snapshot at one byte past the bound, so this length
+    // always fits in a `u64`; on failure report the bound as exceeded
+    // rather than reaching for a panicking conversion.
+    let found = u64::try_from(snapshot.len()).unwrap_or(u64::MAX);
+    if found > MAX_PROFILE_BYTES {
+        return Err(ProfileInputError::Invalid {
+            path: display.clone(),
+            message: format!(
+                "profile document is {found} bytes, exceeding the limit of {MAX_PROFILE_BYTES}"
+            ),
+        });
+    }
+    let text = String::from_utf8(snapshot).map_err(|error| ProfileInputError::Invalid {
+        path: display.clone(),
         message: error.to_string(),
     })?;
     InterpretationProfile::parse(&text)
         .map_err(|error| ProfileInputError::Invalid {
-            path: path.display().to_string(),
+            path: display,
             message: error.to_string(),
         })
         .map(Some)
@@ -477,6 +527,69 @@ mod tests {
         let error = load_profile(Some(&dir)).expect_err("unknown framing kind must fail");
         assert!(matches!(error, ProfileInputError::Invalid { .. }));
         let _ = std::fs::remove_file(&dir);
+    }
+
+    fn write_bounded_fixture(name: &str, bytes: &[u8]) -> std::path::PathBuf {
+        let path = std::env::temp_dir().join(format!(
+            "copybook-profile-bound-test-{}-{name}",
+            std::process::id()
+        ));
+        std::fs::write(&path, bytes).expect("write bounded profile fixture");
+        path
+    }
+
+    /// Pad the valid base document with a TOML comment to an exact size.
+    fn padded_profile(total_len: usize) -> String {
+        let pad = total_len - PROFILE_TOML.len() - 3;
+        format!("{PROFILE_TOML}# {}\n", "x".repeat(pad))
+    }
+
+    #[test]
+    fn profile_at_byte_cap_loads_from_the_single_snapshot() {
+        let cap: usize =
+            usize::try_from(MAX_PROFILE_BYTES).expect("profile byte cap fits in usize");
+        let text = padded_profile(cap);
+        assert_eq!(text.len(), cap);
+        let path = write_bounded_fixture("at-cap.toml", text.as_bytes());
+        let loaded = load_profile(Some(&path)).expect("cap-size profile loads");
+        let expected = InterpretationProfile::parse(&text).expect("cap-size profile parses");
+        assert_eq!(loaded, Some(expected));
+        // Identity derives from the parsed snapshot, never from a second
+        // read of the path: the loaded fingerprint matches a direct parse
+        // of the same bytes.
+        assert_eq!(
+            loaded
+                .as_ref()
+                .expect("profile loaded")
+                .fingerprint()
+                .expect("loaded profile fingerprints"),
+            InterpretationProfile::parse(&text)
+                .expect("parses")
+                .fingerprint()
+                .expect("parsed profile fingerprints"),
+        );
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn profile_one_past_byte_cap_is_rejected() {
+        let cap: usize =
+            usize::try_from(MAX_PROFILE_BYTES).expect("profile byte cap fits in usize");
+        let text = padded_profile(cap + 1);
+        assert_eq!(
+            u64::try_from(text.len()).expect("fixture fits in u64"),
+            MAX_PROFILE_BYTES + 1
+        );
+        let path = write_bounded_fixture("past-cap.toml", text.as_bytes());
+        let error = load_profile(Some(&path)).expect_err("cap+1 profile must fail");
+        assert!(matches!(error, ProfileInputError::Invalid { .. }));
+        assert_eq!(error.subcode(), crate::subcode::PROFILE_INVALID);
+        let message = error.to_string();
+        assert!(
+            message.contains(&MAX_PROFILE_BYTES.to_string()),
+            "message names the bound: {message}"
+        );
+        let _ = std::fs::remove_file(&path);
     }
 
     /// Version 2 profile carrying a non-default write policy.

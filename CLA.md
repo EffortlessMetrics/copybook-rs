@@ -3,11 +3,13 @@
 
 ## copybook-rs Individual Contributor License Agreement
 
-Thank you for your interest in contributing to copybook-rs ("the Project"). This Contributor License Agreement ("Agreement") documents the rights granted by contributors to the Project.
+Thank you for your interest in contributing to copybook-rs ("the Project"). This Individual Contributor License Agreement ("Agreement") documents the rights granted by individual contributors to the Project.
+
+You enter this Agreement in your individual capacity. If an employer or another entity owns or controls rights in a Contribution, or must grant the rights itself, do not use the individual signing flow. Contact the maintainers privately about the separate Corporate CLA and authorization process before submitting the covered Contribution.
 
 ### 1. Definitions
 
-**"You"** (or **"Your"**) means the copyright owner or legal entity authorized by the copyright owner that is entering into this Agreement.
+**"You"** (or **"Your"**) means the individual copyright owner entering into this Agreement.
 
 **"Contribution"** means any original work of authorship, including any modifications or additions to an existing work, that is intentionally submitted by You to the Project for inclusion in, or documentation of, the Project.
 
@@ -30,9 +32,10 @@ Subject to the terms and conditions of this Agreement, You hereby grant to the P
 You represent that:
 
 - You are legally entitled to grant the above licenses
-- Each of Your Contributions is Your original creation (or You have rights to submit it)
+- Each of Your Contributions is Your original creation, or You have sufficient rights to submit it under these terms
 - Your Contributions do not violate any third-party rights
 - You have disclosed any third-party licenses or restrictions
+- No employer or other entity owns or controls the rights that You grant under this Agreement. If an employer policy or contingent claim applies without giving the employer ownership or control of those rights, You have obtained any permission or waiver required to contribute in Your individual capacity. If an employer or another entity owns or controls the rights, the Corporate CLA and authorization process is required instead
 
 ### 5. Support and Warranty Disclaimer
 
@@ -48,24 +51,56 @@ You agree to notify the Project maintainers if any facts or circumstances change
 
 ## How to Sign
 
-To sign this CLA, please include the following statement in your first pull request:
+Open or update a pull request. The hosted
+[CLA Assistant](https://cla-assistant.io/) integration will comment with a link
+to review and sign this Agreement through GitHub authentication after the
+hosted flow has been activated for the repository. The `license/cla` status
+must pass before the contribution can be accepted.
 
-```
-I have read and agree to the Contributor License Agreement (CLA.md).
+The signing form asks for your full legal name, email address, and a required
+acknowledgement that you are signing this Individual CLA in your individual
+capacity and have authority to grant the rights stated in it. GitHub identity,
+signing time, and the CLA version are recorded by the authenticated signing
+event. A change to the linked Gist Agreement or its signing metadata may require
+re-signing. Do not post those details in the pull request.
 
-Signed: [Your Full Name]
-Date: [YYYY-MM-DD]
-GitHub: @[your-github-username]
-Email: [your-email]
-```
-
-**For corporate contributors**: Please contact the maintainers at [maintainer contact] for a Corporate CLA.
+**For corporate contributors**: This is an Individual CLA. Do not sign it on
+behalf of an employer. Contact the maintainers through the private email link at
+[EffortlessSteven.com](https://effortlesssteven.com/) before submitting a
+corporate contribution. A separate Corporate CLA and authorization process are
+required.
 
 ---
 
+## Contributor Privacy Notice
+
+EffortlessMetrics, acting through the copybook-rs maintainers, is the controller
+for CLA records collected for the Project. The hosted flow is not treated as
+active until its public Gist, GitHub App linkage, live `license/cla` result, and
+default-branch enforcement are recorded in
+[`docs/CLA_OPERATIONS.md`](docs/CLA_OPERATIONS.md).
+
+Once active, the hosted CLA Assistant service at
+[cla-assistant.io](https://cla-assistant.io/) records assent to this Agreement
+and maintains the operational licensing record. The record contains your GitHub
+identity, full legal name, email address, signing time, required
+individual-capacity acknowledgement, and the CLA version you signed. We retain
+it for as long as reasonably necessary to document the licensing status of
+submitted or accepted Contributions and to establish, exercise, or defend legal
+rights. Removing a Contribution or GitHub account does not automatically remove
+the licensing record.
+
+CLA Assistant processes the signing record for the Project after activation.
+Project maintainers also retain private exports so the hosted service is not the
+only copy. To request access to or correction of a record, use the private email
+link at [EffortlessSteven.com](https://effortlesssteven.com/) and identify the
+repository and GitHub account. Do not include personal information in a public
+issue.
+
 ## Questions?
 
-If you have questions about this CLA, please open an issue or contact the maintainers.
+If you have questions about this CLA, open an issue without personal information
+or contact the maintainers privately.
 
 **Effective Date**: 2025-10-03
 **Project**: copybook-rs

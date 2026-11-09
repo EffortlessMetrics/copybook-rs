@@ -19,6 +19,8 @@ Use these documents as canonical technical references and interface definitions.
   Reference details for benchmark behavior and outputs.
 - **[Grammar Renames](GRAMMAR_RENAMES.md)**  
   Rename behavior and aliasing reference for schema fields.
+- **[CLA Assistant signer metadata](cla-assistant-metadata.json)**
+  Canonical required fields copied byte-for-byte into the hosted Gist's `metadata` file.
 - **[Security Receipt Schema](security-receipt-schema.md)** and **[security-receipt-schema.json](security-receipt-schema.json)**  
   JSON schema definition and schema-serialization details.
 
@@ -27,6 +29,7 @@ Use these documents as canonical technical references and interface definitions.
 - Use references as the first source for API/CLI behavior.
 - Pair each reference with the related explanation and how-to when implementing changes.
 - Prefer this directory for signatures, structures, and explicit constraints before editing runtime behavior.
+
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](../../LICENSE).

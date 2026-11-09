@@ -1,0 +1,19 @@
+{
+  "name": {
+    "title": "Full legal name",
+    "type": "string",
+    "githubKey": "name",
+    "required": true
+  },
+  "email": {
+    "title": "Email address",
+    "type": "string",
+    "githubKey": "email",
+    "required": true
+  },
+  "individualCapacity": {
+    "title": "I am signing this Individual CLA in my individual capacity and have authority to grant the rights stated in it.",
+    "type": "boolean",
+    "required": true
+  }
+}

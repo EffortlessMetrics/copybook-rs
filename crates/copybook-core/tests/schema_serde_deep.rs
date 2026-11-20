@@ -35,14 +35,33 @@ fn schema_serde_json_roundtrip_simple() {
         r#"
        01  REC.
            05  A PIC X(10).
-           05  B PIC 9(5).
+           05  AMOUNT PIC S9(3)V99 COMP-3.
     "#,
     );
     let (json, back) = roundtrip(&schema);
     assert!(!json.is_empty());
     assert_eq!(back.fields.len(), schema.fields.len());
-    assert_eq!(back.fields[0].name, "REC");
-    assert_eq!(back.fields[0].children.len(), 2);
+    let group = &back.fields[0];
+    assert_eq!(group.name, "REC");
+    assert_eq!(group.path, "REC");
+    assert_eq!(group.level, 1);
+    assert!(matches!(group.kind, FieldKind::Group));
+    assert_eq!(group.len, 13);
+    assert_eq!(group.children.len(), 2);
+
+    let amount = &group.children[1];
+    assert_eq!(amount.name, "AMOUNT");
+    assert_eq!(amount.path, "REC.AMOUNT");
+    assert_eq!(amount.level, 5);
+    assert_eq!(amount.len, 3);
+    assert!(matches!(
+        amount.kind,
+        FieldKind::PackedDecimal {
+            digits: 5,
+            scale: 2,
+            signed: true
+        }
+    ));
 }
 
 #[test]

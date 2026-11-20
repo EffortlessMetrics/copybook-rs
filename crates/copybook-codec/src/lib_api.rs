@@ -876,6 +876,12 @@ fn add_zoned_overflow_context(
     }
 }
 
+/// Name the failing OCCURS element while preserving the child's schema identity.
+fn with_group_element(mut error: Error, field: &copybook_core::Field, index: u32) -> Error {
+    error.message = format!("{}[{index}]: {}", field.path, error.message);
+    error
+}
+
 /// Process an array field (with OCCURS clause)
 #[allow(clippy::too_many_arguments)]
 fn process_array_field(
@@ -952,7 +958,8 @@ fn process_array_field(
                     scratch_buffers,
                     record_index,
                     encoding_acc,
-                )?;
+                )
+                .map_err(|error| with_group_element(error, field, i))?;
                 Value::Object(element_obj)
             }
             FieldKind::Condition { values } => condition_value(values, "CONDITION_ARRAY"),
@@ -1071,7 +1078,8 @@ fn process_array_field_with_scratch(
                     scratch,
                     record_index,
                     encoding_acc,
-                )?;
+                )
+                .map_err(|error| with_group_element(error, field, i))?;
                 Value::Object(group_obj)
             }
             FieldKind::Condition { values } => condition_value(values, "CONDITION_ARRAY"),

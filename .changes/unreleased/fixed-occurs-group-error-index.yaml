@@ -1,0 +1,3 @@
+kind: fixed
+body: 'Decode errors inside an OCCURS group now name the failing element using its zero-based index, for example REC.ITEMS[1] for the second element.'
+time: '2026-11-20T12:15:00Z'

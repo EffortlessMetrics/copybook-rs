@@ -180,6 +180,29 @@ fn decode_nested_occurs() {
     assert_eq!(inner1[1], "DDD");
 }
 
+#[test]
+fn decode_error_names_failing_group_element() {
+    let schema =
+        parse_copybook("01 REC.\n  05 ITEMS OCCURS 2 TIMES.\n    10 AMOUNT PIC 9 COMP-3.").unwrap();
+    let options = ebcdic_opts();
+    let mut scratch = copybook_codec::runtime::ScratchBuffers::new();
+    let valid = [0x1F, 0x2F];
+    assert!(decode_record(&schema, &valid, &options).is_ok());
+
+    for (index, expected) in ["REC.ITEMS[0]", "REC.ITEMS[1]"].into_iter().enumerate() {
+        let mut data = valid;
+        data[index] = 0x17; // Invalid packed sign in this element only.
+        for result in [
+            decode_record(&schema, &data, &options),
+            copybook_codec::decode_record_with_scratch(&schema, &data, &options, &mut scratch),
+        ] {
+            let error = result.unwrap_err();
+            assert_eq!(error.code, ErrorCode::CBKD401_COMP3_INVALID_NIBBLE);
+            assert!(error.message.starts_with(expected), "{error}");
+        }
+    }
+}
+
 // ===========================================================================
 // 6. Decode OCCURS with preceding scalar field
 // ===========================================================================

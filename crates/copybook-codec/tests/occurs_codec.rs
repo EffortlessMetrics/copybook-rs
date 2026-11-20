@@ -182,16 +182,23 @@ fn decode_nested_occurs() {
 
 #[test]
 fn decode_error_names_failing_group_element() {
-    let schema =
-        parse_copybook("01 REC.\n  05 ITEMS OCCURS 2 TIMES.\n    10 AMOUNT PIC 9 COMP-3.").unwrap();
+    let schema = parse_copybook(
+        r"
+        01 REC.
+           05 ITEMS OCCURS 2 TIMES.
+              10 TAG PIC X.
+              10 AMOUNT PIC 9 COMP-3.
+        ",
+    )
+    .unwrap();
     let options = ebcdic_opts();
     let mut scratch = copybook_codec::runtime::ScratchBuffers::new();
-    let valid = [0x1F, 0x2F];
+    let valid = [0xC1, 0x1F, 0xC2, 0x2F];
     assert!(decode_record(&schema, &valid, &options).is_ok());
 
-    for (index, expected) in ["REC.ITEMS[0]", "REC.ITEMS[1]"].into_iter().enumerate() {
+    for (bad_offset, expected) in [(1, "REC.ITEMS[0]"), (3, "REC.ITEMS[1]")] {
         let mut data = valid;
-        data[index] = 0x17; // Invalid packed sign in this element only.
+        data[bad_offset] = 0x17; // Invalid packed sign in this element only.
         for result in [
             decode_record(&schema, &data, &options),
             copybook_codec::decode_record_with_scratch(&schema, &data, &options, &mut scratch),

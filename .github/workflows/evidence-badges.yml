@@ -1,0 +1,205 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Evidence badge endpoints
+
+on:
+  pull_request:
+    paths:
+      - "README.md"
+      - "badges/**"
+      - "scripts/ci/evidence_badges.py"
+      - "scripts/ci/generate_ripr_test_efficiency_inventory.py"
+      - "scripts/ci/test_evidence_badges.py"
+      - "scripts/ci/test_generate_ripr_test_efficiency_inventory.py"
+      - ".github/workflows/evidence-badges.yml"
+      - "docs/ci/evidence-badges.md"
+      - "policy/unsafe-review-suppressions.toml"
+  push:
+    branches: [main]
+    paths:
+      - "README.md"
+      - "badges/**"
+      - "scripts/ci/evidence_badges.py"
+      - "scripts/ci/generate_ripr_test_efficiency_inventory.py"
+      - ".github/workflows/evidence-badges.yml"
+      - "docs/ci/evidence-badges.md"
+      - "policy/unsafe-review-suppressions.toml"
+  workflow_dispatch:
+  schedule:
+    - cron: "17 8 * * 1"
+
+concurrency:
+  group: evidence-badges-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_TOOLCHAIN: "1.98.0"
+  RIPR_VERSION: "0.10.0"
+  UNSAFE_REVIEW_VERSION: "0.5.0"
+
+jobs:
+  generate:
+    name: Generate evidence endpoints
+    if: ${{ github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Test endpoint control plane
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/test_generate_ripr_test_efficiency_inventory.py
+          python3 scripts/ci/test_evidence_badges.py
+
+      - name: Install pinned evidence tools
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+          cargo +"${RUST_TOOLCHAIN}" install ripr --version "${RIPR_VERSION}" --locked
+          cargo +"${RUST_TOOLCHAIN}" install unsafe-review --version "${UNSAFE_REVIEW_VERSION}" --locked
+          ripr --version
+          unsafe-review --version
+
+      - name: Generate repo-scoped endpoints
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/evidence_badges.py generate \
+            --root . \
+            --output target/evidence-badges
+
+      - name: Summarize endpoint values
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("target/evidence-badges/manifest.json").read_text())
+          print("## Evidence badge endpoints")
+          print()
+          for filename, endpoint in manifest["endpoints"].items():
+              print(f"- `{filename}`: **{endpoint['message']}**")
+          print()
+          print(f"- ripr: `{manifest['tools']['ripr']}`")
+          print(f"- unsafe-review: `{manifest['tools']['unsafe_review']}`")
+          PY
+
+      - name: Upload generated evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: evidence-badges-${{ github.run_id }}
+          path: target/evidence-badges/
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Check committed endpoints on reviewable commits
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for file in ripr.json ripr-plus.json unsafe-review.json unsafe-review-plus.json; do
+            if [ ! -f "badges/${file}" ]; then
+              echo "bootstrap: badges/${file} is not committed yet"
+              missing=1
+            fi
+          done
+          if [ "${missing}" -eq 0 ]; then
+            python3 scripts/ci/evidence_badges.py check \
+              target/evidence-badges badges
+          else
+            echo "bootstrap PR: generated endpoints are available in the workflow artifact"
+          fi
+
+  refresh:
+    name: Open badge refresh PR
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    needs: generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download generated endpoints
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: evidence-badges-${{ github.run_id }}
+          path: target/evidence-badges
+
+      - name: Publish endpoint snapshots
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/evidence_badges.py publish \
+            target/evidence-badges badges
+          python3 scripts/ci/evidence_badges.py check \
+            target/evidence-badges badges
+
+      - name: Create or update refresh PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$(git status --porcelain -- badges/)" ]; then
+            echo "Evidence badge endpoints are current."
+            exit 0
+          fi
+
+          branch="automation/evidence-badges"
+          gh auth setup-git
+          git config user.name "EffortlessSteven"
+          git config user.email "15812269+EffortlessSteven@users.noreply.github.com"
+          git switch -C "${branch}"
+          git add badges/
+          git commit -m "chore(badges): refresh evidence endpoints"
+
+          remote_sha="$(git ls-remote origin "refs/heads/${branch}" | cut -f1)"
+          if [ -n "${remote_sha}" ]; then
+            git push \
+              --force-with-lease="refs/heads/${branch}:${remote_sha}" \
+              origin "HEAD:refs/heads/${branch}"
+          else
+            git push origin "HEAD:refs/heads/${branch}"
+          fi
+
+          existing="$(
+            gh pr list \
+              --head "${branch}" \
+              --base main \
+              --state open \
+              --json number \
+              --jq '.[0].number // empty'
+          )"
+          if [ -n "${existing}" ]; then
+            echo "Updated existing badge refresh PR #${existing}."
+            exit 0
+          fi
+
+          cat > /tmp/evidence-badge-pr.md <<'EOF'
+          Refresh the committed repo-scoped evidence badge endpoints from the
+          pinned RIPR and unsafe-review versions declared in the workflow.
+
+          The workflow validates exact Shields endpoint shape and numeric
+          messages before writing badges/*.json. The README consumes only the
+          ripr+ and unsafe-review+ endpoints; the base endpoints remain audit
+          companions.
+          EOF
+
+          gh pr create \
+            --base main \
+            --head "${branch}" \
+            --title "chore(badges): refresh evidence endpoints" \
+            --body-file /tmp/evidence-badge-pr.md

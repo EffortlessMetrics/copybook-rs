@@ -263,6 +263,11 @@ pub fn run(
     // Print summary to stdout
     let mut summary_output = String::new();
     writeln!(&mut summary_output, "Verification Summary:")?;
+    writeln!(
+        &mut summary_output,
+        "  Copybook: {}",
+        copybook_path.display()
+    )?;
     writeln!(&mut summary_output, "  File: {}", input.display())?;
     writeln!(&mut summary_output, "  Format: {:?}", opts.format)?;
     writeln!(&mut summary_output, "  Codepage: {:?}", opts.codepage)?;

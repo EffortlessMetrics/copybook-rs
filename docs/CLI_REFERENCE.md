@@ -365,7 +365,7 @@ copybook encode --profile customer.toml customer.cpy data.jsonl \
 ```
 
 ### verify
-Verify data integrity and schema compliance.
+Verify data integrity and schema compliance. The stdout summary names the copybook and data file used for verification.
 
 ```
 copybook verify <COPYBOOK> <DATA> [OPTIONS]

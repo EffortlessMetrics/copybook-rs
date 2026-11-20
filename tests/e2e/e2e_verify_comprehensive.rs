@@ -733,6 +733,10 @@ fn verify_stdout_summary_contains_pass() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Verification Summary"))
+        .stdout(predicate::str::contains(format!(
+            "  Copybook: {}\n",
+            cpy_path(&dir).display()
+        )))
         .stdout(predicate::str::contains("PASS"));
 }
 

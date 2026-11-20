@@ -674,3 +674,65 @@ fn projected_encode_preserves_selected_values_at_original_offsets() -> TestResul
     }
     Ok(())
 }
+
+#[test]
+fn projected_encode_matches_full_record_at_each_selected_span() -> TestResult<()> {
+    let dir = TempDir::new()?;
+    let copybook = dir.path().join("record.cpy");
+    let input = dir.path().join("input.jsonl");
+    fs::write(
+        &copybook,
+        r"
+        01 ROW-DATA.
+           05 PREFIX-FIELD PIC XX.
+           05 MIDDLE-FIELD PIC XXX.
+           05 TAIL-FIELD   PIC X(4).
+        ",
+    )?;
+    fs::write(
+        &input,
+        r#"{"PREFIX-FIELD":"PR","MIDDLE-FIELD":"MID","TAIL-FIELD":"TAIL"}"#,
+    )?;
+
+    for format in ["fixed", "rdw"] {
+        let encode = |selection: Option<&str>| {
+            let mut cmd = cargo_bin_cmd!("copybook");
+            cmd.arg("encode").arg(&copybook).arg(&input).args([
+                "--output",
+                "-",
+                "--codepage",
+                "ascii",
+                "--format",
+                format,
+            ]);
+            if let Some(field) = selection {
+                cmd.args(["--select", field]);
+            }
+            cmd.assert().success().get_output().stdout.clone()
+        };
+        let full = encode(None);
+        let header: &[u8] = if format == "rdw" { &[0, 9, 0, 0] } else { &[] };
+        assert_eq!(
+            full,
+            [header, b"PRMIDTAIL"].concat(),
+            "{format} full record"
+        );
+
+        for (field, start, end) in [
+            ("PREFIX-FIELD", 0, 2),
+            ("MIDDLE-FIELD", 2, 5),
+            ("TAIL-FIELD", 5, 9),
+        ] {
+            let projected = encode(Some(field));
+            assert_eq!(
+                projected.len(),
+                full.len(),
+                "{format} {field} record length"
+            );
+            assert_eq!(&projected[..header.len()], header);
+            let span = header.len() + start..header.len() + end;
+            assert_eq!(projected[span.clone()], full[span], "{format} {field}");
+        }
+    }
+    Ok(())
+}

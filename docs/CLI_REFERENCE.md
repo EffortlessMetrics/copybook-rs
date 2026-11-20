@@ -298,7 +298,7 @@ copybook encode <COPYBOOK> <JSONL> [OPTIONS]
 - `-o, --output <FILE>` - Output binary file (required; use `-` for stdout)
 - `--profile <FILE>` - Reviewed interpretation profile (TOML); supplies framing, codepage, dialect, and error budget (see Interpretation Profiles)
 - `--format <FORMAT>` - Record format: fixed, rdw, vb, text (required unless `--profile` supplies framing). `text` emits one LF/CRLF-terminated line per record (see `--text-terminator`)
-- `--select <FIELD[,FIELD...]>` - Validate only specific fields during encoding (comma-separated or repeated); ODO counters and parent groups are included automatically
+- `--select <FIELD[,FIELD...]>` - Encode the selected fields at their original copybook offsets. Accepts comma-separated names or repeated flags and includes required ODO counters and parent groups.
 
 **Character Encoding:**
 - `--codepage <CP>` - Character encoding: cp037, cp273, cp500, cp1047, cp1140, ascii (default: cp037)

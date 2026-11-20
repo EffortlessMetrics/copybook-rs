@@ -2357,6 +2357,7 @@ fn encode_fields_to_bytes(
             obj,
             "",
             &EncodeFieldsContext {
+                parent_schema_offset: 0,
                 encoding_metadata,
                 flattened: false,
                 flattened_prior_names: None,
@@ -2437,13 +2438,17 @@ fn encode_fields_recursive(
             json: &json_field_name,
             prior_name_occurrences: &name_occurrences,
         };
+        // A projection can omit storage before this field. Rebase its resolved
+        // offset onto the current group occurrence so those gaps keep their width.
+        let relative_offset = field.offset.saturating_sub(context.parent_schema_offset) as usize;
+        let layout_offset = offset.checked_add(relative_offset).ok_or_else(|| {
+            Error::new(ErrorCode::CBKS141_RECORD_TOO_LARGE, "Field offset overflow")
+                .with_field(field.path.clone())
+        })?;
         let field_offset = if field.redefines_of.is_some() {
-            match usize::try_from(field.offset) {
-                Ok(offset) => offset,
-                Err(_) => current_offset,
-            }
+            layout_offset
         } else {
-            current_offset
+            current_offset.max(layout_offset)
         };
         let encoded_offset = encode_single_field(
             field,
@@ -2454,11 +2459,7 @@ fn encode_fields_recursive(
             field_offset,
             options,
         )?;
-        current_offset = if field.redefines_of.is_some() {
-            current_offset.max(encoded_offset)
-        } else {
-            encoded_offset
-        };
+        current_offset = current_offset.max(encoded_offset);
 
         let emitted_group = json_obj.contains_key(&field.name);
         if field.redefines_of.is_none() || emitted_group {
@@ -2557,6 +2558,7 @@ struct FieldNames<'a> {
 }
 
 struct EncodeFieldsContext<'a> {
+    parent_schema_offset: u32,
     encoding_metadata: Option<&'a serde_json::Map<String, Value>>,
     flattened: bool,
     flattened_prior_names: Option<&'a HashMap<&'a str, usize>>,
@@ -2649,13 +2651,23 @@ fn encode_single_field(
             if let Some(sign_sep) = sign_separate {
                 let field_len = field.len as usize;
                 if let Some(text) = json_obj.get(field_names.json).and_then(|v| v.as_str()) {
+                    let destination = buffer
+                        .get_mut(current_offset..)
+                        .and_then(|tail| tail.get_mut(..field_len))
+                        .ok_or_else(|| {
+                            Error::new(
+                                ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+                                "Sign-separate field extends beyond the output record",
+                            )
+                            .with_field(field.path.clone())
+                        })?;
                     crate::numeric::encode_zoned_decimal_sign_separate(
                         text,
                         *digits,
                         *scale,
                         sign_sep,
                         options.codepage,
-                        &mut buffer[current_offset..current_offset + field_len],
+                        destination,
                     )?;
                 }
                 Ok(current_offset + field_len)
@@ -2936,6 +2948,7 @@ fn encode_occurs_element(
             element_obj,
             field_names.path,
             &EncodeFieldsContext {
+                parent_schema_offset: field.offset,
                 encoding_metadata,
                 flattened: false,
                 flattened_prior_names: None,
@@ -2978,6 +2991,7 @@ fn encode_group_field(
             sub_obj,
             field_names.path,
             &EncodeFieldsContext {
+                parent_schema_offset: field.offset,
                 encoding_metadata,
                 flattened: false,
                 flattened_prior_names: None,
@@ -2992,6 +3006,7 @@ fn encode_group_field(
             json_obj,
             field_names.path,
             &EncodeFieldsContext {
+                parent_schema_offset: field.offset,
                 encoding_metadata,
                 flattened: field.redefines_of.is_some(),
                 flattened_prior_names: field

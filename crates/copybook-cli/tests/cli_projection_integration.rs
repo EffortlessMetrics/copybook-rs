@@ -613,3 +613,64 @@ fn test_cli_projection_unknown_field_returns_cbks703() -> TestResult<()> {
 
     Ok(())
 }
+
+#[test]
+fn projected_encode_preserves_selected_values_at_original_offsets() -> TestResult<()> {
+    let temp_dir = TempDir::new()?;
+    let copybook = temp_dir.path().join("record.cpy");
+    let input = temp_dir.path().join("input.jsonl");
+    let encoded = temp_dir.path().join("encoded.bin");
+    fs::write(
+        &copybook,
+        r"
+        01 ROW-DATA.
+           05 PREFIX-FIELD PIC XX.
+           05 ITEMS OCCURS 2 TIMES.
+              10 SKIP-FIELD PIC X.
+              10 ITEM-ID PIC XX.
+           05 TAIL-FIELD PIC X.
+        ",
+    )?;
+    let expected =
+        serde_json::json!({"ITEMS":[{"ITEM-ID":"AB"},{"ITEM-ID":"CD"}],"TAIL-FIELD":"Z"});
+    fs::write(&input, expected.to_string())?;
+    for format in ["fixed", "rdw"] {
+        cargo_bin_cmd!("copybook")
+            .arg("encode")
+            .arg(&copybook)
+            .arg(&input)
+            .arg("--output")
+            .arg(&encoded)
+            .args(["--codepage", "ascii", "--format", format])
+            .args(["--select", "TAIL-FIELD,ITEM-ID"])
+            .assert()
+            .success();
+
+        let record = fs::read(&encoded)?;
+        let payload = if format == "rdw" {
+            &record[4..]
+        } else {
+            &record
+        };
+        assert_eq!(payload.len(), 9);
+        assert_eq!(&payload[3..5], b"AB");
+        assert_eq!(&payload[6..9], b"CDZ");
+
+        let output = cargo_bin_cmd!("copybook")
+            .arg("decode")
+            .arg(&copybook)
+            .arg(&encoded)
+            .args(["--output", "-", "--codepage", "ascii", "--format", format])
+            .args([
+                "--select",
+                "ROW-DATA.ITEMS.ITEM-ID",
+                "--select",
+                "TAIL-FIELD",
+            ])
+            .assert()
+            .success();
+        let output: Value = serde_json::from_slice(&output.get_output().stdout)?;
+        assert_eq!(output["fields"], expected, "{format} selected values");
+    }
+    Ok(())
+}

@@ -210,6 +210,47 @@ fn decode_error_names_failing_group_element() {
     }
 }
 
+#[test]
+fn decode_error_names_both_nested_group_elements() {
+    let schema = parse_copybook(
+        r"
+        01 REC.
+           05 ROWS OCCURS 2 TIMES.
+              10 CELLS OCCURS 3 TIMES.
+                 15 AMOUNT PIC 9 COMP-3.
+        ",
+    )
+    .unwrap();
+    let options = ebcdic_opts();
+    let mut scratch = copybook_codec::runtime::ScratchBuffers::new();
+    let valid = [0x1F, 0x2F, 0x3F, 0x4F, 0x5F, 0x6F];
+    let expected = json!({"ROWS": [
+        {"CELLS": [{"AMOUNT": "1"}, {"AMOUNT": "2"}, {"AMOUNT": "3"}]},
+        {"CELLS": [{"AMOUNT": "4"}, {"AMOUNT": "5"}, {"AMOUNT": "6"}]}
+    ]});
+    let decoded = decode_record(&schema, &valid, &options).unwrap();
+    assert_eq!(decoded["fields"], expected);
+    assert_eq!(
+        copybook_codec::decode_record_with_scratch(&schema, &valid, &options, &mut scratch)
+            .unwrap(),
+        decoded
+    );
+
+    for (offset, row, cell) in [(2, 0, 2), (3, 1, 0), (5, 1, 2)] {
+        let mut data = valid;
+        data[offset] = 0x17;
+        for result in [
+            decode_record(&schema, &data, &options),
+            copybook_codec::decode_record_with_scratch(&schema, &data, &options, &mut scratch),
+        ] {
+            let error = result.unwrap_err();
+            assert_eq!(error.code, ErrorCode::CBKD401_COMP3_INVALID_NIBBLE);
+            assert!(error.message.contains(&format!("ROWS[{row}]")), "{error}");
+            assert!(error.message.contains(&format!("CELLS[{cell}]")), "{error}");
+        }
+    }
+}
+
 // ===========================================================================
 // 6. Decode OCCURS with preceding scalar field
 // ===========================================================================
